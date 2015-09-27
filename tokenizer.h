@@ -16,38 +16,36 @@ using namespace std;
 
 class Tokenizer
 {
-private:
+    private:
+        FILE* m_file;
+        char m_line[LINESIZE];
+        char* m_tokens[TOKENSIZE];
+        unsigned int m_num_tokens;
+        bool m_done;
 
-  FILE * m_file;
-  char m_line[LINESIZE];
-  char * m_tokens[TOKENSIZE];
-  unsigned int m_num_tokens;
-  bool m_done;
+    public:
+        Tokenizer(FILE* f)
+            : m_file(f)
+            , m_done(false) {
+        }
 
-public:
+        // -- Get the next line, break up into tokens
+        void getLine();
 
-  Tokenizer(FILE * f) {
-    m_file = f;
-    m_done = false;
-  }
+        // -- Returns true if getLine produces no tokens
+        bool isDone() const { return m_done; }
 
-  // -- Get the next line, break up into tokens
-  void getLine();
+        // -- Get the number of tokens in the current line
+        unsigned numTokens() const { return m_num_tokens; }
 
-  // -- Returns true if getLine produces no tokens
-  bool isDone() const { return m_done; }
+        // -- Get token #i as an int
+        unsigned int getInt(int i);
 
-  // -- Get the number of tokens in the current line
-  unsigned numTokens() const { return m_num_tokens; }
+        // -- Get token #i as a string
+        char* getString(int i);
 
-  // -- Get token #i as an int
-  unsigned int getInt(int i);
-
-  // -- Get token #i as a string
-  char * getString(int i);
-
-  // -- Get the first char of token #i
-  char getChar(int i);
+        // -- Get the first char of token #i
+        char getChar(int i);
 };
 
 #endif

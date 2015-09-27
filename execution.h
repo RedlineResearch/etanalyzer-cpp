@@ -21,42 +21,40 @@ typedef map<unsigned int, CCNode *> CCMap;
 
 class CCNode
 {
-private:
-  Method * m_method;
-  CCNode * m_parent;
-  // unsigned int m_startTime;
-  // unsigned int m_endTime;
-  // -- Map from method IDs to callee contexts
-  CCMap m_callees;
+    private:
+        Method* m_method;
+        CCNode* m_parent;
+        // -- Map from method IDs to callee contexts
+        CCMap m_callees;
 
-public:
-  CCNode()
-    : m_method(0),
-      m_parent(0)
-  {}
-      
-  CCNode(CCNode * parent, Method * m)
-    : m_method(m),
-      m_parent(parent)
-  {}
+    public:
+        CCNode()
+            : m_method(0)
+            , m_parent(0) {
+        }
 
-  // -- Get method
-  Method * getMethod() const { return m_method; }
+        CCNode( CCNode* parent, Method* m )
+            : m_method(m)
+            , m_parent(parent) {
+        }
 
-  // -- Get parent context (if there is one)
-  CCNode * getParent() const { return m_parent; }
+        // -- Get method
+        Method* getMethod() const { return m_method; }
 
-  // -- Call a method, making a new child context if necessary
-  CCNode * Call(Method * m);
+        // -- Get parent context (if there is one)
+        CCNode* getParent() const { return m_parent; }
 
-  // -- Return from a method, returning the parent context
-  CCNode * Return(Method * m);
+        // -- Call a method, making a new child context if necessary
+        CCNode* Call(Method* m);
 
-  // -- Produce a string representation of the context
-  string info();
+        // -- Return from a method, returning the parent context
+        CCNode* Return(Method* m);
 
-  // -- Generate a stack trace
-  string stacktrace();
+        // -- Produce a string representation of the context
+        string info();
+
+        // -- Generate a stack trace
+        string stacktrace();
 };
 
 // ----------------------------------------------------------------------
@@ -72,42 +70,35 @@ typedef deque<Method *> MethodDeque;
 
 class Thread
 {
-private:
-  // -- Thread ID
-  unsigned int m_id;
+    private:
+        // -- Thread ID
+        unsigned int m_id;
+        // -- Kind of stack
+        unsigned int m_kind;
+        // -- CC tree representation
+        CCNode* m_curcc;
+        // -- Stack of methods
+        MethodDeque m_methods;
 
-  // -- Kind of stack
-  unsigned int m_kind;
+    public:
+        Thread( unsigned int id, unsigned int kind )
+            : m_id(id)
+            , m_kind(kind)
+            , m_curcc(0) {
+        }
 
-  // -- CC tree representation
-  CCNode * m_curcc;
-  
-  // -- Stack of methods
-  MethodDeque m_methods;
+        unsigned int getId() const { return m_id; }
 
-public:
-  Thread(unsigned int id, unsigned int kind)
-    : m_id(id),
-      m_kind(kind),
-      m_curcc(0)
-  {}
-
-  unsigned int getId() const { return m_id; }
-
-  // -- Call method m
-  void Call(Method * m);
-  
-  // -- Return from method m
-  void Return(Method * m);
-
-  // -- Get current CC
-  CCNode * TopCC();
-
-  // -- Get current method
-  Method * TopMethod();
-
-  // -- Get a stack trace
-  string stacktrace();
+        // -- Call method m
+        void Call(Method* m);
+        // -- Return from method m
+        void Return(Method* m);
+        // -- Get current CC
+        CCNode* TopCC();
+        // -- Get current method
+        Method* TopMethod();
+        // -- Get a stack trace
+        string stacktrace();
 };
 
 // ----------------------------------------------------------------------
@@ -117,41 +108,38 @@ typedef map<unsigned int, Thread *> ThreadMap;
 
 class ExecState
 {
-private:
-  // -- Stack kind (CC or methods)
-  unsigned int m_kind;
+    private:
+        // -- Stack kind (CC or methods)
+        unsigned int m_kind;
+        // -- Set of threads
+        ThreadMap m_threads;
+        // -- Time
+        unsigned int m_time;
+    public:
+        ExecState(unsigned int kind)
+            : m_kind(kind)
+            , m_threads()
+            , m_time(0) {
+        }
 
-  // -- Set of threads
-  ThreadMap m_threads;
+        // -- Get the current time
+        unsigned int Now() const { return m_time; }
 
-  // -- Time
-  unsigned int m_time;
+        // -- Look up or create a thread
+        Thread* getThread(unsigned int threadid);
 
-public:
-  ExecState(unsigned int kind)
-    : m_kind(kind),
-      m_threads(),
-      m_time(0)
-  {}
+        // -- Call method m in thread t
+        void Call(Method* m, unsigned int threadid);
 
-  // -- Get the current time
-  unsigned int Now() const { return m_time; }
+        // -- Return from method m in thread t
+        void Return(Method* m, unsigned int threadid);
 
-  // -- Look up or create a thread
-  Thread * getThread(unsigned int threadid);
+        // -- Get the top method in thread t
+        Method* TopMethod(unsigned int threadid);
 
-  // -- Call method m in thread t
-  void Call(Method * m, unsigned int threadid);
-
-  // -- Return from method m in thread t
-  void Return(Method * m, unsigned int threadid);
-
-  // -- Get the top method in thread t
-  Method * TopMethod(unsigned int threadid);
-
-  // -- Get the top calling context in thread t
-  CCNode * TopCC(unsigned int threadid);
+        // -- Get the top calling context in thread t
+        CCNode* TopCC(unsigned int threadid);
 };
 
 #endif
-  
+
