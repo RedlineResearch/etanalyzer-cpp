@@ -41,7 +41,7 @@ void sanity_check()
    */
 }
 
-bool member(Object* obj, const ObjectSet & theset)
+bool member( Object* obj, const ObjectSet& theset )
 {
     return theset.find(obj) != theset.end();
 }
@@ -49,16 +49,16 @@ bool member(Object* obj, const ObjectSet & theset)
 int compute_roots(ObjectSet & roots)
 {
     unsigned int live = 0;
-    for (ObjectMap::iterator p = Heap.begin();
-            p != Heap.end();
-            p++)
-    {
+    for ( ObjectMap::iterator p = Heap.begin();
+          p != Heap.end();
+          p++ ) {
         Object* obj = p->second;
         if (obj) {
             if (obj->isLive(Exec.Now())) {
                 live++;
-                if (obj->getRefCount() == 0)
+                if (obj->getRefCount() == 0) {
                     roots.insert(obj);
+                }
             }
         }
     }
@@ -66,20 +66,22 @@ int compute_roots(ObjectSet & roots)
     return live;
 }
 
-unsigned int closure(ObjectSet & roots, ObjectSet & premarked, ObjectSet & result)
+unsigned int closure( ObjectSet& roots,
+                      ObjectSet& premarked,
+                      ObjectSet& result )
 {
     unsigned int mark_work = 0;
 
     vector<Object*> worklist;
 
     // -- Initialize the worklist with only unmarked roots
-    for (ObjectSet::iterator i = roots.begin();
-            i != roots.end();
-            i++)
-    {
+    for ( ObjectSet::iterator i = roots.begin();
+          i != roots.end();
+          i++ ) {
         Object* root = *i;
-        if ( ! member(root, premarked))
+        if ( !member(root, premarked) ) {
             worklist.push_back(root);
+        }
     }
 
     // -- Do DFS until the worklist is empty
@@ -90,17 +92,15 @@ unsigned int closure(ObjectSet & roots, ObjectSet & premarked, ObjectSet & resul
         mark_work++;
 
         const EdgeMap& fields = obj->getFields();
-        for (EdgeMap::const_iterator p = fields.begin();
-                p != fields.end();
-                p++)
-        {
+        for ( EdgeMap::const_iterator p = fields.begin();
+              p != fields.end();
+              p++ ) {
             Edge* edge = p->second;
             Object* target = edge->getTarget();
             if (target) {
                 // if (target->isLive(Exec.Now())) {
-                if (! member(target, premarked) &&
-                        ! member(target, result))
-                {
+                if ( !member(target, premarked) &&
+                     !member(target, result) ) {
                     worklist.push_back(target);
                 }
                 // } else {
@@ -113,17 +113,17 @@ unsigned int closure(ObjectSet & roots, ObjectSet & premarked, ObjectSet & resul
     return mark_work;
 }
 
-unsigned int count_live(ObjectSet & objects, unsigned int at_time)
+unsigned int count_live( ObjectSet & objects, unsigned int at_time )
 {
     int count = 0;
     // -- How many are actually live
-    for (ObjectSet::iterator p = objects.begin();
-            p != objects.end();
-            p++)
-    {
+    for ( ObjectSet::iterator p = objects.begin();
+          p != objects.end();
+          p++ ) {
         Object* obj = *p;
-        if (obj->isLive(at_time))
+        if (obj->isLive(at_time)) {
             count++;
+        }
     }
 
     return count;
@@ -173,60 +173,67 @@ void read_trace_file(FILE* f)
                     Thread* thread = Exec.getThread(thrdid);
                     unsigned int els  = (t.numTokens() == 6) ? 0 : t.getInt(5);
                     AllocSite* as = ClassInfo::TheAllocSites[t.getInt(4)];
-                    obj = Heap.allocate(t.getInt(1), t.getInt(2), t.getChar(0), t.getString(3), as, els, thread, Exec.Now());
+                    obj = Heap.allocate( t.getInt(1),
+                                         t.getInt(2),
+                                         t.getChar(0),
+                                         t.getString(3),
+                                         as,
+                                         els,
+                                         thread,
+                                         Exec.Now() );
                     unsigned int old_alloc_time = AllocationTime;
                     AllocationTime += obj->getSize();
                 }
                 break;
 
             case 'U':
-                // U <old-target> <object> <new-target> <field> <thread>
-                // 0      1          2         3           4        5
-                // -- Look up objects and perform update
-                obj = Heap.get(t.getInt(2));
-                target = Heap.get(t.getInt(3));
-                if (obj && target) {
-                    unsigned int field_id = t.getInt(4);
-                    Edge* new_edge = Heap.make_edge(obj, field_id, target, Exec.Now());
-                    // NOTFORCHECKIN obj->updateField(new_edge, Exec.Now());
-                    /*
-                       if (member(obj, deferred_objects) && ! member(target, deferred_objects)) {
-                       if ( ! member(obj, fringe)) {
-                       cout << "FRINGE add " << obj->info() << endl;
-                       cout << "       --> " << target->info() << endl;
-                       fringe.insert(obj);
-                       }
-                       }
-                       */
+                {
+                    // U <old-target> <object> <new-target> <field> <thread>
+                    // 0      1          2         3           4        5
+                    // -- Look up objects and perform update
+                    obj = Heap.get(t.getInt(2));
+                    target = Heap.get(t.getInt(3));
+                    if (obj && target) {
+                        unsigned int field_id = t.getInt(4);
+                        Edge* new_edge = Heap.make_edge( obj, field_id,
+                                                         target, Exec.Now() );
+                    }
                 }
-
                 break;
 
             case 'D':
-                // D <object>
-                // 0    1
-                obj = Heap.get(t.getInt(1));
-                if (obj)
-                    obj->makeDead(Exec.Now());
+                {
+                    // D <object>
+                    // 0    1
+                    obj = Heap.get(t.getInt(1));
+                    if (obj) {
+                        obj->makeDead(Exec.Now());
+                    }
+                }
                 break;
 
             case 'M':
-                // M <methodid> <receiver> <threadid>
-                // 0      1         2           3
-                // current_cc = current_cc->DemandCallee(method_id, object_id, thread_id);
-                method_id = t.getInt(1);
-                method = ClassInfo::TheMethods[method_id];
-                thread_id = t.getInt(3);
-                Exec.Call(method, thread_id);
+                {
+                    // M <methodid> <receiver> <threadid>
+                    // 0      1         2           3
+                    // current_cc = current_cc->DemandCallee(method_id, object_id, thread_id);
+                    method_id = t.getInt(1);
+                    method = ClassInfo::TheMethods[method_id];
+                    thread_id = t.getInt(3);
+                    Exec.Call(method, thread_id);
+                }
                 break;
 
             case 'E':
-                // E <methodid> <receiver> [<exceptionobj>] <threadid>
-                // 0      1         2             3             3/4
-                method_id = t.getInt(1);
-                method = ClassInfo::TheMethods[method_id];
-                thread_id = (t.numTokens() == 4) ? t.getInt(3) : t.getInt(4);
-                Exec.Return(method, thread_id);
+                {
+                    // E <methodid> <receiver> [<exceptionobj>] <threadid>
+                    // 0      1         2             3             3/4
+                    method_id = t.getInt(1);
+                    method = ClassInfo::TheMethods[method_id];
+                    thread_id = (t.numTokens() == 4) ? t.getInt(3)
+                                                     : t.getInt(4);
+                    Exec.Return(method, thread_id);
+                }
                 break;
 
             case 'T':
