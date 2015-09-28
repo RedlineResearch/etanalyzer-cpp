@@ -135,7 +135,7 @@ unsigned int count_live( ObjectSet & objects, unsigned int at_time )
 
 void read_trace_file(FILE* f)
 {
-    Tokenizer t(f);
+    Tokenizer tokenizer(f);
 
     unsigned int method_id;
     unsigned int object_id;
@@ -150,9 +150,9 @@ void read_trace_file(FILE* f)
     // -- Allocation time
     unsigned int AllocationTime = 0;
 
-    while ( ! t.isDone()) {
-        t.getLine();
-        if (t.isDone()) {
+    while ( ! tokenizer.isDone()) {
+        tokenizer.getLine();
+        if (tokenizer.isDone()) {
             break;
         }
 
@@ -160,7 +160,7 @@ void read_trace_file(FILE* f)
             cout << "  Method time: " << Exec.Now() << "   Alloc time: " << AllocationTime << endl;
         }
 
-        switch (t.getChar(0)) {
+        switch (tokenizer.getChar(0)) {
             case 'A':
             case 'I':
             case 'N':
@@ -169,14 +169,16 @@ void read_trace_file(FILE* f)
                 {
                     // A/I/N/P/V <id> <size> <type> <site> [<els>] <threadid>
                     //     0       1    2      3      4      5         5/6
-                    unsigned int thrdid = (t.numTokens() == 6) ? t.getInt(5) : t.getInt(6);
+                    unsigned int thrdid = (tokenizer.numTokens() == 6) ? tokenizer.getInt(5)
+                                                                       : tokenizer.getInt(6);
                     Thread* thread = Exec.getThread(thrdid);
-                    unsigned int els  = (t.numTokens() == 6) ? 0 : t.getInt(5);
-                    AllocSite* as = ClassInfo::TheAllocSites[t.getInt(4)];
-                    obj = Heap.allocate( t.getInt(1),
-                                         t.getInt(2),
-                                         t.getChar(0),
-                                         t.getString(3),
+                    unsigned int els  = (tokenizer.numTokens() == 6) ? 0
+                                                                     : tokenizer.getInt(5);
+                    AllocSite* as = ClassInfo::TheAllocSites[tokenizer.getInt(4)];
+                    obj = Heap.allocate( tokenizer.getInt(1),
+                                         tokenizer.getInt(2),
+                                         tokenizer.getChar(0),
+                                         tokenizer.getString(3),
                                          as,
                                          els,
                                          thread,
@@ -191,13 +193,15 @@ void read_trace_file(FILE* f)
                     // U <old-target> <object> <new-target> <field> <thread>
                     // 0      1          2         3           4        5
                     // -- Look up objects and perform update
-                    obj = Heap.get(t.getInt(2));
-                    target = Heap.get(t.getInt(3));
+                    obj = Heap.get(tokenizer.getInt(2));
+                    target = Heap.get(tokenizer.getInt(3));
+                    // TEMP TODO
                     if (obj && target) {
-                        unsigned int field_id = t.getInt(4);
+                        unsigned int field_id = tokenizer.getInt(4);
                         Edge* new_edge = Heap.make_edge( obj, field_id,
                                                          target, Exec.Now() );
                     }
+                    // TODO: Why is the old edge not removed?
                 }
                 break;
 
@@ -205,7 +209,7 @@ void read_trace_file(FILE* f)
                 {
                     // D <object>
                     // 0    1
-                    obj = Heap.get(t.getInt(1));
+                    obj = Heap.get(tokenizer.getInt(1));
                     if (obj) {
                         obj->makeDead(Exec.Now());
                     }
@@ -217,9 +221,9 @@ void read_trace_file(FILE* f)
                     // M <methodid> <receiver> <threadid>
                     // 0      1         2           3
                     // current_cc = current_cc->DemandCallee(method_id, object_id, thread_id);
-                    method_id = t.getInt(1);
+                    method_id = tokenizer.getInt(1);
                     method = ClassInfo::TheMethods[method_id];
-                    thread_id = t.getInt(3);
+                    thread_id = tokenizer.getInt(3);
                     Exec.Call(method, thread_id);
                 }
                 break;
@@ -228,10 +232,10 @@ void read_trace_file(FILE* f)
                 {
                     // E <methodid> <receiver> [<exceptionobj>] <threadid>
                     // 0      1         2             3             3/4
-                    method_id = t.getInt(1);
+                    method_id = tokenizer.getInt(1);
                     method = ClassInfo::TheMethods[method_id];
-                    thread_id = (t.numTokens() == 4) ? t.getInt(3)
-                                                     : t.getInt(4);
+                    thread_id = (tokenizer.numTokens() == 4) ? tokenizer.getInt(3)
+                                                             : tokenizer.getInt(4);
                     Exec.Return(method, thread_id);
                 }
                 break;
@@ -246,7 +250,7 @@ void read_trace_file(FILE* f)
                 break;
 
             default:
-                // cout << "ERROR: Unknown entry " << t.curChar() << endl;
+                // cout << "ERROR: Unknown entry " << tokenizer.curChar() << endl;
                 break;
         }
     }

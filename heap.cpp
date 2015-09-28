@@ -127,13 +127,12 @@ void Object::makeDead(unsigned int death_time)
         // -- Edge dies now
         edge->setEndTime(death_time);
 
-        if (HeapState::do_refcounting) {
-            // -- Decrement outgoing refs
-            Object* target = edge->getTarget();
-            if (target) {
-                target->decrementRefCount();
-            }
-        }
+        // TODO: Is this the right thing to do?
+        // // -- Decrement outgoing refs
+        // Object* target = edge->getTarget();
+        // if (target) {
+        //     target->decrementRefCount();
+        // }
     }
 
     if (HeapState::debug) {
