@@ -46,26 +46,6 @@ bool member( Object* obj, const ObjectSet& theset )
     return theset.find(obj) != theset.end();
 }
 
-int compute_roots(ObjectSet & roots)
-{
-    unsigned int live = 0;
-    for ( ObjectMap::iterator p = Heap.begin();
-          p != Heap.end();
-          p++ ) {
-        Object* obj = p->second;
-        if (obj) {
-            if (obj->isLive(Exec.Now())) {
-                live++;
-                if (obj->getRefCount() == 0) {
-                    roots.insert(obj);
-                }
-            }
-        }
-    }
-
-    return live;
-}
-
 unsigned int closure( ObjectSet& roots,
                       ObjectSet& premarked,
                       ObjectSet& result )
@@ -196,6 +176,7 @@ void read_trace_file(FILE* f)
                     obj = Heap.get(tokenizer.getInt(2));
                     target = Heap.get(tokenizer.getInt(3));
                     // TEMP TODO
+                    // Increment and decrement refcounts
                     if (obj && target) {
                         unsigned int field_id = tokenizer.getInt(4);
                         Edge* new_edge = Heap.make_edge( obj, field_id,
@@ -212,6 +193,7 @@ void read_trace_file(FILE* f)
                     obj = Heap.get(tokenizer.getInt(1));
                     if (obj) {
                         obj->makeDead(Exec.Now());
+                        // TEMP TODO this shouldn't decrement refcounts
                     }
                 }
                 break;
@@ -221,6 +203,7 @@ void read_trace_file(FILE* f)
                     // M <methodid> <receiver> <threadid>
                     // 0      1         2           3
                     // current_cc = current_cc->DemandCallee(method_id, object_id, thread_id);
+                    // TEMP TODO ignore method events
                     method_id = tokenizer.getInt(1);
                     method = ClassInfo::TheMethods[method_id];
                     thread_id = tokenizer.getInt(3);

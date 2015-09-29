@@ -36,9 +36,13 @@ class HeapState
         // -- Set of edges (all pointers)
         EdgeSet m_edges;
 
+        // Map from IDs to bool if possible cyle root
+        map<unsigned int, bool> m_candidate_map;
+
     public:
         HeapState()
-            : m_objects() {
+            : m_objects()
+            , m_candidate_map() {
         }
 
         Object* allocate( unsigned int id,
@@ -63,6 +67,17 @@ class HeapState
         EdgeSet::iterator end_edges() { return m_edges.end(); }
 
         void end_of_program(unsigned int cur_time);
+
+        void set_candidate(unsigned int objId);
+        void unset_candidate(unsigned int objId);
+};
+
+enum Color {
+    BLUE = 1,
+    RED = 2,
+    PURPLE = 3, // UNUSED
+    BLACK = 4,
+    GREEN = 5,
 };
 
 class Object
@@ -80,14 +95,18 @@ class Object
         unsigned int m_deathTime;
 
         unsigned int m_refCount;
+        Color m_color;
 
         EdgeMap m_fields;
+
+        HeapState* m_heapptr;
 
     public:
         Object( unsigned int id, unsigned int size,
                 char kind, char* type,
                 AllocSite* site, unsigned int els,
-                Thread* thread, unsigned int create_time )
+                Thread* thread, unsigned int create_time,
+                HeapState* heap)
             : m_id(id)
             , m_size(size)
             , m_kind(kind)
@@ -97,7 +116,9 @@ class Object
             , m_thread(thread)
             , m_createTime(create_time)
             , m_deathTime(UINT_MAX)
-            , m_refCount(0) {
+            , m_refCount(0)
+            , m_color(GREEN)
+            , m_heapptr(heap) {
         }
 
         // -- Getters
@@ -107,6 +128,7 @@ class Object
         Thread* getThread() const { return m_thread; }
         unsigned int getCreateTime() const { return m_createTime; }
         unsigned int getDeathTime() const { return m_deathTime; }
+        Color getColor() const { return m_color; }
 
         // -- Ref counting
         unsigned int getRefCount() const { return m_refCount; }
@@ -122,6 +144,10 @@ class Object
         void updateField(Edge* edge, unsigned int cur_time);
         // -- Record death time
         void makeDead(unsigned int death_time);
+        // -- Set the color
+        void recolor(Color newColor);
+        // -- Delete edge
+        void deleteEdge(Edge* edge);
 };
 
 class Edge

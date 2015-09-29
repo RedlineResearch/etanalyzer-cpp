@@ -12,7 +12,8 @@ Object* HeapState::allocate( unsigned int id, unsigned int size,
     Object* obj = new Object( id, size,
                               kind, type,
                               site, els,
-                              thread, create_time );
+                              thread, create_time,
+                              this );
     m_objects[obj->getId()] = obj;
 
     if (m_objects.size() % 100000 == 0) {
@@ -61,6 +62,16 @@ void HeapState::end_of_program(unsigned int cur_time)
     }
 }
 
+void HeapState::set_candidate(unsigned int objId)
+{
+    m_candidate_map[objId] = true;
+}
+
+void HeapState::unset_candidate(unsigned int objId)
+{
+    m_candidate_map[objId] = false;
+}
+
 // -- Return a string with some information
 string Object::info() {
     stringstream ss;
@@ -90,11 +101,6 @@ void Object::updateField(Edge* edge, unsigned int cur_time)
             // -- Now we know the end time
             old_edge->setEndTime(cur_time);
 
-            // -- Decrement ref count on target
-            Object* old_target = old_edge->getTarget();
-            if (old_target) {
-                old_target->decrementRefCount();
-            }
         }
     }
 
@@ -106,10 +112,38 @@ void Object::updateField(Edge* edge, unsigned int cur_time)
 
     if (HeapState::debug) {
         cout << "Update "
-             << m_id << "." << field_id <<
-             " --> " << target->m_id
+             << m_id << "." << field_id
+             << " --> " << target->m_id
              << " (" << target->getRefCount() << ")"
              << endl;
+    }
+}
+
+void Object::deleteEdge(Edge* edge)
+{
+    Object* target = edge->getTarget();
+    if (target) {
+        target->decrementRefCount();
+        int rc = target->getRefCount();
+        if (rc == 0) {
+            // -- Visit all edges
+            for ( EdgeMap::iterator p = m_fields.begin();
+                  p != m_fields.end();
+                  p++ ) {
+                Edge* target_edge = p->second;
+                Object* next_target_object = target_edge->getTarget();
+                if (target_edge) {
+                    deleteEdge( target_edge );
+                }
+            }
+        } else {
+            Color color = target->getColor();
+            if (color != BLACK) {
+                unsigned int objId = target->getId();
+                target->recolor(BLACK);
+                m_heapptr->set_candidate(objId);
+            }
+        }
     }
 }
 
@@ -138,5 +172,32 @@ void Object::makeDead(unsigned int death_time)
     if (HeapState::debug) {
         cout << "Dead object " << m_id << " of type " << m_type << endl;
     }
+}
+
+void Object::recolor(Color newColor)
+{
+    // Maintain the invariant that the reference count of a node is
+    // the number of GREEN or BLACK pointers to it.
+    for ( EdgeMap::iterator p = m_fields.begin();
+          p != m_fields.end();
+          p++ ) {
+        Edge* edge = p->second;
+        Object* target = edge->getTarget();
+
+        if ( (m_color == GREEN || m_color == BLACK) &&
+             (newColor != GREEN) && (newColor != BLACK) ) {
+            // decrement reference count of target
+            if (target) {
+                target->decrementRefCount();
+            }
+        } else if ( (m_color != GREEN && m_color != BLACK) &&
+                    (newColor == GREEN) || (newColor == BLACK) ) {
+            // increment reference count of target
+            if (target) {
+                target->incrementRefCount();
+            }
+        }
+    }
+    m_color = newColor;
 }
 
