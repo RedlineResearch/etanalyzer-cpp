@@ -49,6 +49,7 @@ Edge* HeapState::make_edge( Object* source, unsigned int field_id,
     return new_edge;
 }
 
+// TODO Documentation :)
 void HeapState::end_of_program(unsigned int cur_time)
 {
     // -- Set death time of all remaining live objects
@@ -62,14 +63,36 @@ void HeapState::end_of_program(unsigned int cur_time)
     }
 }
 
+// TODO Documentation :)
 void HeapState::set_candidate(unsigned int objId)
 {
     m_candidate_map[objId] = true;
 }
 
+// TODO Documentation :)
 void HeapState::unset_candidate(unsigned int objId)
 {
     m_candidate_map[objId] = false;
+}
+
+// TODO Documentation :)
+void HeapState::process_queue()
+{
+}
+
+// TODO Documentation :)
+void HeapState::analyze()
+{
+}
+
+// TODO Documentation :)
+void HeapState::scan_queue()
+{
+}
+
+void HeapState::get_cycle_list( deque< deque<Object*> >& cycle_list)
+{ // TODO
+    cycle_list.clear();
 }
 
 // -- Return a string with some information
@@ -100,12 +123,14 @@ void Object::updateField(Edge* edge, unsigned int cur_time)
         if (old_edge) {
             // -- Now we know the end time
             old_edge->setEndTime(cur_time);
-
+            deleteEdge(old_edge);
         }
     }
 
     // -- Increment new ref
-    target->incrementRefCount();
+    if (target) {
+        target->incrementRefCount();
+    }
 
     // -- Do store
     m_fields[field_id] = edge;
@@ -143,6 +168,22 @@ void Object::deleteEdge(Edge* edge)
                 target->recolor(BLACK);
                 m_heapptr->set_candidate(objId);
             }
+        }
+    }
+}
+
+void Object::mark_red()
+{
+    if ( (m_color == GREEN) || (m_color == BLACK) ) {
+        // Only recolor if object is GREEN or BLACK.
+        // Ignore if already RED or BLUE.
+        this->recolor( RED );
+        for ( EdgeMap::iterator p = m_fields.begin();
+              p != m_fields.end();
+              p++ ) {
+            Edge* edge = p->second;
+            Object* target = edge->getTarget();
+            target->mark_red();
         }
     }
 }

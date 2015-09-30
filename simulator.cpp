@@ -5,6 +5,7 @@
 #include <map>
 #include <set>
 #include <vector>
+#include <deque>
 
 using namespace std;
 
@@ -30,6 +31,7 @@ bool debug = false;
 
 // ----------------------------------------------------------------------
 //   Analysis
+deque< deque<Object*> > cycle_list;
 
 void sanity_check()
 {
@@ -181,6 +183,7 @@ void read_trace_file(FILE* f)
                         unsigned int field_id = tokenizer.getInt(4);
                         Edge* new_edge = Heap.make_edge( obj, field_id,
                                                          target, Exec.Now() );
+                        obj->updateField(new_edge, Exec.Now());
                     }
                     // TODO: Why is the old edge not removed?
                 }
@@ -253,5 +256,7 @@ int main(int argc, char* argv[])
     Heap.end_of_program(Exec.Now());
 
     // TODO analyze(Exec.Now());
+    Heap.analyze();
+    Heap.get_cycle_list( cycle_list ); // This clears and stores the cycle list in cycle_list.
 }
 

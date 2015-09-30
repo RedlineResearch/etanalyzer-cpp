@@ -77,7 +77,7 @@ void Thread::Return(Method* m)
         if (cur->getMethod())
             m_curcc = cur->Return(m);
         else {
-            cout << "WARNING: Return from " << m->info() << " at top context" << endl;
+            // cout << "WARNING: Return from " << m->info() << " at top context" << endl;
             m_curcc = cur;
         }
     }
@@ -86,9 +86,9 @@ void Thread::Return(Method* m)
         if ( ! m_methods.empty()) {
             Method* cur = m_methods.back();
             m_methods.pop_back();
-            if (cur != m) {
-                cout << "WARNING: Return from method " << m->info() << " does not match stack top " << cur->info() << endl;
-            }
+            // if (cur != m) {
+            //     cout << "WARNING: Return from method " << m->info() << " does not match stack top " << cur->info() << endl;
+            // }
         } else {
             cout << "ERROR: Stack empty at return " << m->info() << endl;
         }

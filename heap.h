@@ -6,6 +6,7 @@
 //
 #include <iostream>
 #include <map>
+#include <deque>
 #include <limits.h>
 
 #include "classinfo.h"
@@ -70,6 +71,10 @@ class HeapState
 
         void set_candidate(unsigned int objId);
         void unset_candidate(unsigned int objId);
+        void process_queue();
+        void analyze();
+        void get_cycle_list( deque< deque<Object*> >& cycle_list );
+        void scan_queue();
 };
 
 enum Color {
@@ -148,6 +153,8 @@ class Object
         void recolor(Color newColor);
         // -- Delete edge
         void deleteEdge(Edge* edge);
+        // Mark object as red
+        void mark_red();
 };
 
 class Edge
