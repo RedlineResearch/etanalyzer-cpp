@@ -56,7 +56,7 @@ void HeapState::end_of_program(unsigned int cur_time)
     for ( ObjectMap::iterator i = m_objects.begin();
           i != m_objects.end();
           ++i ) {
-        Object* obj = (*i).second;
+        Object* obj = i->second;
         if (obj->isLive(cur_time)) {
             obj->makeDead(cur_time);
         }
@@ -88,6 +88,22 @@ void HeapState::analyze()
 // TODO Documentation :)
 void HeapState::scan_queue()
 {
+    for ( map<unsigned int, bool>::iterator i = m_candidate_map.begin();
+          i != m_candidate_map.end();
+          ++i ) {
+        int objId = i->first;
+        bool flag = i->second;
+        if (flag) {
+            Object* object = this->get(objId);
+            if (object) {
+                if (object->getColor() == BLACK) {
+                    object->mark_red();
+                    object->scan();
+                    object->collect_blue();
+                }
+            }
+        }
+    }
 }
 
 void HeapState::get_cycle_list( deque< deque<Object*> >& cycle_list)
@@ -152,8 +168,8 @@ void Object::deleteEdge(Edge* edge)
         int rc = target->getRefCount();
         if (rc == 0) {
             // -- Visit all edges
-            for ( EdgeMap::iterator p = m_fields.begin();
-                  p != m_fields.end();
+            for ( EdgeMap::iterator p = target->m_fields.begin();
+                  p != target->m_fields.end();
                   p++ ) {
                 Edge* target_edge = p->second;
                 Object* next_target_object = target_edge->getTarget();
@@ -186,6 +202,53 @@ void Object::mark_red()
             target->mark_red();
         }
     }
+}
+
+void Object::scan()
+{
+    cout << ".";
+    if (this->m_color == RED) {
+        if (this->m_refCount > 0) {
+            this->scan_green();
+        } else {
+            this->recolor( BLUE );
+            // -- Visit all edges
+            for ( EdgeMap::iterator p = this->m_fields.begin();
+                  p != this->m_fields.end();
+                  p++ ) {
+                Edge* target_edge = p->second;
+                if (target_edge) {
+                    Object* next_target_object = target_edge->getTarget();
+                    if (next_target_object) {
+                        next_target_object->scan();
+                    }
+                }
+            }
+        }
+    }
+}
+
+void Object::scan_green()
+{
+    this->recolor( GREEN );
+    for ( EdgeMap::iterator p = this->m_fields.begin();
+          p != this->m_fields.end();
+          p++ ) {
+        Edge* target_edge = p->second;
+        if (target_edge) {
+            Object* next_target_object = target_edge->getTarget();
+            if (next_target_object) {
+                if (next_target_object->getColor() != GREEN) {
+                    next_target_object->scan_green();
+                }
+            }
+        }
+    }
+}
+
+deque<int> Object::collect_blue()
+{
+    return deque<int>();
 }
 
 void Object::makeDead(unsigned int death_time)
@@ -239,6 +302,6 @@ void Object::recolor(Color newColor)
             }
         }
     }
-    m_color = newColor;
+    this->m_color = newColor;
 }
 

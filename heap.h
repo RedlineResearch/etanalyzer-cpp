@@ -155,6 +155,12 @@ class Object
         void deleteEdge(Edge* edge);
         // Mark object as red
         void mark_red();
+        // Searches for a GREEN object
+        void scan();
+        // Recolors all nodes visited GREEN.
+        void scan_green();
+        // Searches for garbage cycle
+        deque<int> collect_blue();
 };
 
 class Edge

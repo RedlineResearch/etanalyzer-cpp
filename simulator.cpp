@@ -256,6 +256,7 @@ int main(int argc, char* argv[])
     Heap.end_of_program(Exec.Now());
 
     // TODO analyze(Exec.Now());
+    Heap.scan_queue();
     Heap.analyze();
     Heap.get_cycle_list( cycle_list ); // This clears and stores the cycle list in cycle_list.
 }
