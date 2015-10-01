@@ -256,8 +256,18 @@ int main(int argc, char* argv[])
     Heap.end_of_program(Exec.Now());
 
     // TODO analyze(Exec.Now());
-    Heap.scan_queue();
+    deque< deque<int> > cycle_list = Heap.scan_queue();
     Heap.analyze();
-    Heap.get_cycle_list( cycle_list ); // This clears and stores the cycle list in cycle_list.
+    for ( deque< deque<int> >::iterator it = cycle_list.begin();
+          it != cycle_list.end();
+          ++it ) {
+        cout << "--------------------------------------------------------------------------------" << endl;
+        for ( deque<int>::iterator tmp = it->begin();
+              tmp != it->end();
+              ++tmp ) {
+            cout << *tmp << " ";
+        }
+        cout << endl;
+    }
 }
 

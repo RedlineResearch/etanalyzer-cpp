@@ -73,8 +73,7 @@ class HeapState
         void unset_candidate(unsigned int objId);
         void process_queue();
         void analyze();
-        void get_cycle_list( deque< deque<Object*> >& cycle_list );
-        void scan_queue();
+        deque< deque<int> > scan_queue();
 };
 
 enum Color {

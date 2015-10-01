@@ -86,8 +86,9 @@ void HeapState::analyze()
 }
 
 // TODO Documentation :)
-void HeapState::scan_queue()
+deque< deque<int> > HeapState::scan_queue()
 {
+    deque< deque<int> > result;
     for ( map<unsigned int, bool>::iterator i = m_candidate_map.begin();
           i != m_candidate_map.end();
           ++i ) {
@@ -99,16 +100,15 @@ void HeapState::scan_queue()
                 if (object->getColor() == BLACK) {
                     object->mark_red();
                     object->scan();
-                    object->collect_blue();
+                    deque<int> cycle = object->collect_blue();
+                    if (cycle.size() > 0) {
+                        result.push_back( cycle );
+                    }
                 }
             }
         }
     }
-}
-
-void HeapState::get_cycle_list( deque< deque<Object*> >& cycle_list)
-{ // TODO
-    cycle_list.clear();
+    return result;
 }
 
 // -- Return a string with some information
@@ -132,8 +132,8 @@ void Object::updateField(Edge* edge, unsigned int cur_time)
     unsigned int field_id = edge->getSourceField();
     Object* target = edge->getTarget();
 
-    EdgeMap::iterator p = m_fields.find(field_id);
-    if (p != m_fields.end()) {
+    EdgeMap::iterator p = this->m_fields.find(field_id);
+    if (p != this->m_fields.end()) {
         // -- Old edge
         Edge* old_edge = p->second;
         if (old_edge) {
@@ -146,10 +146,12 @@ void Object::updateField(Edge* edge, unsigned int cur_time)
     // -- Increment new ref
     if (target) {
         target->incrementRefCount();
+        // TODO: An increment of the refcount means this isn't a candidate root
+        //       for a garbage cycle.
     }
 
     // -- Do store
-    m_fields[field_id] = edge;
+    this->m_fields[field_id] = edge;
 
     if (HeapState::debug) {
         cout << "Update "
@@ -194,8 +196,8 @@ void Object::mark_red()
         // Only recolor if object is GREEN or BLACK.
         // Ignore if already RED or BLUE.
         this->recolor( RED );
-        for ( EdgeMap::iterator p = m_fields.begin();
-              p != m_fields.end();
+        for ( EdgeMap::iterator p = this->m_fields.begin();
+              p != this->m_fields.end();
               p++ ) {
             Edge* edge = p->second;
             Object* target = edge->getTarget();
@@ -206,7 +208,6 @@ void Object::mark_red()
 
 void Object::scan()
 {
-    cout << ".";
     if (this->m_color == RED) {
         if (this->m_refCount > 0) {
             this->scan_green();
@@ -248,7 +249,23 @@ void Object::scan_green()
 
 deque<int> Object::collect_blue()
 {
-    return deque<int>();
+    deque<int> result;
+    if (this->getColor() == BLUE) {
+        this->recolor( GREEN );
+        for ( EdgeMap::iterator p = this->m_fields.begin();
+              p != this->m_fields.end();
+              p++ ) {
+            Edge* target_edge = p->second;
+            if (target_edge) {
+                Object* next_target_object = target_edge->getTarget();
+                if (next_target_object) {
+                    result = next_target_object->collect_blue();
+                }
+            }
+        }
+        result.push_back( this->getId() );
+    }
+    return result;
 }
 
 void Object::makeDead(unsigned int death_time)
@@ -257,8 +274,8 @@ void Object::makeDead(unsigned int death_time)
     m_deathTime = death_time;
 
     // -- Visit all edges
-    for ( EdgeMap::iterator p = m_fields.begin();
-          p != m_fields.end();
+    for ( EdgeMap::iterator p = this->m_fields.begin();
+          p != this->m_fields.end();
           p++ ) {
         Edge* edge = p->second;
 
@@ -282,8 +299,8 @@ void Object::recolor(Color newColor)
 {
     // Maintain the invariant that the reference count of a node is
     // the number of GREEN or BLACK pointers to it.
-    for ( EdgeMap::iterator p = m_fields.begin();
-          p != m_fields.end();
+    for ( EdgeMap::iterator p = this->m_fields.begin();
+          p != this->m_fields.end();
           p++ ) {
         Edge* edge = p->second;
         Object* target = edge->getTarget();
