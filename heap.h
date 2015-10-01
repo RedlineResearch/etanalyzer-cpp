@@ -4,6 +4,7 @@
 // ----------------------------------------------------------------------
 //   Representation of objects on the heap
 //
+#include <algorithm>
 #include <iostream>
 #include <map>
 #include <deque>

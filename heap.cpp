@@ -252,6 +252,7 @@ deque<int> Object::collect_blue()
     deque<int> result;
     if (this->getColor() == BLUE) {
         this->recolor( GREEN );
+        result.push_back( this->getId() );
         for ( EdgeMap::iterator p = this->m_fields.begin();
               p != this->m_fields.end();
               p++ ) {
@@ -259,11 +260,15 @@ deque<int> Object::collect_blue()
             if (target_edge) {
                 Object* next_target_object = target_edge->getTarget();
                 if (next_target_object) {
-                    result = next_target_object->collect_blue();
+                    deque<int> new_result = next_target_object->collect_blue();
+                    if (new_result.size() > 0) {
+                        for_each( new_result.begin(),
+                                  new_result.end(),
+                                  [&result] (int& n) { result.push_back(n); } );
+                    }
                 }
             }
         }
-        result.push_back( this->getId() );
     }
     return result;
 }
