@@ -89,8 +89,9 @@ void HeapState::analyze()
 deque< deque<int> > HeapState::scan_queue()
 {
     deque< deque<int> > result;
-    for ( map<unsigned int, bool>::iterator i = m_candidate_map.begin();
-          i != m_candidate_map.end();
+    cout << "Queue size: " << this->m_candidate_map.size();
+    for ( map<unsigned int, bool>::iterator i = this->m_candidate_map.begin();
+          i != this->m_candidate_map.end();
           ++i ) {
         int objId = i->first;
         bool flag = i->second;
@@ -127,72 +128,49 @@ string Object::info() {
     return ss.str();
 }
 
-void Object::updateField(Edge* edge, unsigned int cur_time)
+void Object::updateField( Edge* edge,
+                          unsigned int fieldId,
+                          unsigned int cur_time )
 {
-    unsigned int field_id = edge->getSourceField();
-    Object* target = edge->getTarget();
-
-    EdgeMap::iterator p = this->m_fields.find(field_id);
+    EdgeMap::iterator p = this->m_fields.find(fieldId);
     if (p != this->m_fields.end()) {
         // -- Old edge
         Edge* old_edge = p->second;
         if (old_edge) {
             // -- Now we know the end time
+            Object* old_target = old_edge->getTarget();
+            if (old_target) {
+                old_target->decrementRefCountReal(cur_time);
+            } 
             old_edge->setEndTime(cur_time);
-            deleteEdge(old_edge);
         }
     }
-
-    // -- Increment new ref
-    if (target) {
-        target->incrementRefCount();
-        // TODO: An increment of the refcount means this isn't a candidate root
-        //       for a garbage cycle.
-    }
-
     // -- Do store
-    this->m_fields[field_id] = edge;
+    this->m_fields[fieldId] = edge;
+
+    Object* target = NULL;
+    if (edge) {
+        target = edge->getTarget();
+        // -- Increment new ref
+        if (target) {
+            target->incrementRefCount();
+            // TODO: An increment of the refcount means this isn't a candidate root
+            //       for a garbage cycle.
+        }
+    }
 
     if (HeapState::debug) {
         cout << "Update "
-             << m_id << "." << field_id
-             << " --> " << target->m_id
-             << " (" << target->getRefCount() << ")"
+             << m_id << "." << fieldId
+             << " --> " << (target ? target->m_id : 0)
+             << " (" << (target ? target->getRefCount() : 0) << ")"
              << endl;
-    }
-}
-
-void Object::deleteEdge(Edge* edge)
-{
-    Object* target = edge->getTarget();
-    if (target) {
-        target->decrementRefCount();
-        int rc = target->getRefCount();
-        if (rc == 0) {
-            // -- Visit all edges
-            for ( EdgeMap::iterator p = target->m_fields.begin();
-                  p != target->m_fields.end();
-                  p++ ) {
-                Edge* target_edge = p->second;
-                Object* next_target_object = target_edge->getTarget();
-                if (target_edge) {
-                    deleteEdge( target_edge );
-                }
-            }
-        } else {
-            Color color = target->getColor();
-            if (color != BLACK) {
-                unsigned int objId = target->getId();
-                target->recolor(BLACK);
-                m_heapptr->set_candidate(objId);
-            }
-        }
     }
 }
 
 void Object::mark_red()
 {
-    if ( (m_color == GREEN) || (m_color == BLACK) ) {
+    if ( (this->m_color == GREEN) || (this->m_color == BLACK) ) {
         // Only recolor if object is GREEN or BLACK.
         // Ignore if already RED or BLUE.
         this->recolor( RED );
@@ -200,8 +178,10 @@ void Object::mark_red()
               p != this->m_fields.end();
               p++ ) {
             Edge* edge = p->second;
-            Object* target = edge->getTarget();
-            target->mark_red();
+            if (edge) {
+                Object* target = edge->getTarget();
+                target->mark_red();
+            }
         }
     }
 }
@@ -276,7 +256,7 @@ deque<int> Object::collect_blue()
 void Object::makeDead(unsigned int death_time)
 {
     // -- Record the death time
-    m_deathTime = death_time;
+    this->m_deathTime = death_time;
 
     // -- Visit all edges
     for ( EdgeMap::iterator p = this->m_fields.begin();
@@ -284,15 +264,10 @@ void Object::makeDead(unsigned int death_time)
           p++ ) {
         Edge* edge = p->second;
 
-        // -- Edge dies now
-        edge->setEndTime(death_time);
-
-        // TODO: Is this the right thing to do?
-        // // -- Decrement outgoing refs
-        // Object* target = edge->getTarget();
-        // if (target) {
-        //     target->decrementRefCount();
-        // }
+        if (edge) {
+            // -- Edge dies now
+            edge->setEndTime(death_time);
+        }
     }
 
     if (HeapState::debug) {
@@ -308,22 +283,46 @@ void Object::recolor(Color newColor)
           p != this->m_fields.end();
           p++ ) {
         Edge* edge = p->second;
-        Object* target = edge->getTarget();
-
-        if ( (m_color == GREEN || m_color == BLACK) &&
-             (newColor != GREEN) && (newColor != BLACK) ) {
-            // decrement reference count of target
+        if (edge) {
+            Object* target = edge->getTarget();
             if (target) {
-                target->decrementRefCount();
-            }
-        } else if ( (m_color != GREEN && m_color != BLACK) &&
-                    (newColor == GREEN) || (newColor == BLACK) ) {
-            // increment reference count of target
-            if (target) {
-                target->incrementRefCount();
+                if ( ((this->m_color == GREEN) || (this->m_color == BLACK)) &&
+                     ((newColor != GREEN) && (newColor != BLACK)) ) {
+                    // decrement reference count of target
+                    target->decrementRefCount();
+                } else if ( ((this->m_color != GREEN) && (this->m_color != BLACK)) &&
+                            ((newColor == GREEN) || (newColor == BLACK)) ) {
+                    // increment reference count of target
+                    target->incrementRefCount();
+                }
             }
         }
     }
     this->m_color = newColor;
+}
+
+void Object::decrementRefCountReal( unsigned int cur_time )
+{
+    this->decrementRefCount();
+    if (this->m_refCount == 0) {
+        // -- Visit all edges
+        this->recolor(GREEN);
+        for ( EdgeMap::iterator p = this->m_fields.begin();
+              p != this->m_fields.end();
+              ++p ) {
+            Edge* target_edge = p->second;
+            if (target_edge) {
+                unsigned int fieldId = target_edge->getSourceField();
+                this->updateField( NULL, fieldId, cur_time );
+            }
+        }
+    } else {
+        Color color = this->getColor();
+        if (color != BLACK) {
+            unsigned int objId = this->getId();
+            this->recolor(BLACK);
+            this->m_heapptr->set_candidate(objId);
+        }
+    }
 }
 

@@ -183,7 +183,7 @@ void read_trace_file(FILE* f)
                         unsigned int field_id = tokenizer.getInt(4);
                         Edge* new_edge = Heap.make_edge( obj, field_id,
                                                          target, Exec.Now() );
-                        obj->updateField(new_edge, Exec.Now());
+                        obj->updateField( new_edge, field_id, Exec.Now() );
                     }
                     // TODO: Why is the old edge not removed?
                 }
@@ -258,6 +258,7 @@ int main(int argc, char* argv[])
     // TODO analyze(Exec.Now());
     deque< deque<int> > cycle_list = Heap.scan_queue();
     Heap.analyze();
+    cout << "DONE. Getting cycles." << endl;
     for ( deque< deque<int> >::iterator it = cycle_list.begin();
           it != cycle_list.end();
           ++it ) {

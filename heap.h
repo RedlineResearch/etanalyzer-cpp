@@ -134,11 +134,14 @@ class Object
         unsigned int getCreateTime() const { return m_createTime; }
         unsigned int getDeathTime() const { return m_deathTime; }
         Color getColor() const { return m_color; }
+        EdgeMap::iterator const getEdgeMapBegin() { return m_fields.begin(); }
+        EdgeMap::iterator const getEdgeMapEnd() { return m_fields.end(); }
 
         // -- Ref counting
         unsigned int getRefCount() const { return m_refCount; }
         void incrementRefCount() { m_refCount++; }
         void decrementRefCount() { m_refCount--; }
+        void decrementRefCountReal(unsigned int curtime);
         // -- Access the fields
         const EdgeMap& getFields() const { return m_fields; }
         // -- Get a string representation
@@ -146,13 +149,13 @@ class Object
         // -- Check live
         bool isLive(unsigned int tm) const { return (tm < m_deathTime); }
         // -- Update a field
-        void updateField(Edge* edge, unsigned int cur_time);
+        void updateField( Edge* edge,
+                          unsigned int fieldId,
+                          unsigned int cur_time);
         // -- Record death time
         void makeDead(unsigned int death_time);
         // -- Set the color
         void recolor(Color newColor);
-        // -- Delete edge
-        void deleteEdge(Edge* edge);
         // Mark object as red
         void mark_red();
         // Searches for a GREEN object
