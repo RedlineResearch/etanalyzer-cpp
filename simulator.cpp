@@ -259,16 +259,16 @@ int main(int argc, char* argv[])
     deque< deque<int> > cycle_list = Heap.scan_queue();
     Heap.analyze();
     cout << "DONE. Getting cycles." << endl;
+    cout << "--------------------------------------------------------------------------------" << endl;
     for ( deque< deque<int> >::iterator it = cycle_list.begin();
           it != cycle_list.end();
           ++it ) {
-        cout << "--------------------------------------------------------------------------------" << endl;
         for ( deque<int>::iterator tmp = it->begin();
               tmp != it->end();
               ++tmp ) {
-            cout << *tmp << " ";
+            cout << *tmp << ",";
         }
-        cout << endl;
     }
+    cout << "--------------------------------------------------------------------------------" << endl;
 }
 
