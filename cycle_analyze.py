@@ -257,23 +257,59 @@ def process_input( conn = None,
     objdict["TIME"] = time_by_method
     print "DONE size[ %d ]." % len(objdict)
 
+class ObjDB:
+    def __init__( self,
+                  objdb1 = None,
+                  objdb2 = None,
+                  objdb_all = None,
+                  debugflag = False,
+                  logger = None ):
+        self.objdb1 = objdb1
+        self.objdb2 = objdb2
+        self.objdb_all = objdb_all
+        self.sqodb_all = None
+        self.sqodb1 = None
+        self.sqodb2 = None
+        try:
+            self.sqobj_all = sqorm.Sqorm( tgtpath = objdb_all,
+                                          table = "objects",
+                                          keyfield = "objId" )
+            return
+        except:
+            logger.error( "Unable to load DB ALL file %s" % str(objdb) )
+            print "Unable to load DB ALL file %s" % str(objdb)
+        try:
+            self.sqobj1 = sqorm.Sqorm( tgtpath = objdb1,
+                                       table = "objects",
+                                       keyfield = "objId" )
+        except:
+            logger.error( "Unable to load DB 1 file %s" % str(objdb) )
+            print "Unable to load DB 1 file %s" % str(objdb)
+            assert( False )
+        try:
+            self.sqobj2 = sqorm.Sqorm( tgtpath = objdb2,
+                                       table = "objects",
+                                       keyfield = "objId" )
+            return
+        except:
+            logger.error( "Unable to load DB 2 file %s" % str(objdb) )
+            print "Unable to load DB 2 file %s" % str(objdb)
+            assert( False )
+
 def main_process( tgtpath = None,
-                  objdb = None,
+                  output = None,
+                  objdb1 = None,
+                  objdb2 = None,
+                  objdb_all = None,
                   debugflag = False,
                   logger = None ):
     global pp
+    exit(1000)
     with open(tgtpath) as fp:
         print "FILE %s OPENED." % tgtpath
         data = cPickle.load(fp)
     pp.pprint(data)
-    try:
-        sqobj = sqorm.Sqorm( tgtpath = objdb,
-                             table = "objects",
-                             keyfield = "objId" )
-    except:
-        logger.critical( "Unable to load DB file %s" % str(objdb) )
-        print "Unable to load DB file %s" % str(objdb)
-        exit(2)
+    open_dbs()
     found = {}
     miss = set([])
     one_cycle_list = []
@@ -350,8 +386,13 @@ def create_parser():
     parser.add_argument( "filename", help = "Source file from simulator run." )
     parser.add_argument( "--config",
                          help = "Specify configuration filename.",
-                         action = "store",
-                         default = None )
+                         action = "store" )
+    parser.add_argument( "--benchmark",
+                         required = True,
+                         help = "Set name of benchmark" )
+    parser.add_argument( "--outpickle",
+                         required = True,
+                         help = "Target output pickle filename." )
     parser.add_argument( "--debug",
                          dest = "debugflag",
                          help = "Enable debug output.",
@@ -364,7 +405,9 @@ def create_parser():
                          help = "Specify logfile name.",
                          action = "store" )
     parser.set_defaults( logfile = "cycle-analyze.log",
-                         debugflag = False )
+                         debugflag = False,
+                         benchmark = False,
+                         config = None )
     return parser
 
 def process_args( args, parser ):
@@ -410,29 +453,37 @@ def process_config( args ):
     pp.pprint(objdb1_config)
     pp.pprint(objdb2_config)
     pp.pprint(objdb_ALL_config)
-    return ( global_config, objdb_config )
+    return ( global_config, objdb1_config, objdb2_config, objdb_ALL_config )
 
 def main():
     parser = create_parser()
     args = parser.parse_args()
     configparser = ConfigParser.ConfigParser()
-
+    benchmark = args.benchmark
+    print "Benchmark", benchmark
     if args.config != None:
-        config, objdb_config = process_config( args )
+         global_config, objdb1_config, objdb2_config, objdb_ALL_config = process_config( args )
     else:
         # TODO
         assert( False )
         TODO_ = process_args( args, parser )
-    exit(100)
+    # logging
+    logger = setup_logger( filename = args.logfile,
+                           debugflag = global_config["debug"] )
+
     # set up objdb
-    objdb = os.path.join( config["objdb_dir"], objdb_config[benchmark] )
-    print "OBJDB: %s" % objdb
+    objdb1 = os.path.join( global_config["objdb_dir"], objdb1_config[benchmark] )
+    objdb2 = os.path.join( global_config["objdb_dir"], objdb2_config[benchmark] )
+    objdb_all = os.path.join( global_config["objdb_dir"], objdb_ALL_config[benchmark] )
     #
     # Main processing
     #
-    return main_process( tgtpath = args.pickle,
-                         debugflag = config["debug"],
-                         objdb = objdb,
+    return main_process( tgtpath = args.filename,
+                         output = args.outpickle,
+                         debugflag = global_config["debug"],
+                         objdb1 = objdb1,
+                         objdb2 = objdb2,
+                         objdb_all = objdb_all,
                          logger = logger )
 
 if __name__ == "__main__":
