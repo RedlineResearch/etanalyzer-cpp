@@ -304,6 +304,11 @@ def main_process( tgtpath = None,
                   debugflag = False,
                   logger = None ):
     global pp
+    objdb = ObjDB( objdb1 = objdb1,
+                   objdb2 = objdb2,
+                   objdb_all = objdb_all,
+                   debugflag = debugflag,
+                   logger = logger )
     exit(1000)
     with open(tgtpath) as fp:
         print "FILE %s OPENED." % tgtpath
