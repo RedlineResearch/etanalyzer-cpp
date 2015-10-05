@@ -15,6 +15,7 @@ import re
 import ConfigParser
 from operator import itemgetter
 from collections import Counter
+import networkx
 
 import mypytools
 
@@ -400,11 +401,15 @@ def process_config( args ):
     config_parser = ConfigParser.ConfigParser()
     config_parser.read( args.config )
     global_config = config_section_map( "global", config_parser )
-    objdb_config = config_section_map( "objdb", config_parser )
+    objdb1_config = config_section_map( "objdb1", config_parser )
+    objdb2_config = config_section_map( "objdb2", config_parser )
+    objdb_ALL_config = config_section_map( "objdb_ALL", config_parser )
     print "GLOBAL:"
     pp.pprint(global_config)
     print "OBJDB:"
-    pp.pprint(objdb_config)
+    pp.pprint(objdb1_config)
+    pp.pprint(objdb2_config)
+    pp.pprint(objdb_ALL_config)
     return ( global_config, objdb_config )
 
 def main():
@@ -418,7 +423,7 @@ def main():
         # TODO
         assert( False )
         TODO_ = process_args( args, parser )
-
+    exit(100)
     # set up objdb
     objdb = os.path.join( config["objdb_dir"], objdb_config[benchmark] )
     print "OBJDB: %s" % objdb
