@@ -256,7 +256,8 @@ int main(int argc, char* argv[])
     Heap.end_of_program(Exec.Now());
 
     // TODO analyze(Exec.Now());
-    deque< deque<int> > cycle_list = Heap.scan_queue();
+    deque< pair<int,int> > edgelist;
+    deque< deque<int> > cycle_list = Heap.scan_queue( edgelist );
     Heap.analyze();
     cout << "DONE. Getting cycles." << endl;
     cout << "--------------------------------------------------------------------------------" << endl;

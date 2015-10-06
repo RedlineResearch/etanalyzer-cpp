@@ -20,6 +20,7 @@ typedef map<unsigned int, Object *> ObjectMap;
 typedef map<unsigned int, Edge *> EdgeMap;
 typedef set<Object *> ObjectSet;
 typedef set<Edge *> EdgeSet;
+typedef deque< pair<int,int> > EdgeList;
 
 class HeapState
 {
@@ -74,7 +75,7 @@ class HeapState
         void unset_candidate(unsigned int objId);
         void process_queue();
         void analyze();
-        deque< deque<int> > scan_queue();
+        deque< deque<int> > scan_queue( EdgeList& edgelist );
 };
 
 enum Color {
@@ -163,7 +164,7 @@ class Object
         // Recolors all nodes visited GREEN.
         void scan_green();
         // Searches for garbage cycle
-        deque<int> collect_blue();
+        deque<int> collect_blue( deque< pair<int,int> >& edgelist );
 };
 
 class Edge

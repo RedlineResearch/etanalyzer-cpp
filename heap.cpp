@@ -86,7 +86,7 @@ void HeapState::analyze()
 }
 
 // TODO Documentation :)
-deque< deque<int> > HeapState::scan_queue()
+deque< deque<int> > HeapState::scan_queue( EdgeList& edgelist )
 {
     deque< deque<int> > result;
     cout << "Queue size: " << this->m_candidate_map.size();
@@ -101,7 +101,8 @@ deque< deque<int> > HeapState::scan_queue()
                 if (object->getColor() == BLACK) {
                     object->mark_red();
                     object->scan();
-                    deque<int> cycle = object->collect_blue();
+                    EdgeList edgelist;
+                    deque<int> cycle = object->collect_blue(edgelist);
                     if (cycle.size() > 0) {
                         result.push_back( cycle );
                     }
@@ -227,7 +228,7 @@ void Object::scan_green()
     }
 }
 
-deque<int> Object::collect_blue()
+deque<int> Object::collect_blue(EdgeList& edgelist)
 {
     deque<int> result;
     if (this->getColor() == BLUE) {
@@ -240,12 +241,14 @@ deque<int> Object::collect_blue()
             if (target_edge) {
                 Object* next_target_object = target_edge->getTarget();
                 if (next_target_object) {
-                    deque<int> new_result = next_target_object->collect_blue();
+                    deque<int> new_result = next_target_object->collect_blue(edgelist);
                     if (new_result.size() > 0) {
                         for_each( new_result.begin(),
                                   new_result.end(),
                                   [&result] (int& n) { result.push_back(n); } );
                     }
+                    pair<int,int> newedge(this->getId(), next_target_object->getId());
+                    edgelist.push_back( newedge );
                 }
             }
         }
