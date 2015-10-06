@@ -268,12 +268,16 @@ class ObjDB:
         self.objdb2 = objdb2
         self.objdb_all = objdb_all
         self.sqodb_all = None
+        self.alldb = False
         self.sqodb1 = None
         self.sqodb2 = None
+        self.logger = logger
         try:
-            self.sqobj_all = sqorm.Sqorm( tgtpath = objdb_all,
+            self.sqodb_all = sqorm.Sqorm( tgtpath = objdb_all,
                                           table = "objects",
                                           keyfield = "objId" )
+            self.alldb = True
+            print "ALLDB"
             return
         except:
             logger.error( "Unable to load DB ALL file %s" % str(objdb) )
@@ -296,6 +300,19 @@ class ObjDB:
             print "Unable to load DB 2 file %s" % str(objdb)
             assert( False )
 
+    def get_type( self, objId ):
+        db_oType = None
+        if self.alldb:
+            try:
+                obj = self.sqodb_all[objId]
+                db_objId, db_oType, db_oSize, db_oLen, db_oAtime, db_oDtime, db_oSite = obj
+            except:
+                # self.logger( "Objid [ %s ] not found." % str(objId) )
+                return None
+        else:
+            assert(False)
+        return db_oType
+
 def main_process( tgtpath = None,
                   output = None,
                   objdb1 = None,
@@ -309,59 +326,29 @@ def main_process( tgtpath = None,
                    objdb_all = objdb_all,
                    debugflag = debugflag,
                    logger = logger )
-    exit(1000)
     with open(tgtpath) as fp:
         print "FILE %s OPENED." % tgtpath
-        data = cPickle.load(fp)
-    pp.pprint(data)
-    open_dbs()
-    found = {}
-    miss = set([])
-    one_cycle_list = []
-    cycles_all = []
-    for cycle in data:
-        oneflag = True if len(cycle) == 1 else False
-        cycle_types = []
-        for objId in cycle:
-            try:
-                obj = sqobj[objId]
-                db_objId, db_oType, db_oSize, db_oLen, db_oAtime, db_oDtime, db_oSite = obj
-                sys.stdout.write(".")
-                found[objId] = (db_oType, db_oSize)
-                cycle_types.append( db_oType )
-                if oneflag:
-                    one_cycle_list.append( db_oType )
-            except:
-                logger.error( "No object with id: %d" % objId )
-                sys.stdout.write("X")
-                miss.update( [ objId ] )
-        cycles_all.append( cycle_types )
-    # print "================================================================================"
-    # print "==========[ FOUND ]============================================================="
-    # pp.pprint( found )
-    # print "================================================================================"
-    # print "==========[ MISSING ]==========================================================="
-    # print "MISSING:"
-    # pp.pprint( miss )
-    print "================================================================================"
-    print "==========[ TYPELIST ]=========================================================="
-    typelist = [ val[0] for key, val in found.iteritems() ]
-    pp.pprint( typelist )
-    print "================================================================================"
-    print "==========[ TYPE COUNTS ]======================================================="
-    counter = Counter( typelist )
-    pp.pprint( dict(counter) )
-    print "================================================================================"
-    print "==========[ ONE CYCLES ]========================================================"
-    pp.pprint( set(one_cycle_list) )
-    print "================================================================================"
-    print "==========[ ALL CYCLES ]========================================================"
-    for cycle in cycles_all:
-        print "----------------------------------------"
-        print dict(Counter(cycle))
-        print "Total: %d" % len(cycle)
-    print "----------------------------------------"
-    print "==========[ done ]=============================================================="
+        start = False
+        cycles = []
+        for line in fp:
+            line = line.rstrip()
+            if line.find("----------") == 0:
+                start = True if not start else False
+                continue
+            if start:
+                line = line.rstrip(",")
+                row = line.split(",")
+                # print line
+                row = [ int(x) for x in row ]
+                cycles.append(row)
+    # pp.pprint(cycles)
+    for cycle in cycles:
+        print "================================================================================"
+        for node in cycle:
+            mytype = objdb.get_type(node)
+            mytype = mytype if mytype != None else "NONE"
+            print mytype + ",",
+        print
     exit(1000)
 
 def config_section_map( section, config_parser ):
@@ -480,6 +467,7 @@ def main():
     objdb1 = os.path.join( global_config["objdb_dir"], objdb1_config[benchmark] )
     objdb2 = os.path.join( global_config["objdb_dir"], objdb2_config[benchmark] )
     objdb_all = os.path.join( global_config["objdb_dir"], objdb_ALL_config[benchmark] )
+    print "XXX", objdb_all
     #
     # Main processing
     #
