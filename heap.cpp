@@ -101,7 +101,6 @@ deque< deque<int> > HeapState::scan_queue( EdgeList& edgelist )
                 if (object->getColor() == BLACK) {
                     object->mark_red();
                     object->scan();
-                    EdgeList edgelist;
                     deque<int> cycle = object->collect_blue(edgelist);
                     if (cycle.size() > 0) {
                         result.push_back( cycle );
