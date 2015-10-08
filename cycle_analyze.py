@@ -15,7 +15,7 @@ import re
 import ConfigParser
 from operator import itemgetter
 from collections import Counter
-import networkx
+import networkx as nx
 
 import mypytools
 
@@ -269,48 +269,71 @@ class ObjDB:
         self.objdb_all = objdb_all
         self.sqodb_all = None
         self.alldb = False
-        self.sqodb1 = None
-        self.sqodb2 = None
+        self.sqObj1 = None
+        self.sqObj2 = None
         self.logger = logger
-        try:
-            self.sqodb_all = sqorm.Sqorm( tgtpath = objdb_all,
-                                          table = "objects",
-                                          keyfield = "objId" )
-            self.alldb = True
-            print "ALLDB"
-            return
-        except:
-            logger.error( "Unable to load DB ALL file %s" % str(objdb) )
-            print "Unable to load DB ALL file %s" % str(objdb)
-        try:
-            self.sqobj1 = sqorm.Sqorm( tgtpath = objdb1,
-                                       table = "objects",
-                                       keyfield = "objId" )
-        except:
-            logger.error( "Unable to load DB 1 file %s" % str(objdb) )
-            print "Unable to load DB 1 file %s" % str(objdb)
-            assert( False )
-        try:
-            self.sqobj2 = sqorm.Sqorm( tgtpath = objdb2,
-                                       table = "objects",
-                                       keyfield = "objId" )
-            return
-        except:
-            logger.error( "Unable to load DB 2 file %s" % str(objdb) )
-            print "Unable to load DB 2 file %s" % str(objdb)
-            assert( False )
+        assert( os.path.isfile( objdb_all ) or
+                (os.path.isfile( objdb1 ) and os.path.isfile( objdb2 )) )
+        if os.path.isfile( objdb_all ):
+            try:
+                self.sqodb_all = sqorm.Sqorm( tgtpath = objdb_all,
+                                              table = "objects",
+                                              keyfield = "objId" )
+                self.alldb = True
+                print "ALLDB"
+                return
+            except:
+                logger.error( "Unable to load DB ALL file %s" % str(objdb) )
+                print "Unable to load DB ALL file %s" % str(objdb)
+        print "A"
+        if os.path.isfile( objdb1 ):
+            print "B"
+            try:
+                self.sqObj1 = sqorm.Sqorm( tgtpath = objdb1,
+                                            table = "objects",
+                                            keyfield = "objId" )
+            except:
+                logger.error( "Unable to load DB 1 file %s" % str(objdb) )
+                print "Unable to load DB 1 file %s" % str(objdb)
+                assert( False )
+        assert(self.sqObj1 != None)
+        print "C"
+        if os.path.isfile( objdb2 ):
+            print "D"
+            try:
+                self.sqObj2 = sqorm.Sqorm( tgtpath = objdb2,
+                                           table = "objects",
+                                           keyfield = "objId" )
+            except:
+                logger.error( "Unable to load DB 2 file %s" % str(objdb) )
+                print "Unable to load DB 2 file %s" % str(objdb)
+                assert( False )
 
     def get_type( self, objId ):
         db_oType = None
         if self.alldb:
+            assert(False)
             try:
                 obj = self.sqodb_all[objId]
                 db_objId, db_oType, db_oSize, db_oLen, db_oAtime, db_oDtime, db_oSite = obj
             except:
-                # self.logger( "Objid [ %s ] not found." % str(objId) )
+                # self.logger.error( "Objid [ %s ] not found." % str(objId) )
                 return None
         else:
-            assert(False)
+            if objId in self.sqObj1:
+                try:
+                    obj = self.sqObj1[objId]
+                    db_objId, db_oType, db_oSize, db_oLen, db_oAtime, db_oDtime, db_oSite = obj
+                except:
+                    self.logger.error( "Objid [ %s ] not found in DB1." % str(objId) )
+            if objId in self.sqObj2:
+                try:
+                    obj = self.sqObj1[objId]
+                    db_objId, db_oType, db_oSize, db_oLen, db_oAtime, db_oDtime, db_oSite = obj
+                except:
+                    self.logger.error( "Objid [ %s ] not found in DB2." % str(objId) )
+                    print "Objid [ %s ] not found in DB2." % str(objId)
+                    return None
         return db_oType
 
 def main_process( tgtpath = None,
@@ -334,21 +357,61 @@ def main_process( tgtpath = None,
             line = line.rstrip()
             if line.find("----------") == 0:
                 start = True if not start else False
-                continue
+                if start:
+                    continue
+                else:
+                    break
             if start:
                 line = line.rstrip(",")
                 row = line.split(",")
                 # print line
                 row = [ int(x) for x in row ]
                 cycles.append(row)
-    # pp.pprint(cycles)
+        start = False
+        edges = []
+        for line in fp:
+            line = line.rstrip()
+            if line.find("==========") == 0:
+                start = True if not start else False
+                print line
+                if start:
+                    continue
+                else:
+                    break
+            if start:
+                # line = line.replace(" -> ", ",")
+                row = [ int(x) for x in line.split(" -> ") ]
+                # print line
+                edges.append(row)
+                print row
+    print "===========[ CYCLES ]================================================="
+    pp.pprint(cycles)
+    print "===========[ EDGES ]=================================================="
+    edges = sorted( edges, key = itemgetter(0, 1) )
+    pp.pprint(edges)
+    print "===========[ TYPES ]=================================================="
+    typedict = {}
+    group = 1
     for cycle in cycles:
-        print "================================================================================"
+        typelist = []
+        G = nx.Graph()
+        print "==========[ Group %d ]=================================================" % group
         for node in cycle:
             mytype = objdb.get_type(node)
             mytype = mytype if mytype != None else "NONE"
-            print mytype + ",",
-        print
+            if mytype:
+                typelist.append(mytype)
+                if node in typedict:
+                    if typedict[node] != mytype:
+                        print "ObjId[ %d ] has conflicting types: %s --- %s" % (typedict[node], mytype)
+                        logger.error( "ObjId[ %d ] has conflicting types: %s --- %s" % (typedict[node], mytype) )
+                else:
+                    typedict[node] = mytype
+        pp.pprint(Counter(typelist))
+        group += 1
+    print "===========[ GLOBAL TYPE DICTIONARY ]================================="
+    pp.pprint(typedict)
+    print "===========[ DONE ]==================================================="
     exit(1000)
 
 def config_section_map( section, config_parser ):
@@ -468,6 +531,8 @@ def main():
     objdb2 = os.path.join( global_config["objdb_dir"], objdb2_config[benchmark] )
     objdb_all = os.path.join( global_config["objdb_dir"], objdb_ALL_config[benchmark] )
     print "XXX", objdb_all
+    print "   ", objdb1
+    print "   ", objdb2
     #
     # Main processing
     #
