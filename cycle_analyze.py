@@ -135,127 +135,28 @@ def remove_from_fields( objrec = None,
     except:
         print "DEBUG: ", objrec
 
-# TODO TODO TODO TODO
-def update_heap_record( heap = None,
-                        rec = None,
-                        recObjId = None,
-                        time_by_method = None,
-                        logger = None ):
-    global pp
-    if rec != None:
-        objId = rec["objId"]
-        oldTgtId = rec["oldTgtId"]
-        newTgtId = rec["newTgtId"]
-        # TODO: Debug code that could be removed to improve performance
-        if objId not in heap:
-            raise RuntimeError( "objId[ %s ] not found in heap." % objId )
-        if newTgtId not in heap:
-            logger.warning( "newTgtId[ %s ] not found in heap." % newTgtId )
-            # logger.error( " record:\n    %s" % pp.pformat(rec) )
-            newrec = create_record( objId = newTgtId,
-                                    rectype = "A" )
-            newdict = populate_newdict_record( rec = newrec,
-                                               time_by_method = time_by_method,
-                                               logger = logger )
-            if newdict != None:
-                objdict[newTgtId] = newdict
-        # Update "fields"
-        remove_from_fields( objrec = heap[objId],
-                            tgtId = oldTgtId )
-        update_fields( objrec = heap[objId],
-                       newId = newTgtId )
-        # TODO: Call update_fields function here.
-    else:
-        logger.error( "invalid record." )
-        raise exceptions.ValueError( "rec can not be 'None'" )
-    return
-# TODO TODO TODO TODO
-
-def create_graph( heap = None ):
-    global logger, pp
+def create_graph( cycle_pair_list = None,
+                  edges = None,
+                  logger = None ):
     logger.debug( "Creating graph..." )
     g = nx.DiGraph()
-    for obj, val in heap.iteritems():
-        otype = str(val["type"]) if "type" in val \
-                else "None"
-        osize = str(val["size"]) if "size" in val \
-                else "None"
-        g.add_node( n = obj,
-                    type = otype,
-                    size = osize )
-    for obj, rec in heap.iteritems():
-        try:
-            assert( "f" in rec )
-        except:
-            logger.error( "No fields in rec: %s" % pp.pformat(rec) )
+    nodeset = set([])
+    for node, mytype in cycle_pair_list:
+        g.add_node( n = node,
+                    type = mytype )
+        nodeset.add(node)
+    for edge in edges:
+        src = edge[0]
+        tgt = edge[1]
+        if src in nodeset and tgt in nodeset:
+            g.add_edge( src, tgt )
         else:
-            for tgt in rec["f"]:
-                if tgt != '0':
-                    g.add_edge( obj, tgt )
+            if src not in nodeset:
+                logger.error("MISSING source node: %s" % str(src))
+            if tgt not in nodeset:
+                logger.error("MISSING target node: %s" % str(tgt))
     logger.debug( "....done." )
     return g
-
-def pickle_all( objdict = None,
-                objfilename = None,
-                edgedict = None,
-                edgefilename = None,
-                logger = None ):
-    global pp
-    logger.debug( "Attempting to pickle to [%s]:", objfilename )
-    print "Attempting to pickle to [%s]:", objfilename
-    try:
-        objfile = open( objfilename, 'wb' )
-    except:
-        logger.error( "Unable to open objdict pickle file: %s", objfilename )
-        exit(41)
-    if objfile != None:
-        cPickle.dump( objdict, objfile )
-    print "======================================================================"
-    logger.debug( "Attempting to pickle to [%s]:", edgefilename )
-    print "Attempting to pickle to [%s]:", edgefilename
-    try:
-        edgefile = open( edgefilename, 'wb' )
-    except:
-        logger.error( "Unable to open edgedict pickle file: %s", edgefilename )
-        exit(41)
-    if edgefile != None:
-        cPickle.dump( edgedict, edgefile )
-
-def process_input( conn = None,
-                   version = None,
-                   stopline = None,
-                   objdict = None,
-                   edgedict = None,
-                   waitdict = None,
-                   logger = None ):
-    # TODO: time_by_method needs to be adjusted from the multiprocessing
-    deadhash = {}
-    ignored_alloc = set([])
-    strace = STrace( Stats = Stats )
-    cur = 0
-    time_by_method = 0
-    skip_count = 0
-    gbcount = 1
-    for x in conn:
-        rec = parse_line( line = x,
-                          version = version,
-                          logger = logger )
-        cur = cur + 1
-        time_by_method = process_heap_event( version = version,
-                                             objdict = objdict,
-                                             edgedict = edgedict,
-                                             waitdict = waitdict,
-                                             deadhash = deadhash,
-                                             ignored_alloc = ignored_alloc,
-                                             rec = rec,
-                                             strace = strace,
-                                             time_by_method = time_by_method,
-                                             logger = logger )
-        if stopline > 0 and stopline == cur:
-            break
-    assert("TIME" not in objdict)
-    objdict["TIME"] = time_by_method
-    print "DONE size[ %d ]." % len(objdict)
 
 class ObjDB:
     def __init__( self,
@@ -285,9 +186,7 @@ class ObjDB:
             except:
                 logger.error( "Unable to load DB ALL file %s" % str(objdb) )
                 print "Unable to load DB ALL file %s" % str(objdb)
-        print "A"
         if os.path.isfile( objdb1 ):
-            print "B"
             try:
                 self.sqObj1 = sqorm.Sqorm( tgtpath = objdb1,
                                             table = "objects",
@@ -297,9 +196,7 @@ class ObjDB:
                 print "Unable to load DB 1 file %s" % str(objdb)
                 assert( False )
         assert(self.sqObj1 != None)
-        print "C"
         if os.path.isfile( objdb2 ):
-            print "D"
             try:
                 self.sqObj2 = sqorm.Sqorm( tgtpath = objdb2,
                                            table = "objects",
@@ -341,6 +238,7 @@ def main_process( tgtpath = None,
                   objdb1 = None,
                   objdb2 = None,
                   objdb_all = None,
+                  benchmark = None,
                   debugflag = False,
                   logger = None ):
     global pp
@@ -392,13 +290,15 @@ def main_process( tgtpath = None,
     print "===========[ TYPES ]=================================================="
     typedict = {}
     group = 1
+    graphs = []
     for cycle in cycles:
         typelist = []
-        G = nx.Graph()
         print "==========[ Group %d ]=================================================" % group
+        cycle_pair_list = []
         for node in cycle:
             mytype = objdb.get_type(node)
             mytype = mytype if mytype != None else "NONE"
+            cycle_pair_list.append( (node, mytype) )
             if mytype:
                 typelist.append(mytype)
                 if node in typedict:
@@ -407,7 +307,19 @@ def main_process( tgtpath = None,
                         logger.error( "ObjId[ %d ] has conflicting types: %s --- %s" % (typedict[node], mytype) )
                 else:
                     typedict[node] = mytype
+        # Create the graph
+        graph_name = "%s-%d.dot" % (benchmark, group)
+        G = create_graph( cycle_pair_list = cycle_pair_list,
+                          edges = edges,
+                          logger = logger )
+        nx.write_dot(G, graph_name)
+        # Get the actual cycle
+        real_cycle = list(nx.simple_cycles(G))
+        # Print out typelist
         pp.pprint(Counter(typelist))
+        # Print the cycle
+        print "CYCLE by networkx:"
+        pp.pprint(real_cycle)
         group += 1
     print "===========[ GLOBAL TYPE DICTIONARY ]================================="
     pp.pprint(typedict)
@@ -542,6 +454,7 @@ def main():
                          objdb1 = objdb1,
                          objdb2 = objdb2,
                          objdb_all = objdb_all,
+                         benchmark = benchmark,
                          logger = logger )
 
 if __name__ == "__main__":
