@@ -266,7 +266,7 @@ def main_process( tgtpath = None,
                 row = [ int(x) for x in row ]
                 cycles.append(row)
         start = False
-        edges = []
+        edges = set([])
         for line in fp:
             line = line.rstrip()
             if line.find("==========") == 0:
@@ -280,12 +280,12 @@ def main_process( tgtpath = None,
                 # line = line.replace(" -> ", ",")
                 row = [ int(x) for x in line.split(" -> ") ]
                 # print line
-                edges.append(row)
+                edges.add(tuple(row))
                 print row
     print "===========[ CYCLES ]================================================="
     pp.pprint(cycles)
     print "===========[ EDGES ]=================================================="
-    edges = sorted( edges, key = itemgetter(0, 1) )
+    edges = set( sorted( list(edges), key = itemgetter(0, 1) ) )
     pp.pprint(edges)
     print "===========[ TYPES ]=================================================="
     typedict = {}
