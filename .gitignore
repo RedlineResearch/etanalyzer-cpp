@@ -6,3 +6,6 @@ simulator
 cscope.*
 MYWORK
 *.pyc
+build
+taskArtifacts
+.gradle
