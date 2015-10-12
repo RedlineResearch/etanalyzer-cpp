@@ -1,8 +1,8 @@
-package net.veroy.guava.benchmark.cache;
+package net.veroy.analysis.etracks;
 
 
-import net.veroy.guava.benchmark.cache.ObjectRecord;
-import net.veroy.guava.benchmark.cache.UpdateRecord;
+import net.veroy.analysis.etracks.ObjectRecord;
+import net.veroy.analysis.etracks.UpdateRecord;
 
 import java.io.BufferedReader;
 import java.io.FileInputStream;
