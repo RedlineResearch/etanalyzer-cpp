@@ -20,24 +20,18 @@ import java.util.ArrayList;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
-
-public class GuavaCacheTest02 {
-    private static Cache<Integer, ObjectRecord> cache;
+public class SaveObjectInfo {
     private static Connection conn;
+    private final static String table = "objects";
 
     public static void main(String[] args) {
-        // TODO Hard-coded filepath for now TODO
-        cache = CacheBuilder.newBuilder()
-            .maximumSize(140000000)
-            .build();
         conn = null;
         Statement stmt = null;
         String dbname = args[0];
         try {
             Class.forName("org.sqlite.JDBC");
             conn = DriverManager.getConnection("jdbc:sqlite:" + dbname);
+            createDB();
             processInput();
             conn.close();
         } catch ( Exception e ) {
@@ -50,13 +44,15 @@ public class GuavaCacheTest02 {
     private static ObjectRecord getFromDB( int objId ) throws SQLException {
         ObjectRecord objrec = new ObjectRecord();
         Statement stmt = conn.createStatement();
-        ResultSet rs = stmt.executeQuery( String.format("SELECT * FROM HEAP WHERE objid=%d;", objId) );
+        ResultSet rs = stmt.executeQuery( String.format("SELECT * FROM %s WHERE objid=%d;",table ,objId ) );
         if (rs.next()) {
             objrec.set_objId( rs.getInt("objid") );
-            objrec.set_age( rs.getInt("age") );
-            objrec.set_allocTime( rs.getInt("alloctime") );
-            objrec.set_deathTime( rs.getInt("deathtime") );
-            objrec.set_type( rs.getString("type") );
+            objrec.set_size( rs.getInt("size") );
+            objrec.set_objtype( rs.getString("objtype") );
+            objrec.set_length( rs.getInt("length") );
+            objrec.set_atime( rs.getInt("atime") );
+            objrec.set_dtime( rs.getInt("dtime") );
+            objrec.set_allocsite( rs.getInt("allocsite") );
         } else {
             objrec.set_objId( objId );
         }
@@ -66,14 +62,28 @@ public class GuavaCacheTest02 {
     private static boolean putIntoDB( ObjectRecord newrec ) throws SQLException {
         Statement stmt = conn.createStatement();
         int objId = newrec.get_objId();
-        int age = newrec.get_age();
-        int allocTime = newrec.get_allocTime();
-        int deathTime = newrec.get_deathTime();
-        String type = newrec.get_type();
-        stmt.executeUpdate( String.format( "INSERT OR REPLACE INTO HEAP " +
-                                           "(objid,age,alloctime,deathtime,type) " +
-                                           " VALUES (%d,%d,%d,%d,'%s');",
-                                           objId, age, allocTime, deathTime, type ) );
+        int size = newrec.get_size();
+        int length = newrec.get_length();
+        int atime = newrec.get_atime();
+        int dtime = newrec.get_dtime();
+        int allocsite = newrec.get_allocsite();
+        String objtype = newrec.get_objtype();
+        stmt.executeUpdate( String.format( "INSERT OR REPLACE INTO %s" +
+                                           "(objid,objtype,size,length,atime,dtime,allocsite) " +
+                                           " VALUES (%d,'%s',%d,%d,%d,%d,%d);",
+                                           table, objId, objtype, size, length, atime, dtime, allocsite ) );
+        return true;
+    }
+
+    private static boolean createDB() throws SQLException {
+        Statement stmt = conn.createStatement();
+        stmt.executeUpdate( String.format( "DROP TABLE IF EXISTS %s", table ) );
+        stmt.executeUpdate( String.format( "CREATE TABLE %s " +
+                                           "( objId INTEGER PRIMARY KEY, objtype TEXT," +
+                                           "  size INTEGER, length INTEGER," +
+                                           "  atime INTEGER, dtime INTEGER," +
+                                           "  allocsite INTEGER )",
+                                           table ) );
         return true;
     }
 
@@ -90,17 +100,8 @@ public class GuavaCacheTest02 {
                     // Deal with the line
                     String[] fields = line.split(" ");
                     if (isAllocation(fields[0])) {
-                        continue;
-                    }
-                    else if (isUpdate(fields[0])) {
-                        UpdateRecord rec = parseUpdate( fields, timeByMethod );
-                        int objId = rec.get_objId();
-                        ObjectRecord tmprec = cache.get( objId,
-                                                         new Callable<ObjectRecord>() {
-                                                             public ObjectRecord call() throws SQLException {
-                                                                 return getFromDB( objId );
-                                                             }
-                                                         } );
+                        ObjectRecord object = parseAllocation( fields, timeByMethod );
+                        putIntoDB( object );
                     }
                     i += 1;
                     if (i % 10000 == 1) {
@@ -120,24 +121,23 @@ public class GuavaCacheTest02 {
     }
 
     private static boolean isAllocation( String op ) {
-        return (op.equals("A") || op.equals("N") || op.equals("P") || op.equals("I"));
+        return (op.equals("A") || op.equals("N") || op.equals("P") || op.equals("I") || op.equals("V"));
     }
 
     private static ObjectRecord parseAllocation( String[] fields, int timeByMethod ) {
         // System.out.println("[" + fields[0] + "]");
         int objId = Integer.parseInt( fields[1], 16 );
-        String type = fields[3];
-        // UNUSED right now:
-        // int size = Integer.parseInt( fields[2], 16 );
-        // int site = Integer.parseInt( fields[4], 16 );
-        // int length = Integer.parseInt( fields[5], 16 );
-        // int threadId = Integer.parseInt( fields[6], 16 );
-        return new ObjectRecord( 0, // Autogenerated by database
-                                 objId,
-                                 0, // Unknown at this point
-                                 timeByMethod,
-                                 0, // Unknown at this point
-                                 type );
+        String objtype = fields[3];
+        int size = Integer.parseInt( fields[2], 16 );
+        int allocsite = Integer.parseInt( fields[4], 16 );
+        int length = Integer.parseInt( fields[5], 16 );
+        return new ObjectRecord( objId,
+                                 objtype,
+                                 size,
+                                 length,
+                                 timeByMethod, // alloctime
+                                 0, // death - Unknown at this point TODO
+                                 allocsite );
     }
 
     private static UpdateRecord parseUpdate( String[] fields, int timeByMethod ) {

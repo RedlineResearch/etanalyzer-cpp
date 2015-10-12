@@ -2,49 +2,53 @@ package net.veroy.analysis.etracks;
 
 
 public class ObjectRecord {
-    private int _myId;
     private int _objId;
-    private int _age;
-    private int _allocTime;
-    private int _deathTime;
-    private String _type;
+    private int _size;
+    private int _length;
+    private String _objtype;
+    private int _atime;
+    private int _dtime;
+    private int _allocsite;
 
-    public ObjectRecord( int myId,
-                         int objId,
-                         int age,
-                         int allocTime,
-                         int deathTime,
-                         String myType) {
+    public ObjectRecord( int objId,
+                         String objtype,
+                         int size,
+                         int length,
+                         int atime,
+                         int dtime,
+                         int allocsite
+                         ) {
         super();
-        this._myId = myId;
         this._objId = objId;
-        this._age = age;
-        this._allocTime = allocTime;
-        this._deathTime = deathTime;
-        this._type = myType;
+        this._size = size;
+        this._length= length;
+        this._atime = atime;
+        this._dtime = dtime;
+        this._allocsite = allocsite;
+        this._objtype = objtype;
     }
 
     public ObjectRecord() {
         super();
-        this._myId = 0;
         this._objId = 0;
-        this._age = 0;
-        this._allocTime = 0;
-        this._deathTime = 0;
-        this._type = "None";
+        this._size = 0;
+        this._length = 0;
+        this._atime = 0;
+        this._allocsite = 0;
+        this._objtype = "None";
     }
 
-    public int get_myId() {
-        return _myId;
+    public int get_size() {
+        return _size;
     }
-    public void set_myId(int _myId) {
-        this._myId = _myId;
+    public void set_size(int _size) {
+        this._size = _size;
     }
-    public int get_age() {
-        return _age;
+    public int get_length() {
+        return _length;
     }
-    public void set_age(int _age) {
-        this._age = _age;
+    public void set_length(int _length) {
+        this._length = _length;
     }
     public int get_objId() {
         return _objId;
@@ -52,23 +56,29 @@ public class ObjectRecord {
     public void set_objId(int _objId) {
         this._objId = _objId;
     }
-    public int get_allocTime() {
-        return _allocTime;
+    public int get_atime() {
+        return _atime;
     }
-    public void set_allocTime(int _allocTime) {
-        this._allocTime = _allocTime;
+    public void set_atime(int _atime) {
+        this._atime = _atime;
     }
-    public int get_deathTime() {
-        return _deathTime;
+    public int get_dtime() {
+        return _dtime;
     }
-    public void set_deathTime(int _deathTime) {
-        this._deathTime = _deathTime;
+    public void set_dtime(int _dtime) {
+        this._dtime = _dtime;
     }
-    public String get_type() {
-        return _type;
+    public int get_allocsite() {
+        return _allocsite;
     }
-    public void set_type(String _type) {
-        this._type = _type;
+    public void set_allocsite(int _allocsite) {
+        this._allocsite = _allocsite;
+    }
+    public String get_objtype() {
+        return _objtype;
+    }
+    public void set_objtype(String _objtype) {
+        this._objtype = _objtype;
     }
 
 
