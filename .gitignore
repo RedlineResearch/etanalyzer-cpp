@@ -9,3 +9,4 @@ MYWORK
 build
 taskArtifacts
 .gradle
+temp.txt
