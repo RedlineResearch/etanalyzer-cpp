@@ -209,7 +209,6 @@ class ObjDB:
     def get_type( self, objId ):
         db_oType = None
         if self.alldb:
-            assert(False)
             try:
                 obj = self.sqodb_all[objId]
                 db_objId, db_oType, db_oSize, db_oLen, db_oAtime, db_oDtime, db_oSite = obj
