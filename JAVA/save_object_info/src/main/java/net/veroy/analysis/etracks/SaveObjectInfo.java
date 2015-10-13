@@ -36,6 +36,7 @@ public class SaveObjectInfo {
             conn.close();
         } catch ( Exception e ) {
             System.err.println( e.getClass().getName() + ": " + e.getMessage() );
+            System.out.println( e.getClass().getName() + ": " + e.getMessage() );
             System.exit(0);
         }
         System.out.println("Database ran successfully");
@@ -102,6 +103,8 @@ public class SaveObjectInfo {
                     if (isAllocation(fields[0])) {
                         ObjectRecord object = parseAllocation( fields, timeByMethod );
                         putIntoDB( object );
+                    } else if (fields[0].equals("M")) {
+                        timeByMethod += 1;
                     }
                     i += 1;
                     if (i % 10000 == 1) {
@@ -127,8 +130,8 @@ public class SaveObjectInfo {
     private static ObjectRecord parseAllocation( String[] fields, int timeByMethod ) {
         // System.out.println("[" + fields[0] + "]");
         int objId = Integer.parseInt( fields[1], 16 );
-        String objtype = fields[3];
         int size = Integer.parseInt( fields[2], 16 );
+        String objtype = fields[3];
         int allocsite = Integer.parseInt( fields[4], 16 );
         int length = Integer.parseInt( fields[5], 16 );
         return new ObjectRecord( objId,
