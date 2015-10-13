@@ -248,6 +248,9 @@ deque<int> Object::collect_blue(EdgeList& edgelist)
                     }
                     pair<int,int> newedge(this->getId(), next_target_object->getId());
                     edgelist.push_back( newedge );
+                    // NOTE: this may add an edge that isn't in the cyclic garbage.
+                    // These invalid edges will be filtered out later when
+                    // we know for sure what the cyclic component is.
                 }
             }
         }

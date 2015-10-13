@@ -243,6 +243,39 @@ void read_trace_file(FILE* f)
 }
 
 // ----------------------------------------------------------------------
+// Remove edges not in cyclic garbage
+void filter_edgelist( deque< pair<int,int> >& edgelist, deque< deque<int> >& cycle_list )
+{
+    set<int> nodes;
+    deque< pair<int,int> > newlist;
+    for ( deque< deque<int> >::iterator it = cycle_list.begin();
+          it != cycle_list.end();
+          ++it ) {
+        for ( deque<int>::iterator tmp = it->begin();
+              tmp != it->end();
+              ++tmp ) {
+            nodes.insert(*tmp);
+        }
+    }
+    for ( EdgeList::iterator it = edgelist.begin();
+          it != edgelist.end();
+          ++it ) {
+        set<int>::iterator first_it = nodes.find(it->first);
+        if (first_it == nodes.end()) {
+            // First node not found, carry on.
+            continue;
+        }
+        set<int>::iterator second_it = nodes.find(it->second);
+        if (second_it != nodes.end()) {
+            // Found both edge nodes in cycle set 'nodes'
+            // Add the edge.
+            newlist.push_back(*it);
+        }
+    }
+    edgelist = newlist;
+}
+
+// ----------------------------------------------------------------------
 
 int main(int argc, char* argv[])
 {
@@ -258,7 +291,8 @@ int main(int argc, char* argv[])
     // TODO analyze(Exec.Now());
     deque< pair<int,int> > edgelist;
     deque< deque<int> > cycle_list = Heap.scan_queue( edgelist );
-    Heap.analyze();
+    filter_edgelist( edgelist, cycle_list );
+    // TODO Heap.analyze();
     cout << "DONE. Getting cycles." << endl;
     cout << "--------------------------------------------------------------------------------" << endl;
     for ( deque< deque<int> >::iterator it = cycle_list.begin();
