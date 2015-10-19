@@ -67,26 +67,34 @@ def get_trace_fp( tracefile = None,
 # Main processing
 #
 
-def create_graph( cycle_pair_list = None,
-                  edges = None,
-                  logger = None ):
-    logger.debug( "Creating graph..." )
-    g = nx.DiGraph()
-    nodeset = set([])
-    for node, mytype, mysize in cycle_pair_list:
-        g.add_node( n = node,
-                    type = mytype )
-        nodeset.add(node)
+def create_edge_dictionary( edges = None ):
+    edgedict = {}
     for edge in edges:
         src = edge[0]
         tgt = edge[1]
-        if src in nodeset and tgt in nodeset:
-            g.add_edge( src, tgt )
+        if src not in edgedict:
+            edgedict[src] = [ tgt ]
         else:
-            if src not in nodeset:
-                logger.error("MISSING source node: %s" % str(src))
-            if tgt not in nodeset:
-                logger.error("MISSING target node: %s" % str(tgt))
+            edgedict[src].append(tgt)
+    for src, tgtlist in edgedict.iteritems():
+        edgedict[src] = set(tgtlist)
+    return edgedict
+
+def create_graph( cycle_pair_list = None,
+                  edgedict = None,
+                  logger = None ):
+    global pp
+    logger.debug( "Creating graph..." )
+    g = nx.DiGraph()
+    nodeset = set([])
+    for mytuple in cycle_pair_list:
+        node, mytype, mysize = mytuple
+        nodeset.add(node)
+        g.add_node( n = node,
+                    type = mytype )
+        if node in edgedict:
+            for tgt in edgedict[node]:
+                g.add_edge( node, tgt )
     logger.debug( "....done." )
     return g
 
@@ -159,15 +167,17 @@ class ObjDB:
                     db_objId, db_oType, db_oSize, db_oLen, db_oAtime, db_oDtime, db_oSite = obj
                 except:
                     self.logger.error( "Objid [ %s ] not found in DB2." % str(objId) )
-                    print "Objid [ %s ] not found in DB2." % str(objId)
+                    # print "Objid [ %s ] not found in DB2." % str(objId)
                     return None
-        return { "objId" : db_objId,
-                 "type" : db_oType,
-                 "size" : db_oSize,
-                 "len" : db_oLen,
-                 "atime" : db_oAtime,
-                 "dtime" : db_oDtime,
-                 "site" : db_oSite }
+        
+        rec = { "objId" : db_objId,
+                "type" : db_oType,
+                "size" : db_oSize,
+                "len" : db_oLen,
+                "atime" : db_oAtime,
+                "dtime" : db_oDtime,
+                "site" : db_oSite }
+        return rec
 
     def get_type( self, objId ):
         db_oType = None
@@ -239,7 +249,6 @@ def main_process( tgtpath = None,
             line = line.rstrip()
             if line.find("==========") == 0:
                 start = True if not start else False
-                print line
                 if start:
                     continue
                 else:
@@ -255,30 +264,26 @@ def main_process( tgtpath = None,
     typedict = {}
     group = 1
     graphs = []
+    edgedict = create_edge_dictionary( edges )
+    cycle_len_count = Counter()
     for cycle in cycles:
         # TODO typelist = []
+        cycle_len_count.update( [ len(cycle) ] )
         cycle_pair_list = []
         for node in cycle:
             rec = objdb.get_record(node)
             mytype = rec["type"]
             mysize = rec["size"]
             cycle_pair_list.append( (node, mytype, mysize) )
-            # TODO if mytype:
-            # TODO     typelist.append(mytype)
-            # TODO     if node in typedict:
-            # TODO         if typedict[node] != mytype:
-            # TODO             logger.error( "ObjId[ %d ] has conflicting types: %s --- %s" % (typedict[node], mytype) )
-            # TODO     else:
-            # TODO         typedict[node] = mytype
-        pp.pprint(cycle_pair_list)
-        exit(100)
+        group += 1
         G = create_graph( cycle_pair_list = cycle_pair_list,
-                          edges = edges,
+                          edgedict = edgedict,
                           logger = logger )
-        # TODO # Create the graph
         # TODO # Get the actual cycle
         # TODO real_cycle = list(nx.simple_cycles(G))
-        group += 1
+        # TODO TODO TODO TODO
+        # What else TODO? 10/19/2015 - RLV
+    print "cycle_length_counter:", str(cycle_len_count)
     # print "===========[ GLOBAL TYPE DICTIONARY ]================================="
     # pp.pprint(typedict)
     print "===========[ DONE ]==================================================="
