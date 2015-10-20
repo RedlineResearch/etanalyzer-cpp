@@ -302,14 +302,6 @@ def config_section_map( section, config_parser ):
             result[option] = None
     return result
 
-def process_config( args ):
-    global pp
-    assert( args.config != None )
-    config_parser = ConfigParser.ConfigParser()
-    config_parser.read( args.config )
-    config = config_section_map( "global", config_parser )
-    return config
-
 def create_parser():
     # set up arg parser
     parser = argparse.ArgumentParser()
