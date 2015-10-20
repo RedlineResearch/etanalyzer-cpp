@@ -121,7 +121,6 @@ class ObjDB:
                                               table = "objects",
                                               keyfield = "objId" )
                 self.alldb = True
-                print "ALLDB"
                 return
             except:
                 logger.error( "Unable to load DB ALL file %s" % str(objdb) )
@@ -226,7 +225,6 @@ def main_process( tgtpath = None,
     # 2. Number of cycles
     # 3. Size of cycles
     with open(tgtpath) as fp:
-        print "FILE %s OPENED." % tgtpath
         start = False
         cycles = []
         for line in fp:
@@ -265,10 +263,11 @@ def main_process( tgtpath = None,
     group = 1
     graphs = []
     edgedict = create_edge_dictionary( edges )
-    cycle_len_count = Counter()
+    cycle_total_counter = Counter()
+    actual_cycle_mean = []
     for cycle in cycles:
         # TODO typelist = []
-        cycle_len_count.update( [ len(cycle) ] )
+        cycle_total_counter.update( [ len(cycle) ] )
         cycle_pair_list = []
         for node in cycle:
             rec = objdb.get_record(node)
@@ -279,11 +278,14 @@ def main_process( tgtpath = None,
         G = create_graph( cycle_pair_list = cycle_pair_list,
                           edgedict = edgedict,
                           logger = logger )
-        # TODO # Get the actual cycle
-        # TODO real_cycle = list(nx.simple_cycles(G))
-        # TODO TODO TODO TODO
+        # Get the actual cycle
+        real_cycle = list(nx.simple_cycles(G))
+        real_cycle_mean = float(sum( [ len(l) for l in real_cycle ] )) / max(len(real_cycle),1)
+        actual_cycle_mean.append( real_cycle_mean )
         # What else TODO? 10/19/2015 - RLV
-    print "cycle_length_counter:", str(cycle_len_count)
+    print "cycle_total_counter:", str(cycle_total_counter)
+    print "actual_cycle_mean:", str(actual_cycle_mean)
+    # TODO maybe not here actual_cycle_mean = float(sum( [ len(l) for l in actual_cycle_length ] )) / max(len(actual_cycle_length),1)
     # print "===========[ GLOBAL TYPE DICTIONARY ]================================="
     # pp.pprint(typedict)
     print "===========[ DONE ]==================================================="
@@ -303,11 +305,9 @@ def config_section_map( section, config_parser ):
 def process_config( args ):
     global pp
     assert( args.config != None )
-    print "CONFIG."
     config_parser = ConfigParser.ConfigParser()
     config_parser.read( args.config )
     config = config_section_map( "global", config_parser )
-    pp.pprint(config)
     return config
 
 def create_parser():
@@ -370,19 +370,12 @@ def config_section_map( section, config_parser ):
 def process_config( args ):
     global pp
     assert( args.config != None )
-    print "CONFIG."
     config_parser = ConfigParser.ConfigParser()
     config_parser.read( args.config )
     global_config = config_section_map( "global", config_parser )
     objdb1_config = config_section_map( "objdb1", config_parser )
     objdb2_config = config_section_map( "objdb2", config_parser )
     objdb_ALL_config = config_section_map( "objdb_ALL", config_parser )
-    print "GLOBAL:"
-    pp.pprint(global_config)
-    print "OBJDB:"
-    pp.pprint(objdb1_config)
-    pp.pprint(objdb2_config)
-    pp.pprint(objdb_ALL_config)
     return ( global_config, objdb1_config, objdb2_config, objdb_ALL_config )
 
 def main():
@@ -390,7 +383,6 @@ def main():
     args = parser.parse_args()
     configparser = ConfigParser.ConfigParser()
     benchmark = args.benchmark
-    print "Benchmark", benchmark
     if args.config != None:
          global_config, objdb1_config, objdb2_config, objdb_ALL_config = process_config( args )
     else:
