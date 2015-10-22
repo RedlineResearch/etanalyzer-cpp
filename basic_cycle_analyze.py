@@ -204,6 +204,12 @@ class ObjDB:
                     return None
         return db_oType
 
+def get_types( G, cycle ):
+    result = []
+    for node in cycle:
+        result.append(G.node[node]["type"])
+    return result
+
 def main_process( tgtpath = None,
                   output = None,
                   objdb1 = None,
@@ -264,7 +270,8 @@ def main_process( tgtpath = None,
     graphs = []
     edgedict = create_edge_dictionary( edges )
     cycle_total_counter = Counter()
-    actual_cycle_mean = []
+    actual_cycle_counter = Counter()
+    cycle_type_counter = Counter()
     for cycle in cycles:
         # TODO typelist = []
         cycle_total_counter.update( [ len(cycle) ] )
@@ -274,20 +281,24 @@ def main_process( tgtpath = None,
             mytype = rec["type"]
             mysize = rec["size"]
             cycle_pair_list.append( (node, mytype, mysize) )
+            # print "X:", cycle_pair_list
         group += 1
         G = create_graph( cycle_pair_list = cycle_pair_list,
                           edgedict = edgedict,
                           logger = logger )
         # Get the actual cycle
-        real_cycle = list(nx.simple_cycles(G))
-        real_cycle_mean = float(sum( [ len(l) for l in real_cycle ] )) / max(len(real_cycle),1)
-        actual_cycle_mean.append( real_cycle_mean )
+        largest = max(nx.strongly_connected_components(G), key = len)
+        actual_cycle_counter.update( [ len(largest) ] )
+        # TODO TYPES TODO TODO
+        largest_by_types = get_types( G, largest )
+        largest_by_types_set = set(largest_by_types)
+        cycle_type_counter.update( [ len(largest_by_types_set) ] )
+        # real_cycle = list(nx.simple_cycles(G))
         # What else TODO? 10/19/2015 - RLV
+        # Types 10/21/2015 - RLV TODO TODO TODO
     print "cycle_total_counter:", str(cycle_total_counter)
-    print "actual_cycle_mean:", str(actual_cycle_mean)
-    # TODO maybe not here actual_cycle_mean = float(sum( [ len(l) for l in actual_cycle_length ] )) / max(len(actual_cycle_length),1)
-    # print "===========[ GLOBAL TYPE DICTIONARY ]================================="
-    # pp.pprint(typedict)
+    print "actual_cycle_counter:", str(actual_cycle_counter)
+    print "cycle_type_counter:", str(cycle_type_counter)
     print "===========[ DONE ]==================================================="
     exit(1000)
 

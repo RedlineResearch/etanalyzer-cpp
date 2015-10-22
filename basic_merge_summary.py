@@ -12,6 +12,8 @@ import re
 import ConfigParser
 from operator import itemgetter
 from collections import Counter
+from itertools import chain, repeat
+import csv
 import networkx as nx
 
 import mypytools
@@ -98,11 +100,6 @@ def create_graph( cycle_pair_list = None,
     logger.debug( "....done." )
     return g
 
-def get_benchmark(fp):
-    line = fp.readline()
-    line = line.rstrip()
-    print line
-
 def get_filelist(tgtpath):
     # We assume that the summary filename has the benchmark name 
     # as follows:
@@ -118,12 +115,16 @@ def get_filelist(tgtpath):
             filedict[benchmark] = actual_path
     return filedict
 
+def expand_counter(counter):
+    count_list = sorted( [ (k, v) for (k, v) in counter.iteritems() ],
+                         key = itemgetter(0) )
+    return chain( *[ list(z) for z in [ repeat(x, y) for (x, y) in count_list ] ] )
+
 def main_process( tgtpath = None,
                   debugflag = False,
                   logger = None ):
     global pp
     filedict = get_filelist(tgtpath)
-    pp.pprint(filedict)
     bmark_re = re.compile("^benchmark: (.*)$")
     num_re = re.compile("^num_cycles: (.*)$")
     cycle_total_re  = re.compile("^cycle_total_counter: (.*)$")
@@ -148,42 +149,18 @@ def main_process( tgtpath = None,
                     result[bmark_input]["cycle_counter"] = eval(cycle_counter)
                     continue
                 continue
-    pp.pprint(result)
+    csvlist = []
+    for benchmark, mydict in result.iteritems():
+        for key, val in mydict.iteritems():
+            if key == "num_cycles":
+                pass # TODO TODO TODO TODO
+            elif key == "cycle_counter":
+                citer = expand_counter(val)
+            else:
+                assert(False)
+        for x in citer:
+            print "%s,%d" % (benchmark, x)
     exit(1000) # TODO TODO TODO
-    edges = set( sorted( list(edges), key = itemgetter(0, 1) ) )
-    print "benchmark: %s" % benchmark
-    print "num_cycles: %d" % len(cycles)
-    typedict = {}
-    group = 1
-    graphs = []
-    edgedict = create_edge_dictionary( edges )
-    cycle_total_counter = Counter()
-    actual_cycle_mean = []
-    for cycle in cycles:
-        # TODO typelist = []
-        cycle_total_counter.update( [ len(cycle) ] )
-        cycle_pair_list = []
-        for node in cycle:
-            rec = objdb.get_record(node)
-            mytype = rec["type"]
-            mysize = rec["size"]
-            cycle_pair_list.append( (node, mytype, mysize) )
-        group += 1
-        G = create_graph( cycle_pair_list = cycle_pair_list,
-                          edgedict = edgedict,
-                          logger = logger )
-        # Get the actual cycle
-        real_cycle = list(nx.simple_cycles(G))
-        real_cycle_mean = float(sum( [ len(l) for l in real_cycle ] )) / max(len(real_cycle),1)
-        actual_cycle_mean.append( real_cycle_mean )
-        # What else TODO? 10/19/2015 - RLV
-    print "cycle_total_counter:", str(cycle_total_counter)
-    print "actual_cycle_mean:", str(actual_cycle_mean)
-    # TODO maybe not here actual_cycle_mean = float(sum( [ len(l) for l in actual_cycle_length ] )) / max(len(actual_cycle_length),1)
-    # print "===========[ GLOBAL TYPE DICTIONARY ]================================="
-    # pp.pprint(typedict)
-    print "===========[ DONE ]==================================================="
-    exit(1000)
 
 def config_section_map( section, config_parser ):
     result = {}
