@@ -205,16 +205,51 @@ class ObjDB:
         return db_oType
 
 def get_types( G, cycle ):
-    result = []
-    for node in cycle:
-        result.append(G.node[node]["type"])
-    return result
+    return [ G.node[x]["type"] for x in cycle ]
+
+def get_cycles_and_edges( tgtpath ):
+    with open(tgtpath) as fp:
+        start = False
+        cycles = []
+        for line in fp:
+            line = line.rstrip()
+            if line.find("----------") == 0:
+                start = not start
+                if start:
+                    continue
+                else:
+                    break
+            if start:
+                line = line.rstrip(",")
+                row = line.split(",")
+                row = [ int(x) for x in row ]
+                cycles.append(row)
+        start = False
+        edges = set([])
+        for line in fp:
+            line = line.rstrip()
+            if line.find("==========") == 0:
+                start = True if not start else False
+                if start:
+                    continue
+                else:
+                    break
+            if start:
+                row = [ int(x) for x in line.split(" -> ") ]
+                edges.add(tuple(row))
+    edges = set( sorted( list(edges), key = itemgetter(0, 1) ) )
+    return (cycles, edges)
+
+def get_demographics( cycle ):
+    pass
 
 def main_process( tgtpath = None,
                   output = None,
                   objdb1 = None,
                   objdb2 = None,
                   objdb_all = None,
+                  etanalyze_config = None,
+                  global_config = None,
                   benchmark = None,
                   debugflag = False,
                   logger = None ):
@@ -230,49 +265,60 @@ def main_process( tgtpath = None,
     #      * size of objects
     # 2. Number of cycles
     # 3. Size of cycles
-    with open(tgtpath) as fp:
-        start = False
-        cycles = []
-        for line in fp:
-            line = line.rstrip()
-            if line.find("----------") == 0:
-                start = not start
-                if start:
-                    continue
-                else:
-                    break
-            if start:
-                line = line.rstrip(",")
-                row = line.split(",")
-                # print line
-                row = [ int(x) for x in row ]
-                cycles.append(row)
-        start = False
-        edges = set([])
-        for line in fp:
-            line = line.rstrip()
-            if line.find("==========") == 0:
-                start = True if not start else False
-                if start:
-                    continue
-                else:
-                    break
-            if start:
-                # line = line.replace(" -> ", ",")
-                row = [ int(x) for x in line.split(" -> ") ]
-                # print line
-                edges.add(tuple(row))
-    edges = set( sorted( list(edges), key = itemgetter(0, 1) ) )
-    print "benchmark: %s" % benchmark
+    pp.pprint(etanalyze_config)
+    pp.pprint(global_config)
+    cycle_cpp_dir = global_config["cycle_cpp_dir"]
+    results = {}
+    for bmark, filename in etanalyze_config.iteritems():
+        abspath = os.path.join(cycle_cpp_dir, filename)
+        if not os.path.isfile(abspath):
+            logger.critical("Not such file: %s" % str(abspath))
+        else:
+            group = 1
+            graphs = []
+            # Counters TODO: do we need this?
+            cycle_total_counter = Counter()
+            actual_cycle_counter = Counter()
+            cycle_type_counter = Counter()
+            cycles, edges = get_cycles_and_edges( tgtpath )
+            edgedict = create_edge_dictionary( edges )
+            results[bmark] = { "totals" : [],
+                               "graph" : [],
+                               "largest_cycle" : [],
+                               "largest_cycle_types_set" : [] }
+            for cycle in cycles:
+                results[bmark]["totals"].append( len(cycle) )
+                cycle_total_counter.update( [ len(cycle) ] )
+                cycle_pair_list = []
+                for node in cycle:
+                    rec = objdb.get_record(node)
+                    mytype = rec["type"]
+                    mysize = rec["size"]
+                    cycle_pair_list.append( (node, mytype, mysize) )
+                group += 1
+                G = create_graph( cycle_pair_list = cycle_pair_list,
+                                  edgedict = edgedict,
+                                  logger = logger )
+                results[bmark]["graph"].append(G)
+                # Get the actual cycle
+                largest = max(nx.strongly_connected_components(G), key = len)
+                results[bmark]["largest_cycle"].append(largest)
+                actual_cycle_counter.update( [ len(largest) ] )
+                largest_by_types = get_types( G, largest )
+                largest_by_types_set = set(largest_by_types)
+                results[bmark]["largest_cycle_types_set"].append(largest_by_types_set)
+                cycle_type_counter.update( [ len(largest_by_types_set) ] )
+    # TODO print "benchmark: %s" % benchmark
     print "num_cycles: %d" % len(cycles)
-    typedict = {}
+    pp.pprint(results)
+    exit(1000) # TODO TODO TODO
+    # TODO TODO TODO TODO TODO TODO
     group = 1
     graphs = []
-    edgedict = create_edge_dictionary( edges )
     cycle_total_counter = Counter()
     actual_cycle_counter = Counter()
     cycle_type_counter = Counter()
-    for cycle in cycles:
+    for cycle in cycles: # DONE
         # TODO typelist = []
         cycle_total_counter.update( [ len(cycle) ] )
         cycle_pair_list = []
@@ -302,17 +348,6 @@ def main_process( tgtpath = None,
     print "===========[ DONE ]==================================================="
     exit(1000)
 
-def config_section_map( section, config_parser ):
-    result = {}
-    options = config_parser.options(section)
-    for option in options:
-        try:
-            result[option] = config_parser.get(section, option)
-        except:
-            print("exception on %s!" % option)
-            result[option] = None
-    return result
-
 def create_parser():
     # set up arg parser
     parser = argparse.ArgumentParser()
@@ -323,9 +358,6 @@ def create_parser():
     parser.add_argument( "--benchmark",
                          required = True,
                          help = "Set name of benchmark" )
-    parser.add_argument( "--outpickle",
-                         required = True,
-                         help = "Target output pickle filename." )
     parser.add_argument( "--debug",
                          dest = "debugflag",
                          help = "Enable debug output.",
@@ -379,7 +411,8 @@ def process_config( args ):
     objdb1_config = config_section_map( "objdb1", config_parser )
     objdb2_config = config_section_map( "objdb2", config_parser )
     objdb_ALL_config = config_section_map( "objdb_ALL", config_parser )
-    return ( global_config, objdb1_config, objdb2_config, objdb_ALL_config )
+    etanalyze_config = config_section_map( "etanalyze-output", config_parser )
+    return ( global_config, objdb1_config, objdb2_config, objdb_ALL_config, etanalyze_config )
 
 def main():
     parser = create_parser()
@@ -387,7 +420,7 @@ def main():
     configparser = ConfigParser.ConfigParser()
     benchmark = args.benchmark
     if args.config != None:
-         global_config, objdb1_config, objdb2_config, objdb_ALL_config = process_config( args )
+         global_config, objdb1_config, objdb2_config, objdb_ALL_config, etanalyze_config = process_config( args )
     else:
         # TODO
         assert( False )
@@ -404,11 +437,12 @@ def main():
     # Main processing
     #
     return main_process( tgtpath = args.filename,
-                         output = args.outpickle,
                          debugflag = global_config["debug"],
                          objdb1 = objdb1,
                          objdb2 = objdb2,
                          objdb_all = objdb_all,
+                         etanalyze_config = etanalyze_config,
+                         global_config = global_config,
                          benchmark = benchmark,
                          logger = logger )
 
