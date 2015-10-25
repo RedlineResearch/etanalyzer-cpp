@@ -13,6 +13,8 @@ import ConfigParser
 from operator import itemgetter
 from collections import Counter
 import networkx as nx
+import StringIO
+import csv
 
 import mypytools
 
@@ -259,6 +261,15 @@ def get_cycle_info_list( cycle = None,
         cycle_info_list.append( (node, mytype, mysize) )
     return cycle_info_list
 
+def row_to_string( row ):
+    result = None
+    strout = StringIO.StringIO()
+    csvwriter = csv.writer(strout)
+    csvwriter.writerow( [ x for x in row ] )
+    result = strout.getvalue()
+    strout.close()
+    return result.replace("\r", "")
+
 def output_results( output_path = None,
                     results = None ):
     # Print out results in this format:
@@ -267,9 +278,19 @@ def output_results( output_path = None,
     # size, 1, 4, 5, 2, etc
     # largest_cycle, 1, 2, 5, 1, etc
     # number_types, 1, 1, 2, 1, etc
-    for bmark, infodict in results.iteritems():
-        print "================================================================================"
-        print "%s:" % bmark
+    with open(output_path, "wb") as fp:
+        for bmark, infodict in results.iteritems():
+            fp.write("================================================================================\n")
+            fp.write("%s:\n" % bmark)
+            # Totals
+            contents = row_to_string( infodict["totals"] )
+            fp.write("totals,%s" % contents)
+            # Actual largest cycle
+            contents = row_to_string( [ len(x) for x in infodict["largest_cycle"] ] )
+            fp.write("largest_cycle,%s" % contents)
+            # Types 
+            contents = row_to_string( [ len(x) for x in infodict["largest_cycle_types_set"] ] )
+            fp.write("types,%s" % contents)
 
 def main_process( output = None,
                   etanalyze_config = None,
@@ -290,6 +311,7 @@ def main_process( output = None,
     pp.pprint(global_config)
     cycle_cpp_dir = global_config["cycle_cpp_dir"]
     results = {}
+    count = 0
     for bmark, filename in etanalyze_config.iteritems():
         print "Z:", bmark
         objdb = setup_objdb( global_config = global_config,
@@ -299,7 +321,6 @@ def main_process( output = None,
                              benchmark = bmark,
                              logger = logger,
                              debugflag = debugflag )
-        continue
         abspath = os.path.join(cycle_cpp_dir, filename)
         if not os.path.isfile(abspath):
             logger.critical("Not such file: %s" % str(abspath))
@@ -337,16 +358,15 @@ def main_process( output = None,
                 group += 1
     # TODO print "benchmark: %s" % benchmark
     # TODO Where do we need the benchmark?
-    exit(1000)
     output_results( output_path = output,
-                    results = None )
+                    results = results )
     # Print out results in this format:
     # ========= <- divider
     # benchmark:
     # size, 1, 4, 5, 2, etc
     # largest_cycle, 1, 2, 5, 1, etc
     # number_types, 1, 1, 2, 1, etc
-    print "======================================================================"
+    print "--------------------------------------------------------------------------------"
     print "num_cycles: %d" % len(cycles)
     print "cycle_total_counter:", str(cycle_total_counter)
     print "actual_cycle_counter:", str(actual_cycle_counter)
