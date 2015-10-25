@@ -80,14 +80,14 @@ def create_edge_dictionary( edges = None ):
         edgedict[src] = set(tgtlist)
     return edgedict
 
-def create_graph( cycle_pair_list = None,
+def create_graph( cycle_info_list = None,
                   edgedict = None,
                   logger = None ):
     global pp
     logger.debug( "Creating graph..." )
     g = nx.DiGraph()
     nodeset = set([])
-    for mytuple in cycle_pair_list:
+    for mytuple in cycle_info_list:
         node, mytype, mysize = mytuple
         nodeset.add(node)
         g.add_node( n = node,
@@ -243,22 +243,43 @@ def get_cycles_and_edges( tgtpath ):
 def get_demographics( cycle ):
     pass
 
-def main_process( tgtpath = None,
-                  output = None,
-                  objdb1 = None,
-                  objdb2 = None,
-                  objdb_all = None,
+def get_cycle_info_list( cycle = None,
+                         objdb = None,
+                         logger = None ):
+    cycle_info_list = []
+    for node in cycle:
+        try:
+            rec = objdb.get_record(node)
+            mytype = rec["type"]
+            mysize = rec["size"]
+        except:
+            logger.critical("Missing node[ %s ]" % str(node))
+            mytype = "NONE"
+            mysize = 0
+        cycle_info_list.append( (node, mytype, mysize) )
+    return cycle_info_list
+
+def output_results( output_path = None,
+                    results = None ):
+    # Print out results in this format:
+    # ========= <- divider
+    # benchmark:
+    # size, 1, 4, 5, 2, etc
+    # largest_cycle, 1, 2, 5, 1, etc
+    # number_types, 1, 1, 2, 1, etc
+    for bmark, infodict in results.iteritems():
+        print "================================================================================"
+        print "%s:" % bmark
+
+def main_process( output = None,
                   etanalyze_config = None,
                   global_config = None,
-                  benchmark = None,
+                  objdb1_config = None,
+                  objdb2_config = None,
+                  objdb_ALL_config = None,
                   debugflag = False,
                   logger = None ):
     global pp
-    objdb = ObjDB( objdb1 = objdb1,
-                   objdb2 = objdb2,
-                   objdb_all = objdb_all,
-                   debugflag = debugflag,
-                   logger = logger )
     # HERE: TODO
     # 1. Cyclic garbage vs ref count reclaimed:
     #      * Number of objects
@@ -270,6 +291,15 @@ def main_process( tgtpath = None,
     cycle_cpp_dir = global_config["cycle_cpp_dir"]
     results = {}
     for bmark, filename in etanalyze_config.iteritems():
+        print "Z:", bmark
+        objdb = setup_objdb( global_config = global_config,
+                             objdb1_config = objdb1_config,
+                             objdb2_config = objdb2_config,
+                             objdb_ALL_config = objdb_ALL_config,
+                             benchmark = bmark,
+                             logger = logger,
+                             debugflag = debugflag )
+        continue
         abspath = os.path.join(cycle_cpp_dir, filename)
         if not os.path.isfile(abspath):
             logger.critical("Not such file: %s" % str(abspath))
@@ -280,7 +310,7 @@ def main_process( tgtpath = None,
             cycle_total_counter = Counter()
             actual_cycle_counter = Counter()
             cycle_type_counter = Counter()
-            cycles, edges = get_cycles_and_edges( tgtpath )
+            cycles, edges = get_cycles_and_edges( abspath )
             edgedict = create_edge_dictionary( edges )
             results[bmark] = { "totals" : [],
                                "graph" : [],
@@ -289,59 +319,35 @@ def main_process( tgtpath = None,
             for cycle in cycles:
                 results[bmark]["totals"].append( len(cycle) )
                 cycle_total_counter.update( [ len(cycle) ] )
-                cycle_pair_list = []
-                for node in cycle:
-                    rec = objdb.get_record(node)
-                    mytype = rec["type"]
-                    mysize = rec["size"]
-                    cycle_pair_list.append( (node, mytype, mysize) )
-                group += 1
-                G = create_graph( cycle_pair_list = cycle_pair_list,
+                cycle_info_list = get_cycle_info_list( cycle, objdb, logger )
+                G = create_graph( cycle_info_list = cycle_info_list,
                                   edgedict = edgedict,
                                   logger = logger )
                 results[bmark]["graph"].append(G)
                 # Get the actual cycle
                 largest = max(nx.strongly_connected_components(G), key = len)
                 results[bmark]["largest_cycle"].append(largest)
+                # Cycle length counter
                 actual_cycle_counter.update( [ len(largest) ] )
+                # Get the types and type statistics
                 largest_by_types = get_types( G, largest )
                 largest_by_types_set = set(largest_by_types)
                 results[bmark]["largest_cycle_types_set"].append(largest_by_types_set)
                 cycle_type_counter.update( [ len(largest_by_types_set) ] )
+                group += 1
     # TODO print "benchmark: %s" % benchmark
+    # TODO Where do we need the benchmark?
+    exit(1000)
+    output_results( output_path = output,
+                    results = None )
+    # Print out results in this format:
+    # ========= <- divider
+    # benchmark:
+    # size, 1, 4, 5, 2, etc
+    # largest_cycle, 1, 2, 5, 1, etc
+    # number_types, 1, 1, 2, 1, etc
+    print "======================================================================"
     print "num_cycles: %d" % len(cycles)
-    pp.pprint(results)
-    exit(1000) # TODO TODO TODO
-    # TODO TODO TODO TODO TODO TODO
-    group = 1
-    graphs = []
-    cycle_total_counter = Counter()
-    actual_cycle_counter = Counter()
-    cycle_type_counter = Counter()
-    for cycle in cycles: # DONE
-        # TODO typelist = []
-        cycle_total_counter.update( [ len(cycle) ] )
-        cycle_pair_list = []
-        for node in cycle:
-            rec = objdb.get_record(node)
-            mytype = rec["type"]
-            mysize = rec["size"]
-            cycle_pair_list.append( (node, mytype, mysize) )
-            # print "X:", cycle_pair_list
-        group += 1
-        G = create_graph( cycle_pair_list = cycle_pair_list,
-                          edgedict = edgedict,
-                          logger = logger )
-        # Get the actual cycle
-        largest = max(nx.strongly_connected_components(G), key = len)
-        actual_cycle_counter.update( [ len(largest) ] )
-        # TODO TYPES TODO TODO
-        largest_by_types = get_types( G, largest )
-        largest_by_types_set = set(largest_by_types)
-        cycle_type_counter.update( [ len(largest_by_types_set) ] )
-        # real_cycle = list(nx.simple_cycles(G))
-        # What else TODO? 10/19/2015 - RLV
-        # Types 10/21/2015 - RLV TODO TODO TODO
     print "cycle_total_counter:", str(cycle_total_counter)
     print "actual_cycle_counter:", str(actual_cycle_counter)
     print "cycle_type_counter:", str(cycle_type_counter)
@@ -351,13 +357,10 @@ def main_process( tgtpath = None,
 def create_parser():
     # set up arg parser
     parser = argparse.ArgumentParser()
-    parser.add_argument( "filename", help = "Source file from simulator run." )
+    parser.add_argument( "output", help = "Target output filename." )
     parser.add_argument( "--config",
                          help = "Specify configuration filename.",
                          action = "store" )
-    parser.add_argument( "--benchmark",
-                         required = True,
-                         help = "Set name of benchmark" )
     parser.add_argument( "--debug",
                          dest = "debugflag",
                          help = "Enable debug output.",
@@ -375,21 +378,6 @@ def create_parser():
                          config = None )
     return parser
 
-def process_args( args, parser ):
-    #
-    # Get input filename
-    #
-    tgtpath = args.pickle
-    try:
-        if not os.path.exists( tgtpath ):
-            parser.error( tgtpath + " does not exist." )
-    except:
-        parser.error( "invalid path name : " + tgtpath )
-    # Actually open the input db/file in main_process()
-    # 
-    # Get logfile
-    logfile = args.logfile
-    logfile = "basic_cycle_analyze-" + os.path.basename(tgtpath) + ".log" if not logfile else logfile    
 
 def config_section_map( section, config_parser ):
     result = {}
@@ -414,36 +402,44 @@ def process_config( args ):
     etanalyze_config = config_section_map( "etanalyze-output", config_parser )
     return ( global_config, objdb1_config, objdb2_config, objdb_ALL_config, etanalyze_config )
 
+def setup_objdb( global_config = None,
+                 objdb1_config = None,
+                 objdb2_config = None,
+                 objdb_ALL_config = None,
+                 benchmark = None,
+                 logger = None,
+                 debugflag = False ):
+    # set up objdb
+    objdb1 = os.path.join( global_config["objdb_dir"], objdb1_config[benchmark] )
+    objdb2 = os.path.join( global_config["objdb_dir"], objdb2_config[benchmark] )
+    objdb_all = os.path.join( global_config["objdb_dir"], objdb_ALL_config[benchmark] )
+    return ObjDB( objdb1 = objdb1,
+                  objdb2 = objdb2,
+                  objdb_all = objdb_all,
+                  debugflag = debugflag,
+                  logger = logger )
+
 def main():
     parser = create_parser()
     args = parser.parse_args()
     configparser = ConfigParser.ConfigParser()
     benchmark = args.benchmark
-    if args.config != None:
-         global_config, objdb1_config, objdb2_config, objdb_ALL_config, etanalyze_config = process_config( args )
-    else:
-        # TODO
-        assert( False )
-        TODO_ = process_args( args, parser )
+    assert( args.config != None )
+    global_config, objdb1_config, objdb2_config, objdb_ALL_config, etanalyze_config = process_config( args )
     # logging
     logger = setup_logger( filename = args.logfile,
                            debugflag = global_config["debug"] )
-
-    # set up objdb
-    objdb1 = os.path.join( global_config["objdb_dir"], objdb1_config[benchmark] )
-    objdb2 = os.path.join( global_config["objdb_dir"], objdb2_config[benchmark] )
-    objdb_all = os.path.join( global_config["objdb_dir"], objdb_ALL_config[benchmark] )
+    
     #
     # Main processing
     #
-    return main_process( tgtpath = args.filename,
-                         debugflag = global_config["debug"],
-                         objdb1 = objdb1,
-                         objdb2 = objdb2,
-                         objdb_all = objdb_all,
+    return main_process( debugflag = global_config["debug"],
+                         output = args.output,
                          etanalyze_config = etanalyze_config,
                          global_config = global_config,
-                         benchmark = benchmark,
+                         objdb1_config = objdb1_config,
+                         objdb2_config = objdb2_config,
+                         objdb_ALL_config = objdb_ALL_config,
                          logger = logger )
 
 if __name__ == "__main__":
