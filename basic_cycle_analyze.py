@@ -356,21 +356,22 @@ def main_process( output = None,
                 results[bmark]["largest_cycle_types_set"].append(largest_by_types_set)
                 cycle_type_counter.update( [ len(largest_by_types_set) ] )
                 group += 1
+            print "--------------------------------------------------------------------------------"
+            print "num_cycles: %d" % len(cycles)
+            print "cycle_total_counter:", str(cycle_total_counter)
+            print "actual_cycle_counter:", str(actual_cycle_counter)
+            print "cycle_type_counter:", str(cycle_type_counter)
     # TODO print "benchmark: %s" % benchmark
     # TODO Where do we need the benchmark?
-    output_results( output_path = output,
-                    results = results )
-    # Print out results in this format:
     # ========= <- divider
     # benchmark:
     # size, 1, 4, 5, 2, etc
     # largest_cycle, 1, 2, 5, 1, etc
     # number_types, 1, 1, 2, 1, etc
-    print "--------------------------------------------------------------------------------"
-    print "num_cycles: %d" % len(cycles)
-    print "cycle_total_counter:", str(cycle_total_counter)
-    print "actual_cycle_counter:", str(actual_cycle_counter)
-    print "cycle_type_counter:", str(cycle_type_counter)
+    # TODO - fix this documentation
+    output_results( output_path = output,
+                    results = results )
+    # Print out results in this format:
     print "===========[ DONE ]==================================================="
     exit(1000)
 
