@@ -270,6 +270,52 @@ def row_to_string( row ):
     strout.close()
     return result.replace("\r", "")
 
+def render_histogram( histfile = None,
+                      title = None ):
+    outpng = histfile + ".png"
+    cmd = [ "/data/rveroy/bin/Rscript",
+            "/data/rveroy/src/etanalyzer/Rgraph/histogram.R", # TODO Hard coded for now.
+            # Put into config. TODO TODO TODO
+            histfile, outpng,
+            "800", "800",
+            title, ]
+    print "Running histogram.R on %s -> %s" % (histfile, outpng)
+    # TODO TODO TODO TODO
+    return
+    renderproc = subprocess.Popen( cmd,
+                                   stdout = subprocess.PIPE,
+                                   stdin = subprocess.PIPE,
+                                   stderr = subprocess.PIPE )
+    result = renderproc.communicate()
+
+def write_histogram( results = None,
+                     tgtpath  = None,
+                     title = None ):
+    with open(tgtpath, 'wb') as fp:
+        csvw = csv.writer( fp,
+                         quotechar = '"',
+                         quoting = csv.QUOTE_NONNUMERIC )
+        header = [ "benchmark", "total" ]
+        csvw.writerow( header )
+        dframe = []
+        for benchmark, infodict in results.iteritems():
+            assert( "totals" in infodict )
+            assert( "largest_cycle" in infodict )
+            assert( "largest_cycle_types_set" in infodict )
+            for total in infodict["totals"]:
+                row = [ benchmark, total ]
+                dframe.append(row)
+        sortedlist = sorted( dframe,
+                             key = itemgetter(0) )
+        for csvrow in sortedlist:
+            csvw.writerow( csvrow )
+        render_histogram( histfile = tgtpath,
+                          title = title )
+
+def output_R( benchmark = None ):
+    pass
+    # Need benchmark.
+
 def output_results( output_path = None,
                     results = None ):
     # Print out results in this format:
@@ -291,6 +337,10 @@ def output_results( output_path = None,
             # Types 
             contents = row_to_string( [ len(x) for x in infodict["largest_cycle_types_set"] ] )
             fp.write("types,%s" % contents)
+    hist_output = output_path + "-histogram.csv"
+    write_histogram( results = results,
+                     tgtpath = hist_output,
+                     title = "Historgram TODO" )
 
 def main_process( output = None,
                   etanalyze_config = None,
@@ -361,6 +411,7 @@ def main_process( output = None,
             print "cycle_total_counter:", str(cycle_total_counter)
             print "actual_cycle_counter:", str(actual_cycle_counter)
             print "cycle_type_counter:", str(cycle_type_counter)
+        break
     # TODO print "benchmark: %s" % benchmark
     # TODO Where do we need the benchmark?
     # ========= <- divider
