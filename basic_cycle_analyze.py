@@ -15,6 +15,7 @@ from collections import Counter
 import networkx as nx
 import StringIO
 import csv
+import subprocess
 
 import mypytools
 
@@ -274,19 +275,23 @@ def render_histogram( histfile = None,
                       title = None ):
     outpng = histfile + ".png"
     cmd = [ "/data/rveroy/bin/Rscript",
-            "/data/rveroy/src/etanalyzer/Rgraph/histogram.R", # TODO Hard coded for now.
+            "/data/rveroy/pulsrc/etanalyzer/Rgraph/histogram.R", # TODO Hard coded for now.
             # Put into config. TODO TODO TODO
             histfile, outpng,
             "800", "800",
             title, ]
     print "Running histogram.R on %s -> %s" % (histfile, outpng)
     # TODO TODO TODO TODO
-    return
+    print "[ %s ]" % cmd
     renderproc = subprocess.Popen( cmd,
                                    stdout = subprocess.PIPE,
                                    stdin = subprocess.PIPE,
                                    stderr = subprocess.PIPE )
     result = renderproc.communicate()
+    print "--------------------------------------------------------------------------------"
+    for x in result:
+        print x
+    print "--------------------------------------------------------------------------------"
 
 def write_histogram( results = None,
                      tgtpath  = None,
@@ -411,7 +416,7 @@ def main_process( output = None,
             print "cycle_total_counter:", str(cycle_total_counter)
             print "actual_cycle_counter:", str(actual_cycle_counter)
             print "cycle_type_counter:", str(cycle_type_counter)
-        break
+        count += 1
     # TODO print "benchmark: %s" % benchmark
     # TODO Where do we need the benchmark?
     # ========= <- divider
