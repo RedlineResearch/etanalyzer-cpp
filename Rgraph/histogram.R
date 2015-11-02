@@ -16,11 +16,15 @@ bmark <- unique(xcsv$benchmark)
 for (b in bmark) {
     print(b)
     subset <- xcsv[ xcsv$benchmark == b, ]
+    #--------------------------------------------------
+    # Linear scale
     output <- paste0(b, "-", outfile)
-    # dev.copy(filename = output, device = png, width = width, height = height)
-    # graphics.off()
-    # qplot( subset, data = xcsv, xlab = xlabel, main = title, geom = "histogram", binwidth = 1 )
     p <- ggplot( subset, aes(x = total)) + geom_histogram( binwidth = 2 )
+    ggsave(filename = output, plot = p)
+    #--------------------------------------------------
+    # Log scale
+    output <- paste0(b, "-log10-", outfile)
+    p <- ggplot( subset, aes(x = total)) + geom_density() # + scale_y_log10()
     ggsave(filename = output, plot = p)
 }
 # png(filename = outfile, width = width, height = height)

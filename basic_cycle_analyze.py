@@ -16,6 +16,7 @@ import networkx as nx
 import StringIO
 import csv
 import subprocess
+import datetime
 
 import mypytools
 
@@ -281,7 +282,6 @@ def render_histogram( histfile = None,
             "800", "800",
             title, ]
     print "Running histogram.R on %s -> %s" % (histfile, outpng)
-    # TODO TODO TODO TODO
     print "[ %s ]" % cmd
     renderproc = subprocess.Popen( cmd,
                                    stdout = subprocess.PIPE,
@@ -314,12 +314,16 @@ def write_histogram( results = None,
                              key = itemgetter(0) )
         for csvrow in sortedlist:
             csvw.writerow( csvrow )
+        # TODO TODO TODO TODO
+        # TODO TODO TODO: SPAWN OFF THREAD
+        # TODO TODO TODO TODO
         render_histogram( histfile = tgtpath,
                           title = title )
 
 def output_R( benchmark = None ):
     pass
     # Need benchmark.
+    # TODO: Do we need this?
 
 def output_results( output_path = None,
                     results = None ):
@@ -347,7 +351,22 @@ def output_results( output_path = None,
                      tgtpath = hist_output,
                      title = "Historgram TODO" )
 
+def create_work_directory( work_dir ):
+    os.chdir( work_dir )
+    today = datetime.date.today()
+    today = today.strftime("%Y-%m%d")
+    if os.path.isfile(today):
+        print "Can not create %s as directory." % today
+        exit(11)
+    if not os.path.isdir( today ):
+        os.mkdir( today )
+    else:
+        print "WARNING: %s directory exists." % today
+        raw_input("Press ENTER to continue:")
+    return today
+
 def main_process( output = None,
+                  main_config = None,
                   etanalyze_config = None,
                   global_config = None,
                   objdb1_config = None,
@@ -365,8 +384,12 @@ def main_process( output = None,
     pp.pprint(etanalyze_config)
     pp.pprint(global_config)
     cycle_cpp_dir = global_config["cycle_cpp_dir"]
+    work_dir = main_config["directory"]
     results = {}
     count = 0
+    today = create_work_directory( work_dir )
+    olddir = os.getcwd()
+    os.chdir( today )
     for bmark, filename in etanalyze_config.iteritems():
         print "Z:", bmark
         objdb = setup_objdb( global_config = global_config,
@@ -417,6 +440,8 @@ def main_process( output = None,
             print "actual_cycle_counter:", str(actual_cycle_counter)
             print "cycle_type_counter:", str(cycle_type_counter)
         count += 1
+        # if count >= 1:
+        #     break
     # TODO print "benchmark: %s" % benchmark
     # TODO Where do we need the benchmark?
     # ========= <- divider
@@ -427,6 +452,7 @@ def main_process( output = None,
     # TODO - fix this documentation
     output_results( output_path = output,
                     results = results )
+    os.chdir( work_dir )
     # Print out results in this format:
     print "===========[ DONE ]==================================================="
     exit(1000)
@@ -468,7 +494,6 @@ def config_section_map( section, config_parser ):
     return result
 
 def process_config( args ):
-    global pp
     assert( args.config != None )
     config_parser = ConfigParser.ConfigParser()
     config_parser.read( args.config )
@@ -477,7 +502,11 @@ def process_config( args ):
     objdb2_config = config_section_map( "objdb2", config_parser )
     objdb_ALL_config = config_section_map( "objdb_ALL", config_parser )
     etanalyze_config = config_section_map( "etanalyze-output", config_parser )
-    return ( global_config, objdb1_config, objdb2_config, objdb_ALL_config, etanalyze_config )
+    main_config = config_section_map( "cycle-analyze", config_parser )
+    return ( global_config,
+             objdb1_config, objdb2_config, objdb_ALL_config,
+             etanalyze_config,
+             main_config )
 
 def setup_objdb( global_config = None,
                  objdb1_config = None,
@@ -502,7 +531,8 @@ def main():
     configparser = ConfigParser.ConfigParser()
     benchmark = args.benchmark
     assert( args.config != None )
-    global_config, objdb1_config, objdb2_config, objdb_ALL_config, etanalyze_config = process_config( args )
+    global_config, objdb1_config, objdb2_config, objdb_ALL_config, etanalyze_config, main_config \
+        = process_config( args )
     # logging
     logger = setup_logger( filename = args.logfile,
                            debugflag = global_config["debug"] )
@@ -512,6 +542,7 @@ def main():
     #
     return main_process( debugflag = global_config["debug"],
                          output = args.output,
+                         main_config = main_config,
                          etanalyze_config = etanalyze_config,
                          global_config = global_config,
                          objdb1_config = objdb1_config,
