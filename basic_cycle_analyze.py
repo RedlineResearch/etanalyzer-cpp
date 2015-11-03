@@ -294,30 +294,64 @@ def render_histogram( histfile = None,
     print "--------------------------------------------------------------------------------"
 
 def write_histogram( results = None,
-                     tgtpath  = None,
+                     tgtbase  = None,
                      title = None ):
-    with open(tgtpath, 'wb') as fp:
-        csvw = csv.writer( fp,
-                         quotechar = '"',
-                         quoting = csv.QUOTE_NONNUMERIC )
+    # TODO Use a list and a for loop to refactor.
+    tgtpath_totals = tgtbase + "-totals.csv"
+    tgtpath_cycles = tgtbase + "-cycles.csv"
+    tgtpath_types = tgtbase + "-types.csv"
+    with open(tgtpath_totals, 'wb') as fp_totals, \
+         open(tgtpath_cycles, 'wb') as fp_cycles, \
+         open(tgtpath_types, 'wb') as fp_types:
+        csvw_totals = csv.writer( fp_totals,
+                                  quotechar = '"',
+                                  quoting = csv.QUOTE_NONNUMERIC )
+        csvw_cycles = csv.writer( fp_cycles,
+                                  quotechar = '"',
+                                  quoting = csv.QUOTE_NONNUMERIC )
+        csvw_types = csv.writer( fp_types,
+                                 quotechar = '"',
+                                 quoting = csv.QUOTE_NONNUMERIC )
         header = [ "benchmark", "total" ]
-        csvw.writerow( header )
-        dframe = []
+        csvw_totals.writerow( header )
+        csvw_cycles.writerow( header )
+        csvw_types.writerow( header )
+        dframe = { "totals" : [],
+                   "lc" : [],
+                   "lc_types" : [] }
         for benchmark, infodict in results.iteritems():
             assert( "totals" in infodict )
             assert( "largest_cycle" in infodict )
             assert( "largest_cycle_types_set" in infodict )
             for total in infodict["totals"]:
                 row = [ benchmark, total ]
-                dframe.append(row)
-        sortedlist = sorted( dframe,
-                             key = itemgetter(0) )
-        for csvrow in sortedlist:
-            csvw.writerow( csvrow )
+                dframe["totals"].append(row)
+            for cycles in infodict["largest_cycle"]:
+                row = [ benchmark, len(cycles) ]
+                dframe["lc"].append(row)
+            for types in infodict["largest_cycle_types_set"]:
+                row = [ benchmark, len(types) ]
+                dframe["lc_types"].append(row)
+        sorted_totals = sorted( dframe["totals"],
+                                key = itemgetter(0) )
+        sorted_cycles = sorted( dframe["lc"],
+                                key = itemgetter(0) )
+        sorted_types = sorted( dframe["lc_types"],
+                                key = itemgetter(0) )
+        for csvrow in sorted_totals:
+            csvw_totals.writerow( csvrow )
+        for csvrow in sorted_cycles:
+            csvw_cycles.writerow( csvrow )
+        for csvrow in sorted_types:
+            csvw_types.writerow( csvrow )
         # TODO TODO TODO TODO
         # TODO TODO TODO: SPAWN OFF THREAD
         # TODO TODO TODO TODO
-        render_histogram( histfile = tgtpath,
+        render_histogram( histfile = tgtpath_totals,
+                          title = title )
+        render_histogram( histfile = tgtpath_cycles,
+                          title = title )
+        render_histogram( histfile = tgtpath_types,
                           title = title )
 
 def output_R( benchmark = None ):
@@ -346,9 +380,9 @@ def output_results( output_path = None,
             # Types 
             contents = row_to_string( [ len(x) for x in infodict["largest_cycle_types_set"] ] )
             fp.write("types,%s" % contents)
-    hist_output = output_path + "-histogram.csv"
+    hist_output_base = output_path + "-histogram"
     write_histogram( results = results,
-                     tgtpath = hist_output,
+                     tgtbase = hist_output_base,
                      title = "Historgram TODO" )
 
 def create_work_directory( work_dir ):
@@ -366,14 +400,14 @@ def create_work_directory( work_dir ):
     return today
 
 def skip_benchmark(bmark):
-    return ( bmark == "avrora" or
-             bmark == "batik" or
-             bmark == "eclipse" or
-             bmark == "fop" or
-             bmark == "h2" or
-             bmark == "jython" or
-             bmark == "luindex" or
-             bmark == "lusearch" or
+    return ( # bmark == "avrora" or
+             # bmark == "batik" or
+             # bmark == "eclipse" or
+             # bmark == "fop" or
+             # bmark == "h2" or
+             # bmark == "jython" or
+             # bmark == "luindex" or
+             # bmark == "lusearch" or
              bmark == "specjbb",
              bmark == "sunflow" )
 
@@ -466,7 +500,7 @@ def main_process( output = None,
     # TODO - fix this documentation
     output_results( output_path = output,
                     results = results )
-    os.chdir( work_dir )
+    os.chdir( olddir )
     # Print out results in this format:
     print "===========[ DONE ]==================================================="
     exit(1000)

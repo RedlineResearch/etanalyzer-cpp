@@ -12,7 +12,9 @@ title <- cargs[5]
 xlabel <- cargs[6]
 xcsv <- read.table( datafile, sep = ",", header = TRUE )
 
+print(xcsv)
 bmark <- unique(xcsv$benchmark)
+# print(bmark)
 for (b in bmark) {
     print(paste("Processing", b))
     flush.console()
@@ -22,15 +24,31 @@ for (b in bmark) {
     print("    - linear")
     flush.console()
     output <- paste0(b, "-", outfile)
-    p <- ggplot( subset, aes(x = total)) + geom_histogram( binwidth = 2 )
-    ggsave(filename = output, plot = p)
+    result = tryCatch( {
+            p <- ggplot( subset, aes(x = total)) + geom_histogram( binwidth = 2 )
+            ggsave(filename = output, plot = p)
+        }, warning = function(w) {
+            print(paste("WARNING: failed on", b))
+        }, error = function(e) {
+            print(paste("ERROR: failed on", b))
+        }, finally = {
+        }
+    )
     #--------------------------------------------------
     # Log scale
     print("    - log")
     flush.console()
     output <- paste0(b, "-log10-", outfile)
-    p <- ggplot( subset, aes(x = total)) + geom_density() # + scale_y_log10()
-    ggsave(filename = output, plot = p)
+    result = tryCatch( {
+            p <- ggplot( subset, aes(x = total)) + geom_density() # + scale_y_log10()
+            ggsave(filename = output, plot = p)
+        }, warning = function(w) {
+            print(paste("WARNING: failed on", b))
+        }, error = function(e) {
+            print(paste("ERROR: failed on", b))
+        }, finally = {
+        }
+    )
     print("    DONE.")
     flush.console()
 }
