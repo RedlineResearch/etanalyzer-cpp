@@ -365,6 +365,18 @@ def create_work_directory( work_dir ):
         raw_input("Press ENTER to continue:")
     return today
 
+def skip_benchmark(bmark):
+    return ( bmark == "avrora" or
+             bmark == "batik" or
+             bmark == "eclipse" or
+             bmark == "fop" or
+             bmark == "h2" or
+             bmark == "jython" or
+             bmark == "luindex" or
+             bmark == "lusearch" or
+             bmark == "specjbb",
+             bmark == "sunflow" )
+
 def main_process( output = None,
                   main_config = None,
                   etanalyze_config = None,
@@ -392,6 +404,8 @@ def main_process( output = None,
     os.chdir( today )
     for bmark, filename in etanalyze_config.iteritems():
         print "Z:", bmark
+        # if skip_benchmark(bmark):
+        #     continue
         objdb = setup_objdb( global_config = global_config,
                              objdb1_config = objdb1_config,
                              objdb2_config = objdb2_config,
