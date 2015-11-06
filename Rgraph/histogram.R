@@ -12,9 +12,7 @@ title <- cargs[5]
 xlabel <- cargs[6]
 xcsv <- read.table( datafile, sep = ",", header = TRUE )
 
-print(xcsv)
 bmark <- unique(xcsv$benchmark)
-# print(bmark)
 for (b in bmark) {
     print(paste("Processing", b))
     flush.console()

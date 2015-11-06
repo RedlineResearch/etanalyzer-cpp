@@ -303,6 +303,8 @@ def write_histogram( results = None,
     with open(tgtpath_totals, 'wb') as fp_totals, \
          open(tgtpath_cycles, 'wb') as fp_cycles, \
          open(tgtpath_types, 'wb') as fp_types:
+        # TODO REFACTOR into a loop
+        # TODO 2015-1103 - RLV TODO
         csvw_totals = csv.writer( fp_totals,
                                   quotechar = '"',
                                   quoting = csv.QUOTE_NONNUMERIC )
