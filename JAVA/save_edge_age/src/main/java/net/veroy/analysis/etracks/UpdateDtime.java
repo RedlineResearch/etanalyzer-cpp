@@ -20,11 +20,35 @@ import java.util.ArrayList;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.RemovalListener;
+import com.google.common.cache.RemovalNotification;
+
+
 public class UpdateDtime {
+    private static Cache<Integer, ObjectRecord> cache;
     private static Connection conn;
     private final static String table = "objects";
 
     public static void main(String[] args) {
+        RemovalListener<Integer, ObjectRecord> remListener = new RemovalListener<Integer, ObjectRecord>() {
+              public void onRemoval(RemovalNotification<Integer, ObjectRecord> removal) {
+                  // int objId = removal.getKey();
+                  ObjectRecord rec = removal.getValue();
+                  try {
+                      putIntoDB( rec );
+                  } catch ( Exception e ) {
+                      System.err.println( e.getClass().getName() + ": " + e.getMessage() );
+                      System.out.println( e.getClass().getName() + ": " + e.getMessage() );
+                      System.exit(0);
+                  }
+              }
+        };
+        cache = CacheBuilder.newBuilder()
+            .maximumSize(10000000)
+            .removalListener( remListener )
+            .build();
         conn = null;
         Statement stmt = null;
         String dbname = args[0];
@@ -156,7 +180,13 @@ public class UpdateDtime {
         // Get record first then fill in death time
         ObjectRecord rec;
         try {
-            rec = getFromDB(objId);
+            // rec = getFromDB(objId);
+            rec = cache.get( objId,
+                    new Callable<ObjectRecord>() {
+                        public ObjectRecord call() throws SQLException {
+                            return getFromDB( objId );
+                        }
+                    } );
         } catch( Exception e ) {
             System.err.println( e.getClass().getName() + ": " + e.getMessage() );
             System.out.println( e.getClass().getName() + ": " + e.getMessage() );
@@ -165,7 +195,11 @@ public class UpdateDtime {
         }
         int old_dtime = rec.get_dtime();
         // System.out.println(  old_dtime + " -> " + timeByMethod );
-        rec.set_dtime( timeByMethod );
-        return putIntoDB( rec );
+        if (old_dtime != timeByMethod) {
+            rec.set_dtime( timeByMethod );
+            cache.put( objId, rec );
+            // return putIntoDB( rec );
+        }
+        return true;
     }
 }
