@@ -20,11 +20,34 @@ import java.util.ArrayList;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.RemovalListener;
+import com.google.common.cache.RemovalNotification;
+
 public class SaveObjectInfo {
+    private static Cache<Integer, ObjectRecord> cache;
     private static Connection conn;
     private final static String table = "objects";
 
     public static void main(String[] args) {
+        RemovalListener<Integer, ObjectRecord> remListener = new RemovalListener<Integer, ObjectRecord>() {
+              public void onRemoval(RemovalNotification<Integer, ObjectRecord> removal) {
+                  // int objId = removal.getKey();
+                  ObjectRecord rec = removal.getValue();
+                  try {
+                      putIntoDB( rec );
+                  } catch ( Exception e ) {
+                      System.err.println( e.getClass().getName() + ": " + e.getMessage() );
+                      System.out.println( e.getClass().getName() + ": " + e.getMessage() );
+                      System.exit(0);
+                  }
+              }
+        };
+        cache = CacheBuilder.newBuilder()
+            .maximumSize(100000000)
+            .removalListener( remListener )
+            .build();
         conn = null;
         Statement stmt = null;
         String dbname = args[0];
@@ -102,9 +125,23 @@ public class SaveObjectInfo {
                     String[] fields = line.split(" ");
                     if (isAllocation(fields[0])) {
                         ObjectRecord object = parseAllocation( fields, timeByMethod );
-                        putIntoDB( object );
-                    } else if (fields[0].equals("M")) {
+                        // putIntoDB( object );
+                        cache.put(object.get_objId(), object);
+                    } else if (isMethod( fields[0])) {
                         timeByMethod += 1;
+                    } else if (isDeath(fields[0])) {
+                        // TODO HERE TODO 2015-1105 RLV
+                        int objId = 0;
+                        // Convert objId to integer
+                        try {
+                            objId = Integer.parseInt(fields[1], 16);
+                        } catch( Exception e ) {
+                            System.out.println( String.format("parseInt failed: %s", fields[1] ) );
+                            i += 1;
+                            continue;
+                        }
+                        // Update record with death time timeByMethod
+                        updateDeathTime( objId, timeByMethod );
                     }
                     i += 1;
                     if (i % 10000 == 1) {
@@ -125,6 +162,16 @@ public class SaveObjectInfo {
 
     private static boolean isAllocation( String op ) {
         return (op.equals("A") || op.equals("N") || op.equals("P") || op.equals("I") || op.equals("V"));
+    }
+
+    private static boolean isDeath(String op) {
+        return op.equals("D");
+    }
+
+    private static boolean isMethod( String op ) {
+        // Only count method entry and exception handled.
+        // TODO: Verify this.
+        return (op.equals("M") || op.equals("H"));
     }
 
     private static ObjectRecord parseAllocation( String[] fields, int timeByMethod ) {
@@ -169,5 +216,31 @@ public class SaveObjectInfo {
                                  fieldId,
                                  threadId,
                                  timeByMethod );
+    }
+
+    private static boolean updateDeathTime( int objId, int timeByMethod ) throws SQLException {
+        // Get record first then fill in death time
+        ObjectRecord rec;
+        try {
+            // rec = getFromDB(objId);
+            rec = cache.get( objId,
+                    new Callable<ObjectRecord>() {
+                        public ObjectRecord call() throws SQLException {
+                            return getFromDB( objId );
+                        }
+                    } );
+        } catch( Exception e ) {
+            System.err.println( e.getClass().getName() + ": " + e.getMessage() );
+            System.out.println( e.getClass().getName() + ": " + e.getMessage() );
+            System.exit(0);
+            return false;
+        }
+        int old_dtime = rec.get_dtime();
+        // System.out.println(  old_dtime + " -> " + timeByMethod );
+        if (old_dtime != timeByMethod) {
+            rec.set_dtime( timeByMethod );
+            cache.put( objId, rec );
+        }
+        return true;
     }
 }
