@@ -2,6 +2,7 @@ package net.veroy.analysis.etracks;
 
 
 import net.veroy.analysis.etracks.ObjectRecord;
+import net.veroy.analysis.etracks.EdgeRecord;
 import net.veroy.analysis.etracks.UpdateRecord;
 
 import java.io.BufferedReader;
@@ -22,22 +23,36 @@ import java.util.concurrent.ExecutionException;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
 import com.google.common.cache.RemovalListener;
 import com.google.common.cache.RemovalNotification;
 
 
-public class UpdateDtime {
-    private static Cache<Integer, ObjectRecord> cache;
+public class SaveEdgeAge {
+    private static Cache<EdgeRecord, ObjectRecord> cache;
     private static Connection conn;
     private final static String table = "objects";
 
     public static void main(String[] args) {
-        RemovalListener<Integer, ObjectRecord> remListener = new RemovalListener<Integer, ObjectRecord>() {
-              public void onRemoval(RemovalNotification<Integer, ObjectRecord> removal) {
+        int cache_size = 0;
+        try {
+            cache_size = Integer.parseInt(args[0]);
+        } catch ( Exception e ) {
+            System.err.println( e.getClass().getName() + ": " + e.getMessage() );
+            System.out.println( e.getClass().getName() + ": " + e.getMessage() );
+            System.out.println( "Unable to convert " + args[0] );
+            System.exit(0);
+        }
+        if (cache_size <= 0) {
+            System.out.println( "Invalid cache size: " + args[0] );
+            System.exit(0);
+        }
+        RemovalListener<EdgeRecord, ObjectRecord> remListener = new RemovalListener<EdgeRecord, ObjectRecord>() {
+              public void onRemoval(RemovalNotification<EdgeRecord, ObjectRecord> removal) {
                   // int objId = removal.getKey();
                   ObjectRecord rec = removal.getValue();
                   try {
-                      putIntoDB( rec );
+                      // TODO putIntoDB( rec );
                   } catch ( Exception e ) {
                       System.err.println( e.getClass().getName() + ": " + e.getMessage() );
                       System.out.println( e.getClass().getName() + ": " + e.getMessage() );
@@ -46,12 +61,12 @@ public class UpdateDtime {
               }
         };
         cache = CacheBuilder.newBuilder()
-            .maximumSize(10000000)
+            .maximumSize(cache_size)
             .removalListener( remListener )
             .build();
         conn = null;
         Statement stmt = null;
-        String dbname = args[0];
+        String dbname = args[1];
         try {
             Class.forName("org.sqlite.JDBC");
             conn = DriverManager.getConnection("jdbc:sqlite:" + dbname);
@@ -65,22 +80,22 @@ public class UpdateDtime {
         System.out.println("Database ran successfully");
     }
 
-    private static ObjectRecord getFromDB( int objId ) throws SQLException {
-        ObjectRecord objrec = new ObjectRecord();
-        Statement stmt = conn.createStatement();
-        ResultSet rs = stmt.executeQuery( String.format("SELECT * FROM %s WHERE objid=%d;",table ,objId ) );
-        if (rs.next()) {
-            objrec.set_objId( rs.getInt("objid") );
-            objrec.set_size( rs.getInt("size") );
-            objrec.set_objtype( rs.getString("objtype") );
-            objrec.set_length( rs.getInt("length") );
-            objrec.set_atime( rs.getInt("atime") );
-            objrec.set_dtime( rs.getInt("dtime") );
-            objrec.set_allocsite( rs.getInt("allocsite") );
-        } else {
-            objrec.set_objId( objId );
-        }
-        return objrec;
+    private static ObjectRecord getFromDB( EdgeRecord key ) throws SQLException {
+        ObjectRecord rec = new ObjectRecord();
+        // Statement stmt = conn.createStatement();
+        // ResultSet rs = stmt.executeQuery( String.format("SELECT * FROM %s WHERE objid=%d;",table ,objId ) );
+        // if (rs.next()) {
+        //     objrec.set_objId( rs.getInt("objid") );
+        //     objrec.set_size( rs.getInt("size") );
+        //     objrec.set_objtype( rs.getString("objtype") );
+        //     objrec.set_length( rs.getInt("length") );
+        //     objrec.set_atime( rs.getInt("atime") );
+        //     objrec.set_dtime( rs.getInt("dtime") );
+        //     objrec.set_allocsite( rs.getInt("allocsite") );
+        // } else {
+        //     objrec.set_objId( objId );
+        // }
+        return rec;
     }
 
     private static boolean putIntoDB( ObjectRecord newrec ) throws SQLException {
@@ -112,11 +127,20 @@ public class UpdateDtime {
                     // Deal with the line
                     String[] fields = line.split(" ");
                     if (isMethod(fields[0])) {
-                        // TODO HERE TODO 2015-1105 RLV
                         timeByMethod += 1;
-                        // What else to do this?
+                    } else if (isUpdate(fields[0])) {
+                        UpdateRecord rec = parseUpdate( fields, timeByMethod );
+                        int srcId = rec.get_objId();
+                        int oldTgtId = rec.get_oldTgtId();
+                        int newTgtId = rec.get_newTgtId();
+                        // TODO 
+                        // ObjectRecord tmprec = cache.get( objId,
+                        //                                  new Callable<ObjectRecord>() {
+                        //                                      public ObjectRecord call() throws SQLException {
+                        //                                          return getFromDB( objId );
+                        //                                      }
+                        //                                  } );
                     } else if (isDeath(fields[0])) {
-                        // TODO HERE TODO 2015-1105 RLV
                         int objId = 0;
                         // Convert objId to integer
                         try {
@@ -126,8 +150,9 @@ public class UpdateDtime {
                             i += 1;
                             continue;
                         }
-                        // Update record with death time timeByMethod
-                        updateDeathTime( objId, timeByMethod );
+                        if (objId == 0) {
+                            continue;
+                        }
                     }
                     i += 1;
                     if (i % 10000 == 1) {
@@ -181,25 +206,58 @@ public class UpdateDtime {
         ObjectRecord rec;
         try {
             // rec = getFromDB(objId);
-            rec = cache.get( objId,
-                    new Callable<ObjectRecord>() {
-                        public ObjectRecord call() throws SQLException {
-                            return getFromDB( objId );
-                        }
-                    } );
+            // TODO TODO TODO
+            // rec = cache.get( objId,
+            //         new Callable<ObjectRecord>() {
+            //             public ObjectRecord call() throws SQLException {
+            //                 return getFromDB( objId );
+            //             }
+            //         } );
         } catch( Exception e ) {
             System.err.println( e.getClass().getName() + ": " + e.getMessage() );
             System.out.println( e.getClass().getName() + ": " + e.getMessage() );
             System.exit(0);
             return false;
         }
-        int old_dtime = rec.get_dtime();
-        // System.out.println(  old_dtime + " -> " + timeByMethod );
-        if (old_dtime != timeByMethod) {
-            rec.set_dtime( timeByMethod );
-            cache.put( objId, rec );
-            // return putIntoDB( rec );
-        }
+        // TODO int old_dtime = rec.get_dtime();
+        // TODO // System.out.println(  old_dtime + " -> " + timeByMethod );
+        // TODO if (old_dtime != timeByMethod) {
+        // TODO     rec.set_dtime( timeByMethod );
+        // TODO     // TODO cache.put( objId, rec );
+        // TODO     // return putIntoDB( rec );
+        // TODO }
         return true;
+    }
+
+    private static UpdateRecord parseUpdate( String[] fields, int timeByMethod ) {
+        int oldTgtId = Integer.parseInt( fields[1], 16 );
+        int objId = Integer.parseInt( fields[2], 16 );
+        int newTgtId = Integer.parseInt( fields[3], 16 );
+        int fieldId = 0;
+        try {
+            fieldId = Integer.parseInt( fields[4], 16 );
+        }
+        catch ( Exception e ) {
+            try {
+                System.out.println( String.format("parseInt failed: %d -> %s", objId, fields[4]) );
+                BigInteger tmp = new BigInteger( fields[4], 16 );
+                fieldId = tmp.intValue();
+            }
+            catch ( Exception e2 ) {
+                System.err.println( e2.getClass().getName() + ": " + e2.getMessage() );
+                System.exit(0);
+            }
+        }
+        int threadId = Integer.parseInt( fields[5], 16 );
+        // Edge (objId -> oldTgtId) is now dead.
+        // Edge (objId -> newTgtId) is now alive.
+        // EXCEPT when either oldTgtId or newTgtId are 0.
+        //     - We are ignoring edges to 0.
+        return new UpdateRecord( objId,
+                                 oldTgtId,
+                                 newTgtId,
+                                 fieldId,
+                                 threadId,
+                                 timeByMethod );
     }
 }
