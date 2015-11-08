@@ -29,7 +29,8 @@ import com.google.common.cache.RemovalNotification;
 
 
 public class SaveEdgeAge {
-    private static Cache<EdgeRecord, ObjectRecord> cache;
+    private static Cache<EdgeRecord, BigInteger> cache;
+    // Cache maps from EdgeRecord to lifetime
     private static Connection conn;
     private final static String table = "objects";
 
@@ -47,10 +48,10 @@ public class SaveEdgeAge {
             System.out.println( "Invalid cache size: " + args[0] );
             System.exit(0);
         }
-        RemovalListener<EdgeRecord, ObjectRecord> remListener = new RemovalListener<EdgeRecord, ObjectRecord>() {
-              public void onRemoval(RemovalNotification<EdgeRecord, ObjectRecord> removal) {
+        RemovalListener<EdgeRecord, BigInteger> remListener = new RemovalListener<EdgeRecord, BigInteger>() {
+              public void onRemoval(RemovalNotification<EdgeRecord, BigInteger> removal) {
                   // int objId = removal.getKey();
-                  ObjectRecord rec = removal.getValue();
+                  Integer val = removal.getValue();
                   try {
                       // TODO putIntoDB( rec );
                   } catch ( Exception e ) {
@@ -80,8 +81,8 @@ public class SaveEdgeAge {
         System.out.println("Database ran successfully");
     }
 
-    private static ObjectRecord getFromDB( EdgeRecord key ) throws SQLException {
-        ObjectRecord rec = new ObjectRecord();
+    private static int getFromDB( EdgeRecord key ) throws SQLException {
+        BigInteger lifetime;
         // Statement stmt = conn.createStatement();
         // ResultSet rs = stmt.executeQuery( String.format("SELECT * FROM %s WHERE objid=%d;",table ,objId ) );
         // if (rs.next()) {
@@ -133,13 +134,23 @@ public class SaveEdgeAge {
                         int srcId = rec.get_objId();
                         int oldTgtId = rec.get_oldTgtId();
                         int newTgtId = rec.get_newTgtId();
-                        // TODO 
-                        // ObjectRecord tmprec = cache.get( objId,
-                        //                                  new Callable<ObjectRecord>() {
-                        //                                      public ObjectRecord call() throws SQLException {
-                        //                                          return getFromDB( objId );
-                        //                                      }
-                        //                                  } );
+                        int fieldId = rec.get_fieldId();
+                        // TODO  HERE TODO HERE  2015-1108 RLV
+                        // TODO  HERE TODO HERE  2015-1108 RLV
+                        // TODO  HERE TODO HERE  2015-1108 RLV
+                        EdgeRecord key = new EdgeRecord( srcId,
+                                                         oldTgtId,
+                                                         fieldId,
+                                                         atime,
+                                                         dtime )
+                        EdgeRecord tmprec = cache.get( objId,
+                                                       new Callable<EdgeRecord>() {
+                                                           public EdgeRecord call() throws SQLException {
+                                                               return getFromDB( objId );
+                                                           }
+                                                       } );
+                        // TODO  HERE TODO HERE  2015-1108 RLV
+                        // TODO  HERE TODO HERE  2015-1108 RLV
                     } else if (isDeath(fields[0])) {
                         int objId = 0;
                         // Convert objId to integer
