@@ -305,56 +305,42 @@ def write_histogram( results = None,
          open(tgtpath_types, 'wb') as fp_types:
         # TODO REFACTOR into a loop
         # TODO 2015-1103 - RLV TODO
-        csvw_totals = csv.writer( fp_totals,
-                                  quotechar = '"',
-                                  quoting = csv.QUOTE_NONNUMERIC )
-        csvw_cycles = csv.writer( fp_cycles,
-                                  quotechar = '"',
-                                  quoting = csv.QUOTE_NONNUMERIC )
-        csvw_types = csv.writer( fp_types,
-                                 quotechar = '"',
-                                 quoting = csv.QUOTE_NONNUMERIC )
         header = [ "benchmark", "total" ]
-        csvw_totals.writerow( header )
-        csvw_cycles.writerow( header )
-        csvw_types.writerow( header )
-        dframe = { "totals" : [],
-                   "lc" : [],
-                   "lc_types" : [] }
+        csvw = {}
+        csvw["totals"] = csv.writer( fp_totals,
+                                     quotechar = '"',
+                                     quoting = csv.QUOTE_NONNUMERIC )
+        csvw["largest_cycle"] = csv.writer( fp_cycles,
+                                            quotechar = '"',
+                                            quoting = csv.QUOTE_NONNUMERIC )
+        csvw["largest_cycle_types_set"] = csv.writer( fp_types,
+                                                      quotechar = '"',
+                                                      quoting = csv.QUOTE_NONNUMERIC )
+        keys = csvw.keys()
+        dframe = {}
+        for key in keys:
+            csvw[key].writerow( header )
+            dframe[key] = []
         for benchmark, infodict in results.iteritems():
-            assert( "totals" in infodict )
-            assert( "largest_cycle" in infodict )
-            assert( "largest_cycle_types_set" in infodict )
-            for total in infodict["totals"]:
-                row = [ benchmark, total ]
-                dframe["totals"].append(row)
-            for cycles in infodict["largest_cycle"]:
-                row = [ benchmark, len(cycles) ]
-                dframe["lc"].append(row)
-            for types in infodict["largest_cycle_types_set"]:
-                row = [ benchmark, len(types) ]
-                dframe["lc_types"].append(row)
-        sorted_totals = sorted( dframe["totals"],
-                                key = itemgetter(0) )
-        sorted_cycles = sorted( dframe["lc"],
-                                key = itemgetter(0) )
-        sorted_types = sorted( dframe["lc_types"],
-                                key = itemgetter(0) )
-        for csvrow in sorted_totals:
-            csvw_totals.writerow( csvrow )
-        for csvrow in sorted_cycles:
-            csvw_cycles.writerow( csvrow )
-        for csvrow in sorted_types:
-            csvw_types.writerow( csvrow )
-        # TODO TODO TODO TODO
-        # TODO TODO TODO: SPAWN OFF THREAD
-        # TODO TODO TODO TODO
-        render_histogram( histfile = tgtpath_totals,
-                          title = title )
-        render_histogram( histfile = tgtpath_cycles,
-                          title = title )
-        render_histogram( histfile = tgtpath_types,
-                          title = title )
+            for key in keys:
+                assert( key in infodict )
+                for item in infodict[key]:
+                    row = [ benchmark, item ] if key == "totals" \
+                          else [ benchmark, len(item) ]
+                    dframe[key].append(row)
+        sorted_result = [ (key, sorted( dframe[key], key = itemgetter(0) )) for key in keys ]
+        for key, result in sorted_result:
+            for csvrow in result:
+                csvw[key].writerow( csvrow )
+    # TODO TODO TODO TODO
+    # TODO TODO TODO: SPAWN OFF THREAD
+    # TODO TODO TODO TODO
+    render_histogram( histfile = tgtpath_totals,
+                      title = title )
+    render_histogram( histfile = tgtpath_cycles,
+                      title = title )
+    render_histogram( histfile = tgtpath_types,
+                      title = title )
 
 def output_R( benchmark = None ):
     pass
@@ -387,7 +373,7 @@ def output_results( output_path = None,
                      tgtbase = hist_output_base,
                      title = "Historgram TODO" )
 
-def create_work_directory( work_dir ):
+def create_work_directory( work_dir, interactive = False ):
     os.chdir( work_dir )
     today = datetime.date.today()
     today = today.strftime("%Y-%m%d")
@@ -398,7 +384,10 @@ def create_work_directory( work_dir ):
         os.mkdir( today )
     else:
         print "WARNING: %s directory exists." % today
-        raw_input("Press ENTER to continue:")
+        if iteractive:
+            raw_input("Press ENTER to continue:")
+        else:
+            print "....continuing!!!"
     return today
 
 def skip_benchmark(bmark):
