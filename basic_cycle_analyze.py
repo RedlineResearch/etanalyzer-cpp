@@ -92,10 +92,11 @@ def create_graph( cycle_info_list = None,
     g = nx.DiGraph()
     nodeset = set([])
     for mytuple in cycle_info_list:
-        node, mytype, mysize = mytuple
+        node, mytype, mysize, lifetime = mytuple
         nodeset.add(node)
         g.add_node( n = node,
-                    type = mytype )
+                    type = mytype,
+                    lifetime = lifetime )
         if node in edgedict:
             for tgt in edgedict[node]:
                 g.add_edge( node, tgt )
@@ -211,6 +212,9 @@ class ObjDB:
 def get_types( G, cycle ):
     return [ G.node[x]["type"] for x in cycle ]
 
+def get_lifetimes( G, cycle ):
+    return [ G.node[x]["lifetime"] for x in cycle ]
+
 def get_cycles_and_edges( tgtpath ):
     with open(tgtpath) as fp:
         start = False
@@ -256,17 +260,24 @@ def get_cycle_info_list( cycle = None,
             rec = objdb.get_record(node)
             mytype = rec["type"]
             mysize = rec["size"]
+            atime = rec["atime"]
+            dtime = rec["dtime"]
+            lifetime = (dtime - atime) if ((dtime > atime) and  (dtime != 0)) \
+                else 0
+            cycle_info_list.append( (node, mytype, mysize, lifetime) )
         except:
             logger.critical("Missing node[ %s ]" % str(node))
-            mytype = "NONE"
-            mysize = 0
-        cycle_info_list.append( (node, mytype, mysize) )
+            # mytype = "NONE"
+            # mysize = 0
+            # atime = 0
+            # dtime = 0
     return cycle_info_list
 
 def row_to_string( row ):
     result = None
     strout = StringIO.StringIO()
     csvwriter = csv.writer(strout)
+    # Is the list comprehension necessary? Doesn't seem like it.
     csvwriter.writerow( [ x for x in row ] )
     result = strout.getvalue()
     strout.close()
@@ -373,6 +384,32 @@ def output_results( output_path = None,
                      tgtbase = hist_output_base,
                      title = "Historgram TODO" )
 
+def output_results_transpose( output_path = None,
+                              results = None ):
+    # Print out results in this format:
+    # ========= <- divider
+    # benchmark:
+    # size,largest_cycle, number_types, lifetime_ave, lifetime_sd, min, max
+    #   10,            5,            2,           22,           5,   2,  50
+    for bmark, infodict in results.iteritems():
+        bmark_path = bmark + output_path
+        with open(bmark_path, "wb") as fp:
+            csvwriter = csv.writer(fp)
+            header = [ "totals", "largest_cycle", "num_types"," lifetime" ]
+            csvwriter.writerow( header )
+            totals = infodict["totals"]
+            largest_cycle = infodict["largest_cycle"]
+            types_set = infodict["largest_cycle_types_set"]
+            lifetimes = infodict["lifetimes"]
+            for i in xrange(len(infodict["totals"])):
+                row = [ totals[i], len(largest_cycle[i]),
+                        len(types_set[i]), lifetimes[i] ]
+                csvwriter.writerow( row )
+    # hist_output_base = output_path + "-histogram"
+    # write_histogram( results = results,
+    #                  tgtbase = hist_output_base,
+    #                  title = "Historgram TODO" )
+
 def create_work_directory( work_dir, interactive = False ):
     os.chdir( work_dir )
     today = datetime.date.today()
@@ -384,7 +421,7 @@ def create_work_directory( work_dir, interactive = False ):
         os.mkdir( today )
     else:
         print "WARNING: %s directory exists." % today
-        if iteractive:
+        if interactive:
             raw_input("Press ENTER to continue:")
         else:
             print "....continuing!!!"
@@ -453,16 +490,21 @@ def main_process( output = None,
             results[bmark] = { "totals" : [],
                                "graph" : [],
                                "largest_cycle" : [],
-                               "largest_cycle_types_set" : [] }
+                               "largest_cycle_types_set" : [],
+                               "lifetimes" : [] }
             for cycle in cycles:
+                cycle_info_list = get_cycle_info_list( cycle, objdb, logger )
+                if len(cycle_info_list) == 0:
+                    continue
+                # TOTALS
                 results[bmark]["totals"].append( len(cycle) )
                 cycle_total_counter.update( [ len(cycle) ] )
-                cycle_info_list = get_cycle_info_list( cycle, objdb, logger )
+                # GRAPH
                 G = create_graph( cycle_info_list = cycle_info_list,
                                   edgedict = edgedict,
                                   logger = logger )
                 results[bmark]["graph"].append(G)
-                # Get the actual cycle
+                # Get the actual cycle - LARGEST
                 largest = max(nx.strongly_connected_components(G), key = len)
                 results[bmark]["largest_cycle"].append(largest)
                 # Cycle length counter
@@ -470,17 +512,21 @@ def main_process( output = None,
                 # Get the types and type statistics
                 largest_by_types = get_types( G, largest )
                 largest_by_types_set = set(largest_by_types)
+                # TYPE SET
                 results[bmark]["largest_cycle_types_set"].append(largest_by_types_set)
                 cycle_type_counter.update( [ len(largest_by_types_set) ] )
                 group += 1
+                # LIFETIME
+                lifetimes = get_lifetimes( G, largest )
+                results[bmark]["lifetimes"].append(lifetimes)
             print "--------------------------------------------------------------------------------"
             print "num_cycles: %d" % len(cycles)
             print "cycle_total_counter:", str(cycle_total_counter)
             print "actual_cycle_counter:", str(actual_cycle_counter)
             print "cycle_type_counter:", str(cycle_type_counter)
         count += 1
-        # if count >= 1:
-        #     break
+        if count >= 1:
+            break
     # TODO print "benchmark: %s" % benchmark
     # TODO Where do we need the benchmark?
     # ========= <- divider
@@ -489,8 +535,10 @@ def main_process( output = None,
     # largest_cycle, 1, 2, 5, 1, etc
     # number_types, 1, 1, 2, 1, etc
     # TODO - fix this documentation
-    output_results( output_path = output,
-                    results = results )
+    # output_results( output_path = output,
+    #                 results = results )
+    output_results_transpose( output_path = output,
+                              results = results )
     os.chdir( olddir )
     # Print out results in this format:
     print "===========[ DONE ]==================================================="
