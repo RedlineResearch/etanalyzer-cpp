@@ -212,8 +212,40 @@ class ObjDB:
 def get_types( G, cycle ):
     return [ G.node[x]["type"] for x in cycle ]
 
+def get_types_debug( G, cycle ):
+    result = []
+    for x in cycle:
+        try:
+            mynode = G.node[x]
+        except:
+            print "Unable to get node[ %d ]" % x
+            continue
+        try:
+            mytype = mynode["type"]
+        except:
+            print "Unable to get type for node[ %d ] -> %s" % (x, str(mynode))
+            continue
+        result.append(mytype)
+    return result
+
 def get_lifetimes( G, cycle ):
     return [ G.node[x]["lifetime"] for x in cycle ]
+
+def get_lifetimes_debug( G, cycle ):
+    result = []
+    for x in cycle:
+        try:
+            mynode = G.node[x]
+        except:
+            print "Unable to get node[ %d ]" % x
+            continue
+        try:
+            mylifetime = mynode["lifetime"]
+        except:
+            print "Unable to get lifetime for node[ %d ] -> %s" % (x, str(mynode))
+            continue
+        result.append(mylifetime)
+    return result
 
 def get_cycles_and_edges( tgtpath ):
     with open(tgtpath) as fp:
@@ -267,10 +299,10 @@ def get_cycle_info_list( cycle = None,
             cycle_info_list.append( (node, mytype, mysize, lifetime) )
         except:
             logger.critical("Missing node[ %s ]" % str(node))
-            # mytype = "NONE"
-            # mysize = 0
-            # atime = 0
-            # dtime = 0
+            mytype = "<NONE>"
+            mysize = 0
+            lifetime = 0
+            cycle_info_list.append( (node, mytype, mysize, lifetime) )
     return cycle_info_list
 
 def row_to_string( row ):
@@ -428,16 +460,20 @@ def create_work_directory( work_dir, interactive = False ):
     return today
 
 def skip_benchmark(bmark):
-    return ( # bmark == "avrora" or
+    return ( bmark == "tradebeans" or # Permanent ignore
+             bmark == "tradesoap" ) # Permanent ignore
              # bmark == "batik" or
+             # bmark == "avrora" or
              # bmark == "eclipse" or
              # bmark == "fop" or
+             # bmark == "xalan" or
              # bmark == "h2" or
-             # bmark == "jython" or
-             # bmark == "luindex" or
+             # # bmark == "jython" or # TODO DEBUG
              # bmark == "lusearch" or
-             bmark == "specjbb",
-             bmark == "sunflow" )
+             # bmark == "specjbb" or # TODO DEBUG
+             # bmark == "sunflow" or
+             # bmark == "tomcat" or
+             # bmark == "luindex" )
 
 def main_process( output = None,
                   main_config = None,
@@ -465,9 +501,10 @@ def main_process( output = None,
     olddir = os.getcwd()
     os.chdir( today )
     for bmark, filename in etanalyze_config.iteritems():
+        if skip_benchmark(bmark):
+            print "SKIP:", bmark
+            continue
         print "Z:", bmark
-        # if skip_benchmark(bmark):
-        #     continue
         objdb = setup_objdb( global_config = global_config,
                              objdb1_config = objdb1_config,
                              objdb2_config = objdb2_config,
@@ -525,8 +562,8 @@ def main_process( output = None,
             print "actual_cycle_counter:", str(actual_cycle_counter)
             print "cycle_type_counter:", str(cycle_type_counter)
         count += 1
-        if count >= 1:
-            break
+        # if count >= 1:
+        #     break
     # TODO print "benchmark: %s" % benchmark
     # TODO Where do we need the benchmark?
     # ========= <- divider
