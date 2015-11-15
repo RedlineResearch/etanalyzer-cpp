@@ -92,7 +92,7 @@ def stdev( data, m = None ):
     """
     return math.sqrt( variance(data, m) )
 
-__all__ = [ "mean", "merge_two_dicts", ]
+__all__ = [ "mean", "merge_two_dicts", "stdev", "variance", ]
 
 if __name__ == "__main__":
     import doctest

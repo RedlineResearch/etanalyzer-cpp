@@ -18,7 +18,7 @@ import csv
 import subprocess
 import datetime
 
-import mypytools
+from mypytools import mean, stdev, variance
 
 pp = pprint.PrettyPrinter( indent = 4 )
 
@@ -424,18 +424,25 @@ def output_results_transpose( output_path = None,
     # size,largest_cycle, number_types, lifetime_ave, lifetime_sd, min, max
     #   10,            5,            2,           22,           5,   2,  50
     for bmark, infodict in results.iteritems():
-        bmark_path = bmark + output_path
+        bmark_path = bmark + "-" + output_path
         with open(bmark_path, "wb") as fp:
             csvwriter = csv.writer(fp)
-            header = [ "totals", "largest_cycle", "num_types"," lifetime" ]
+            header = [ "totals", "largest_cycle", "num_types",
+                       "lifetime_mean", "lifetime_stdev", "liftime_min",
+                       "lifetime_max", ]
             csvwriter.writerow( header )
             totals = infodict["totals"]
             largest_cycle = infodict["largest_cycle"]
             types_set = infodict["largest_cycle_types_set"]
             lifetimes = infodict["lifetimes"]
+            ltime_mean = infodict["lifetime_mean"]
+            ltime_sd = infodict["lifetime_sd"]
+            ltime_min = infodict["lifetime_min"]
+            ltime_max = infodict["lifetime_max"]
             for i in xrange(len(infodict["totals"])):
                 row = [ totals[i], len(largest_cycle[i]),
-                        len(types_set[i]), lifetimes[i] ]
+                        len(types_set[i]), ltime_mean[i],
+                        ltime_sd[i], ltime_min[i], ltime_max[i], ]
                 csvwriter.writerow( row )
     # hist_output_base = output_path + "-histogram"
     # write_histogram( results = results,
@@ -528,7 +535,11 @@ def main_process( output = None,
                                "graph" : [],
                                "largest_cycle" : [],
                                "largest_cycle_types_set" : [],
-                               "lifetimes" : [] }
+                               "lifetimes" : [],
+                               "lifetime_mean" : [],
+                               "lifetime_sd" : [],
+                               "lifetime_max" : [],
+                               "lifetime_min" : [] }
             for cycle in cycles:
                 cycle_info_list = get_cycle_info_list( cycle, objdb, logger )
                 if len(cycle_info_list) == 0:
@@ -555,7 +566,19 @@ def main_process( output = None,
                 group += 1
                 # LIFETIME
                 lifetimes = get_lifetimes( G, largest )
+                if len(lifetimes) >= 2:
+                    ltimes_mean = mean( lifetimes )
+                    ltimes_sd = stdev( lifetimes, ltimes_mean )
+                elif len(lifetimes) == 1:
+                    ltimes_mean = lifetimes[0]
+                    ltimes_sd = 0
+                else:
+                    raise ValueError("No lifetime == no node found?")
                 results[bmark]["lifetimes"].append(lifetimes)
+                results[bmark]["lifetime_mean"].append(ltimes_mean)
+                results[bmark]["lifetime_sd"].append(ltimes_sd)
+                results[bmark]["lifetime_max"].append( max(lifetimes) )
+                results[bmark]["lifetime_min"].append( min(lifetimes) )
             print "--------------------------------------------------------------------------------"
             print "num_cycles: %d" % len(cycles)
             print "cycle_total_counter:", str(cycle_total_counter)
