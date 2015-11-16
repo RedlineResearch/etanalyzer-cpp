@@ -19,6 +19,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
+import java.util.HashMap;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -29,6 +30,9 @@ public class SaveObjectInfo {
     private static Cache<Integer, ObjectRecord> cache;
     private static Connection conn;
     private final static String table = "objects";
+    private static int timeByMethod = 0;
+    private static HashMap<Integer, Boolean> dtimeMap = new HashMap();
+    private static boolean doneFlag = false;
 
     public static void main(String[] args) {
         RemovalListener<Integer, ObjectRecord> remListener = new RemovalListener<Integer, ObjectRecord>() {
@@ -92,6 +96,11 @@ public class SaveObjectInfo {
         int dtime = newrec.get_dtime();
         int allocsite = newrec.get_allocsite();
         String objtype = newrec.get_objtype();
+        if ((dtime == 0) && (doneFlag)) {
+            dtime = timeByMethod;
+            dtimeMap.put(objId, true);
+            System.out.print("X");
+        }
         stmt.executeUpdate( String.format( "INSERT OR REPLACE INTO %s" +
                                            "(objid,objtype,size,length,atime,dtime,allocsite) " +
                                            " VALUES (%d,'%s',%d,%d,%d,%d,%d);",
@@ -119,14 +128,15 @@ public class SaveObjectInfo {
                   InputStreamReader isr = new InputStreamReader(System.in, Charset.forName("UTF-8"));
                   BufferedReader bufreader = new BufferedReader(isr);
             ) {
-                int timeByMethod = 0;
                 while ((line = bufreader.readLine()) != null) {
                     // Deal with the line
                     String[] fields = line.split(" ");
                     if (isAllocation(fields[0])) {
                         ObjectRecord object = parseAllocation( fields, timeByMethod );
                         // putIntoDB( object );
-                        cache.put(object.get_objId(), object);
+                        int objId = object.get_objId();
+                        cache.put(objId, object);
+                        dtimeMap.put(objId, false);
                     } else if (isMethod( fields[0])) {
                         timeByMethod += 1;
                     } else if (isDeath(fields[0])) {
@@ -148,6 +158,7 @@ public class SaveObjectInfo {
                         System.out.print(".");
                     } 
                 }
+                doneFlag = true;
             }
             System.out.println("");
         } catch (IOException e) {
@@ -241,6 +252,7 @@ public class SaveObjectInfo {
             rec.set_dtime( timeByMethod );
             cache.put( objId, rec );
         }
+        dtimeMap.put( objId, true );
         return true;
     }
 }
