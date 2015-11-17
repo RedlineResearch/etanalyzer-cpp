@@ -30,6 +30,7 @@ public class SaveObjectInfo {
     private static Cache<Integer, ObjectRecord> cache;
     private static Connection conn;
     private final static String table = "objects";
+    private final static String metadata_table = "metadata";
     private static int timeByMethod = 0;
     private static HashMap<Integer, Boolean> dtimeMap = new HashMap();
     private static boolean doneFlag = false;
@@ -99,7 +100,6 @@ public class SaveObjectInfo {
         if ((dtime == 0) && (doneFlag)) {
             dtime = timeByMethod;
             dtimeMap.put(objId, true);
-            System.out.print("X");
         }
         stmt.executeUpdate( String.format( "INSERT OR REPLACE INTO %s" +
                                            "(objid,objtype,size,length,atime,dtime,allocsite) " +
@@ -117,6 +117,10 @@ public class SaveObjectInfo {
                                            "  atime INTEGER, dtime INTEGER," +
                                            "  allocsite INTEGER )",
                                            table ) );
+        stmt.executeUpdate( String.format( "DROP TABLE IF EXISTS %s", metadata_table ) );
+        stmt.executeUpdate( String.format( "CREATE TABLE %s " +
+                                           "( finaltime INTEGER )",
+                                           metadata_table ) );
         return true;
     }
 
@@ -159,6 +163,11 @@ public class SaveObjectInfo {
                     } 
                 }
                 doneFlag = true;
+                cache.invalidateAll();
+                Statement stmt = conn.createStatement();
+                stmt.executeUpdate( String.format( "INSERT OR REPLACE INTO %s" +
+                                                   "(finaltime) VALUES (%d);",
+                                                   metadata_table, timeByMethod ) );
             }
             System.out.println("");
         } catch (IOException e) {
