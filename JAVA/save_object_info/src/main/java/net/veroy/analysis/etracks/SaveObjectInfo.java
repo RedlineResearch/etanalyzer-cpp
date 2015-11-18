@@ -34,6 +34,7 @@ public class SaveObjectInfo {
     private static int timeByMethod = 0;
     private static HashMap<Integer, Boolean> dtimeMap = new HashMap();
     private static boolean doneFlag = false;
+    private static int index_g = 0;
 
     public static void main(String[] args) {
         RemovalListener<Integer, ObjectRecord> remListener = new RemovalListener<Integer, ObjectRecord>() {
@@ -42,6 +43,10 @@ public class SaveObjectInfo {
                   ObjectRecord rec = removal.getValue();
                   try {
                       putIntoDB( rec );
+                        index_g += 1;
+                        if (index_g % 10000 == 1) {
+                            System.out.print(">");
+                        } 
                   } catch ( Exception e ) {
                       System.err.println( e.getClass().getName() + ": " + e.getMessage() );
                       System.out.println( e.getClass().getName() + ": " + e.getMessage() );
@@ -126,7 +131,6 @@ public class SaveObjectInfo {
 
     private static void processInput() throws SQLException, ExecutionException {
         try {
-            int i = 0;
             String line;
             try (
                   InputStreamReader isr = new InputStreamReader(System.in, Charset.forName("UTF-8"));
@@ -151,18 +155,19 @@ public class SaveObjectInfo {
                             objId = Integer.parseInt(fields[1], 16);
                         } catch( Exception e ) {
                             System.out.println( String.format("parseInt failed: %s", fields[1] ) );
-                            i += 1;
+                            index_g += 1;
                             continue;
                         }
                         // Update record with death time timeByMethod
                         updateDeathTime( objId, timeByMethod );
                     }
-                    i += 1;
-                    if (i % 10000 == 1) {
+                    index_g += 1;
+                    if (index_g % 10000 == 1) {
                         System.out.print(".");
                     } 
                 }
                 doneFlag = true;
+                System.out.print("\nInvalidating cache:");
                 cache.invalidateAll();
                 Statement stmt = conn.createStatement();
                 stmt.executeUpdate( String.format( "INSERT OR REPLACE INTO %s" +
