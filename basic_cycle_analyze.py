@@ -17,6 +17,7 @@ import StringIO
 import csv
 import subprocess
 import datetime
+import heapq
 
 from mypytools import mean, stdev, variance
 
@@ -41,6 +42,16 @@ def setup_logger( targetdir = ".",
     filehandler.setFormatter( formatter )
     logger.addHandler( filehandler )
     return logger
+
+def debug_lifetimes( G, cycle, bmark, logger ):
+    global pp
+    for x in cycle:
+        if G.node[x]["lifetime"] <= 0:
+            n = G.node[x]
+            print "XXX %s: [ %d - %s ] lifetime: %d" % \
+                (bmark, x, n["type"], n["lifetime"])
+            logger.critical( "XXX: [ %d - %s ] lifetime: %d" %
+                             (x, n["type"], n["lifetime"]) )
 
 def get_trace_fp( tracefile = None,
                   logger = None ):
@@ -125,6 +136,7 @@ class ObjDB:
                 self.sqodb_all = sqorm.Sqorm( tgtpath = objdb_all,
                                               table = "objects",
                                               keyfield = "objId" )
+                print "ALL:", objdb_all
                 self.alldb = True
                 return
             except:
@@ -280,9 +292,6 @@ def get_cycles_and_edges( tgtpath ):
     edges = set( sorted( list(edges), key = itemgetter(0, 1) ) )
     return (cycles, edges)
 
-def get_demographics( cycle ):
-    pass
-
 def get_cycle_info_list( cycle = None,
                          objdb = None,
                          logger = None ):
@@ -304,6 +313,46 @@ def get_cycle_info_list( cycle = None,
             lifetime = 0
             cycle_info_list.append( (node, mytype, mysize, lifetime) )
     return cycle_info_list
+
+def extract_small_cycles( clist = None, 
+                          bmark = None,
+                          objdb = None,
+                          logger = None ):
+    global pp
+    with open(bmark + "-size1.csv", "wb") as fp1, \
+         open(bmark + "-size2.csv", "wb") as fp2, \
+         open(bmark + "-size3.csv", "wb") as fp3, \
+         open(bmark + "-size4.csv", "wb") as fp4:
+        writer = [ None,
+                   csv.writer(fp1),
+                   csv.writer(fp2),
+                   csv.writer(fp3),
+                   csv.writer(fp4) ]
+        result = [ None, [], [], [], [] ]
+        cycle_info_list = []  # TODO Do we need this?
+        for cycle in clist:
+            assert( len(cycle) > 0 )
+            if len(cycle) > 4:
+                continue
+            for node in cycle:
+                try:
+                    rec = objdb.get_record(node)
+                    mytype = rec["type"]
+                    mysize = rec["size"]
+                    atime = rec["atime"]
+                    dtime = rec["dtime"]
+                    lifetime = (dtime - atime) if ((dtime > atime) and  (dtime != 0)) \
+                        else 0
+                    cycle_info_list.append( (node, mytype, mysize, lifetime) )
+                except:
+                    logger.critical("Missing node[ %s ]" % str(node))
+                    mytype = "<NONE>"
+                    mysize = 0
+                    lifetime = 0
+                    cycle_info_list.append( (node, mytype, mysize, lifetime) )
+            type_tuple = tuple( sorted( [ x[1] for x in cycle_info_list ] ) )
+            result[len(cycle)].append( type_tuple )
+    pp.pprint( result )
 
 def row_to_string( row ):
     result = None
@@ -444,10 +493,6 @@ def output_results_transpose( output_path = None,
                         len(types_set[i]), ltime_mean[i],
                         ltime_sd[i], ltime_min[i], ltime_max[i], ]
                 csvwriter.writerow( row )
-    # hist_output_base = output_path + "-histogram"
-    # write_histogram( results = results,
-    #                  tgtbase = hist_output_base,
-    #                  title = "Historgram TODO" )
 
 def create_work_directory( work_dir, interactive = False ):
     os.chdir( work_dir )
@@ -466,9 +511,31 @@ def create_work_directory( work_dir, interactive = False ):
             print "....continuing!!!"
     return today
 
+def save_interesting_small_cycles( largest, summary ):
+    # Interesting is defined to be 4 or smaller
+    length =  len(largest)
+    if length > 0 and length <= 4:
+        summary["by_size"][length].append( largest )
+
+def save_largest_cycles( graphlist = None, num = None ):
+    largelist = heapq.nlargest( num, graphlist, key = len )
+    return largelist
+
 def skip_benchmark(bmark):
+    return bmark != "batik"
     return ( bmark == "tradebeans" or # Permanent ignore
-             bmark == "tradesoap" ) # Permanent ignore
+             bmark == "tradesoap" or # Permanent ignore
+             not ( bmark != "batik" and
+                   bmark != "lusearch" and
+                   bmark != "luindex" and
+                   bmark != "specjbb" and
+                   bmark != "avrora" and
+                   bmark != "tomcat"
+                 ) or
+             ( bmark != "pmd" and
+               bmark != "fop"
+             )
+           )
              # bmark == "batik" or
              # bmark == "avrora" or
              # bmark == "eclipse" or
@@ -503,6 +570,7 @@ def main_process( output = None,
     cycle_cpp_dir = global_config["cycle_cpp_dir"]
     work_dir = main_config["directory"]
     results = {}
+    summary = {}
     count = 0
     today = create_work_directory( work_dir )
     olddir = os.getcwd()
@@ -511,7 +579,8 @@ def main_process( output = None,
         if skip_benchmark(bmark):
             print "SKIP:", bmark
             continue
-        print "Z:", bmark
+        print "=======[ %s ]=========================================================" \
+            % bmark
         objdb = setup_objdb( global_config = global_config,
                              objdb1_config = objdb1_config,
                              objdb2_config = objdb2_config,
@@ -540,7 +609,10 @@ def main_process( output = None,
                                "lifetime_sd" : [],
                                "lifetime_max" : [],
                                "lifetime_min" : [] }
-            for cycle in cycles:
+            summary[bmark] = { "by_size" : { 1 : [], 2 : [], 3 : [], 4 : [] },
+                                }
+            for index in xrange(len(cycles)):
+                cycle = cycles[index]
                 cycle_info_list = get_cycle_info_list( cycle, objdb, logger )
                 if len(cycle_info_list) == 0:
                     continue
@@ -555,6 +627,7 @@ def main_process( output = None,
                 # Get the actual cycle - LARGEST
                 largest = max(nx.strongly_connected_components(G), key = len)
                 results[bmark]["largest_cycle"].append(largest)
+                save_interesting_small_cycles( largest, summary[bmark] )
                 # Cycle length counter
                 actual_cycle_counter.update( [ len(largest) ] )
                 # Get the types and type statistics
@@ -566,6 +639,10 @@ def main_process( output = None,
                 group += 1
                 # LIFETIME
                 lifetimes = get_lifetimes( G, largest )
+                debug_lifetimes( G = G,
+                                 cycle = cycle,
+                                 bmark = bmark, 
+                                 logger = logger )
                 if len(lifetimes) >= 2:
                     ltimes_mean = mean( lifetimes )
                     ltimes_sd = stdev( lifetimes, ltimes_mean )
@@ -579,28 +656,44 @@ def main_process( output = None,
                 results[bmark]["lifetime_sd"].append(ltimes_sd)
                 results[bmark]["lifetime_max"].append( max(lifetimes) )
                 results[bmark]["lifetime_min"].append( min(lifetimes) )
+            largelist = save_largest_cycles( results[bmark]["graph"], num = 5 )
+            # Make directory and Cd into directory
+            if not os.path.isdir(bmark):
+                os.mkdir(bmark)
+            for_olddir = os.getcwd()
+            os.chdir( bmark )
+            # Create the CSV files for the data
+            extract_small_cycles( clist = cycles, 
+                                  bmark = bmark,
+                                  objdb = objdb,
+                                  logger = logger ) 
+            # Cd back into parent directory
+            os.chdir( for_olddir )
             print "--------------------------------------------------------------------------------"
             print "num_cycles: %d" % len(cycles)
             print "cycle_total_counter:", str(cycle_total_counter)
             print "actual_cycle_counter:", str(actual_cycle_counter)
             print "cycle_type_counter:", str(cycle_type_counter)
+            print "--------------------------------------------------------------------------------"
+            pp.pprint( [ x.nodes() for x in largelist ] )
         count += 1
         # if count >= 1:
         #     break
-    # TODO print "benchmark: %s" % benchmark
-    # TODO Where do we need the benchmark?
-    # ========= <- divider
     # benchmark:
     # size, 1, 4, 5, 2, etc
     # largest_cycle, 1, 2, 5, 1, etc
     # number_types, 1, 1, 2, 1, etc
     # TODO - fix this documentation
-    # output_results( output_path = output,
-    #                 results = results )
+    print "======================================================================"
+    print "===========[ RESULTS ]================================================"
     output_results_transpose( output_path = output,
                               results = results )
     os.chdir( olddir )
     # Print out results in this format:
+    print "===========[ SUMMARY ]================================================"
+    pp.pprint( summary )
+    # TODO: Save the largest X cycles.
+    #       This should be done in the loop so to cut down on duplicate work.
     print "===========[ DONE ]==================================================="
     exit(1000)
 
