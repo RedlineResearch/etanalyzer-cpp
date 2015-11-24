@@ -187,7 +187,8 @@ void read_trace_file(FILE* f)
                                                          target, Exec.Now() );
                         obj->updateField( new_edge, field_id, Exec.Now() );
                         // TODO: DEBUG ONLY
-                        if ( (objId == tgtId) && (objId == 166454) ) {
+                        // if ( (objId == tgtId) && (objId == 166454) ) {
+                        if ( (objId == 166454) ) {
                             tokenizer.debugCurrent();
                         }
                     }
