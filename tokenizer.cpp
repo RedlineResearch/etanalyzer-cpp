@@ -1,5 +1,6 @@
 #include "tokenizer.h"
 #include <stdio.h>
+#include <string.h>
 
 void Tokenizer::getLine()
 {
@@ -8,6 +9,7 @@ void Tokenizer::getLine()
     char* res = fgets(m_line, LINESIZE, m_file);
     if (res) {
         m_cur_line++;
+        strcpy(m_line_saved, m_line);
         // -- Break line up into tokens
         ///   Basically, just replace spaces with \0 and remember the start of each token
 
@@ -70,7 +72,7 @@ char Tokenizer::getChar(int i)
 void Tokenizer::debugCurrent()
 {
     cout << "DEBUG: current line = " << m_cur_line << endl;
-    string tmp(m_line);
+    string tmp(m_line_saved);
     cout << "  ---> " << tmp << endl;
 
 }
