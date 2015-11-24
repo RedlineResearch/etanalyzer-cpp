@@ -19,7 +19,7 @@ class Tokenizer
     private:
         FILE* m_file;
         char m_line[LINESIZE];
-        char m_line_saved[LINESIZE];
+        string m_line_saved;
         char* m_tokens[TOKENSIZE];
         unsigned int m_num_tokens;
         bool m_done;
