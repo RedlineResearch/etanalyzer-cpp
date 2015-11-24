@@ -175,8 +175,10 @@ void read_trace_file(FILE* f)
                     // U <old-target> <object> <new-target> <field> <thread>
                     // 0      1          2         3           4        5
                     // -- Look up objects and perform update
-                    obj = Heap.get(tokenizer.getInt(2));
-                    target = Heap.get(tokenizer.getInt(3));
+                    unsigned int objId = tokenizer.getInt(2);
+                    unsigned int tgtId = tokenizer.getInt(3);
+                    obj = Heap.get(objId);
+                    target = Heap.get(tgtId);
                     // TEMP TODO
                     // Increment and decrement refcounts
                     if (obj && target) {
@@ -184,6 +186,10 @@ void read_trace_file(FILE* f)
                         Edge* new_edge = Heap.make_edge( obj, field_id,
                                                          target, Exec.Now() );
                         obj->updateField( new_edge, field_id, Exec.Now() );
+                        // TODO: DEBUG ONLY
+                        if ( (objId == tgtId) && (objId == 166454) ) {
+                            tokenizer.debugCurrent();
+                        }
                     }
                     // TODO: Why is the old edge not removed?
                 }

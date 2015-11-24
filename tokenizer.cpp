@@ -66,3 +66,10 @@ char Tokenizer::getChar(int i)
         return 0;
     }
 }
+
+void Tokenizer::debugCurrent()
+{
+    cout << "DEBUG: current line = " << m_cur_line << endl;
+    cout << "  ---> " << m_line;
+
+}

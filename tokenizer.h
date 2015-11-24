@@ -50,6 +50,7 @@ class Tokenizer
         char getChar(int i);
 
         // -- Print out current line and linenumber
+        void debugCurrent();
 };
 
 #endif
