@@ -7,6 +7,7 @@ void Tokenizer::getLine()
     m_num_tokens = 0;
     char* res = fgets(m_line, LINESIZE, m_file);
     if (res) {
+        m_cur_line++;
         // -- Break line up into tokens
         ///   Basically, just replace spaces with \0 and remember the start of each token
 

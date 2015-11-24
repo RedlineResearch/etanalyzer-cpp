@@ -22,11 +22,13 @@ class Tokenizer
         char* m_tokens[TOKENSIZE];
         unsigned int m_num_tokens;
         bool m_done;
+        unsigned int m_cur_line; // 1 based line counting
 
     public:
         Tokenizer(FILE* f)
             : m_file(f)
-            , m_done(false) {
+            , m_done(false)
+            , m_cur_line(0) {
         }
 
         // -- Get the next line, break up into tokens
@@ -46,6 +48,8 @@ class Tokenizer
 
         // -- Get the first char of token #i
         char getChar(int i);
+
+        // -- Print out current line and linenumber
 };
 
 #endif
