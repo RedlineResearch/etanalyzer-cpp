@@ -70,6 +70,7 @@ char Tokenizer::getChar(int i)
 void Tokenizer::debugCurrent()
 {
     cout << "DEBUG: current line = " << m_cur_line << endl;
-    cout << "  ---> " << m_line;
+    string tmp(m_line);
+    cout << "  ---> " << tmp << endl;
 
 }
