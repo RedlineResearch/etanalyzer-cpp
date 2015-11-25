@@ -55,9 +55,9 @@ public class SaveObjectInfo {
               }
         };
         cache = CacheBuilder.newBuilder()
-            .maximumSize(100000000)
+            .maximumSize(250000000) 
             .removalListener( remListener )
-            .build();
+            .build(); // TODO Make maximumSize a command line arg with default TODO TODO
         conn = null;
         Statement stmt = null;
         String dbname = args[0];
