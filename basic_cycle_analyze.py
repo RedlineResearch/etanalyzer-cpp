@@ -289,8 +289,6 @@ def get_lifetimes_debug( G, cycle ):
     return result
 
 def get_cycles_and_edges( tgtpath ):
-    # TODO: Save nodes that have self-loops in a library
-    # as a parameter passed in
     with open(tgtpath) as fp:
         start = False
         cycles = []
@@ -368,7 +366,6 @@ def extract_small_cycles( summary = None,
                     assert( len(cycle) <= 4 )
                     cycle_info_list = []
                     for record in cycle:
-                        print "+",
                         node, saved_type = record
                         try:
                             rec = objdb.get_record(node)
