@@ -186,11 +186,12 @@ void read_trace_file(FILE* f)
                         Edge* new_edge = Heap.make_edge( obj, field_id,
                                                          target, Exec.Now() );
                         obj->updateField( new_edge, field_id, Exec.Now() );
-                        // TODO: DEBUG ONLY
+                        // DEBUG ONLY IF NEEDED
+                        // Example:
                         // if ( (objId == tgtId) && (objId == 166454) ) {
-                        if ( (objId == 166454) ) {
-                            tokenizer.debugCurrent();
-                        }
+                        // if ( (objId == 166454) ) {
+                        //     tokenizer.debugCurrent();
+                        // }
                     }
                     // TODO: Why is the old edge not removed?
                 }
