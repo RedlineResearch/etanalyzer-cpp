@@ -82,11 +82,14 @@ def get_trace_fp( tracefile = None,
 # Main processing
 #
 
-def create_edge_dictionary( edges = None ):
+def create_edge_dictionary( edges = None,
+                            selfloops = None ):
     edgedict = {}
     for edge in edges:
         src = edge[0]
         tgt = edge[1]
+        if src == tgt:
+            selfloops.add( src )
         if src not in edgedict:
             edgedict[src] = [ tgt ]
         else:
@@ -224,6 +227,32 @@ class ObjDB:
 def get_types( G, cycle ):
     return [ G.node[x]["type"] for x in cycle ]
 
+def get_types_and_save_index( G, cycle ):
+    return [ (x, G.node[x]["type"]) for x in cycle ]
+
+def DEBUG_types( largest_by_types_with_index, largest ):
+    l = largest_by_types_with_index
+    if len(largest) == 1:
+        print "LEN1: %s <-> %s" % (str(largest), l)
+        if l[0][1] == '[B':
+            print "DEBUG id: %d" % l[0][0]
+    # elif len(largest) == 2:
+
+def debug_cycle_algorithms( largest, cyclelist, G ):
+    global pp
+    print "=================================================="
+    other = max( cyclelist, key = len )
+    print "SC[ %d ]  SIMP[ %d ]" % (len(largest), len(other))
+    if len(largest) == 1:
+        node = list(largest)[0]
+        if node == 166451:
+            print "Found 166451. Writing out graphs in %s" % str(os.getcwd())
+            nx.write_gexf( G, "DEBUG-ALL-166451.gexf" )
+            nx.write_gexf( G.subgraph( list(largest) ),"DEBUG-SC-166451.gexf" ) 
+            print "DONE DEBUG."
+            exit(222)
+    print "=================================================="
+    
 def get_types_debug( G, cycle ):
     result = []
     for x in cycle:
@@ -260,6 +289,8 @@ def get_lifetimes_debug( G, cycle ):
     return result
 
 def get_cycles_and_edges( tgtpath ):
+    # TODO: Save nodes that have self-loops in a library
+    # as a parameter passed in
     with open(tgtpath) as fp:
         start = False
         cycles = []
@@ -314,7 +345,7 @@ def get_cycle_info_list( cycle = None,
             cycle_info_list.append( (node, mytype, mysize, lifetime) )
     return cycle_info_list
 
-def extract_small_cycles( clist = None, 
+def extract_small_cycles( summary = None, 
                           bmark = None,
                           objdb = None,
                           logger = None ):
@@ -329,30 +360,44 @@ def extract_small_cycles( clist = None,
                    csv.writer(fp3),
                    csv.writer(fp4) ]
         result = [ None, [], [], [], [] ]
-        cycle_info_list = []  # TODO Do we need this?
-        for cycle in clist:
-            assert( len(cycle) > 0 )
-            if len(cycle) > 4:
-                continue
-            for node in cycle:
-                try:
-                    rec = objdb.get_record(node)
-                    mytype = rec["type"]
-                    mysize = rec["size"]
-                    atime = rec["atime"]
-                    dtime = rec["dtime"]
-                    lifetime = (dtime - atime) if ((dtime > atime) and  (dtime != 0)) \
-                        else 0
-                    cycle_info_list.append( (node, mytype, mysize, lifetime) )
-                except:
-                    logger.critical("Missing node[ %s ]" % str(node))
-                    mytype = "<NONE>"
-                    mysize = 0
-                    lifetime = 0
-                    cycle_info_list.append( (node, mytype, mysize, lifetime) )
-            type_tuple = tuple( sorted( [ x[1] for x in cycle_info_list ] ) )
-            result[len(cycle)].append( type_tuple )
-    pp.pprint( result )
+        counterlist = {}
+        for feature, fdict in summary.iteritems(): 
+            for size, mylist in fdict.iteritems():
+                for cycle in mylist:
+                    assert( len(cycle) > 0 )
+                    assert( len(cycle) <= 4 )
+                    cycle_info_list = []
+                    for record in cycle:
+                        print "+",
+                        node, saved_type = record
+                        try:
+                            rec = objdb.get_record(node)
+                            mytype = rec["type"]
+                            mysize = rec["size"]
+                            atime = rec["atime"]
+                            dtime = rec["dtime"]
+                            lifetime = (dtime - atime) if ((dtime > atime) and  (dtime != 0)) \
+                                else 0
+                            cycle_info_list.append( (node, mytype, mysize, lifetime) )
+                        except:
+                            logger.critical("Missing node[ %s ]" % str(node))
+                            mytype = "<NONE>"
+                            mysize = 0
+                            lifetime = 0
+                            cycle_info_list.append( (node, mytype, mysize, lifetime) )
+                    try:
+                        assert( saved_type == mytype )
+                    except:
+                        print " saved [ %s ] <-> from_db [ %s ]" % (saved_type, mytype)
+                        exit(10000)
+                    type_tuple = tuple( sorted( [ x[1] for x in cycle_info_list ] ) )
+                    assert( len(cycle) == size )
+                    result[size].append( type_tuple )
+                counterlist[size] = Counter(result[size])
+                for row in ( list(key) + [ val ] for key, val
+                             in counterlist[size].iteritems() ):
+                    writer[size].writerow( row )
+    pp.pprint( counterlist )
 
 def row_to_string( row ):
     result = None
@@ -513,7 +558,7 @@ def create_work_directory( work_dir, interactive = False ):
 
 def save_interesting_small_cycles( largest, summary ):
     # Interesting is defined to be 4 or smaller
-    length =  len(largest)
+    length = len(largest)
     if length > 0 and length <= 4:
         summary["by_size"][length].append( largest )
 
@@ -521,33 +566,44 @@ def save_largest_cycles( graphlist = None, num = None ):
     largelist = heapq.nlargest( num, graphlist, key = len )
     return largelist
 
+def append_largest_SCC( ldict = None,
+                        scclist = None,
+                        selfloops = None,
+                        logger = None ):
+    maxscc_len = max( ( len(x) for x in scclist ) )
+    if maxscc_len == 1:
+        # When the largest strongly connected component is a single node,
+        # We can't use the largest, because all nodes will be a SCC.
+        # We instead have to use the selfloops
+        selfies = set()
+        for cycle in scclist:
+            cycle = list(cycle)
+            node = cycle[0]
+            if node in selfloops:
+                selfies.add( node )
+        assert( len(selfies) > 0 )
+        if len(selfies) > 1:
+            logger.critical( "More than one selfie in list: %s" % str(selfies) )
+        largest_scc = [ selfies.pop() ]
+    else:
+        largest_scc = max( scclist, key = len )
+    ldict.append(largest_scc)
+    return largest_scc
+
 def skip_benchmark(bmark):
-    return bmark != "batik"
     return ( bmark == "tradebeans" or # Permanent ignore
              bmark == "tradesoap" or # Permanent ignore
-             not ( bmark != "batik" and
-                   bmark != "lusearch" and
-                   bmark != "luindex" and
-                   bmark != "specjbb" and
-                   bmark != "avrora" and
-                   bmark != "tomcat"
-                 ) or
-             ( bmark != "pmd" and
+             bmark == "lusearch" or
+             ( bmark != "batik" and
+               bmark != "lusearch" and
+               bmark != "luindex" and
+               bmark != "specjbb" and
+               bmark != "avrora" and
+               bmark != "tomcat" and
+               bmark != "pmd" and
                bmark != "fop"
              )
            )
-             # bmark == "batik" or
-             # bmark == "avrora" or
-             # bmark == "eclipse" or
-             # bmark == "fop" or
-             # bmark == "xalan" or
-             # bmark == "h2" or
-             # # bmark == "jython" or # TODO DEBUG
-             # bmark == "lusearch" or
-             # bmark == "specjbb" or # TODO DEBUG
-             # bmark == "sunflow" or
-             # bmark == "tomcat" or
-             # bmark == "luindex" )
 
 def main_process( output = None,
                   main_config = None,
@@ -599,7 +655,8 @@ def main_process( output = None,
             actual_cycle_counter = Counter()
             cycle_type_counter = Counter()
             cycles, edges = get_cycles_and_edges( abspath )
-            edgedict = create_edge_dictionary( edges )
+            selfloops = set()
+            edgedict = create_edge_dictionary( edges, selfloops )
             results[bmark] = { "totals" : [],
                                "graph" : [],
                                "largest_cycle" : [],
@@ -616,23 +673,51 @@ def main_process( output = None,
                 cycle_info_list = get_cycle_info_list( cycle, objdb, logger )
                 if len(cycle_info_list) == 0:
                     continue
-                # TOTALS
-                results[bmark]["totals"].append( len(cycle) )
-                cycle_total_counter.update( [ len(cycle) ] )
                 # GRAPH
                 G = create_graph( cycle_info_list = cycle_info_list,
                                   edgedict = edgedict,
                                   logger = logger )
-                results[bmark]["graph"].append(G)
                 # Get the actual cycle - LARGEST
-                largest = max(nx.strongly_connected_components(G), key = len)
-                results[bmark]["largest_cycle"].append(largest)
-                save_interesting_small_cycles( largest, summary[bmark] )
+                flag = not nx.is_directed_acyclic_graph(G)
+                testgen = nx.simple_cycles(G)
+                try:
+                    assert(flag) # Assert G is not a DAG
+                    ctmplist = list(testgen)
+                    assert( len(ctmplist) > 0 )
+                    # TODO TODO TODO
+                    # Interesting cases are:
+                    # - largest is size 1 (self-loops)
+                    # - multiple largest cycles?
+                    #     * Option 1: choose only one?
+                    #     * Option 2: ????
+                    scclist = list(nx.strongly_connected_components(G))
+                except:
+                    # No cycles!!!
+                    logger.warning( "Not a cycle." )
+                    logger.warning( "Nodes: %s" % str(G.nodes()) )
+                    logger.warning( "Edges: %s" % str(G.edges()) )
+                    continue
+                # TOTALS
+                results[bmark]["totals"].append( len(cycle) )
+                cycle_total_counter.update( [ len(cycle) ] )
+                # Append graph too
+                results[bmark]["graph"].append(G)
+                largest = append_largest_SCC( ldict = results[bmark]["largest_cycle"],
+                                              scclist = scclist,
+                                              selfloops = selfloops,
+                                              logger = logger )
                 # Cycle length counter
                 actual_cycle_counter.update( [ len(largest) ] )
                 # Get the types and type statistics
-                largest_by_types = get_types( G, largest )
+                largest_by_types_with_index = get_types_and_save_index( G, largest )
+                largest_by_types = [ x[1] for x in largest_by_types_with_index ]
                 largest_by_types_set = set(largest_by_types)
+                # DEBUG only: 2015-11-24
+                # debug_cycle_algorithms( largest, ctmplist, G )
+                # DEBUG_types( largest_by_types_with_index, largest )
+                # END DEBUG
+                # Save small cycles 
+                save_interesting_small_cycles( largest_by_types_with_index, summary[bmark] )
                 # TYPE SET
                 results[bmark]["largest_cycle_types_set"].append(largest_by_types_set)
                 cycle_type_counter.update( [ len(largest_by_types_set) ] )
@@ -663,7 +748,7 @@ def main_process( output = None,
             for_olddir = os.getcwd()
             os.chdir( bmark )
             # Create the CSV files for the data
-            extract_small_cycles( clist = cycles, 
+            extract_small_cycles( summary = summary[bmark], 
                                   bmark = bmark,
                                   objdb = objdb,
                                   logger = logger ) 
@@ -675,7 +760,6 @@ def main_process( output = None,
             print "actual_cycle_counter:", str(actual_cycle_counter)
             print "cycle_type_counter:", str(cycle_type_counter)
             print "--------------------------------------------------------------------------------"
-            pp.pprint( [ x.nodes() for x in largelist ] )
         count += 1
         # if count >= 1:
         #     break
