@@ -230,25 +230,25 @@ def get_types( G, cycle ):
 def get_types_and_save_index( G, cycle ):
     return [ (x, G.node[x]["type"]) for x in cycle ]
 
-def DEBUG_types( largest_by_types_with_index, largest ):
+def DEBUG_types( largest_by_types_with_index, largest_scc ):
     l = largest_by_types_with_index
-    if len(largest) == 1:
-        print "LEN1: %s <-> %s" % (str(largest), l)
+    if len(largest_scc) == 1:
+        print "LEN1: %s <-> %s" % (str(largest_scc), l)
         if l[0][1] == '[B':
             print "DEBUG id: %d" % l[0][0]
-    # elif len(largest) == 2:
+    # elif len(largest_scc) == 2:
 
-def debug_cycle_algorithms( largest, cyclelist, G ):
+def debug_cycle_algorithms( largest_scc, cyclelist, G ):
     global pp
     print "=================================================="
     other = max( cyclelist, key = len )
-    print "SC[ %d ]  SIMP[ %d ]" % (len(largest), len(other))
-    if len(largest) == 1:
-        node = list(largest)[0]
+    print "SC[ %d ]  SIMP[ %d ]" % (len(largest_scc), len(other))
+    if len(largest_scc) == 1:
+        node = list(largest_scc)[0]
         if node == 166451:
             print "Found 166451. Writing out graphs in %s" % str(os.getcwd())
             nx.write_gexf( G, "DEBUG-ALL-166451.gexf" )
-            nx.write_gexf( G.subgraph( list(largest) ),"DEBUG-SC-166451.gexf" ) 
+            nx.write_gexf( G.subgraph( list(largest_scc) ),"DEBUG-SC-166451.gexf" ) 
             print "DONE DEBUG."
             exit(222)
     print "=================================================="
@@ -359,6 +359,10 @@ def extract_small_cycles( summary = None,
                    csv.writer(fp4) ]
         result = [ None, [], [], [], [] ]
         counterlist = {}
+        regex = re.compile( "([^\$]+)\$(.*)" )
+        total_cycles = 0
+        inner_classes_cycles = 0
+        inner_classes_count = Counter()
         for feature, fdict in summary.iteritems(): 
             for size, mylist in fdict.iteritems():
                 for cycle in mylist:
@@ -388,13 +392,26 @@ def extract_small_cycles( summary = None,
                         print " saved [ %s ] <-> from_db [ %s ]" % (saved_type, mytype)
                         exit(10000)
                     type_tuple = tuple( sorted( [ x[1] for x in cycle_info_list ] ) )
+                    # type_tuple contains all the types in the strongly connected component.
+                    # This is sorted so that there's a canonical labeling of the type group/tuple.
                     assert( len(cycle) == size )
                     result[size].append( type_tuple )
+                    total_cycles += 1
+                    flag = False
+                    for tmp in list(type_tuple):
+                        m = regex.match(tmp)
+                        if m:
+                            if not flag:
+                                inner_classes_cycles += 1
+                            inner_classes_count.update( [ tmp ] )
+                            flag = True
                 counterlist[size] = Counter(result[size])
                 for row in ( list(key) + [ val ] for key, val
                              in counterlist[size].iteritems() ):
                     writer[size].writerow( row )
     pp.pprint( counterlist )
+    return { "total_cycles" : total_cycles,
+             "inner_classes_count" : inner_classes_count }
 
 def row_to_string( row ):
     result = None
@@ -553,11 +570,11 @@ def create_work_directory( work_dir, interactive = False ):
             print "....continuing!!!"
     return today
 
-def save_interesting_small_cycles( largest, summary ):
+def save_interesting_small_cycles( largest_scc, summary ):
     # Interesting is defined to be 4 or smaller
-    length = len(largest)
+    length = len(largest_scc)
     if length > 0 and length <= 4:
-        summary["by_size"][length].append( largest )
+        summary["by_size"][length].append( largest_scc )
 
 def save_largest_cycles( graphlist = None, num = None ):
     largelist = heapq.nlargest( num, graphlist, key = len )
@@ -589,17 +606,17 @@ def append_largest_SCC( ldict = None,
 
 def skip_benchmark(bmark):
     return ( bmark == "tradebeans" or # Permanent ignore
-             bmark == "tradesoap" or # Permanent ignore
-             bmark == "lusearch" or
-             ( bmark != "batik" and
-               bmark != "lusearch" and
-               bmark != "luindex" and
-               bmark != "specjbb" and
-               bmark != "avrora" and
-               bmark != "tomcat" and
-               bmark != "pmd" and
-               bmark != "fop"
-             )
+             bmark == "tradesoap" # or # Permanent ignore
+             # bmark == "lusearch" or
+             # ( bmark != "batik" and
+             #   bmark != "lusearch" and
+             #   bmark != "luindex" and
+             #   bmark != "specjbb" and
+             #   bmark != "avrora" and
+             #   bmark != "tomcat" and
+             #   bmark != "pmd" and
+             #   bmark != "fop"
+             # )
            )
 
 def main_process( output = None,
@@ -675,43 +692,45 @@ def main_process( output = None,
                                   edgedict = edgedict,
                                   logger = logger )
                 # Get the actual cycle - LARGEST
-                flag = not nx.is_directed_acyclic_graph(G)
-                testgen = nx.simple_cycles(G)
-                try:
-                    assert(flag) # Assert G is not a DAG
-                    ctmplist = list(testgen)
-                    assert( len(ctmplist) > 0 )
-                    # TODO TODO TODO
-                    # Interesting cases are:
-                    # - largest is size 1 (self-loops)
-                    # - multiple largest cycles?
-                    #     * Option 1: choose only one?
-                    #     * Option 2: ????
-                    scclist = list(nx.strongly_connected_components(G))
-                except:
+                if nx.is_directed_acyclic_graph(G):
+                    logger.warning( "Not a cycle." )
+                    logger.warning( "Nodes: %s" % str(G.nodes()) )
+                    logger.warning( "Edges: %s" % str(G.edges()) )
+                    continue
+                ctmplist = list( nx.simple_cycles(G) )
+                if len(ctmplist) == 0:
                     # No cycles!!!
                     logger.warning( "Not a cycle." )
                     logger.warning( "Nodes: %s" % str(G.nodes()) )
                     logger.warning( "Edges: %s" % str(G.edges()) )
                     continue
-                # TOTALS
+                # TODO TODO TODO
+                # Interesting cases are:
+                # - largest is size 1 (self-loops)
+                # - multiple largest cycles?
+                #     * Option 1: choose only one?
+                #     * Option 2: ????
+                scclist = list(nx.strongly_connected_components(G))
+                # Strong connected-ness is a better indication of what we want
+                # Unless the cycle is a single node with a self pointer.
+                # TOTALS - size of the whole component including leaves
                 results[bmark]["totals"].append( len(cycle) )
                 cycle_total_counter.update( [ len(cycle) ] )
                 # Append graph too
                 results[bmark]["graph"].append(G)
-                largest = append_largest_SCC( ldict = results[bmark]["largest_cycle"],
-                                              scclist = scclist,
-                                              selfloops = selfloops,
-                                              logger = logger )
+                largest_scc = append_largest_SCC( ldict = results[bmark]["largest_cycle"],
+                                                  scclist = scclist,
+                                                  selfloops = selfloops,
+                                                  logger = logger )
                 # Cycle length counter
-                actual_cycle_counter.update( [ len(largest) ] )
+                actual_cycle_counter.update( [ len(largest_scc) ] )
                 # Get the types and type statistics
-                largest_by_types_with_index = get_types_and_save_index( G, largest )
+                largest_by_types_with_index = get_types_and_save_index( G, largest_scc )
                 largest_by_types = [ x[1] for x in largest_by_types_with_index ]
                 largest_by_types_set = set(largest_by_types)
                 # DEBUG only: 2015-11-24
-                # debug_cycle_algorithms( largest, ctmplist, G )
-                # DEBUG_types( largest_by_types_with_index, largest )
+                # debug_cycle_algorithms( largest_scc, ctmplist, G )
+                # DEBUG_types( largest_by_types_with_index, largest_scc )
                 # END DEBUG
                 # Save small cycles 
                 save_interesting_small_cycles( largest_by_types_with_index, summary[bmark] )
@@ -720,7 +739,7 @@ def main_process( output = None,
                 cycle_type_counter.update( [ len(largest_by_types_set) ] )
                 group += 1
                 # LIFETIME
-                lifetimes = get_lifetimes( G, largest )
+                lifetimes = get_lifetimes( G, largest_scc )
                 debug_lifetimes( G = G,
                                  cycle = cycle,
                                  bmark = bmark, 
@@ -745,10 +764,12 @@ def main_process( output = None,
             for_olddir = os.getcwd()
             os.chdir( bmark )
             # Create the CSV files for the data
-            extract_small_cycles( summary = summary[bmark], 
-                                  bmark = bmark,
-                                  objdb = objdb,
-                                  logger = logger ) 
+            small_result = extract_small_cycles( summary = summary[bmark], 
+                                                 bmark = bmark,
+                                                 objdb = objdb,
+                                                 logger = logger ) 
+            total_small_cycles = small_result["total_cycles"]
+            inner_classes_count = small_result["inner_classes_count"]
             # Cd back into parent directory
             os.chdir( for_olddir )
             print "--------------------------------------------------------------------------------"
@@ -756,6 +777,8 @@ def main_process( output = None,
             print "cycle_total_counter:", str(cycle_total_counter)
             print "actual_cycle_counter:", str(actual_cycle_counter)
             print "cycle_type_counter:", str(cycle_type_counter)
+            print "total small cycles:", total_small_cycles
+            print "inner_classes_count:", str(inner_classes_count)
             print "--------------------------------------------------------------------------------"
         count += 1
         # if count >= 1:
