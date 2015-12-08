@@ -8,6 +8,7 @@ import pprint
 # from operator import itemgetter
 from collections import Counter
 import csv
+import ConfigParser
 
 import mypytools
 
@@ -47,6 +48,9 @@ def create_parser():
     # set up arg parser
     parser = argparse.ArgumentParser()
     parser.add_argument( "csvfile", help = "Source CSV file from basic_merge_summary.py" )
+    parser.add_argument( "--config",
+                         help = "Specify configuration filename.",
+                         action = "store" )
     parser.add_argument( "--debug",
                          dest = "debugflag",
                          help = "Enable debug output.",
@@ -63,15 +67,6 @@ def create_parser():
     return parser
 
 def process_args( args, parser ):
-    #
-    # Get input filename
-    #
-    tgtpath = args.csvfile
-    try:
-        if not os.path.exists( tgtpath ):
-            parser.error( tgtpath + " does not exist." )
-    except:
-        parser.error( "invalid path name : " + tgtpath )
     # Actually open the input db/file in main_process()
     # 
     # Get logfile
@@ -84,13 +79,46 @@ def process_args( args, parser ):
              "logfile" : logfile,
              "debugflag" : debugflag }
 
+def config_section_map( section, config_parser ):
+    result = {}
+    options = config_parser.options(section)
+    for option in options:
+        try:
+            result[option] = config_parser.get(section, option)
+        except:
+            print("exception on %s!" % option)
+            result[option] = None
+    return result
+
+def process_config( args ):
+    assert( args.config != None )
+    config_parser = ConfigParser.ConfigParser()
+    config_parser.read( args.config )
+    global_config = config_section_map( "global", config_parser )
+    maincsv_config = config_section_map( "maincsv", config_parser )
+    return ( global_config, maincsv_config )
+
 def main():
     parser = create_parser()
     args = parser.parse_args()
-    arg_results = process_args( args, parser )
-    tgtpath = arg_results["tgtpath"]
-    logfile = arg_results["logfile"]
-    debugflag = arg_results["debugflag"]
+    configparser = ConfigParser.ConfigParser()
+    assert( args.config != None )
+    global_config, maincsv_config = process_config( args )
+    print "GLOBAL:"
+    pp.pprint( global_config )
+    print "MAINCSV:"
+    pp.pprint( maincsv_config )
+    exit(1000)
+    #
+    # Get input filename
+    #
+    tgtpath = args.csvfile
+    try:
+        if not os.path.exists( tgtpath ):
+            parser.error( tgtpath + " does not exist." )
+    except:
+        parser.error( "invalid path name : " + tgtpath )
+    # Get config
     # logging
     logger = setup_logger( filename = logfile,
                            debugflag = debugflag )

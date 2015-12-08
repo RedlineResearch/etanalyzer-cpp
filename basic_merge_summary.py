@@ -162,17 +162,6 @@ def main_process( tgtpath = None,
             print "%s,%d" % (benchmark, x)
     exit(1000) # TODO TODO TODO
 
-def config_section_map( section, config_parser ):
-    result = {}
-    options = config_parser.options(section)
-    for option in options:
-        try:
-            result[option] = config_parser.get(section, option)
-        except:
-            print("exception on %s!" % option)
-            result[option] = None
-    return result
-
 def create_parser():
     # set up arg parser
     parser = argparse.ArgumentParser()
