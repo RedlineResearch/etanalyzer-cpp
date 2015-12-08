@@ -38,11 +38,32 @@ def setup_logger( targetdir = ".",
 # Main processing
 #
 
-def main_process( tgtpath = None,
+def main_process( global_config = None,
+                  maincsv_config = None,
                   debugflag = False,
                   logger = None ):
     global pp
-    exit(1000)
+    counter = Counter()
+    basic_summary_dir = global_config["basic_summary_dir"]
+    for bmark, path in maincsv_config.iteritems():
+        tgtpath = os.path.join( basic_summary_dir, path )
+        if not os.path.isfile( tgtpath ):
+            # Ignore non-existent csv files
+            continue
+        print "========[ %s ]==================================================================" % bmark
+        with open( tgtpath, "rb" ) as fptr:
+            reader = csv.reader(fptr)
+            header = reader.next()
+            assert( header[2] == "num_types" )
+            for line in reader:
+                # print line
+                try:
+                    x = int(line[2])
+                except:
+                    logger.critical( "Unable to convert field 2 into int: %s" % str(line) )
+                    continue
+                counter.update( [ x ] )
+        print bmark, dict(counter)
 
 def create_parser():
     # set up arg parser
@@ -65,19 +86,6 @@ def create_parser():
     parser.set_defaults( logfile = "extract_types.log",
                          debugflag = False )
     return parser
-
-def process_args( args, parser ):
-    # Actually open the input db/file in main_process()
-    # 
-    # Get logfile
-    logfile = args.logfile
-    logfile = "extract_types-" + os.path.basename(tgtpath) + ".log" if not logfile else logfile    
-    # 
-    # Get debugflag
-    debugflag = args.debugflag
-    return { "tgtpath" : tgtpath,
-             "logfile" : logfile,
-             "debugflag" : debugflag }
 
 def config_section_map( section, config_parser ):
     result = {}
@@ -108,7 +116,6 @@ def main():
     pp.pprint( global_config )
     print "MAINCSV:"
     pp.pprint( maincsv_config )
-    exit(1000)
     #
     # Get input filename
     #
@@ -120,13 +127,14 @@ def main():
         parser.error( "invalid path name : " + tgtpath )
     # Get config
     # logging
-    logger = setup_logger( filename = logfile,
-                           debugflag = debugflag )
+    logger = setup_logger( filename = args.logfile,
+                           debugflag = global_config["debug"] )
     #
     # Main processing
     #
-    return main_process( tgtpath = tgtpath,
-                         debugflag = debugflag,
+    return main_process( global_config = global_config,
+                         maincsv_config = maincsv_config,
+                         debugflag = global_config["debug"],
                          logger = logger )
 
 if __name__ == "__main__":
