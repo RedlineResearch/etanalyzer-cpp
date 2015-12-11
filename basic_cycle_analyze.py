@@ -757,6 +757,16 @@ def main_process( output = None,
                 results[bmark]["lifetime_sd"].append(ltimes_sd)
                 results[bmark]["lifetime_max"].append( max(lifetimes) )
                 results[bmark]["lifetime_min"].append( min(lifetimes) )
+                # End LIFETIME
+                # SIZE PER TYPE COUNT
+                # Per bencmark:
+                #   count of types -> size in bytes
+                #   then group accoring to count of types:
+                #         count -> [ size1, s2, s3, ... sn ]
+                #   * graph (option 1)
+                #   * stats (option 2)
+                #   * option3? ? ?
+                # End SIZE PER TYPE COUNT
             largelist = save_largest_cycles( results[bmark]["graph"], num = 5 )
             # Make directory and Cd into directory
             if not os.path.isdir(bmark):
