@@ -9,6 +9,7 @@ import pprint
 from collections import Counter
 import csv
 import ConfigParser
+from operator import itemgetter
 
 import mypytools
 
@@ -63,7 +64,9 @@ def main_process( global_config = None,
                     logger.critical( "Unable to convert field 2 into int: %s" % str(line) )
                     continue
                 counter.update( [ x ] )
-        print bmark, dict(counter)
+        countlist = sorted( dict(counter).iteritems(), key = itemgetter(1), reverse = True )
+        for row in countlist:
+            print "%d, %d" % row
 
 def create_parser():
     # set up arg parser
@@ -112,10 +115,6 @@ def main():
     configparser = ConfigParser.ConfigParser()
     assert( args.config != None )
     global_config, maincsv_config = process_config( args )
-    print "GLOBAL:"
-    pp.pprint( global_config )
-    print "MAINCSV:"
-    pp.pprint( maincsv_config )
     #
     # Get input filename
     #
