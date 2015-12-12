@@ -1,4 +1,4 @@
-// Gradle build file for update_dtime project
+// Gradle build file for save_edge_info project
 plugins {
     id 'java'
     id 'com.github.johnrengelman.shadow' version '1.2.2'
@@ -11,7 +11,7 @@ jar {
     manifest {
         attributes 'Implementation-Title': 'update_dtime',
                    'Implementation-Version': version,
-                   'Main-Class': 'net.veroy.analysis.etracks.SaveEdgeAge'
+                   'Main-Class': 'net.veroy.analysis.etracks.SaveEdgeInfo'
     }
 }
 

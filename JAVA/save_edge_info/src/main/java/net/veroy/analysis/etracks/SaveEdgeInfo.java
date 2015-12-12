@@ -32,7 +32,6 @@ public class SaveEdgeInfo {
     private final static String table = "edges";
     private final static String metadata_table = "metadata";
     private static int timeByMethod = 0;
-    private static HashMap<Integer, Boolean> dtimeMap = new HashMap();
     private static boolean doneFlag = false;
     private static int index_g = 0;
 
@@ -99,8 +98,9 @@ public class SaveEdgeInfo {
         int atime = newrec.get_atime();
         int dtime = newrec.get_dtime();
         if ((dtime == 0) && (doneFlag)) {
+            // If we haven't set the death time, and the trace is done,
+            // use the current timeByMethod as the dtime.
             dtime = timeByMethod;
-            dtimeMap.put(tgtId, true);
         }
         stmt.executeUpdate( String.format( "INSERT OR REPLACE INTO %s" +
                                            "(tgtId,srcId,fieldId,atime,dtime) " +
@@ -143,6 +143,16 @@ public class SaveEdgeInfo {
                     } else if (isUpdate(fields[0])) {
                         // U <old-target-id> <object-id> <new-target-id> <field-id> <thread-id>
                         UpdateRecord update = parseUpdate( fields, timeByMethod );
+                        int objId = update.get_objId();
+                        int oldTgtId = update.get_oldTgtId();
+                        int newTgtId = update.get_newTgtId();
+                        int fieldId = update.get_fieldId();
+                        EdgeRecord edge = new EdgeRecord( objId, newTgtId, fieldId,
+                                                          timeByMethod, 0 );
+                        cache.put(newTgtId, edge);
+                        if (oldTgtId > 0) {
+                            updateDeathTime( oldTgtId, timeByMethod );
+                        }
                     }
                     index_g += 1;
                     if (index_g % 10000 == 1) {
@@ -168,6 +178,7 @@ public class SaveEdgeInfo {
         return op.equals("U");
     }
 
+    // TODO: Don't need this? RLV - 2015-1211
     private static boolean isAllocation( String op ) {
         return (op.equals("A") || op.equals("N") || op.equals("P") || op.equals("I") || op.equals("V"));
     }
@@ -248,7 +259,6 @@ public class SaveEdgeInfo {
             rec.set_dtime( timeByMethod );
             cache.put( tgtId, rec );
         }
-        dtimeMap.put( tgtId, true );
         return true;
     }
 }
