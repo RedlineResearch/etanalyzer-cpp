@@ -604,9 +604,19 @@ def append_largest_SCC( ldict = None,
     ldict.append(largest_scc)
     return largest_scc
 
+def get_last_edge( largest_scc, edge_info_db ):
+    mylist = list(largest_scc)
+    for tgt in mylist:
+        print "======================================================================"
+        print "XXX: %d" % tgt
+        result = edge_info_db.get_all( tgt ) # TODO: temporary debug
+        print result
+    return (0, 0)
+
 def skip_benchmark(bmark):
     return ( bmark == "tradebeans" or # Permanent ignore
-             bmark == "tradesoap" # or # Permanent ignore
+             bmark == "tradesoap" or # Permanent ignore
+             bmark != "batik"
              # bmark == "lusearch" or
              # ( bmark != "batik" and
              #   bmark != "lusearch" and
@@ -626,6 +636,7 @@ def main_process( output = None,
                   objdb1_config = None,
                   objdb2_config = None,
                   objdb_ALL_config = None,
+                  edge_info_config = None,
                   debugflag = False,
                   logger = None ):
     global pp
@@ -635,8 +646,10 @@ def main_process( output = None,
     #      * size of objects
     # 2. Number of cycles
     # 3. Size of cycles
-    pp.pprint(etanalyze_config)
+    print "GLOBAL:"
     pp.pprint(global_config)
+    print "EDGE_INFO:"
+    pp.pprint(edge_info_config)
     cycle_cpp_dir = global_config["cycle_cpp_dir"]
     work_dir = main_config["directory"]
     results = {}
@@ -658,6 +671,11 @@ def main_process( output = None,
                              benchmark = bmark,
                              logger = logger,
                              debugflag = debugflag )
+        edge_info_db = setup_edge_info_db( global_config = global_config,
+                                           edge_info_config = edge_info_config,
+                                           benchmark = bmark,
+                                           logger = logger,
+                                           debugflag = debugflag )
         abspath = os.path.join(cycle_cpp_dir, filename)
         if not os.path.isfile(abspath):
             logger.critical("Not such file: %s" % str(abspath))
@@ -692,12 +710,14 @@ def main_process( output = None,
                                   edgedict = edgedict,
                                   logger = logger )
                 # Get the actual cycle - LARGEST
+                # Sanity check 1: Is it a DAG?
                 if nx.is_directed_acyclic_graph(G):
                     logger.warning( "Not a cycle." )
                     logger.warning( "Nodes: %s" % str(G.nodes()) )
                     logger.warning( "Edges: %s" % str(G.edges()) )
                     continue
                 ctmplist = list( nx.simple_cycles(G) )
+                # Sanity check 2: Check to see it's not empty.
                 if len(ctmplist) == 0:
                     # No cycles!!!
                     logger.warning( "Not a cycle." )
@@ -740,6 +760,8 @@ def main_process( output = None,
                 group += 1
                 # LIFETIME
                 lifetimes = get_lifetimes( G, largest_scc )
+                # GET LAST EDGE
+                last_edge = get_last_edge( largest_scc, edge_info_db )
                 debug_lifetimes( G = G,
                                  cycle = cycle,
                                  bmark = bmark, 
@@ -856,10 +878,11 @@ def process_config( args ):
     objdb2_config = config_section_map( "objdb2", config_parser )
     objdb_ALL_config = config_section_map( "objdb_ALL", config_parser )
     etanalyze_config = config_section_map( "etanalyze-output", config_parser )
+    edge_info_config = config_section_map( "edge_info_DB", config_parser )
     main_config = config_section_map( "cycle-analyze", config_parser )
     return ( global_config,
              objdb1_config, objdb2_config, objdb_ALL_config,
-             etanalyze_config,
+             etanalyze_config, edge_info_config,
              main_config )
 
 def setup_objdb( global_config = None,
@@ -879,18 +902,36 @@ def setup_objdb( global_config = None,
                   debugflag = debugflag,
                   logger = logger )
 
+def setup_edge_info_db( global_config = None,
+                        edge_info_config = None,
+                        benchmark = None,
+                        logger = None,
+                        debugflag = False ):
+    # set up objdb
+    tgtpath = os.path.join( global_config["edge_info_dir"], edge_info_config[benchmark] )
+    print tgtpath
+    try:
+        edge_info_db = sqorm.Sqorm( tgtpath = tgtpath,
+                                    table = "edges",
+                                    keyfield = "tgtId" )
+    except:
+        logger.error( "Unable to load edge info DB: %s" % str(tgtpath) )
+        print "Unable to load edge info DB: %s" % str(tgtpath)
+        assert( False )
+    return edge_info_db
+
 def main():
     parser = create_parser()
     args = parser.parse_args()
     configparser = ConfigParser.ConfigParser()
     benchmark = args.benchmark
     assert( args.config != None )
-    global_config, objdb1_config, objdb2_config, objdb_ALL_config, etanalyze_config, main_config \
+    global_config, objdb1_config, objdb2_config, objdb_ALL_config, \
+        etanalyze_config, edge_info_config, main_config \
         = process_config( args )
     # logging
     logger = setup_logger( filename = args.logfile,
                            debugflag = global_config["debug"] )
-    
     #
     # Main processing
     #
@@ -902,6 +943,7 @@ def main():
                          objdb1_config = objdb1_config,
                          objdb2_config = objdb2_config,
                          objdb_ALL_config = objdb_ALL_config,
+                         edge_info_config = edge_info_config,
                          logger = logger )
 
 if __name__ == "__main__":

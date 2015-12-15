@@ -32,9 +32,7 @@ class Sqorm( object ):
         cur.execute( "SELECT * FROM %s WHERE %s=%s" %
                      ( self.table, self.keyfield, str(item) ) )
         retlist = cur.fetchmany()
-        if len(retlist) != 1:
-            return False
-        return True
+        return (len(retlist) < 1)
 
     def __eq__(self, obj):
         raise NotImplemented
@@ -52,8 +50,12 @@ class Sqorm( object ):
         cur.execute( "SELECT * FROM %s WHERE %s=%s" %
                      ( self.table, self.keyfield, str(key) ) )
         retlist = cur.fetchmany()
-        if len(retlist) != 1:
-            raise KeyError( "%s not found" % str(key ) )
+        # Note, the key might not be unique.
+        if len(retlist) < 1:
+            raise KeyError( "%s not found" % str(key) )
+        # Even if the key isn't unique, we behave as if it is.
+        # So return the first element. This may not be what is desired
+        # when the key maps to multiple elements.
         return retlist[0]
 
     def __setitem__(self, key, value):
@@ -71,6 +73,16 @@ class Sqorm( object ):
         if self.conn != None:
             self.conn.commit()
             self.conn.close()
+
+    def get_all(self, key):
+        cur = self.conn.cursor()
+        cur.execute( "SELECT * FROM %s WHERE %s=%s" %
+                     ( self.table, self.keyfield, str(key) ) )
+        retlist = cur.fetchall()
+        # Note, the key might not be unique.
+        if len(retlist) < 1:
+            raise KeyError( "%s not found" % str(key) )
+        return retlist
 
 __all__ = [ "Sqorm", ]
 

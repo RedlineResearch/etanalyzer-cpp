@@ -113,7 +113,7 @@ public class SaveEdgeInfo {
         Statement stmt = conn.createStatement();
         stmt.executeUpdate( String.format( "DROP TABLE IF EXISTS %s", table ) );
         stmt.executeUpdate( String.format( "CREATE TABLE %s " +
-                                           "( tgtId INTEGER PRIMARY KEY," +
+                                           "( tgtId INTEGER," +
                                            "  srcId INTEGER, fieldId INTEGER," +
                                            "  atime INTEGER, dtime INTEGER )",
                                            table ) );
