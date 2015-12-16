@@ -26,8 +26,12 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.RemovalListener;
 import com.google.common.cache.RemovalNotification;
 
+import org.javatuples.Triplet;
+
 public class SaveEdgeInfo {
-    private static Cache<Integer, EdgeRecord> cache;
+    //TODO DeleteMe:  private static Cache<Integer, EdgeRecord> cache2;
+    private static Cache<EdgeRecord, Integer> cache;
+    private static HashMap<Triplet, Integer> edge_map;
     private static Connection conn;
     private final static String table = "edges";
     private final static String metadata_table = "metadata";
@@ -36,10 +40,9 @@ public class SaveEdgeInfo {
     private static int index_g = 0;
 
     public static void main(String[] args) {
-        RemovalListener<Integer, EdgeRecord> remListener = new RemovalListener<Integer, EdgeRecord>() {
-              public void onRemoval(RemovalNotification<Integer, EdgeRecord> removal) {
-                  // int objId = removal.getKey();
-                  EdgeRecord rec = removal.getValue();
+        RemovalListener<EdgeRecord, Integer> remListener = new RemovalListener<EdgeRecord, Integer>() {
+              public void onRemoval( RemovalNotification<EdgeRecord, Integer> removal ) {
+                  EdgeRecord rec = removal.getKey();
                   try {
                       putIntoDB( rec );
                         index_g += 1;
@@ -57,6 +60,7 @@ public class SaveEdgeInfo {
             .maximumSize(250000000) 
             .removalListener( remListener )
             .build(); // TODO Make maximumSize a command line arg with default TODO TODO
+        edge_map = new HashMap();
         conn = null;
         Statement stmt = null;
         String dbname = args[0];
@@ -149,9 +153,15 @@ public class SaveEdgeInfo {
                         int fieldId = update.get_fieldId();
                         EdgeRecord edge = new EdgeRecord( objId, newTgtId, fieldId,
                                                           timeByMethod, 0 );
-                        cache.put(newTgtId, edge);
+                        Triplet<Integer, Integer, Integer> tuple = Triplet.with( objId, newTgtId, fieldId );
+                        cache.put( edge, newTgtId );
+                        edge_map.put( tuple, timeByMethod );
                         if (oldTgtId > 0) {
-                            updateDeathTime( oldTgtId, timeByMethod );
+                            Triplet<Integer, Integer, Integer> old_tuple = Triplet.with( objId, oldTgtId, fieldId );
+                            Integer old_atime = edge_map.get( old_tuple );
+                            EdgeRecord old_edge = new EdgeRecord( objId, oldTgtId, fieldId,
+                                                                  old_atime, timeByMethod );
+                            cache.put( old_edge, oldTgtId );
                         }
                     }
                     index_g += 1;
@@ -237,28 +247,4 @@ public class SaveEdgeInfo {
                                  timeByMethod );
     }
 
-    private static boolean updateDeathTime( int tgtId, int timeByMethod ) throws SQLException {
-        // Get record first then fill in death time
-        EdgeRecord rec;
-        try {
-            rec = cache.get( tgtId,
-                    new Callable<EdgeRecord>() {
-                        public EdgeRecord call() throws SQLException {
-                            return getFromDB( tgtId );
-                        }
-                    } );
-        } catch( Exception e ) {
-            System.err.println( e.getClass().getName() + ": " + e.getMessage() );
-            System.out.println( e.getClass().getName() + ": " + e.getMessage() );
-            System.exit(0);
-            return false;
-        }
-        int old_dtime = rec.get_dtime();
-        // System.out.println(  old_dtime + " -> " + timeByMethod );
-        if (old_dtime != timeByMethod) {
-            rec.set_dtime( timeByMethod );
-            cache.put( tgtId, rec );
-        }
-        return true;
-    }
 }

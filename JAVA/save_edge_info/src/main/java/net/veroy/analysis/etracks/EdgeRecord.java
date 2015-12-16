@@ -41,6 +41,7 @@ public class EdgeRecord {
             EdgeRecord other = (EdgeRecord) obj;
             return ( (_srcId == other.get_srcId()) &&
                      (_tgtId == other.get_tgtId()) && 
+                     (_fieldId == other.get_fieldId()) &&
                      (_atime == other.get_atime()) );
         }
         return false;
