@@ -46,9 +46,9 @@ public class SaveEdgeInfo {
                   try {
                       putIntoDB( rec );
                         index_g += 1;
-                        if (index_g % 10000 == 1) {
+                        // if (index_g % 10000 == 1) {
                             System.out.print(">");
-                        } 
+                        // } 
                   } catch ( Exception e ) {
                       System.err.println( e.getClass().getName() + ": " + e.getMessage() );
                       System.out.println( e.getClass().getName() + ": " + e.getMessage() );
@@ -151,17 +151,15 @@ public class SaveEdgeInfo {
                         int oldTgtId = update.get_oldTgtId();
                         int newTgtId = update.get_newTgtId();
                         int fieldId = update.get_fieldId();
-                        EdgeRecord edge = new EdgeRecord( objId, newTgtId, fieldId,
-                                                          timeByMethod, 0 );
                         Triplet<Integer, Integer, Integer> tuple = Triplet.with( objId, newTgtId, fieldId );
-                        cache.put( edge, newTgtId );
                         edge_map.put( tuple, timeByMethod );
                         if (oldTgtId > 0) {
                             Triplet<Integer, Integer, Integer> old_tuple = Triplet.with( objId, oldTgtId, fieldId );
-                            Integer old_atime = edge_map.get( old_tuple );
+                            Integer old_atime = (edge_map.containsKey( old_tuple)) ? edge_map.get( old_tuple ) : 0;
                             EdgeRecord old_edge = new EdgeRecord( objId, oldTgtId, fieldId,
                                                                   old_atime, timeByMethod );
                             cache.put( old_edge, oldTgtId );
+                            System.out.print("X[ " + cache.size() + " ]");
                         }
                     }
                     index_g += 1;

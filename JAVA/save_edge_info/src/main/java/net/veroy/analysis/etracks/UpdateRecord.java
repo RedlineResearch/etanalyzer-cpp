@@ -34,7 +34,7 @@ public class UpdateRecord {
     }
 
     public int get_oldTgtId() {
-        return _oldTgtId;
+        return this._oldTgtId;
     }
     public void set_oldTgtId(int oldTgtId) {
         this._oldTgtId = oldTgtId;
