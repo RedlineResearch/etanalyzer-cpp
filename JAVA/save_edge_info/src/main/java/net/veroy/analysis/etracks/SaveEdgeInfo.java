@@ -27,10 +27,11 @@ import com.google.common.cache.RemovalListener;
 import com.google.common.cache.RemovalNotification;
 
 import org.javatuples.Triplet;
+import org.javatuples.Quartet;
 
 public class SaveEdgeInfo {
     //TODO DeleteMe:  private static Cache<Integer, EdgeRecord> cache2;
-    private static Cache<EdgeRecord, Integer> cache;
+    private static Cache<Quartet<Integer, Integer, Integer, Integer>, Integer> cache;
     private static HashMap<Triplet, Integer> edge_map;
     private static Connection conn;
     private final static String table = "edges";
@@ -40,9 +41,18 @@ public class SaveEdgeInfo {
     private static int index_g = 0;
 
     public static void main(String[] args) {
-        RemovalListener<EdgeRecord, Integer> remListener = new RemovalListener<EdgeRecord, Integer>() {
-              public void onRemoval( RemovalNotification<EdgeRecord, Integer> removal ) {
-                  EdgeRecord rec = removal.getKey();
+        RemovalListener<Quartet<Integer, Integer, Integer, Integer>, Integer> remListener = 
+            new RemovalListener<Quartet<Integer, Integer, Integer, Integer>, Integer>() {
+              public void onRemoval( RemovalNotification<Quartet<Integer, Integer, Integer, Integer>,
+                                     Integer> removal ) {
+                  Quartet<Integer, Integer, Integer, Integer> tuple = removal.getKey();
+                  Integer dtime = removal.getValue();
+                  EdgeRecord rec = new EdgeRecord( tuple.getValue0(),
+                                                   tuple.getValue1(),
+                                                   tuple.getValue2(),
+                                                   tuple.getValue3(),
+                                                   dtime );
+
                   try {
                       putIntoDB( rec );
                         index_g += 1;
@@ -152,14 +162,24 @@ public class SaveEdgeInfo {
                         int newTgtId = update.get_newTgtId();
                         int fieldId = update.get_fieldId();
                         Triplet<Integer, Integer, Integer> tuple = Triplet.with( objId, newTgtId, fieldId );
+                        // Put live edge into edge_map
                         edge_map.put( tuple, timeByMethod );
                         if (oldTgtId > 0) {
+                            if (index_g % 10000 == 1) {
+                                System.out.print("X");
+                            } 
+                            // Save newly dead edge
                             Triplet<Integer, Integer, Integer> old_tuple = Triplet.with( objId, oldTgtId, fieldId );
-                            Integer old_atime = (edge_map.containsKey( old_tuple)) ? edge_map.get( old_tuple ) : 0;
-                            EdgeRecord old_edge = new EdgeRecord( objId, oldTgtId, fieldId,
-                                                                  old_atime, timeByMethod );
-                            cache.put( old_edge, oldTgtId );
-                            System.out.print("X[ " + cache.size() + " ]");
+                            // TODO DEBUG here
+                            Integer old_atime = ( edge_map.containsKey(old_tuple) ) ? edge_map.get( old_tuple ) : 1;
+                            // TODO: seems like we don't need old_edge
+                            // EdgeRecord old_edge = new EdgeRecord( objId, oldTgtId, fieldId,
+                            //                                       old_atime, timeByMethod );
+                            Quartet<Integer, Integer, Integer, Integer> cache_tuple = Quartet.with( objId,
+                                                                                                    oldTgtId, 
+                                                                                                    fieldId,
+                                                                                                    old_atime );
+                            cache.put( cache_tuple, timeByMethod );
                         }
                     }
                     index_g += 1;
