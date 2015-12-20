@@ -20,12 +20,14 @@ import java.util.ArrayList;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.HashMap;
+import java.util.HashSet;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.RemovalListener;
 import com.google.common.cache.RemovalNotification;
 
+import org.javatuples.Pair;
 import org.javatuples.Triplet;
 import org.javatuples.Quartet;
 
@@ -33,6 +35,14 @@ public class SaveEdgeInfo {
     //TODO DeleteMe:  private static Cache<Integer, EdgeRecord> cache2;
     private static Cache<Quartet<Integer, Integer, Integer, Integer>, Integer> cache;
     private static HashMap<Triplet, Integer> edge_map;
+    private static HashMap<Integer,
+                           HashMap<Integer,
+                                   HashSet<Pair<Integer, Integer>>>> objref_map;
+    // objId ->
+    //     fieldId -> HashSet of pairs * see Pair above
+    // Note: this would be a LOT easier if Java allowed typedefs.
+    // I'm sorely tempted to use the class extension as typedef technique
+    // which is widely panned. - RLV 2015-1219
     private static Connection conn;
     private final static String table = "edges";
     private final static String metadata_table = "metadata";
@@ -138,6 +148,29 @@ public class SaveEdgeInfo {
         return true;
     }
 
+    // Triplet is <srcId, tgtId, fieldId>
+    private static boolean putIntoObjrefMap(Triplet<Integer, Integer, Integer> tuple, int atime) {
+        Integer srcId = tuple.getValue0();
+        Integer tgtId = tuple.getValue1();
+        Integer fieldId = tuple.getValue2();
+        // Check to see srcId is in objref_map
+        if (!objref_map.containsKey( srcId )) {
+            HashMap< Integer, HashSet<Pair<Integer, Integer>>> new_field_map =
+                new HashMap< Integer, HashSet<Pair<Integer, Integer>>>();
+            objref_map.put( srcId, new_field_map );
+        }
+        // Check to see if fieldId is already there
+        HashMap< Integer, HashSet<Pair<Integer, Integer>>> field_map =
+            objref_map.get( srcId );
+        if (!field_map.containsKey( fieldId )) {
+            field_map.put( fieldId, new HashSet<Pair<Integer, Integer>>() );
+        }
+        // Add edge_tuple to objref_map's field_map
+        HashSet<Pair<Integer, Integer>> edge_set = field_map.get( fieldId );
+        edge_set.add( Pair.with(tgtId, atime) );
+        return true;
+    }
+
     private static void processInput() throws SQLException, ExecutionException {
         try {
             String line;
@@ -162,8 +195,9 @@ public class SaveEdgeInfo {
                         int newTgtId = update.get_newTgtId();
                         int fieldId = update.get_fieldId();
                         Triplet<Integer, Integer, Integer> tuple = Triplet.with( objId, newTgtId, fieldId );
-                        // Put live edge into edge_map
+                        // Put live edge into edge_map and objref_map
                         edge_map.put( tuple, timeByMethod );
+                        putIntoObjrefMap( tuple, timeByMethod );
                         if (oldTgtId > 0) {
                             if (index_g % 10000 == 1) {
                                 System.out.print("X");
