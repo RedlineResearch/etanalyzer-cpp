@@ -606,11 +606,18 @@ def append_largest_SCC( ldict = None,
 
 def get_last_edge( largest_scc, edge_info_db ):
     mylist = list(largest_scc)
+    print "======================================================================"
+    print mylist
+    print "----"
     for tgt in mylist:
-        print "======================================================================"
-        print "XXX: %d" % tgt
-        result = edge_info_db.get_all( tgt ) # TODO: temporary debug
+        try:
+            result = edge_info_db.get_all( tgt ) # TODO: temporary debug
+            print "XXX: %d" % tgt
+        except KeyError:
+            result = []
+            print "ZZZ: %d" % tgt
         print result
+    print "====[ END ]==========================================================="
     return (0, 0)
 
 def skip_benchmark(bmark):
