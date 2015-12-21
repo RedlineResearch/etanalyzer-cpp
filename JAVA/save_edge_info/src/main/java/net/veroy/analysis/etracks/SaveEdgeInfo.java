@@ -81,6 +81,8 @@ public class SaveEdgeInfo {
             .removalListener( remListener )
             .build(); // TODO Make maximumSize a command line arg with default TODO TODO
         edge_map = new HashMap();
+        // objref_map = HashMap<Integer, HashMap<Integer, HashSet<Pair<Integer, Integer>>>>();
+        objref_map = new HashMap<Integer, HashMap<Integer, HashSet<Pair<Integer, Integer>>>>();
         conn = null;
         Statement stmt = null;
         String dbname = args[0];
@@ -171,6 +173,38 @@ public class SaveEdgeInfo {
         return true;
     }
 
+    private static void saveDeadEdge( Integer srcId, Integer tgtId, Integer fieldId ) {
+        if (index_g % 10000 == 1) {
+            System.out.print("X");
+        } 
+        // Save newly dead edge
+        Triplet<Integer, Integer, Integer> old_tuple = Triplet.with( srcId, tgtId, fieldId );
+        // Get the saved allocation time from edge_map. If that doesn't work, assume the edge
+        // was there from the beginning of time (1).
+        Integer old_atime = ( edge_map.containsKey(old_tuple) ) ? edge_map.get( old_tuple ) : 1;
+        Quartet<Integer, Integer, Integer, Integer> cache_tuple = Quartet.with( srcId,
+                                                                                tgtId, 
+                                                                                fieldId,
+                                                                                old_atime );
+        cache.put( cache_tuple, timeByMethod );
+    }
+
+    private static int markAllEdgesDead( int objId ) {
+        // Go through each fieldId
+        // private static HashMap<Integer,
+        //                        HashMap<Integer,
+        //                                HashSet<Pair<Integer, Integer>>>> objref_map;
+        // objId ->
+        //     fieldId -> HashSet of pairs * see Pair above
+        //  
+        //  Look for objId in objref_map:
+        if (objref_map.containsKey( objId )) {
+        }
+        // For each target object, add a dead edge.
+        // saveDeadEdge( objId, oldTgtId, fieldId );
+        return 0;
+    }
+
     private static void processInput() throws SQLException, ExecutionException {
         try {
             String line;
@@ -186,7 +220,10 @@ public class SaveEdgeInfo {
                     if (isMethod( fields[0])) {
                         timeByMethod += 1;
                     } else if (isDeath(fields[0])) {
-                        // TODO
+                        int objId = parseDeath( fields );
+                        assert( objId > 0 );
+                        // Save dead edge
+                        markAllEdgesDead( objId );
                     } else if (isUpdate(fields[0])) {
                         // U <old-target-id> <object-id> <new-target-id> <field-id> <thread-id>
                         UpdateRecord update = parseUpdate( fields, timeByMethod );
@@ -195,31 +232,20 @@ public class SaveEdgeInfo {
                         int newTgtId = update.get_newTgtId();
                         int fieldId = update.get_fieldId();
                         Triplet<Integer, Integer, Integer> tuple = Triplet.with( objId, newTgtId, fieldId );
-                        // Put live edge into edge_map and objref_map
-                        edge_map.put( tuple, timeByMethod );
-                        putIntoObjrefMap( tuple, timeByMethod );
-                        if (oldTgtId > 0) {
+                        if (newTgtId > 0) {
+                            // Put live edge into edge_map and objref_map
+                            edge_map.put( tuple, timeByMethod );
+                            putIntoObjrefMap( tuple, timeByMethod );
                             if (index_g % 10000 == 1) {
-                                System.out.print("X");
+                                System.out.print(".");
                             } 
-                            // Save newly dead edge
-                            Triplet<Integer, Integer, Integer> old_tuple = Triplet.with( objId, oldTgtId, fieldId );
-                            // TODO DEBUG here
-                            Integer old_atime = ( edge_map.containsKey(old_tuple) ) ? edge_map.get( old_tuple ) : 1;
-                            // TODO: seems like we don't need old_edge
-                            // EdgeRecord old_edge = new EdgeRecord( objId, oldTgtId, fieldId,
-                            //                                       old_atime, timeByMethod );
-                            Quartet<Integer, Integer, Integer, Integer> cache_tuple = Quartet.with( objId,
-                                                                                                    oldTgtId, 
-                                                                                                    fieldId,
-                                                                                                    old_atime );
-                            cache.put( cache_tuple, timeByMethod );
+                        }
+                        if (oldTgtId > 0) {
+                            // Save dead edge
+                            saveDeadEdge( objId, oldTgtId, fieldId );
                         }
                     }
                     index_g += 1;
-                    if (index_g % 10000 == 1) {
-                        System.out.print(".");
-                    } 
                 }
                 doneFlag = true;
                 System.out.print("\nInvalidating cache:");
@@ -269,6 +295,10 @@ public class SaveEdgeInfo {
                                  timeByMethod, // alloctime
                                  0, // death - Unknown at this point TODO
                                  allocsite );
+    }
+
+    private static Integer parseDeath( String[] fields ) {
+        return Integer.parseInt( fields[1], 16 );
     }
 
     private static UpdateRecord parseUpdate( String[] fields, int timeByMethod ) {
