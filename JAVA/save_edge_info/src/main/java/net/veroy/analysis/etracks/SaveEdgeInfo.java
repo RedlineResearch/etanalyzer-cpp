@@ -21,6 +21,8 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -39,7 +41,7 @@ public class SaveEdgeInfo {
                            HashMap<Integer,
                                    HashSet<Pair<Integer, Integer>>>> objref_map;
     // objId ->
-    //     fieldId -> HashSet of pairs * see Pair above
+    //     fieldId -> HashSet of pairs of (target Id, allocation time)
     // Note: this would be a LOT easier if Java allowed typedefs.
     // I'm sorely tempted to use the class extension as typedef technique
     // which is widely panned. - RLV 2015-1219
@@ -190,6 +192,7 @@ public class SaveEdgeInfo {
     }
 
     private static int markAllEdgesDead( int objId ) {
+        int result = 0; // This fn returns the number of edges marked dead
         // Go through each fieldId
         // private static HashMap<Integer,
         //                        HashMap<Integer,
@@ -199,10 +202,19 @@ public class SaveEdgeInfo {
         //  
         //  Look for objId in objref_map:
         if (objref_map.containsKey( objId )) {
+            // For each target object, add a dead edge.
+            HashMap<Integer, HashSet<Pair<Integer, Integer>>> field_map = objref_map.get( objId );
+            Iterator it = field_map.entrySet().iterator();
+            while (it.hasNext()) {
+                Map.Entry mpair = (Map.Entry) it.next();
+                Integer fieldId = (Integer) mpair.getKey();
+                HashSet<Pair<Integer, Integer>> tgtset = 
+                    (HashSet<Pair<Integer, Integer>>) mpair.getValue();
+                System.out.print("\nQQQ: " + fieldId.toString());
+                // saveDeadEdge( objId, oldTgtId, fieldId );
+            }
         }
-        // For each target object, add a dead edge.
-        // saveDeadEdge( objId, oldTgtId, fieldId );
-        return 0;
+        return result;
     }
 
     private static void processInput() throws SQLException, ExecutionException {
