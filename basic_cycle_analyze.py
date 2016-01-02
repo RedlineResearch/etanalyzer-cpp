@@ -914,7 +914,7 @@ def setup_edge_info_db( global_config = None,
                         benchmark = None,
                         logger = None,
                         debugflag = False ):
-    # set up objdb
+    # set up edge_info_db
     tgtpath = os.path.join( global_config["edge_info_dir"], edge_info_config[benchmark] )
     print tgtpath
     try:

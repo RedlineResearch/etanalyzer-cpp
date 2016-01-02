@@ -68,9 +68,9 @@ public class SaveEdgeInfo {
                   try {
                       putIntoDB( rec );
                         index_g += 1;
-                        // if (index_g % 10000 == 1) {
+                        if (index_g % 10000 == 1) {
                             System.out.print(">");
-                        // } 
+                        } 
                   } catch ( Exception e ) {
                       System.err.println( e.getClass().getName() + ": " + e.getMessage() );
                       System.out.println( e.getClass().getName() + ": " + e.getMessage() );
@@ -210,9 +210,22 @@ public class SaveEdgeInfo {
                 Integer fieldId = (Integer) mpair.getKey();
                 HashSet<Pair<Integer, Integer>> tgtset = 
                     (HashSet<Pair<Integer, Integer>>) mpair.getValue();
-                System.out.print("\nQQQ: " + fieldId.toString());
-                // saveDeadEdge( objId, oldTgtId, fieldId );
+                // Iterate over tgtset to get tgtId
+                Iterator tgt_it = tgtset.iterator();
+                while (tgt_it.hasNext()) {
+                    Pair<Integer, Integer> tgt_mpair = (Pair<Integer, Integer>) tgt_it.next();
+                    // tgtId comes from tgtset.
+                    // fieldId is in outer loop.
+                    Integer tgtId = (Integer) tgt_mpair.getValue0();
+                    Integer atime = (Integer) tgt_mpair.getValue1();
+                    saveDeadEdge( objId, tgtId, fieldId );
+                }
             }
+            return result;
+        } else {
+            // TODO TODO TODO TODO TODO TODO
+            // Log an error?
+            // objId SHOULD be in objref_map
         }
         return result;
     }
