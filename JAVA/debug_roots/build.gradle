@@ -1,0 +1,43 @@
+// Gradle build file for debug_roots project
+plugins {
+    id 'java'
+    id 'com.github.johnrengelman.shadow' version '1.2.2'
+}
+apply plugin: 'java'
+
+sourceCompatibility = 1.8
+version = '0.1'
+jar {
+    manifest {
+        attributes 'Implementation-Title': 'update_dtime',
+                   'Implementation-Version': version,
+                   'Main-Class': 'net.veroy.analysis.etracks.DebugRoots'
+    }
+}
+
+repositories {
+    mavenCentral()
+    flatDir {
+        dirs 'lib'
+    }
+}
+
+dependencies {
+    compile group: 'commons-collections', name: 'commons-collections', version: '3.2'
+    compile group: 'sqlite-jdbc', name: 'sqlite-jdbc', version: '3.8.11.1'
+    compile group: 'com.google.guava', name: 'guava', version: '12.0'
+    compile group: 'org.javatuples', name: 'javatuples', version: '1.3-SNAPSHOT'
+    testCompile group: 'junit', name: 'junit', version: '4.+'
+}
+
+// test {
+//     systemProperties 'property': 'value'
+// }
+
+uploadArchives {
+    repositories {
+        flatDir {
+            dirs 'repos'
+        }
+    }
+}
