@@ -67,10 +67,10 @@ public class SaveEdgeInfo {
 
                   try {
                       putIntoDB( rec );
-                        index_g += 1;
-                        if (index_g % 10000 == 1) {
-                            System.out.print(">");
-                        } 
+                      index_g += 1;
+                      if (index_g % 10000 == 1) {
+                          System.out.print(">");
+                      } 
                   } catch ( Exception e ) {
                       System.err.println( e.getClass().getName() + ": " + e.getMessage() );
                       System.out.println( e.getClass().getName() + ": " + e.getMessage() );
@@ -278,12 +278,14 @@ public class SaveEdgeInfo {
             while (fmap_it.hasNext()) {
                 Map.Entry fmap_pair = (Map.Entry) fmap_it.next();
                 Integer fieldId = (Integer) fmap_pair.getKey();
-                HashSet<Pair<Integer, Integer>> valset = (HashSet<Pair<Integer, Integer>>) pair.getValue();
+                HashSet<Pair<Integer, Integer>> valset = (HashSet<Pair<Integer, Integer>>) fmap_pair.getValue();
                 Iterator val_it = valset.iterator();
                 while (val_it.hasNext()) {
                     Pair<Integer, Integer> val_pair = (Pair<Integer, Integer>) val_it.next();
                     Integer tgtId = val_pair.getValue0();
                     Integer atime = val_pair.getValue1();
+                    Integer old_atime = saveDeadEdge( srcId, tgtId, fieldId );
+                    assert( atime == old_atime );
                 }
             }
         }
