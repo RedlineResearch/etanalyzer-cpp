@@ -311,6 +311,7 @@ public class SaveEdgeInfo {
                         assert( objId > 0 );
                         // Save dead edge
                         markAllEdgesDead( objId );
+                        objref_map.remove( objId );
                     } else if (isUpdate(fields[0])) {
                         // U <old-target-id> <object-id> <new-target-id> <field-id> <thread-id>
                         UpdateRecord update = parseUpdate( fields, timeByMethod );
