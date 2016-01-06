@@ -248,7 +248,7 @@ public class SaveEdgeInfo {
             while (it.hasNext()) {
                 Quartet<Integer, Integer, Integer, Integer> quads =
                     (Quartet<Integer, Integer, Integer, Integer>) it.next();
-                if (index_g % 1000 == 1) {
+                if (index_g % 10000 == 1) {
                     System.out.print("~");
                 }
                 Integer srcId = quads.getValue0();
@@ -257,6 +257,7 @@ public class SaveEdgeInfo {
                 Integer atime = quads.getValue3();
                 HashSet<Pair<Integer, Integer>> tgtset = field_map.get( fieldId );
                 tgtset.remove( Pair.with( tgtId, atime ) );
+                index_g += 1;
             }
             return result;
         } else {
