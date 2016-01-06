@@ -604,11 +604,20 @@ def append_largest_SCC( ldict = None,
     ldict.append(largest_scc)
     return largest_scc
 
+def get_last_edge_from_result( edge_list ):
+    ledge = edge_list[0]
+    latest = ledge[4]
+    for newedge in edge_list[1:]:
+        if newedge[4] > latest:
+            ledge = newedge
+    return ledge
+
 def get_last_edge( largest_scc, edge_info_db ):
     mylist = list(largest_scc)
     print "======================================================================"
     print mylist
     print "----"
+    last_edge_list = []
     for tgt in mylist:
         try:
             result = edge_info_db.get_all( tgt ) # TODO: temporary debug
@@ -617,13 +626,20 @@ def get_last_edge( largest_scc, edge_info_db ):
             result = []
             print "ZZZ: %d" % tgt
         print result
+        # The edge tuple is:
+        # (tgtId, srcId, fieldId, alloc time, death time )
+        # => Get the edge with the latest death time whose source ID isn't in
+        #    the cycle.
+        last_edge = get_last_edge_from_result( result )
+        last_edge_list.append( last_edge )
     print "====[ END ]==========================================================="
-    return (0, 0)
+    last_edge = get_last_edge_from_result( last_edge_list )
+    return (last_edge[1], last_edge[0])
 
 def skip_benchmark(bmark):
     return ( bmark == "tradebeans" or # Permanent ignore
              bmark == "tradesoap" or # Permanent ignore
-             bmark != "batik"
+             bmark != "xalan"
              # bmark == "lusearch" or
              # ( bmark != "batik" and
              #   bmark != "lusearch" and

@@ -332,6 +332,13 @@ public class SaveEdgeInfo {
                         if (oldTgtId > 0) {
                             // Save dead edge
                             Integer old_atime = saveDeadEdge( objId, oldTgtId, fieldId );
+                            HashMap<Integer, HashSet<Pair<Integer, Integer>>> field_map = objref_map.get( objId );
+                            if (field_map != null) {
+                                HashSet<Pair<Integer, Integer>> tgtset = field_map.get( fieldId );
+                                if (tgtset != null) {
+                                    tgtset.remove( Pair.with( oldTgtId, old_atime ) );
+                                }
+                            }
                         }
                     }
                     index_g += 1;
