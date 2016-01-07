@@ -4,13 +4,13 @@ package net.veroy.analysis.etracks;
 public class EdgeRecord {
     private int _srcId;
     private int _tgtId;
-    private int _fieldId;
+    private long _fieldId;
     private int _atime;
     private int _dtime;
 
     public EdgeRecord( int srcId,
                        int tgtId,
-                       int fieldId,
+                       long fieldId,
                        int atime,
                        int dtime ) {
         super();
@@ -59,10 +59,10 @@ public class EdgeRecord {
     public void set_srcId(int srcId) {
         this._srcId = srcId;
     }
-    public int get_fieldId() {
+    public long get_fieldId() {
         return _fieldId;
     }
-    public void set_fieldId(int fieldId) {
+    public void set_fieldId(long fieldId) {
         this._fieldId = fieldId;
     }
     public int get_atime() {

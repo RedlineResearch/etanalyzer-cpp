@@ -5,14 +5,14 @@ public class UpdateRecord {
     private int _objId;
     private int _oldTgtId;
     private int _newTgtId;
-    private int _fieldId;
+    private long _fieldId;
     private int _threadId;
     private int _timeByMethod;
 
     public UpdateRecord( int objId,
                          int oldTgtId,
                          int newTgtId,
-                         int fieldId,
+                         long fieldId,
                          int threadId,
                          int timeByMethod) {
         super();
@@ -51,10 +51,10 @@ public class UpdateRecord {
     public void set_newTgtId(int newTgtId) {
         this._newTgtId = newTgtId;
     }
-    public int get_fieldId() {
+    public long get_fieldId() {
         return _fieldId;
     }
-    public void set_fieldId(int fieldId) {
+    public void set_fieldId(long fieldId) {
         this._fieldId = fieldId;
     }
     public int get_threadId() {

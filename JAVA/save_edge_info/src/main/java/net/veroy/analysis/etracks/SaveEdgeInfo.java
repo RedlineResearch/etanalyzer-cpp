@@ -35,10 +35,10 @@ import org.javatuples.Quartet;
 
 public class SaveEdgeInfo {
     //TODO DeleteMe:  private static Cache<Integer, EdgeRecord> cache2;
-    private static Cache<Quartet<Integer, Integer, Integer, Integer>, Integer> cache;
+    private static Cache<Quartet<Integer, Integer, Long, Integer>, Integer> cache;
     private static HashMap<Triplet, Integer> edge_map;
     private static HashMap<Integer,
-                           HashMap<Integer,
+                           HashMap<Long,
                                    HashSet<Pair<Integer, Integer>>>> objref_map;
     // objId ->
     //     fieldId -> HashSet of pairs of (target Id, allocation time)
@@ -53,11 +53,11 @@ public class SaveEdgeInfo {
     private static int index_g = 0;
 
     public static void main(String[] args) {
-        RemovalListener<Quartet<Integer, Integer, Integer, Integer>, Integer> remListener = 
-            new RemovalListener<Quartet<Integer, Integer, Integer, Integer>, Integer>() {
-              public void onRemoval( RemovalNotification<Quartet<Integer, Integer, Integer, Integer>,
+        RemovalListener<Quartet<Integer, Integer, Long, Integer>, Integer> remListener = 
+            new RemovalListener<Quartet<Integer, Integer, Long, Integer>, Integer>() {
+              public void onRemoval( RemovalNotification<Quartet<Integer, Integer, Long, Integer>,
                                      Integer> removal ) {
-                  Quartet<Integer, Integer, Integer, Integer> tuple = removal.getKey();
+                  Quartet<Integer, Integer, Long, Integer> tuple = removal.getKey();
                   Integer dtime = removal.getValue();
                   EdgeRecord rec = new EdgeRecord( tuple.getValue0(),
                                                    tuple.getValue1(),
@@ -83,7 +83,7 @@ public class SaveEdgeInfo {
             .removalListener( remListener )
             .build(); // TODO Make maximumSize a command line arg with default TODO TODO
         edge_map = new HashMap();
-        objref_map = new HashMap<Integer, HashMap<Integer, HashSet<Pair<Integer, Integer>>>>();
+        objref_map = new HashMap<Integer, HashMap<Long, HashSet<Pair<Integer, Integer>>>>();
         conn = null;
         Statement stmt = null;
         String dbname = args[0];
@@ -121,7 +121,7 @@ public class SaveEdgeInfo {
         Statement stmt = conn.createStatement();
         int tgtId = newrec.get_tgtId();
         int srcId = newrec.get_srcId();
-        int fieldId = newrec.get_fieldId();
+        long fieldId = newrec.get_fieldId();
         int atime = newrec.get_atime();
         int dtime = newrec.get_dtime();
         if ((dtime == 0) && (doneFlag)) {
@@ -152,18 +152,18 @@ public class SaveEdgeInfo {
     }
 
     // Triplet is <srcId, tgtId, fieldId>
-    private static boolean putIntoObjrefMap(Triplet<Integer, Integer, Integer> tuple, int atime) {
+    private static boolean putIntoObjrefMap(Triplet<Integer, Integer, Long> tuple, int atime) {
         Integer srcId = tuple.getValue0();
         Integer tgtId = tuple.getValue1();
-        Integer fieldId = tuple.getValue2();
+        Long fieldId = tuple.getValue2();
         // Check to see srcId is in objref_map
         if (!objref_map.containsKey( srcId )) {
-            HashMap< Integer, HashSet<Pair<Integer, Integer>>> new_field_map =
-                new HashMap< Integer, HashSet<Pair<Integer, Integer>>>();
+            HashMap<Long, HashSet<Pair<Integer, Integer>>> new_field_map =
+                new HashMap<Long, HashSet<Pair<Integer, Integer>>>();
             objref_map.put( srcId, new_field_map );
         }
         // Check to see if fieldId is already there
-        HashMap< Integer, HashSet<Pair<Integer, Integer>>> field_map =
+        HashMap<Long, HashSet<Pair<Integer, Integer>>> field_map =
             objref_map.get( srcId );
         if (!field_map.containsKey( fieldId )) {
             field_map.put( fieldId, new HashSet<Pair<Integer, Integer>>() );
@@ -182,7 +182,7 @@ public class SaveEdgeInfo {
         if (!objref_map.containsKey( srcId )) {
             return false;
         }
-        HashMap< Integer, HashSet<Pair<Integer, Integer>>> field_map =
+        HashMap<Long, HashSet<Pair<Integer, Integer>>> field_map =
             objref_map.get( srcId );
         if ( !field_map.containsKey( fieldId ) ) {
             return false;
@@ -192,19 +192,19 @@ public class SaveEdgeInfo {
         return edge_set.remove( Pair.with(tgtId, atime) );
     }
 
-    private static Integer saveDeadEdge( Integer srcId, Integer tgtId, Integer fieldId ) {
+    private static Integer saveDeadEdge( Integer srcId, Integer tgtId, Long fieldId ) {
         if (index_g % 10000 == 1) {
             System.out.print("X");
         } 
         // Save newly dead edge
-        Triplet<Integer, Integer, Integer> old_tuple = Triplet.with( srcId, tgtId, fieldId );
+        Triplet<Integer, Integer, Long> old_tuple = Triplet.with( srcId, tgtId, fieldId );
         // Get the saved allocation time from edge_map. If that doesn't work, assume the edge
         // was there from the beginning of time (1).
         Integer old_atime = ( edge_map.containsKey(old_tuple) ) ? edge_map.get( old_tuple ) : 1;
-        Quartet<Integer, Integer, Integer, Integer> cache_tuple = Quartet.with( srcId,
-                                                                                tgtId, 
-                                                                                fieldId,
-                                                                                old_atime );
+        Quartet<Integer, Integer, Long, Integer> cache_tuple = Quartet.with( srcId,
+                                                                             tgtId, 
+                                                                             fieldId,
+                                                                             old_atime );
         cache.put( cache_tuple, timeByMethod );
         // removeFromObjrefMap( Triplet.with( srcId, tgtId, fieldId ), old_atime ); 
         return old_atime;
@@ -222,13 +222,13 @@ public class SaveEdgeInfo {
         //  Look for objId in objref_map:
         if (objref_map.containsKey( objId )) {
             // For each target object, add a dead edge.
-            HashMap<Integer, HashSet<Pair<Integer, Integer>>> field_map = objref_map.get( objId );
-            HashSet<Quartet<Integer, Integer, Integer, Integer>> deleteSet =
-                new HashSet<Quartet<Integer, Integer, Integer, Integer>>(); 
+            HashMap<Long, HashSet<Pair<Integer, Integer>>> field_map = objref_map.get( objId );
+            HashSet<Quartet<Integer, Integer, Long, Integer>> deleteSet =
+                new HashSet<Quartet<Integer, Integer, Long, Integer>>(); 
             Iterator it = field_map.entrySet().iterator();
             while (it.hasNext()) {
                 Map.Entry mpair = (Map.Entry) it.next();
-                Integer fieldId = (Integer) mpair.getKey();
+                Long fieldId = (Long) mpair.getKey();
                 HashSet<Pair<Integer, Integer>> tgtset = 
                     (HashSet<Pair<Integer, Integer>>) mpair.getValue();
                 // Iterate over tgtset to get tgtId
@@ -246,14 +246,14 @@ public class SaveEdgeInfo {
             }
             it = deleteSet.iterator();
             while (it.hasNext()) {
-                Quartet<Integer, Integer, Integer, Integer> quads =
-                    (Quartet<Integer, Integer, Integer, Integer>) it.next();
+                Quartet<Integer, Integer, Long, Integer> quads =
+                    (Quartet<Integer, Integer, Long, Integer>) it.next();
                 if (index_g % 10000 == 1) {
                     System.out.print("~");
                 }
                 Integer srcId = quads.getValue0();
                 Integer tgtId = quads.getValue1();
-                Integer fieldId = quads.getValue2();
+                Long fieldId = quads.getValue2();
                 Integer atime = quads.getValue3();
                 HashSet<Pair<Integer, Integer>> tgtset = field_map.get( fieldId );
                 tgtset.remove( Pair.with( tgtId, atime ) );
@@ -273,12 +273,12 @@ public class SaveEdgeInfo {
         while (it.hasNext()) {
             Map.Entry pair = (Map.Entry) it.next();
             Integer srcId = (Integer) pair.getKey();
-            HashMap<Integer, HashSet<Pair<Integer, Integer>>> fieldmap =
-                (HashMap<Integer, HashSet<Pair<Integer, Integer>>>) pair.getValue();
+            HashMap<Long , HashSet<Pair<Integer, Integer>>> fieldmap =
+                (HashMap<Long, HashSet<Pair<Integer, Integer>>>) pair.getValue();
             Iterator fmap_it = fieldmap.entrySet().iterator();
             while (fmap_it.hasNext()) {
                 Map.Entry fmap_pair = (Map.Entry) fmap_it.next();
-                Integer fieldId = (Integer) fmap_pair.getKey();
+                Long fieldId = (Long) fmap_pair.getKey();
                 HashSet<Pair<Integer, Integer>> valset = (HashSet<Pair<Integer, Integer>>) fmap_pair.getValue();
                 Iterator val_it = valset.iterator();
                 while (val_it.hasNext()) {
@@ -319,8 +319,8 @@ public class SaveEdgeInfo {
                         int objId = update.get_objId();
                         int oldTgtId = update.get_oldTgtId();
                         int newTgtId = update.get_newTgtId();
-                        int fieldId = update.get_fieldId();
-                        Triplet<Integer, Integer, Integer> tuple = Triplet.with( objId, newTgtId, fieldId );
+                        long fieldId = update.get_fieldId();
+                        Triplet<Integer, Integer, Long> tuple = Triplet.with( objId, newTgtId, fieldId );
                         if (newTgtId > 0) {
                             // Put live edge into edge_map and objref_map
                             edge_map.put( tuple, timeByMethod );
@@ -332,7 +332,7 @@ public class SaveEdgeInfo {
                         if (oldTgtId > 0) {
                             // Save dead edge
                             Integer old_atime = saveDeadEdge( objId, oldTgtId, fieldId );
-                            HashMap<Integer, HashSet<Pair<Integer, Integer>>> field_map = objref_map.get( objId );
+                            HashMap<Long, HashSet<Pair<Integer, Integer>>> field_map = objref_map.get( objId );
                             if (field_map != null) {
                                 HashSet<Pair<Integer, Integer>> tgtset = field_map.get( fieldId );
                                 if (tgtset != null) {
@@ -404,7 +404,7 @@ public class SaveEdgeInfo {
         int oldTgtId = Integer.parseInt( fields[1], 16 );
         int objId = Integer.parseInt( fields[2], 16 );
         int newTgtId = Integer.parseInt( fields[3], 16 );
-        int fieldId = 0;
+        long fieldId = 0;
         try {
             fieldId = Integer.parseInt( fields[4], 16 );
         }
@@ -412,7 +412,7 @@ public class SaveEdgeInfo {
             try {
                 System.out.println( String.format("parseInt failed: %d -> %s", objId, fields[4]) );
                 BigInteger tmp = new BigInteger( fields[4], 16 );
-                fieldId = tmp.intValue();
+                fieldId = tmp.longValue();
             }
             catch ( Exception e2 ) {
                 System.err.println( e2.getClass().getName() + ": " + e2.getMessage() );
