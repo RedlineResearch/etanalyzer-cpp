@@ -654,6 +654,8 @@ def skip_benchmark(bmark):
 
 def main_process( output = None,
                   main_config = None,
+                  benchmark = None,
+                  lastedgeflag = False,
                   etanalyze_config = None,
                   global_config = None,
                   objdb1_config = None,
@@ -682,7 +684,8 @@ def main_process( output = None,
     olddir = os.getcwd()
     os.chdir( today )
     for bmark, filename in etanalyze_config.iteritems():
-        if skip_benchmark(bmark):
+        # if skip_benchmark(bmark):
+        if ( (benchmark != "_ALL_") and (bmark != benchmark) ):
             print "SKIP:", bmark
             continue
         print "=======[ %s ]=========================================================" \
@@ -698,7 +701,7 @@ def main_process( output = None,
                                            edge_info_config = edge_info_config,
                                            benchmark = bmark,
                                            logger = logger,
-                                           debugflag = debugflag )
+                                           debugflag = debugflag ) if lastedgeflag else None
         abspath = os.path.join(cycle_cpp_dir, filename)
         if not os.path.isfile(abspath):
             logger.critical("Not such file: %s" % str(abspath))
@@ -783,8 +786,11 @@ def main_process( output = None,
                 group += 1
                 # LIFETIME
                 lifetimes = get_lifetimes( G, largest_scc )
-                # GET LAST EDGE
-                last_edge = get_last_edge( largest_scc, edge_info_db )
+                if lastedgeflag:
+                    # GET LAST EDGE
+                    last_edge = get_last_edge( largest_scc, edge_info_db )
+                else:
+                    last_edge = None
                 debug_lifetimes( G = G,
                                  cycle = cycle,
                                  bmark = bmark, 
@@ -871,12 +877,25 @@ def create_parser():
                          dest = "debugflag",
                          help = "Disable debug output.",
                          action = "store_false" )
+    parser.add_argument( "--benchmark",
+                         dest = "benchmark",
+                         help = "Select benchmark.",
+                         action = "store" )
+    parser.add_argument( "--lastedge",
+                         dest = "lastedgeflag",
+                         help = "Enable last edge processing.",
+                         action = "store_true" )
+    parser.add_argument( "--no-lastedge",
+                         dest = "lastedgeflag",
+                         help = "Disable last edge processing.",
+                         action = "store_false" )
     parser.add_argument( "--logfile",
                          help = "Specify logfile name.",
                          action = "store" )
     parser.set_defaults( logfile = "basic_cycle_analyze.log",
                          debugflag = False,
-                         benchmark = False,
+                         lastedgeflag = False,
+                         benchmark = "_ALL_",
                          config = None )
     return parser
 
@@ -960,6 +979,8 @@ def main():
     #
     return main_process( debugflag = global_config["debug"],
                          output = args.output,
+                         benchmark = args.benchmark,
+                         lastedgeflag = args.lastedgeflag,
                          main_config = main_config,
                          etanalyze_config = etanalyze_config,
                          global_config = global_config,
