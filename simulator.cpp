@@ -297,6 +297,7 @@ int main(int argc, char* argv[])
     FILE* f = fdopen(0, "r");
     unsigned int total_objects = read_trace_file(f);
     cout << "Done at time " << Exec.Now() << endl;
+    cout << "Total objects: " << total_objects << endl;
     Heap.end_of_program(Exec.Now());
 
     // TODO analyze(Exec.Now());
@@ -341,6 +342,7 @@ int main(int argc, char* argv[])
     }
     cout << "---------------[ OBJECT INFO END ]----------------------------------------------" << endl;
     cout << "---------------[ EDGE INFO ]----------------------------------------------------" << endl;
+    unsigned int total_edges;
     for ( EdgeSet::iterator it = Heap.begin_edges();
           it != Heap.end_edges();
           ++it ) {
@@ -355,6 +357,7 @@ int main(int argc, char* argv[])
             cout << srcId << "," << tgtId << "," << eptr->getCreateTime() << ","
                  << eptr->getEndTime() << endl;
         }
+        total_edges++;
     }
     cout << "---------------[ EDGE INFO END ]------------------------------------------------" << endl;
 }
