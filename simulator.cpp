@@ -302,6 +302,7 @@ int main(int argc, char* argv[])
     filter_edgelist( edgelist, cycle_list );
     // TODO Heap.analyze();
     cout << "DONE. Getting cycles." << endl;
+    set<int> node_set;
     cout << "--------------------------------------------------------------------------------" << endl;
     for ( deque< deque<int> >::iterator it = cycle_list.begin();
           it != cycle_list.end();
@@ -310,6 +311,7 @@ int main(int argc, char* argv[])
               tmp != it->end();
               ++tmp ) {
             cout << *tmp << ",";
+            node_set.insert(*tmp);
         }
         cout << endl;
     }
@@ -322,5 +324,36 @@ int main(int argc, char* argv[])
              << endl;
     }
     cout << "================================================================================" << endl;
+    cout << "--------------------------------------------------------------------------------" << endl;
+    for ( deque< deque<int> >::iterator it = cycle_list.begin();
+          it != cycle_list.end();
+          ++it ) {
+        for ( deque<int>::iterator tmp = it->begin();
+              tmp != it->end();
+              ++tmp ) {
+            Object* object = Heap.get(*tmp);
+            cout << *tmp << "," << object->getCreateTime() << "," << object->getDeathTime()
+                 << "," << object->getType() << endl;
+        }
+    }
+    cout << "--------------------------------------------------------------------------------" << endl;
+    cout << "================================================================================" << endl;
+    cout << "--------------------------------------------------------------------------------" << endl;
+    for ( EdgeSet::iterator it = Heap.begin_edges();
+          it != Heap.end_edges();
+          ++it ) {
+        Edge* eptr = *it;
+        Object* source = eptr->getSource();
+        Object* target = eptr->getTarget();
+        unsigned int srcId = source->getId();
+        unsigned int tgtId = target->getId();
+        set<int>::iterator srcit = node_set.find(srcId);
+        set<int>::iterator tgtit = node_set.find(tgtId);
+        if ( (srcit != node_set.end()) || (srcit != node_set.end()) ) {
+            cout << srcId << "," << tgtId << "," << eptr->getCreateTime() << ","
+                 << eptr->getEndTime() << endl;
+        }
+    }
+    cout << "--------------------------------------------------------------------------------" << endl;
 }
 

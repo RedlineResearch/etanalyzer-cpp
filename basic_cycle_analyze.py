@@ -102,7 +102,6 @@ def create_graph( cycle_info_list = None,
                   edgedict = None,
                   logger = None ):
     global pp
-    logger.debug( "Creating graph..." )
     g = nx.DiGraph()
     nodeset = set([])
     for mytuple in cycle_info_list:
@@ -114,7 +113,6 @@ def create_graph( cycle_info_list = None,
         if node in edgedict:
             for tgt in edgedict[node]:
                 g.add_edge( node, tgt )
-    logger.debug( "....done." )
     return g
 
 class ObjDB:
@@ -553,7 +551,7 @@ def output_results_transpose( output_path = None,
                         ltime_sd[i], ltime_min[i], ltime_max[i], ]
                 csvwriter.writerow( row )
 
-def create_work_directory( work_dir, interactive = False ):
+def create_work_directory( work_dir, logger = None, interactive = False ):
     os.chdir( work_dir )
     today = datetime.date.today()
     today = today.strftime("%Y-%m%d")
@@ -564,6 +562,7 @@ def create_work_directory( work_dir, interactive = False ):
         os.mkdir( today )
     else:
         print "WARNING: %s directory exists." % today
+        logger.warning( "WARNING: %s directory exists." % today )
         if interactive:
             raw_input("Press ENTER to continue:")
         else:
@@ -680,7 +679,7 @@ def main_process( output = None,
     results = {}
     summary = {}
     count = 0
-    today = create_work_directory( work_dir )
+    today = create_work_directory( work_dir, logger = logger )
     olddir = os.getcwd()
     os.chdir( today )
     for bmark, filename in etanalyze_config.iteritems():
@@ -690,6 +689,8 @@ def main_process( output = None,
             continue
         print "=======[ %s ]=========================================================" \
             % bmark
+        logger.critical( "=======[ %s ]=========================================================" 
+                         % bmark )
         objdb = setup_objdb( global_config = global_config,
                              objdb1_config = objdb1_config,
                              objdb2_config = objdb2_config,
