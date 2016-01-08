@@ -287,16 +287,20 @@ def get_lifetimes_debug( G, cycle ):
     return result
 
 def get_cycles_and_edges( tgtpath ):
+    global pp
     with open(tgtpath) as fp:
         start = False
         cycles = []
         for line in fp:
             line = line.rstrip()
-            if line.find("----------") == 0:
+            if line.find("---------------[ CYCLES") == 0:
+                print "A",
                 start = not start
                 if start:
+                    print "B",
                     continue
                 else:
+                    print "DONE."
                     break
             if start:
                 line = line.rstrip(",")
@@ -307,16 +311,54 @@ def get_cycles_and_edges( tgtpath ):
         edges = set([])
         for line in fp:
             line = line.rstrip()
-            if line.find("==========") == 0:
+            if line.find("===============[ EDGES") == 0:
                 start = True if not start else False
                 if start:
+                    print "C",
                     continue
                 else:
+                    print "DONE-edges."
                     break
             if start:
                 row = [ int(x) for x in line.split(" -> ") ]
                 edges.add(tuple(row))
+        start = False
+        object_info = {}
+        for line in fp:
+            line = line.rstrip()
+            if line.find("---------------[ OBJECT INFO") == 0:
+                start = True if not start else False
+                if start:
+                    print "E",
+                    continue
+                else:
+                    print "DONE-objinfo."
+                    break
+            if start:
+                rowtmp = line.split(",")
+                row = [ int(x) for x in rowtmp[1:3] ]
+                row.append( rowtmp[-1] )
+                object_info[int(rowtmp[0])] = row
+        start = False
+        edge_info = {}
+        # Map edge (src,tgt) -> (alloctime, deathtime)
+        for line in fp:
+            line = line.rstrip()
+            if line.find("---------------[ EDGE INFO") == 0:
+                start = True if not start else False
+                if start:
+                    print "F",
+                    continue
+                else:
+                    print "DONE-edgeinfo."
+                    break
+            if start:
+                rowtmp = line.split(",")
+                row = tuple([ int(x) for x in rowtmp[2:] ])
+                edge_info[ (int(rowtmp[0]), int(rowtmp[1])) ] = row
     edges = set( sorted( list(edges), key = itemgetter(0, 1) ) )
+    pp.pprint( edge_info )
+    exit(1000)
     return (cycles, edges)
 
 def get_cycle_info_list( cycle = None,
@@ -713,6 +755,7 @@ def main_process( output = None,
             cycle_total_counter = Counter()
             actual_cycle_counter = Counter()
             cycle_type_counter = Counter()
+            logger.critical( "Opening %s." % abspath )
             cycles, edges = get_cycles_and_edges( abspath )
             selfloops = set()
             edgedict = create_edge_dictionary( edges, selfloops )

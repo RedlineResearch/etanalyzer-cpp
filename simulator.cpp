@@ -115,7 +115,7 @@ unsigned int count_live( ObjectSet & objects, unsigned int at_time )
 // ----------------------------------------------------------------------
 //   Read and process trace events
 
-void read_trace_file(FILE* f)
+unsigned int read_trace_file(FILE* f)
 {
     Tokenizer tokenizer(f);
 
@@ -128,6 +128,7 @@ void read_trace_file(FILE* f)
     Object* obj;
     Object* target;
     Method* method;
+    unsigned int total_objects;
 
     // -- Allocation time
     unsigned int AllocationTime = 0;
@@ -167,6 +168,7 @@ void read_trace_file(FILE* f)
                                          Exec.Now() );
                     unsigned int old_alloc_time = AllocationTime;
                     AllocationTime += obj->getSize();
+                    total_objects++;
                 }
                 break;
 
@@ -248,6 +250,7 @@ void read_trace_file(FILE* f)
                 break;
         }
     }
+    return total_objects;
 }
 
 // ----------------------------------------------------------------------
@@ -292,7 +295,7 @@ int main(int argc, char* argv[])
 
     cout << "Start trace..." << endl;
     FILE* f = fdopen(0, "r");
-    read_trace_file(f);
+    unsigned int total_objects = read_trace_file(f);
     cout << "Done at time " << Exec.Now() << endl;
     Heap.end_of_program(Exec.Now());
 
@@ -303,7 +306,7 @@ int main(int argc, char* argv[])
     // TODO Heap.analyze();
     cout << "DONE. Getting cycles." << endl;
     set<int> node_set;
-    cout << "--------------------------------------------------------------------------------" << endl;
+    cout << "---------------[ CYCLES ]-------------------------------------------------------" << endl;
     for ( deque< deque<int> >::iterator it = cycle_list.begin();
           it != cycle_list.end();
           ++it ) {
@@ -315,16 +318,16 @@ int main(int argc, char* argv[])
         }
         cout << endl;
     }
-    cout << "--------------------------------------------------------------------------------" << endl;
-    cout << "================================================================================" << endl;
+    cout << "---------------[ CYCLES END ]---------------------------------------------------" << endl;
+    cout << "===============[ EDGES ]========================================================" << endl;
     for ( EdgeList::iterator it = edgelist.begin();
           it != edgelist.end();
           ++it ) {
         cout << it->first << " -> " << it->second
              << endl;
     }
-    cout << "================================================================================" << endl;
-    cout << "--------------------------------------------------------------------------------" << endl;
+    cout << "===============[ EDGES END ]====================================================" << endl;
+    cout << "---------------[ OBJECT INFO ]--------------------------------------------------" << endl;
     for ( deque< deque<int> >::iterator it = cycle_list.begin();
           it != cycle_list.end();
           ++it ) {
@@ -336,9 +339,8 @@ int main(int argc, char* argv[])
                  << "," << object->getType() << endl;
         }
     }
-    cout << "--------------------------------------------------------------------------------" << endl;
-    cout << "================================================================================" << endl;
-    cout << "--------------------------------------------------------------------------------" << endl;
+    cout << "---------------[ OBJECT INFO END ]----------------------------------------------" << endl;
+    cout << "---------------[ EDGE INFO ]----------------------------------------------------" << endl;
     for ( EdgeSet::iterator it = Heap.begin_edges();
           it != Heap.end_edges();
           ++it ) {
@@ -354,6 +356,6 @@ int main(int argc, char* argv[])
                  << eptr->getEndTime() << endl;
         }
     }
-    cout << "--------------------------------------------------------------------------------" << endl;
+    cout << "---------------[ EDGE INFO END ]------------------------------------------------" << endl;
 }
 
