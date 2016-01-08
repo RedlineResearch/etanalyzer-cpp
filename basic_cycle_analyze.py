@@ -289,6 +289,19 @@ def get_lifetimes_debug( G, cycle ):
 def get_cycles_and_edges( tgtpath ):
     global pp
     with open(tgtpath) as fp:
+        final_time = -1
+        for line in fp:
+            if line.find("Done at time") == 0:
+                line = line.rstrip()
+                row = line.split(" ")
+                final_time = int(row[3])
+                line = fp.next()
+                line = line.rstrip()
+                row = line.split(" ")
+                assert( row[0] == "Total" and row[1] == "objects:" )
+                total_objects = int(row[2])
+                break
+        assert( final_time >= 0 )
         start = False
         cycles = []
         for line in fp:
@@ -358,8 +371,12 @@ def get_cycles_and_edges( tgtpath ):
                 edge_info[ (int(rowtmp[0]), int(rowtmp[1])) ] = row
     edges = set( sorted( list(edges), key = itemgetter(0, 1) ) )
     pp.pprint( edge_info )
-    exit(1000)
-    return (cycles, edges)
+    return { "cycles" : cycles,
+             "edges" : edges,
+             "edge_info" : edge_info,
+             "object_info" : object_info,
+             "total_objects" : total_objects }
+
 
 def get_cycle_info_list( cycle = None,
                          objdb = None,
@@ -699,10 +716,6 @@ def main_process( output = None,
                   lastedgeflag = False,
                   etanalyze_config = None,
                   global_config = None,
-                  objdb1_config = None,
-                  objdb2_config = None,
-                  objdb_ALL_config = None,
-                  edge_info_config = None,
                   debugflag = False,
                   logger = None ):
     global pp
@@ -714,8 +727,6 @@ def main_process( output = None,
     # 3. Size of cycles
     print "GLOBAL:"
     pp.pprint(global_config)
-    print "EDGE_INFO:"
-    pp.pprint(edge_info_config)
     cycle_cpp_dir = global_config["cycle_cpp_dir"]
     work_dir = main_config["directory"]
     results = {}
@@ -733,18 +744,6 @@ def main_process( output = None,
             % bmark
         logger.critical( "=======[ %s ]=========================================================" 
                          % bmark )
-        objdb = setup_objdb( global_config = global_config,
-                             objdb1_config = objdb1_config,
-                             objdb2_config = objdb2_config,
-                             objdb_ALL_config = objdb_ALL_config,
-                             benchmark = bmark,
-                             logger = logger,
-                             debugflag = debugflag )
-        edge_info_db = setup_edge_info_db( global_config = global_config,
-                                           edge_info_config = edge_info_config,
-                                           benchmark = bmark,
-                                           logger = logger,
-                                           debugflag = debugflag ) if lastedgeflag else None
         abspath = os.path.join(cycle_cpp_dir, filename)
         if not os.path.isfile(abspath):
             logger.critical("Not such file: %s" % str(abspath))
@@ -756,7 +755,16 @@ def main_process( output = None,
             actual_cycle_counter = Counter()
             cycle_type_counter = Counter()
             logger.critical( "Opening %s." % abspath )
-            cycles, edges = get_cycles_and_edges( abspath )
+            get_cycles_result = get_cycles_and_edges( abspath )
+            cycles = get_cycles_result["cycles"]
+            edges = get_cycles_result["edges"]
+            print "=======[ EDGE_INFO ]========================================================="
+            edge_info = get_cycles_result["edge_info"]
+            pp.pprint(edge_info)
+            print "=======[ OBJECT_INFO ]======================================================="
+            object_info = get_cycles_result["object_info"]
+            pp.pprint(object_info)
+            exit(1000)
             selfloops = set()
             edgedict = create_edge_dictionary( edges, selfloops )
             results[bmark] = { "totals" : [],
@@ -960,17 +968,11 @@ def process_config( args ):
     config_parser = ConfigParser.ConfigParser()
     config_parser.read( args.config )
     global_config = config_section_map( "global", config_parser )
-    objdb1_config = config_section_map( "objdb1", config_parser )
-    objdb2_config = config_section_map( "objdb2", config_parser )
-    objdb_ALL_config = config_section_map( "objdb_ALL", config_parser )
     etanalyze_config = config_section_map( "etanalyze-output", config_parser )
-    edge_info_config = config_section_map( "edge_info_DB", config_parser )
     main_config = config_section_map( "cycle-analyze", config_parser )
-    return ( global_config,
-             objdb1_config, objdb2_config, objdb_ALL_config,
-             etanalyze_config, edge_info_config,
-             main_config )
+    return ( global_config, etanalyze_config, main_config )
 
+# TODO: TO REMOVE 8 jan 2016
 def setup_objdb( global_config = None,
                  objdb1_config = None,
                  objdb2_config = None,
@@ -988,6 +990,7 @@ def setup_objdb( global_config = None,
                   debugflag = debugflag,
                   logger = logger )
 
+# TODO: TO REMOVE 8 jan 2016
 def setup_edge_info_db( global_config = None,
                         edge_info_config = None,
                         benchmark = None,
@@ -1012,9 +1015,7 @@ def main():
     configparser = ConfigParser.ConfigParser()
     benchmark = args.benchmark
     assert( args.config != None )
-    global_config, objdb1_config, objdb2_config, objdb_ALL_config, \
-        etanalyze_config, edge_info_config, main_config \
-        = process_config( args )
+    global_config, etanalyze_config, main_config = process_config( args )
     # logging
     logger = setup_logger( filename = args.logfile,
                            debugflag = global_config["debug"] )
@@ -1028,10 +1029,6 @@ def main():
                          main_config = main_config,
                          etanalyze_config = etanalyze_config,
                          global_config = global_config,
-                         objdb1_config = objdb1_config,
-                         objdb2_config = objdb2_config,
-                         objdb_ALL_config = objdb_ALL_config,
-                         edge_info_config = edge_info_config,
                          logger = logger )
 
 if __name__ == "__main__":
