@@ -307,13 +307,10 @@ def get_cycles_and_edges( tgtpath ):
         for line in fp:
             line = line.rstrip()
             if line.find("---------------[ CYCLES") == 0:
-                print "A",
                 start = not start
                 if start:
-                    print "B",
                     continue
                 else:
-                    print "DONE."
                     break
             if start:
                 line = line.rstrip(",")
@@ -327,10 +324,8 @@ def get_cycles_and_edges( tgtpath ):
             if line.find("===============[ EDGES") == 0:
                 start = True if not start else False
                 if start:
-                    print "C",
                     continue
                 else:
-                    print "DONE-edges."
                     break
             if start:
                 row = [ int(x) for x in line.split(" -> ") ]
@@ -342,16 +337,14 @@ def get_cycles_and_edges( tgtpath ):
             if line.find("---------------[ OBJECT INFO") == 0:
                 start = True if not start else False
                 if start:
-                    print "E",
                     continue
                 else:
-                    print "DONE-objinfo."
                     break
             if start:
                 rowtmp = line.split(",")
-                row = [ int(x) for x in rowtmp[1:3] ]
+                row = [ int(x) for x in rowtmp[1:4] ]
                 row.append( rowtmp[-1] )
-                object_info[int(rowtmp[0])] = row
+                object_info[int(rowtmp[0])] = tuple(row)
         start = False
         edge_info = {}
         # Map edge (src,tgt) -> (alloctime, deathtime)
@@ -360,17 +353,14 @@ def get_cycles_and_edges( tgtpath ):
             if line.find("---------------[ EDGE INFO") == 0:
                 start = True if not start else False
                 if start:
-                    print "F",
                     continue
                 else:
-                    print "DONE-edgeinfo."
                     break
             if start:
                 rowtmp = line.split(",")
                 row = tuple([ int(x) for x in rowtmp[2:] ])
                 edge_info[ (int(rowtmp[0]), int(rowtmp[1])) ] = row
     edges = set( sorted( list(edges), key = itemgetter(0, 1) ) )
-    pp.pprint( edge_info )
     return { "cycles" : cycles,
              "edges" : edges,
              "edge_info" : edge_info,
@@ -379,16 +369,23 @@ def get_cycles_and_edges( tgtpath ):
 
 
 def get_cycle_info_list( cycle = None,
-                         objdb = None,
+                         objinfo_dict = None,
+                         # objdb = None,
                          logger = None ):
     cycle_info_list = []
+    ATIME = 0
+    DTIME = 1
+    SIZE = 2
+    TYPE = 3
+    odict = objinfo_dict
     for node in cycle:
         try:
-            rec = objdb.get_record(node)
-            mytype = rec["type"]
-            mysize = rec["size"]
-            atime = rec["atime"]
-            dtime = rec["dtime"]
+            # rec = objdb.get_record(node)
+            rec = odict[node]
+            mytype = rec[TYPE]
+            mysize = rec[SIZE]
+            atime = rec[ATIME]
+            dtime = rec[DTIME]
             lifetime = (dtime - atime) if ((dtime > atime) and  (dtime != 0)) \
                 else 0
             cycle_info_list.append( (node, mytype, mysize, lifetime) )
@@ -402,9 +399,13 @@ def get_cycle_info_list( cycle = None,
 
 def extract_small_cycles( summary = None, 
                           bmark = None,
-                          objdb = None,
+                          objinfo_dict = None,
                           logger = None ):
     global pp
+    ATIME = 0
+    DTIME = 1
+    SIZE = 2
+    TYPE = 3
     with open(bmark + "-size1.csv", "wb") as fp1, \
          open(bmark + "-size2.csv", "wb") as fp2, \
          open(bmark + "-size3.csv", "wb") as fp3, \
@@ -429,11 +430,11 @@ def extract_small_cycles( summary = None,
                     for record in cycle:
                         node, saved_type = record
                         try:
-                            rec = objdb.get_record(node)
-                            mytype = rec["type"]
-                            mysize = rec["size"]
-                            atime = rec["atime"]
-                            dtime = rec["dtime"]
+                            rec = objinfo_dict[node]
+                            mytype = rec[TYPE]
+                            mysize = rec[SIZE]
+                            atime = rec[ATIME]
+                            dtime = rec[DTIME]
                             lifetime = (dtime - atime) if ((dtime > atime) and  (dtime != 0)) \
                                 else 0
                             cycle_info_list.append( (node, mytype, mysize, lifetime) )
@@ -443,11 +444,6 @@ def extract_small_cycles( summary = None,
                             mysize = 0
                             lifetime = 0
                             cycle_info_list.append( (node, mytype, mysize, lifetime) )
-                    try:
-                        assert( saved_type == mytype )
-                    except:
-                        print " saved [ %s ] <-> from_db [ %s ]" % (saved_type, mytype)
-                        exit(10000)
                     type_tuple = tuple( sorted( [ x[1] for x in cycle_info_list ] ) )
                     # type_tuple contains all the types in the strongly connected component.
                     # This is sorted so that there's a canonical labeling of the type group/tuple.
@@ -759,12 +755,11 @@ def main_process( output = None,
             cycles = get_cycles_result["cycles"]
             edges = get_cycles_result["edges"]
             print "=======[ EDGE_INFO ]========================================================="
-            edge_info = get_cycles_result["edge_info"]
-            pp.pprint(edge_info)
+            edge_info_dict = get_cycles_result["edge_info"]
             print "=======[ OBJECT_INFO ]======================================================="
-            object_info = get_cycles_result["object_info"]
-            pp.pprint(object_info)
-            exit(1000)
+            object_info_dict = get_cycles_result["object_info"]
+            total_objects = get_cycles_result["total_objects"]
+            pp.pprint(object_info_dict)
             selfloops = set()
             edgedict = create_edge_dictionary( edges, selfloops )
             results[bmark] = { "totals" : [],
@@ -780,7 +775,10 @@ def main_process( output = None,
                                 }
             for index in xrange(len(cycles)):
                 cycle = cycles[index]
-                cycle_info_list = get_cycle_info_list( cycle, objdb, logger )
+                cycle_info_list = get_cycle_info_list( cycle = cycle,
+                                                       objinfo_dict = object_info_dict,
+                                                       # objdb,
+                                                       logger = logger )
                 if len(cycle_info_list) == 0:
                     continue
                 # GRAPH
@@ -879,8 +877,9 @@ def main_process( output = None,
             # Create the CSV files for the data
             small_result = extract_small_cycles( summary = summary[bmark], 
                                                  bmark = bmark,
-                                                 objdb = objdb,
+                                                 objinfo_dict = object_info_dict,
                                                  logger = logger ) 
+            print "================================================================================"
             total_small_cycles = small_result["total_cycles"]
             inner_classes_count = small_result["inner_classes_count"]
             # Cd back into parent directory

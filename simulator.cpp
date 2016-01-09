@@ -337,11 +337,12 @@ int main(int argc, char* argv[])
               ++tmp ) {
             Object* object = Heap.get(*tmp);
             cout << *tmp << "," << object->getCreateTime() << "," << object->getDeathTime()
-                 << "," << object->getType() << endl;
+                 << "," << object->getSize() << "," << object->getType() << endl;
         }
     }
     cout << "---------------[ OBJECT INFO END ]----------------------------------------------" << endl;
     cout << "---------------[ EDGE INFO ]----------------------------------------------------" << endl;
+    // srcId, tgtId, allocTime, deathTime
     unsigned int total_edges;
     for ( EdgeSet::iterator it = Heap.begin_edges();
           it != Heap.end_edges();
