@@ -754,12 +754,11 @@ def main_process( output = None,
             get_cycles_result = get_cycles_and_edges( abspath )
             cycles = get_cycles_result["cycles"]
             edges = get_cycles_result["edges"]
-            print "=======[ EDGE_INFO ]========================================================="
+            # Get edge information
             edge_info_dict = get_cycles_result["edge_info"]
-            print "=======[ OBJECT_INFO ]======================================================="
+            # Get object dictionary information that has types and sizes
             object_info_dict = get_cycles_result["object_info"]
             total_objects = get_cycles_result["total_objects"]
-            pp.pprint(object_info_dict)
             selfloops = set()
             edgedict = create_edge_dictionary( edges, selfloops )
             results[bmark] = { "totals" : [],
