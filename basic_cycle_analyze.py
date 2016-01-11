@@ -109,7 +109,8 @@ def create_graph( cycle_info_list = None,
         nodeset.add(node)
         g.add_node( n = node,
                     type = mytype,
-                    lifetime = lifetime )
+                    lifetime = lifetime,
+                    size = mysize )
         if node in edgedict:
             for tgt in edgedict[node]:
                 g.add_edge( node, tgt )
@@ -285,6 +286,9 @@ def get_lifetimes_debug( G, cycle ):
             continue
         result.append(mylifetime)
     return result
+
+def get_sizes( G, cycle ):
+    return [ G.node[x]["size"] for x in cycle ]
 
 def get_cycles_and_edges( tgtpath ):
     global pp
@@ -590,7 +594,8 @@ def output_results_transpose( output_path = None,
             csvwriter = csv.writer(fp)
             header = [ "totals", "largest_cycle", "num_types",
                        "lifetime_mean", "lifetime_stdev", "liftime_min",
-                       "lifetime_max", ]
+                       "lifetime_max",
+                       "size_largest_cycle", "size_all", ]
             csvwriter.writerow( header )
             totals = infodict["totals"]
             largest_cycle = infodict["largest_cycle"]
@@ -603,7 +608,9 @@ def output_results_transpose( output_path = None,
             for i in xrange(len(infodict["totals"])):
                 row = [ totals[i], len(largest_cycle[i]),
                         len(types_set[i]), ltime_mean[i],
-                        ltime_sd[i], ltime_min[i], ltime_max[i], ]
+                        ltime_sd[i], ltime_min[i], ltime_max[i],
+                        sum(infodict["sizes_largest_scc"][i]),
+                        sum(infodict["sizes_all"][i]), ]
                 csvwriter.writerow( row )
 
 def create_work_directory( work_dir, logger = None, interactive = False ):
@@ -769,7 +776,9 @@ def main_process( output = None,
                                "lifetime_mean" : [],
                                "lifetime_sd" : [],
                                "lifetime_max" : [],
-                               "lifetime_min" : [] }
+                               "lifetime_min" : [],
+                               "sizes_largest_scc" : [],
+                               "sizes_all" : [], }
             summary[bmark] = { "by_size" : { 1 : [], 2 : [], 3 : [], 4 : [] },
                                 }
             for index in xrange(len(cycles)):
@@ -866,6 +875,10 @@ def main_process( output = None,
                 #   * graph (option 1)
                 #   * stats (option 2)
                 #   * option3? ? ?
+                cycle_sizes = get_sizes( G, largest_scc )
+                total_sizes = get_sizes( G, cycle )
+                results[bmark]["sizes_largest_scc"].append(cycle_sizes)
+                results[bmark]["sizes_all"].append(total_sizes)
                 # End SIZE PER TYPE COUNT
             largelist = save_largest_cycles( results[bmark]["graph"], num = 5 )
             # Make directory and Cd into directory
