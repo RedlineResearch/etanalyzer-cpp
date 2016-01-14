@@ -13,6 +13,7 @@ using namespace std;
 #include "classinfo.h"
 #include "execution.h"
 #include "heap.h"
+#include "refstate.h"
 
 class Object;
 class CCNode;
@@ -243,6 +244,9 @@ unsigned int read_trace_file(FILE* f)
 
             case 'H':
                 // H <methodid> <receiver> <exceptionobj>
+                break;
+
+            case 'R':
                 break;
 
             default:

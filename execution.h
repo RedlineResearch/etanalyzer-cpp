@@ -10,6 +10,7 @@
 #include <deque>
 
 #include "classinfo.h"
+#include "heap.h"
 
 using namespace std;
 
@@ -18,6 +19,11 @@ using namespace std;
 
 class CCNode;
 typedef map<unsigned int, CCNode *> CCMap;
+
+enum class ExecMode {
+    CCMode = 1,
+    MethodMode = 2
+};
 
 class CCNode
 {
@@ -67,6 +73,8 @@ class CCNode
 //  but sometimes that just seems like overkill
 
 typedef deque<Method *> MethodDeque;
+typedef set<Object *> LocalVarSet;
+typedef deque<LocalVarSet *> LocalVarDeque;
 
 class Thread
 {
@@ -79,6 +87,8 @@ class Thread
         CCNode* m_curcc;
         // -- Stack of methods
         MethodDeque m_methods;
+        // -- Local stack variables that have root events
+        LocalVarDeque m_locals;
 
     public:
         Thread( unsigned int id, unsigned int kind )

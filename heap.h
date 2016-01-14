@@ -11,6 +11,7 @@
 #include <limits.h>
 
 #include "classinfo.h"
+#include "refstate.h"
 
 class Object;
 class Thread;
@@ -49,13 +50,13 @@ class HeapState
         }
 
         Object* allocate( unsigned int id,
-                           unsigned int size,
-                           char kind,
-                           char* type,
-                           AllocSite* site, 
-                           unsigned int els,
-                           Thread* thread,
-                           unsigned int create_time );
+                          unsigned int size,
+                          char kind,
+                          char* type,
+                          AllocSite* site, 
+                          unsigned int els,
+                          Thread* thread,
+                          unsigned int create_time );
 
         Object* get(unsigned int id);
 
@@ -102,6 +103,7 @@ class Object
 
         unsigned int m_refCount;
         Color m_color;
+        ObjectRefState m_refState;
 
         EdgeMap m_fields;
 

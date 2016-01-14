@@ -4,7 +4,7 @@ FLAGS=-O2 -std=c++11
 simulator: simulator.o execution.o heap.o classinfo.o tokenizer.o analyze.o
 	g++ $(FLAGS) -o simulator simulator.o execution.o heap.o classinfo.o tokenizer.o analyze.o
 
-simulator.o: simulator.cpp classinfo.h tokenizer.h heap.h
+simulator.o: simulator.cpp classinfo.h tokenizer.h heap.h refstate.h
 	g++ $(FLAGS)  -c simulator.cpp
 
 analyze.o: analyze.cpp classinfo.h tokenizer.h

@@ -66,6 +66,10 @@ void Thread::Call(Method* m)
 
     if (m_kind == 2) {
         m_methods.push_back(m);
+        // TODO: Do we need to check for m existing in map?
+        // Ideally no, but not really sure what is possible in Elephant 
+        // Tracks.
+        m_locals.push_back(new LocalVarSet());
     }
 }
 
@@ -84,11 +88,13 @@ void Thread::Return(Method* m)
 
     if (m_kind == 2) {
         if ( ! m_methods.empty()) {
-            Method* cur = m_methods.back();
+            Method *cur = m_methods.back();
             m_methods.pop_back();
             // if (cur != m) {
             //     cout << "WARNING: Return from method " << m->info() << " does not match stack top " << cur->info() << endl;
             // }
+            LocalVarSet *localvars = m_locals.back();
+            m_locals.pop_back();
         } else {
             cout << "ERROR: Stack empty at return " << m->info() << endl;
         }
