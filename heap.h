@@ -9,6 +9,7 @@
 #include <map>
 #include <deque>
 #include <limits.h>
+#include <assert.h>
 
 #include "classinfo.h"
 #include "refstate.h"
@@ -109,6 +110,8 @@ class Object
 
         HeapState* m_heapptr;
 
+        bool m_pointed_by_heap;
+        bool m_was_root;
     public:
         Object( unsigned int id, unsigned int size,
                 char kind, char* type,
@@ -126,7 +129,9 @@ class Object
             , m_deathTime(UINT_MAX)
             , m_refCount(0)
             , m_color(GREEN)
-            , m_heapptr(heap) {
+            , m_heapptr(heap)
+            , m_pointed_by_heap(false)
+            , m_was_root(false) {
         }
 
         // -- Getters
@@ -139,6 +144,15 @@ class Object
         Color getColor() const { return m_color; }
         EdgeMap::iterator const getEdgeMapBegin() { return m_fields.begin(); }
         EdgeMap::iterator const getEdgeMapEnd() { return m_fields.end(); }
+
+        bool wasPointedAtByHeap() { return m_pointed_by_heap; }
+        void setPointedAtByHeap() { m_pointed_by_heap = true; }
+        bool wasARoot() { return m_was_root; }
+        void setRootFlag() { m_was_root= true; }
+
+        // TODO TODO
+        // Place the classification flags of:
+        // Died by heap vs stack flags (one flag? two?)
 
         // -- Ref counting
         unsigned int getRefCount() const { return m_refCount; }

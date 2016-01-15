@@ -205,6 +205,9 @@ unsigned int read_trace_file(FILE* f)
                     // D <object>
                     // 0    1
                     obj = Heap.get(tokenizer.getInt(1));
+                    // TODO Where do we check to see if the dead object is a ROOT?
+                    // Probably here and not in the object as the object does not
+                    // have access to the heap.
                     if (obj) {
                         obj->makeDead(Exec.Now());
                         // TEMP TODO this shouldn't decrement refcounts
@@ -247,6 +250,13 @@ unsigned int read_trace_file(FILE* f)
                 break;
 
             case 'R':
+                // R <objid> <threadid>
+                // 0    1        2
+                {
+                    unsigned int objId = tokenizer.getInt(1);
+                    Object * object = Heap.get(objId);
+                    object->setRootFlag();
+                }
                 break;
 
             default:

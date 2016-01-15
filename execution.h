@@ -87,8 +87,10 @@ class Thread
         CCNode* m_curcc;
         // -- Stack of methods
         MethodDeque m_methods;
-        // -- Local stack variables that have root events
+        // -- Local stack variables that have root events in this scope
         LocalVarDeque m_locals;
+        // -- Local stack variables that have root events and died this scope
+        LocalVarDeque m_deadlocals;
 
     public:
         Thread( unsigned int id, unsigned int kind )
@@ -107,8 +109,14 @@ class Thread
         CCNode* TopCC();
         // -- Get current method
         Method* TopMethod();
+        // -- Get current dead locals
+        LocalVarSet * TopLocalVarSet();
         // -- Get a stack trace
         string stacktrace();
+        // -- Root event
+        void objectRoot(Object * object);
+        // -- Check dead object
+        void checkDead(Object *object);
 };
 
 // ----------------------------------------------------------------------

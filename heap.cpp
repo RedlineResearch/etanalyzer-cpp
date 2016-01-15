@@ -41,6 +41,8 @@ Edge* HeapState::make_edge( Object* source, unsigned int field_id,
     Edge* new_edge = new Edge( source, field_id,
                                target, cur_time );
     m_edges.insert(new_edge);
+    assert(target != NULL);
+    target->setPointedAtByHeap();
 
     if (m_edges.size() % 100000 == 0) {
         cout << "EDGES: " << m_edges.size() << endl;

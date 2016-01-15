@@ -65,11 +65,13 @@ void Thread::Call(Method* m)
     }
 
     if (m_kind == 2) {
+        // m_methods, m_locals, and m_deadlocals must be synched in pushing
         m_methods.push_back(m);
         // TODO: Do we need to check for m existing in map?
         // Ideally no, but not really sure what is possible in Elephant 
         // Tracks.
         m_locals.push_back(new LocalVarSet());
+        m_deadlocals.push_back(new LocalVarSet());
     }
 }
 
@@ -88,6 +90,7 @@ void Thread::Return(Method* m)
 
     if (m_kind == 2) {
         if ( ! m_methods.empty()) {
+            // m_methods, m_locals, and m_deadlocals must be synched in popping
             Method *cur = m_methods.back();
             m_methods.pop_back();
             // if (cur != m) {
@@ -95,6 +98,11 @@ void Thread::Return(Method* m)
             // }
             LocalVarSet *localvars = m_locals.back();
             m_locals.pop_back();
+            LocalVarSet *deadvars = m_deadlocals.back();
+            m_deadlocals.pop_back();
+            delete localvars;
+            delete deadvars;
+            delete cur;
         } else {
             cout << "ERROR: Stack empty at return " << m->info() << endl;
         }
@@ -141,6 +149,12 @@ Method* Thread::TopMethod()
     return 0;
 }
 
+// -- Get current dead locals
+LocalVarSet * Thread::TopLocalVarSet()
+{
+    // TODO
+}
+
 // -- Get a stack trace
 string Thread::stacktrace()
 {
@@ -166,6 +180,30 @@ string Thread::stacktrace()
     return "ERROR";
 }
 
+// -- Object is a root
+void Thread::objectRoot(Object *object)
+{
+    if (!m_locals.empty()) {
+        LocalVarSet *localvars = m_locals.back();
+        localvars->insert(object);
+    } else {
+        cout << "ERROR: Stack empty at ROOT event." << endl;
+    }
+}
+
+// -- Check dead object if root
+void Thread::checkDead(Object *object)
+{
+    if (!m_locals.empty()) {
+        LocalVarSet *deadvars = m_deadlocals.back();
+        LocalVarSet::iterator it = deadvars->find(object);
+        if (it != deadvars->end()) {
+            // Dead object is a root.
+        }
+    } else {
+        cout << "ERROR: Stack empty at ROOT event." << endl;
+    }
+}
 
 // ----------------------------------------------------------------------
 //   Execution state
