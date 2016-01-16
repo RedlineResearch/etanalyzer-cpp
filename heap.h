@@ -112,6 +112,10 @@ class Object
 
         bool m_pointed_by_heap;
         bool m_was_root;
+        // Two diedByXXXX flags to check consistency.
+        bool m_diedByHeap;
+        bool m_diedByStack;
+
     public:
         Object( unsigned int id, unsigned int size,
                 char kind, char* type,
@@ -131,7 +135,9 @@ class Object
             , m_color(GREEN)
             , m_heapptr(heap)
             , m_pointed_by_heap(false)
-            , m_was_root(false) {
+            , m_was_root(false)
+            , m_diedByHeap(false)
+            , m_diedByStack(false) {
         }
 
         // -- Getters
@@ -147,12 +153,12 @@ class Object
 
         bool wasPointedAtByHeap() { return m_pointed_by_heap; }
         void setPointedAtByHeap() { m_pointed_by_heap = true; }
-        bool wasARoot() { return m_was_root; }
-        void setRootFlag() { m_was_root= true; }
-
-        // TODO TODO
-        // Place the classification flags of:
-        // Died by heap vs stack flags (one flag? two?)
+        bool getRootFlag() { return m_was_root; }
+        void setRootFlag() { m_was_root = true; }
+        bool getDiedByStackFlag() { return m_diedByStack; }
+        void setDiedByStackFlag() { m_diedByStack = true; }
+        bool getDiedByHeapFlag() { return m_diedByHeap; }
+        void setDiedByHeapFlag() { m_diedByHeap = true; }
 
         // -- Ref counting
         unsigned int getRefCount() const { return m_refCount; }

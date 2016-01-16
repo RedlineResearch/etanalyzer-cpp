@@ -62,6 +62,7 @@ void HeapState::end_of_program(unsigned int cur_time)
         if (obj->isLive(cur_time)) {
             obj->makeDead(cur_time);
         }
+        // Do the count of heap vs stack loss here. TODO
     }
 }
 

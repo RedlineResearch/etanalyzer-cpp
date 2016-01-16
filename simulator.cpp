@@ -33,6 +33,7 @@ bool debug = false;
 // ----------------------------------------------------------------------
 //   Analysis
 deque< deque<Object*> > cycle_list;
+set<unsigned int> root_set;
 
 void sanity_check()
 {
@@ -180,8 +181,13 @@ unsigned int read_trace_file(FILE* f)
                     // -- Look up objects and perform update
                     unsigned int objId = tokenizer.getInt(2);
                     unsigned int tgtId = tokenizer.getInt(3);
+                    unsigned int threadId = tokenizer.getInt(5);
+                    Thread *thread = Exec.getThread(threadId);
                     obj = Heap.get(objId);
                     target = Heap.get(tgtId);
+                    if (obj) {
+                        obj->setPointedAtByHeap();
+                    }
                     // TEMP TODO
                     // Increment and decrement refcounts
                     if (obj && target) {
@@ -204,13 +210,24 @@ unsigned int read_trace_file(FILE* f)
                 {
                     // D <object>
                     // 0    1
-                    obj = Heap.get(tokenizer.getInt(1));
-                    // TODO Where do we check to see if the dead object is a ROOT?
-                    // Probably here and not in the object as the object does not
-                    // have access to the heap.
+                    unsigned int objId = tokenizer.getInt(1);
+                    obj = Heap.get(objId);
                     if (obj) {
+                        unsigned int threadId = tokenizer.getInt(2);
+                        Thread *thread = Exec.getThread(threadId);
+                        if (thread && thread->isLocalVariable(obj)) {
+                            obj->setDiedByStackFlag();
+                        } else {
+                            obj->setDiedByHeapFlag();
+                        }
                         obj->makeDead(Exec.Now());
-                        // TEMP TODO this shouldn't decrement refcounts
+                    } else {
+                        // We couldn't find the object in the Heap, so use the flags.
+                        if (obj->wasPointedAtByHeap()) {
+                            obj->setDiedByHeapFlag();
+                        } else {
+                            obj->setDiedByStackFlag();
+                        }
                     }
                 }
                 break;
@@ -254,8 +271,17 @@ unsigned int read_trace_file(FILE* f)
                 // 0    1        2
                 {
                     unsigned int objId = tokenizer.getInt(1);
-                    Object * object = Heap.get(objId);
-                    object->setRootFlag();
+                    Object *object = Heap.get(objId);
+                    unsigned int threadId = tokenizer.getInt(2);
+                    // cout << "objId: " << objId << "     threadId: " << threadId << endl;
+                    if (object) {
+                        object->setRootFlag();
+                        Thread *thread = Exec.getThread(threadId);
+                        if (thread) {
+                            thread->objectRoot(object);
+                        }
+                    }
+                    root_set.insert(objId);
                 }
                 break;
 

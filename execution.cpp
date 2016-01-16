@@ -102,7 +102,6 @@ void Thread::Return(Method* m)
             m_deadlocals.pop_back();
             delete localvars;
             delete deadvars;
-            delete cur;
         } else {
             cout << "ERROR: Stack empty at return " << m->info() << endl;
         }
@@ -152,7 +151,13 @@ Method* Thread::TopMethod()
 // -- Get current dead locals
 LocalVarSet * Thread::TopLocalVarSet()
 {
-    // TODO
+    if (m_kind == 1) {
+        // TODO
+        return NULL;
+    }
+    else if (m_kind == 2) {
+        return ((!m_deadlocals.empty()) ? m_deadlocals.back() : NULL);
+    }
 }
 
 // -- Get a stack trace
@@ -187,21 +192,20 @@ void Thread::objectRoot(Object *object)
         LocalVarSet *localvars = m_locals.back();
         localvars->insert(object);
     } else {
-        cout << "ERROR: Stack empty at ROOT event." << endl;
+        cout << "[objectRoot] ERROR: Stack empty at ROOT event." << endl;
     }
 }
 
 // -- Check dead object if root
-void Thread::checkDead(Object *object)
+bool Thread::isLocalVariable(Object *object)
 {
     if (!m_locals.empty()) {
-        LocalVarSet *deadvars = m_deadlocals.back();
-        LocalVarSet::iterator it = deadvars->find(object);
-        if (it != deadvars->end()) {
-            // Dead object is a root.
-        }
+        LocalVarSet *localvars = m_locals.back();
+        LocalVarSet::iterator it = localvars->find(object);
+        return (it != localvars->end());
     } else {
-        cout << "ERROR: Stack empty at ROOT event." << endl;
+        cout << "[isLocalVariable] ERROR: Stack empty at ROOT event." << endl;
+        return false;
     }
 }
 

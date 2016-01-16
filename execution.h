@@ -97,6 +97,8 @@ class Thread
             : m_id(id)
             , m_kind(kind)
             , m_curcc(0) {
+            m_locals.push_back(new LocalVarSet());
+            m_deadlocals.push_back(new LocalVarSet());
         }
 
         unsigned int getId() const { return m_id; }
@@ -116,7 +118,7 @@ class Thread
         // -- Root event
         void objectRoot(Object * object);
         // -- Check dead object
-        void checkDead(Object *object);
+        bool isLocalVariable(Object *object);
 };
 
 // ----------------------------------------------------------------------
