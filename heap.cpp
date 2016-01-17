@@ -63,6 +63,17 @@ void HeapState::end_of_program(unsigned int cur_time)
             obj->makeDead(cur_time);
         }
         // Do the count of heap vs stack loss here. TODO
+        if (obj->getDiedByStackFlag()) {
+            this->m_totalDiedByStack++;
+        } else {
+            // Setting the flag may not be necessary, but it may be useful
+            // if code is written in the future that runs after
+            // 'end_of_program' and depends on the flags being set.
+            if (!obj->getDiedByHeapFlag()) {
+                obj->setDiedByHeapFlag();
+            }
+            this->m_totalDiedByHeap++;
+        }
     }
 }
 
@@ -92,7 +103,7 @@ void HeapState::analyze()
 deque< deque<int> > HeapState::scan_queue( EdgeList& edgelist )
 {
     deque< deque<int> > result;
-    cout << "Queue size: " << this->m_candidate_map.size();
+    cout << "Queue size: " << this->m_candidate_map.size() << endl;
     for ( map<unsigned int, bool>::iterator i = this->m_candidate_map.begin();
           i != this->m_candidate_map.end();
           ++i ) {

@@ -6,6 +6,7 @@
 #include <set>
 #include <vector>
 #include <deque>
+#include <string>
 
 using namespace std;
 
@@ -181,12 +182,21 @@ unsigned int read_trace_file(FILE* f)
                     // -- Look up objects and perform update
                     unsigned int objId = tokenizer.getInt(2);
                     unsigned int tgtId = tokenizer.getInt(3);
+                    unsigned int oldTgtId = tokenizer.getInt(1);
                     unsigned int threadId = tokenizer.getInt(5);
                     Thread *thread = Exec.getThread(threadId);
+                    Object *oldObj = Heap.get(oldTgtId);
                     obj = Heap.get(objId);
                     target = Heap.get(tgtId);
                     if (obj) {
                         obj->setPointedAtByHeap();
+                    }
+                    if (oldObj) {
+                        if (target) {
+                            oldObj->unsetLastUpdateNull();
+                        } else {
+                            oldObj->setLastUpdateNull();
+                        }
                     }
                     // TEMP TODO
                     // Increment and decrement refcounts
@@ -202,7 +212,6 @@ unsigned int read_trace_file(FILE* f)
                         //     tokenizer.debugCurrent();
                         // }
                     }
-                    // TODO: Why is the old edge not removed?
                 }
                 break;
 
@@ -330,6 +339,17 @@ void filter_edgelist( deque< pair<int,int> >& edgelist, deque< deque<int> >& cyc
 
 int main(int argc, char* argv[])
 {
+    if (argc != 3) {
+        cout << "Usage: " << argv[0] << " <namesfile> <output base name>" << endl;
+        exit(1);
+    }
+    string basename(argv[2]);
+    string cycle_filename( basename + "-CYCLES.csv" );
+    string edge_filename( basename + "-EDGES.txt" );
+    string objectinfo_filename( basename + "-OBJECTINFO.txt" );
+    string edgeinfo_filename( basename + "-EDGEINFO.txt" );
+    string summary_filename( basename + "-SUMMARY.csv" );
+    
     cout << "Read names file..." << endl;
     ClassInfo::read_names_file(argv[1]);
 
@@ -347,28 +367,33 @@ int main(int argc, char* argv[])
     // TODO Heap.analyze();
     cout << "DONE. Getting cycles." << endl;
     set<int> node_set;
-    cout << "---------------[ CYCLES ]-------------------------------------------------------" << endl;
+    ofstream cycle_file(cycle_filename);
+    cycle_file << "---------------[ CYCLES ]-------------------------------------------------------" << endl;
     for ( deque< deque<int> >::iterator it = cycle_list.begin();
           it != cycle_list.end();
           ++it ) {
         for ( deque<int>::iterator tmp = it->begin();
               tmp != it->end();
               ++tmp ) {
-            cout << *tmp << ",";
+            cycle_file << *tmp << ",";
             node_set.insert(*tmp);
         }
-        cout << endl;
+        cycle_file << endl;
     }
-    cout << "---------------[ CYCLES END ]---------------------------------------------------" << endl;
-    cout << "===============[ EDGES ]========================================================" << endl;
+    cycle_file << "---------------[ CYCLES END ]---------------------------------------------------" << endl;
+    cycle_file.close();
+    ofstream edge_file(edge_filename);
+    edge_file << "===============[ EDGES ]========================================================" << endl;
     for ( EdgeList::iterator it = edgelist.begin();
           it != edgelist.end();
           ++it ) {
-        cout << it->first << " -> " << it->second
+        edge_file << it->first << " -> " << it->second
              << endl;
     }
-    cout << "===============[ EDGES END ]====================================================" << endl;
-    cout << "---------------[ OBJECT INFO ]--------------------------------------------------" << endl;
+    edge_file << "===============[ EDGES END ]====================================================" << endl;
+    edge_file.close();
+    ofstream object_info_file(objectinfo_filename);
+    object_info_file << "---------------[ OBJECT INFO ]--------------------------------------------------" << endl;
     for ( deque< deque<int> >::iterator it = cycle_list.begin();
           it != cycle_list.end();
           ++it ) {
@@ -376,12 +401,17 @@ int main(int argc, char* argv[])
               tmp != it->end();
               ++tmp ) {
             Object* object = Heap.get(*tmp);
-            cout << *tmp << "," << object->getCreateTime() << "," << object->getDeathTime()
-                 << "," << object->getSize() << "," << object->getType() << endl;
+            object_info_file << *tmp << "," << object->getCreateTime()
+                << "," << object->getDeathTime()
+                << "," << object->getSize()
+                << "," << object->getType()
+                << "," << (object->getDiedByStackFlag() ? "S" : "H") << endl;
         }
     }
-    cout << "---------------[ OBJECT INFO END ]----------------------------------------------" << endl;
-    cout << "---------------[ EDGE INFO ]----------------------------------------------------" << endl;
+    object_info_file << "---------------[ OBJECT INFO END ]----------------------------------------------" << endl;
+    object_info_file.close();
+    ofstream edge_info_file(edgeinfo_filename);
+    edge_info_file << "---------------[ EDGE INFO ]----------------------------------------------------" << endl;
     // srcId, tgtId, allocTime, deathTime
     unsigned int total_edges;
     for ( EdgeSet::iterator it = Heap.begin_edges();
@@ -395,11 +425,19 @@ int main(int argc, char* argv[])
         set<int>::iterator srcit = node_set.find(srcId);
         set<int>::iterator tgtit = node_set.find(tgtId);
         if ( (srcit != node_set.end()) || (srcit != node_set.end()) ) {
-            cout << srcId << "," << tgtId << "," << eptr->getCreateTime() << ","
-                 << eptr->getEndTime() << endl;
+            edge_info_file << srcId << "," << tgtId << "," << eptr->getCreateTime() << ","
+                           << eptr->getEndTime() << endl;
         }
         total_edges++;
     }
-    cout << "---------------[ EDGE INFO END ]------------------------------------------------" << endl;
+    edge_info_file << "---------------[ EDGE INFO END ]------------------------------------------------" << endl;
+    edge_info_file.close();
+    ofstream summary_file(summary_filename);
+    summary_file << "---------------[ SUMMARY INFO ]----------------------------------------------------" << endl;
+    summary_file << "number_of_objects," << Heap.size() << endl
+                 << "died_by_stack," << Heap.getTotalDiedByStack() << endl
+                 << "died_by_heap," << Heap.getTotalDiedByHeap() << endl;
+    summary_file << "---------------[ SUMMARY INFO END ]------------------------------------------------" << endl;
+    summary_file.close();
 }
 

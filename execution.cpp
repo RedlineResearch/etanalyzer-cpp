@@ -65,8 +65,8 @@ void Thread::Call(Method* m)
     }
 
     if (m_kind == 2) {
-        // m_methods, m_locals, and m_deadlocals must be synched in pushing
         m_methods.push_back(m);
+        // m_methods, m_locals, and m_deadlocals must be synched in pushing
         // TODO: Do we need to check for m existing in map?
         // Ideally no, but not really sure what is possible in Elephant 
         // Tracks.
@@ -90,12 +90,12 @@ void Thread::Return(Method* m)
 
     if (m_kind == 2) {
         if ( ! m_methods.empty()) {
-            // m_methods, m_locals, and m_deadlocals must be synched in popping
             Method *cur = m_methods.back();
             m_methods.pop_back();
             // if (cur != m) {
             //     cout << "WARNING: Return from method " << m->info() << " does not match stack top " << cur->info() << endl;
             // }
+            // m_methods, m_locals, and m_deadlocals must be synched in popping
             LocalVarSet *localvars = m_locals.back();
             m_locals.pop_back();
             LocalVarSet *deadvars = m_deadlocals.back();

@@ -10,6 +10,7 @@
 #include <deque>
 #include <limits.h>
 #include <assert.h>
+#include <boost/logic/tribool.hpp>
 
 #include "classinfo.h"
 #include "refstate.h"
@@ -23,6 +24,8 @@ typedef map<unsigned int, Edge *> EdgeMap;
 typedef set<Object *> ObjectSet;
 typedef set<Edge *> EdgeSet;
 typedef deque< pair<int,int> > EdgeList;
+
+using namespace boost::logic;
 
 class HeapState
 {
@@ -43,6 +46,11 @@ class HeapState
 
         // Map from IDs to bool if possible cyle root
         map<unsigned int, bool> m_candidate_map;
+
+        // Total number of objects that died by loss of heap reference
+        unsigned m_totalDiedByHeap;
+        // Total number of objects that died by loss of heap reference
+        unsigned m_totalDiedByStack;
 
     public:
         HeapState()
@@ -66,6 +74,8 @@ class HeapState
         ObjectMap::iterator begin() { return m_objects.begin(); }
         ObjectMap::iterator end() { return m_objects.end(); }
         unsigned int size() const { return m_objects.size(); }
+        unsigned int getTotalDiedByStack() { return m_totalDiedByStack; }
+        unsigned int getTotalDiedByHeap() { return m_totalDiedByHeap; }
 
         void add_edge(Edge* e) { m_edges.insert(e); }
         EdgeSet::iterator begin_edges() { return m_edges.begin(); }
@@ -110,11 +120,18 @@ class Object
 
         HeapState* m_heapptr;
 
+        // Was this object ever a target of a heap pointer?
         bool m_pointed_by_heap;
+        // Was this object ever a root?
         bool m_was_root;
-        // Two diedByXXXX flags to check consistency.
+        // Did last update move to NULL?
+        tribool m_last_update_null; // If false, it moved to a differnet object
+        // Did this object die by loss of heap reference?
         bool m_diedByHeap;
+        // Did this object die by loss of stack reference?
         bool m_diedByStack;
+        // Was this ever reachable from heap? Triboolean because it can be 'indeterminate'
+        tribool m_reachFromHeap;
 
     public:
         Object( unsigned int id, unsigned int size,
@@ -137,7 +154,9 @@ class Object
             , m_pointed_by_heap(false)
             , m_was_root(false)
             , m_diedByHeap(false)
-            , m_diedByStack(false) {
+            , m_diedByStack(false)
+            , m_last_update_null(indeterminate)
+            , m_reachFromHeap(indeterminate) {
         }
 
         // -- Getters
@@ -159,6 +178,10 @@ class Object
         void setDiedByStackFlag() { m_diedByStack = true; }
         bool getDiedByHeapFlag() { return m_diedByHeap; }
         void setDiedByHeapFlag() { m_diedByHeap = true; }
+        tribool wasLastUpdateNull() { return m_last_update_null; }
+        void setLastUpdateNull() { m_last_update_null = true; }
+        void unsetLastUpdateNull() { m_last_update_null = true; }
+        tribool wasReachableFromHeap() { return m_reachFromHeap; }
 
         // -- Ref counting
         unsigned int getRefCount() const { return m_refCount; }
