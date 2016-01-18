@@ -25,6 +25,12 @@ pp = pprint.PrettyPrinter( indent = 4 )
 
 __MY_VERSION__ = 5
 
+ATIME = 0
+DTIME = 1
+SIZE = 2
+TYPE = 3
+REASON = 4
+
 def setup_logger( targetdir = ".",
                   filename = "basic_cycle_analyze.log",
                   logger_name = 'basic_cycle_analyze',
@@ -290,9 +296,9 @@ def get_lifetimes_debug( G, cycle ):
 def get_sizes( G, cycle ):
     return [ G.node[x]["size"] for x in cycle ]
 
-def get_cycles_and_edges( tgtpath ):
-    global pp
-    with open(tgtpath) as fp:
+def TEMP():
+    if False:
+        # Add to summary
         final_time = -1
         for line in fp:
             if line.find("Done at time") == 0:
@@ -306,23 +312,16 @@ def get_cycles_and_edges( tgtpath ):
                 total_objects = int(row[2])
                 break
         assert( final_time >= 0 )
+        # 
         start = False
-        cycles = []
-        for line in fp:
-            line = line.rstrip()
-            if line.find("---------------[ CYCLES") == 0:
-                start = not start
-                if start:
-                    continue
-                else:
-                    break
-            if start:
-                line = line.rstrip(",")
-                row = line.split(",")
-                row = [ int(x) for x in row ]
-                cycles.append(row)
-        start = False
-        edges = set([])
+        edge_info = {}
+    edges = set( sorted( list(edges), key = itemgetter(0, 1) ) )
+
+def get_edges( edgepath ):
+    start = False
+    done = False
+    edges = set([])
+    with open(edgepath) as fp:
         for line in fp:
             line = line.rstrip()
             if line.find("===============[ EDGES") == 0:
@@ -330,27 +329,19 @@ def get_cycles_and_edges( tgtpath ):
                 if start:
                     continue
                 else:
+                    done = True
                     break
             if start:
                 row = [ int(x) for x in line.split(" -> ") ]
                 edges.add(tuple(row))
-        start = False
-        object_info = {}
-        for line in fp:
-            line = line.rstrip()
-            if line.find("---------------[ OBJECT INFO") == 0:
-                start = True if not start else False
-                if start:
-                    continue
-                else:
-                    break
-            if start:
-                rowtmp = line.split(",")
-                row = [ int(x) for x in rowtmp[1:4] ]
-                row.append( rowtmp[-1] )
-                object_info[int(rowtmp[0])] = tuple(row)
-        start = False
-        edge_info = {}
+    assert(done)
+    return edges
+
+def get_edge_info( edgeinfo_path ):
+    start = False
+    done = False
+    edge_info = {}
+    with open(edgeinfo_path) as fp:
         # Map edge (src,tgt) -> (alloctime, deathtime)
         for line in fp:
             line = line.rstrip()
@@ -359,17 +350,70 @@ def get_cycles_and_edges( tgtpath ):
                 if start:
                     continue
                 else:
+                    done = True
                     break
             if start:
                 rowtmp = line.split(",")
                 row = tuple([ int(x) for x in rowtmp[2:] ])
                 edge_info[ (int(rowtmp[0]), int(rowtmp[1])) ] = row
-    edges = set( sorted( list(edges), key = itemgetter(0, 1) ) )
-    return { "cycles" : cycles,
-             "edges" : edges,
-             "edge_info" : edge_info,
-             "object_info" : object_info,
-             "total_objects" : total_objects }
+    assert(done)
+    return edge_info
+
+def get_typeId( mytype, typedict ):
+    if mytype in typedict:
+        return typedict[mytype]
+    else:
+        lastkey = len(typedict.keys())
+        typedict[mytype] = lastkey + 1
+        return lastkey + 1
+
+def get_object_info( objectinfo_path ):
+    start = False
+    done = False
+    object_info = {}
+    typedict = {}
+    with open(objectinfo_path) as fp:
+        for line in fp:
+            line = line.rstrip()
+            if line.find("---------------[ OBJECT INFO") == 0:
+                start = True if not start else False
+                if start:
+                    continue
+                else:
+                    done = True
+                    break
+            if start:
+                rowtmp = line.split(",")
+                row = [ int(x) for x in rowtmp[1:4] ]
+                mytype = rowtmp[-2]
+                row.append( get_typeId( mytype, typedict ) )
+                row.append( rowtmp[-1] )
+                object_info[int(rowtmp[0])] = tuple(row)
+    assert(done)
+    return object_info, typedict
+
+def get_cycles( tgtpath ):
+    global pp
+    with open(tgtpath) as fp:
+        start = False
+        done = False
+        cycles = []
+        for line in fp:
+            line = line.rstrip()
+            if line.find("---------------[ CYCLES") == 0:
+                start = not start
+                if start:
+                    continue
+                else:
+                    done = True
+                    break
+            if start:
+                line = line.rstrip(",")
+                row = line.split(",")
+                row = [ int(x) for x in row ]
+                cycles.append(row)
+    assert(done) 
+    return cycles
 
 
 def get_cycle_info_list( cycle = None,
@@ -377,10 +421,6 @@ def get_cycle_info_list( cycle = None,
                          # objdb = None,
                          logger = None ):
     cycle_info_list = []
-    ATIME = 0
-    DTIME = 1
-    SIZE = 2
-    TYPE = 3
     odict = objinfo_dict
     for node in cycle:
         try:
@@ -406,10 +446,6 @@ def extract_small_cycles( summary = None,
                           objinfo_dict = None,
                           logger = None ):
     global pp
-    ATIME = 0
-    DTIME = 1
-    SIZE = 2
-    TYPE = 3
     with open(bmark + "-size1.csv", "wb") as fp1, \
          open(bmark + "-size2.csv", "wb") as fp2, \
          open(bmark + "-size3.csv", "wb") as fp3, \
@@ -719,6 +755,9 @@ def main_process( output = None,
                   lastedgeflag = False,
                   etanalyze_config = None,
                   global_config = None,
+                  edge_config = None,
+                  edgeinfo_config = None,
+                  objectinfo_config = None,
                   debugflag = False,
                   logger = None ):
     global pp
@@ -758,13 +797,22 @@ def main_process( output = None,
             actual_cycle_counter = Counter()
             cycle_type_counter = Counter()
             logger.critical( "Opening %s." % abspath )
-            get_cycles_result = get_cycles_and_edges( abspath )
-            cycles = get_cycles_result["cycles"]
-            edges = get_cycles_result["edges"]
+            # Get cycles
+            cycles = get_cycles( abspath )
+            get_cycles_result = {}
+            # Get edges
+            edgepath = os.path.join(cycle_cpp_dir, edge_config[bmark])
+            edges = get_edges( edgepath )
             # Get edge information
-            edge_info_dict = get_cycles_result["edge_info"]
+            edgeinfo_path = os.path.join(cycle_cpp_dir, edgeinfo_config[bmark])
+            edge_info_dict = get_edge_info( edgeinfo_path)
             # Get object dictionary information that has types and sizes
-            object_info_dict = get_cycles_result["object_info"]
+            objectinfo_path = os.path.join(cycle_cpp_dir, objectinfo_config[bmark])
+            object_info_dict, typedict = get_object_info( objectinfo_path )
+            pp.pprint(object_info_dict)
+            print "==============================================================================="
+            pp.pprint(typedict)
+            exit(1000)
             total_objects = get_cycles_result["total_objects"]
             selfloops = set()
             edgedict = create_edge_dictionary( edges, selfloops )
@@ -981,7 +1029,11 @@ def process_config( args ):
     global_config = config_section_map( "global", config_parser )
     etanalyze_config = config_section_map( "etanalyze-output", config_parser )
     main_config = config_section_map( "cycle-analyze", config_parser )
-    return ( global_config, etanalyze_config, main_config )
+    edge_config = config_section_map( "edges", config_parser )
+    edgeinfo_config = config_section_map( "edgeinfo", config_parser )
+    objectinfo_config = config_section_map( "objectinfo", config_parser )
+    return ( global_config, etanalyze_config, main_config, edge_config,
+             edgeinfo_config, objectinfo_config )
 
 # TODO: TO REMOVE 8 jan 2016
 def setup_objdb( global_config = None,
@@ -1026,7 +1078,8 @@ def main():
     configparser = ConfigParser.ConfigParser()
     benchmark = args.benchmark
     assert( args.config != None )
-    global_config, etanalyze_config, main_config = process_config( args )
+    global_config, etanalyze_config, main_config, edge_config, \
+        edgeinfo_config, objectinfo_config  = process_config( args )
     # logging
     logger = setup_logger( filename = args.logfile,
                            debugflag = global_config["debug"] )
@@ -1039,6 +1092,9 @@ def main():
                          lastedgeflag = args.lastedgeflag,
                          main_config = main_config,
                          etanalyze_config = etanalyze_config,
+                         edge_config = edge_config,
+                         edgeinfo_config = edgeinfo_config,
+                         objectinfo_config = objectinfo_config,
                          global_config = global_config,
                          logger = logger )
 
