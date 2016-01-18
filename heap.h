@@ -80,6 +80,7 @@ class HeapState
         void add_edge(Edge* e) { m_edges.insert(e); }
         EdgeSet::iterator begin_edges() { return m_edges.begin(); }
         EdgeSet::iterator end_edges() { return m_edges.end(); }
+        unsigned int numberEdges() { return m_edges.size(); }
 
         void end_of_program(unsigned int cur_time);
 

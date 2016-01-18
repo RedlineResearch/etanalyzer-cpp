@@ -435,6 +435,7 @@ int main(int argc, char* argv[])
     ofstream summary_file(summary_filename);
     summary_file << "---------------[ SUMMARY INFO ]----------------------------------------------------" << endl;
     summary_file << "number_of_objects," << Heap.size() << endl
+                 << "number_of_edges," << Heap.numberEdges() << endl
                  << "died_by_stack," << Heap.getTotalDiedByStack() << endl
                  << "died_by_heap," << Heap.getTotalDiedByHeap() << endl;
     summary_file << "---------------[ SUMMARY INFO END ]------------------------------------------------" << endl;
