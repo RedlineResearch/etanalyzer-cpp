@@ -296,26 +296,26 @@ def get_lifetimes_debug( G, cycle ):
 def get_sizes( G, cycle ):
     return [ G.node[x]["size"] for x in cycle ]
 
-def TEMP():
-    if False:
-        # Add to summary
-        final_time = -1
+def get_summary( summary_path ):
+    start = False
+    done = False
+    summary = []
+    with open(summary_path) as fp:
         for line in fp:
-            if line.find("Done at time") == 0:
-                line = line.rstrip()
-                row = line.split(" ")
-                final_time = int(row[3])
-                line = fp.next()
-                line = line.rstrip()
-                row = line.split(" ")
-                assert( row[0] == "Total" and row[1] == "objects:" )
-                total_objects = int(row[2])
-                break
-        assert( final_time >= 0 )
-        # 
-        start = False
-        edge_info = {}
-    edges = set( sorted( list(edges), key = itemgetter(0, 1) ) )
+            line = line.rstrip()
+            if line.find("---------------[ SUMMARY INFO") == 0:
+                start = True if not start else False
+                if start:
+                    continue
+                else:
+                    done = True
+                    break
+            if start:
+                row = line.split(",")
+                row[1] = int(row[1])
+                summary.append(row)
+    assert(done)
+    return dict(summary)
 
 def get_edges( edgepath ):
     start = False
@@ -335,6 +335,7 @@ def get_edges( edgepath ):
                 row = [ int(x) for x in line.split(" -> ") ]
                 edges.add(tuple(row))
     assert(done)
+    edges = set( sorted( list(edges), key = itemgetter(0, 1) ) )
     return edges
 
 def get_edge_info( edgeinfo_path ):
@@ -390,6 +391,7 @@ def get_object_info( objectinfo_path ):
                 row.append( rowtmp[-1] )
                 object_info[int(rowtmp[0])] = tuple(row)
     assert(done)
+    typedict = { val : key for key, val in typedict.iteritems() }
     return object_info, typedict
 
 def get_cycles( tgtpath ):
@@ -758,6 +760,7 @@ def main_process( output = None,
                   edge_config = None,
                   edgeinfo_config = None,
                   objectinfo_config = None,
+                  summary_config = None,
                   debugflag = False,
                   logger = None ):
     global pp
@@ -809,11 +812,17 @@ def main_process( output = None,
             # Get object dictionary information that has types and sizes
             objectinfo_path = os.path.join(cycle_cpp_dir, objectinfo_config[bmark])
             object_info_dict, typedict = get_object_info( objectinfo_path )
-            pp.pprint(object_info_dict)
+            # Get summary
             print "==============================================================================="
-            pp.pprint(typedict)
+            summary_path = os.path.join(cycle_cpp_dir, summary_config[bmark])
+            summary_sim = get_summary( summary_path )
+            number_of_objects = summary_sim["number_of_objects"]
+            number_of_edges = summary_sim["number_of_edges"]
+            died_by_stack = summary_sim["died_by_stack"]
+            died_by_heap = summary_sim["died_by_heap"]
+            final_time = summary_sim["final_time"]
+            pp.pprint(summary_sim)
             exit(1000)
-            total_objects = get_cycles_result["total_objects"]
             selfloops = set()
             edgedict = create_edge_dictionary( edges, selfloops )
             results[bmark] = { "totals" : [],
@@ -1032,8 +1041,9 @@ def process_config( args ):
     edge_config = config_section_map( "edges", config_parser )
     edgeinfo_config = config_section_map( "edgeinfo", config_parser )
     objectinfo_config = config_section_map( "objectinfo", config_parser )
+    summary_config = config_section_map( "summary_cpp", config_parser )
     return ( global_config, etanalyze_config, main_config, edge_config,
-             edgeinfo_config, objectinfo_config )
+             edgeinfo_config, objectinfo_config, summary_config )
 
 # TODO: TO REMOVE 8 jan 2016
 def setup_objdb( global_config = None,
@@ -1079,7 +1089,7 @@ def main():
     benchmark = args.benchmark
     assert( args.config != None )
     global_config, etanalyze_config, main_config, edge_config, \
-        edgeinfo_config, objectinfo_config  = process_config( args )
+        edgeinfo_config, objectinfo_config, summary_config  = process_config( args )
     # logging
     logger = setup_logger( filename = args.logfile,
                            debugflag = global_config["debug"] )
@@ -1095,6 +1105,7 @@ def main():
                          edge_config = edge_config,
                          edgeinfo_config = edgeinfo_config,
                          objectinfo_config = objectinfo_config,
+                         summary_config = summary_config,
                          global_config = global_config,
                          logger = logger )
 

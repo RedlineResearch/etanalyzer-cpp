@@ -356,6 +356,7 @@ int main(int argc, char* argv[])
     cout << "Start trace..." << endl;
     FILE* f = fdopen(0, "r");
     unsigned int total_objects = read_trace_file(f);
+    unsigned int final_time = Exec.Now();
     cout << "Done at time " << Exec.Now() << endl;
     cout << "Total objects: " << total_objects << endl;
     Heap.end_of_program(Exec.Now());
@@ -437,7 +438,8 @@ int main(int argc, char* argv[])
     summary_file << "number_of_objects," << Heap.size() << endl
                  << "number_of_edges," << Heap.numberEdges() << endl
                  << "died_by_stack," << Heap.getTotalDiedByStack() << endl
-                 << "died_by_heap," << Heap.getTotalDiedByHeap() << endl;
+                 << "died_by_heap," << Heap.getTotalDiedByHeap() << endl
+                 << "final_time," << final_time << endl;
     summary_file << "---------------[ SUMMARY INFO END ]------------------------------------------------" << endl;
     summary_file.close();
 }
