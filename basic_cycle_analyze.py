@@ -18,6 +18,7 @@ import csv
 import subprocess
 import datetime
 import heapq
+from itertools import combinations
 
 from mypytools import mean, stdev, variance
 
@@ -360,19 +361,19 @@ def get_edge_info( edgeinfo_path ):
     assert(done)
     return edge_info
 
-def get_typeId( mytype, typedict ):
+def get_typeId( mytype, typedict, rev_typedict ):
     if mytype in typedict:
         return typedict[mytype]
     else:
         lastkey = len(typedict.keys())
         typedict[mytype] = lastkey + 1
+        rev_typedict[lastkey + 1] = mytype
         return lastkey + 1
 
-def get_object_info( objectinfo_path ):
+def get_object_info( objectinfo_path, typedict, rev_typedict ):
     start = False
     done = False
     object_info = {}
-    typedict = {}
     with open(objectinfo_path) as fp:
         for line in fp:
             line = line.rstrip()
@@ -387,12 +388,11 @@ def get_object_info( objectinfo_path ):
                 rowtmp = line.split(",")
                 row = [ int(x) for x in rowtmp[1:4] ]
                 mytype = rowtmp[-2]
-                row.append( get_typeId( mytype, typedict ) )
+                row.append( get_typeId( mytype, typedict, rev_typedict ) )
                 row.append( rowtmp[-1] )
                 object_info[int(rowtmp[0])] = tuple(row)
     assert(done)
-    typedict = { val : key for key, val in typedict.iteritems() }
-    return object_info, typedict
+    return object_info
 
 def get_cycles( tgtpath ):
     global pp
@@ -443,9 +443,16 @@ def get_cycle_info_list( cycle = None,
             cycle_info_list.append( (node, mytype, mysize, lifetime) )
     return cycle_info_list
 
-def extract_small_cycles( summary = None, 
+g_regex = re.compile( "([^\$]+)\$(.*)" )
+def is_inner_class( mytype ):
+    global g_regex
+    m = g_regex.match(mytype)
+    return True if m else False
+
+def extract_small_cycles( small_summary = None, 
                           bmark = None,
                           objinfo_dict = None,
+                          rev_typedict = None,
                           logger = None ):
     global pp
     with open(bmark + "-size1.csv", "wb") as fp1, \
@@ -461,49 +468,45 @@ def extract_small_cycles( summary = None,
         counterlist = {}
         regex = re.compile( "([^\$]+)\$(.*)" )
         total_cycles = 0
-        inner_classes_cycles = 0
         inner_classes_count = Counter()
-        for feature, fdict in summary.iteritems(): 
-            for size, mylist in fdict.iteritems():
-                for cycle in mylist:
-                    assert( len(cycle) > 0 )
-                    assert( len(cycle) <= 4 )
-                    cycle_info_list = []
-                    for record in cycle:
-                        node, saved_type = record
-                        try:
-                            rec = objinfo_dict[node]
-                            mytype = rec[TYPE]
-                            mysize = rec[SIZE]
-                            atime = rec[ATIME]
-                            dtime = rec[DTIME]
-                            lifetime = (dtime - atime) if ((dtime > atime) and  (dtime != 0)) \
-                                else 0
-                            cycle_info_list.append( (node, mytype, mysize, lifetime) )
-                        except:
-                            logger.critical("Missing node[ %s ]" % str(node))
-                            mytype = "<NONE>"
-                            mysize = 0
-                            lifetime = 0
-                            cycle_info_list.append( (node, mytype, mysize, lifetime) )
-                    type_tuple = tuple( sorted( [ x[1] for x in cycle_info_list ] ) )
-                    # type_tuple contains all the types in the strongly connected component.
-                    # This is sorted so that there's a canonical labeling of the type group/tuple.
-                    assert( len(cycle) == size )
-                    result[size].append( type_tuple )
-                    total_cycles += 1
-                    flag = False
-                    for tmp in list(type_tuple):
-                        m = regex.match(tmp)
-                        if m:
-                            if not flag:
-                                inner_classes_cycles += 1
-                            inner_classes_count.update( [ tmp ] )
-                            flag = True
-                counterlist[size] = Counter(result[size])
-                for row in ( list(key) + [ val ] for key, val
-                             in counterlist[size].iteritems() ):
-                    writer[size].writerow( row )
+        # TODO DELETE
+        # for feature, fdict in summary.iteritems(): 
+        for size, mylist in small_summary.iteritems():
+            for cycle in mylist:
+                assert( len(cycle) > 0 )
+                assert( len(cycle) <= 4 )
+                cycle_info_list = []
+                for record in cycle:
+                    node, saved_type = record
+                    try:
+                        rec = objinfo_dict[node]
+                        mytype = rec[TYPE]
+                        mysize = rec[SIZE]
+                        atime = rec[ATIME]
+                        dtime = rec[DTIME]
+                        lifetime = (dtime - atime) if ((dtime > atime) and  (dtime != 0)) \
+                            else 0
+                        cycle_info_list.append( (node, mytype, mysize, lifetime) )
+                    except:
+                        logger.critical("Missing node[ %s ]" % str(node))
+                        mytype = "<NONE>"
+                        mysize = 0
+                        lifetime = 0
+                        cycle_info_list.append( (node, mytype, mysize, lifetime) )
+                type_tuple = tuple( sorted( [ rev_typedict[x[1]] for x in cycle_info_list ] ) )
+                # type_tuple contains all the types in the strongly connected component.
+                # This is sorted so that there's a canonical labeling of the type group/tuple.
+                assert( len(cycle) == size )
+                result[size].append( type_tuple )
+                total_cycles += 1
+                flag = False
+                for tmp in list(type_tuple):
+                    if is_inner_class(tmp):
+                        inner_classes_count.update( [ tmp ] )
+            counterlist[size] = Counter(result[size])
+            for row in ( list(key) + [ val ] for key, val
+                         in counterlist[size].iteritems() ):
+                writer[size].writerow( row )
     pp.pprint( counterlist )
     return { "total_cycles" : total_cycles,
              "inner_classes_count" : inner_classes_count }
@@ -776,6 +779,8 @@ def main_process( output = None,
     work_dir = main_config["directory"]
     results = {}
     summary = {}
+    typedict = {} # Type dictionary is ACROSS all benchmarks
+    rev_typedict = {} # Type dictionary is ACROSS all benchmarks
     count = 0
     today = create_work_directory( work_dir, logger = logger )
     olddir = os.getcwd()
@@ -811,7 +816,7 @@ def main_process( output = None,
             edge_info_dict = get_edge_info( edgeinfo_path)
             # Get object dictionary information that has types and sizes
             objectinfo_path = os.path.join(cycle_cpp_dir, objectinfo_config[bmark])
-            object_info_dict, typedict = get_object_info( objectinfo_path )
+            object_info_dict = get_object_info( objectinfo_path, typedict, rev_typedict )
             # Get summary
             print "==============================================================================="
             summary_path = os.path.join(cycle_cpp_dir, summary_config[bmark])
@@ -821,8 +826,6 @@ def main_process( output = None,
             died_by_stack = summary_sim["died_by_stack"]
             died_by_heap = summary_sim["died_by_heap"]
             final_time = summary_sim["final_time"]
-            pp.pprint(summary_sim)
-            exit(1000)
             selfloops = set()
             edgedict = create_edge_dictionary( edges, selfloops )
             results[bmark] = { "totals" : [],
@@ -837,7 +840,12 @@ def main_process( output = None,
                                "sizes_largest_scc" : [],
                                "sizes_all" : [], }
             summary[bmark] = { "by_size" : { 1 : [], 2 : [], 3 : [], 4 : [] },
-                                }
+                               "died_by_heap" : died_by_heap,
+                               "died_by_stack" : died_by_heap,
+                               "number_of_objects" : number_of_objects,
+                               "number_of_edges" : number_of_edges,
+                               "number_of_selfloops" : 0,
+                               "types" : Counter() }
             for index in xrange(len(cycles)):
                 cycle = cycles[index]
                 cycle_info_list = get_cycle_info_list( cycle = cycle,
@@ -871,6 +879,8 @@ def main_process( output = None,
                 # - multiple largest cycles?
                 #     * Option 1: choose only one?
                 #     * Option 2: ????
+                # 
+                # Get Strongly Connected Components
                 scclist = list(nx.strongly_connected_components(G))
                 # Strong connected-ness is a better indication of what we want
                 # Unless the cycle is a single node with a self pointer.
@@ -883,16 +893,15 @@ def main_process( output = None,
                                                   scclist = scclist,
                                                   selfloops = selfloops,
                                                   logger = logger )
+                if len(largest_scc) == 1:
+                    summary[bmark]["number_of_selfloops"] += 1
                 # Cycle length counter
                 actual_cycle_counter.update( [ len(largest_scc) ] )
                 # Get the types and type statistics
                 largest_by_types_with_index = get_types_and_save_index( G, largest_scc )
                 largest_by_types = [ x[1] for x in largest_by_types_with_index ]
+                summary[bmark]["types"].update( largest_by_types )
                 largest_by_types_set = set(largest_by_types)
-                # DEBUG only: 2015-11-24
-                # debug_cycle_algorithms( largest_scc, ctmplist, G )
-                # DEBUG_types( largest_by_types_with_index, largest_scc )
-                # END DEBUG
                 # Save small cycles 
                 save_interesting_small_cycles( largest_by_types_with_index, summary[bmark] )
                 # TYPE SET
@@ -944,9 +953,10 @@ def main_process( output = None,
             for_olddir = os.getcwd()
             os.chdir( bmark )
             # Create the CSV files for the data
-            small_result = extract_small_cycles( summary = summary[bmark], 
+            small_result = extract_small_cycles( small_summary = summary[bmark]["by_size"], 
                                                  bmark = bmark,
                                                  objinfo_dict = object_info_dict,
+                                                 rev_typedict = rev_typedict,
                                                  logger = logger ) 
             print "================================================================================"
             total_small_cycles = small_result["total_cycles"]
@@ -955,6 +965,7 @@ def main_process( output = None,
             os.chdir( for_olddir )
             print "--------------------------------------------------------------------------------"
             print "num_cycles: %d" % len(cycles)
+            print "number of types:", len(summary[bmark]["types"])
             print "cycle_total_counter:", str(cycle_total_counter)
             print "actual_cycle_counter:", str(actual_cycle_counter)
             print "cycle_type_counter:", str(cycle_type_counter)
@@ -979,6 +990,19 @@ def main_process( output = None,
     pp.pprint( summary )
     # TODO: Save the largest X cycles.
     #       This should be done in the loop so to cut down on duplicate work.
+    print "===========[ TYPES ]=================================================="
+    benchmarks = summary.keys()
+    print "---------------[ Common to ALL ]--------------------------------------"
+    common_all = set.intersection( *[ set(summary[b]["types"].keys()) for b in benchmarks ] )
+    common_all = [ rev_typedict[x] for x in common_all ]
+    pp.pprint( common_all )
+    print "---------------[ Counter over all benchmarks ]------------------------"
+    g_types = Counter()
+    for bmark, bdict in summary.iteritems():
+        g_types.update( bdict["types"] )
+    for key, value in g_types.iteritems():
+        print "%s: %d" % (rev_typedict[key], value)
+    print "Number of types - global: %d" % len(g_types)
     print "===========[ DONE ]==================================================="
     exit(1000)
 
