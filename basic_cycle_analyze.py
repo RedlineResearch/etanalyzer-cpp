@@ -654,6 +654,23 @@ def output_results_transpose( output_path = None,
                         sum(infodict["sizes_all"][i]), ]
                 csvwriter.writerow( row )
 
+def output_summary( output_path = None,
+                    summary = None ):
+    # Print out results in this format:
+    # ========= <- divider
+    # benchmark:
+    # size,largest_cycle, number_types, lifetime_ave, lifetime_sd, min, max
+    #   10,            5,            2,           22,           5,   2,  50
+    with open(output_path, "wb") as fp:
+        csvwriter = csv.writer(fp)
+        header = [ "benchmark", "total_objects", "total_edges", "died_by_heap",
+                   "died_by_stack", ]
+        csvwriter.writerow( header )
+        for bmark, d in summary.iteritems():
+            row = [ bmark, d["number_of_objects"], d["number_of_edges"],
+                    d["died_by_heap"], d["died_by_stack"], ]
+            csvwriter.writerow( row )
+
 def create_work_directory( work_dir, logger = None, interactive = False ):
     os.chdir( work_dir )
     today = datetime.date.today()
@@ -737,6 +754,18 @@ def get_last_edge( largest_scc, edge_info_db ):
     print "====[ END ]==========================================================="
     last_edge = get_last_edge_from_result( last_edge_list )
     return (last_edge[1], last_edge[0])
+
+def print_summary( summary ):
+    global pp
+    for bmark, fdict in summary.iteritems():
+        print "[%s]:" % bmark
+        for key, value in fdict.iteritems():
+            if key == "by_size":
+                continue
+            if key == "types":
+                print "    [%s]: %s" % (key, pp.pformat(value))
+            else:
+                print "    [%s]: %d" % (key, value)
 
 def skip_benchmark(bmark):
     return ( bmark == "tradebeans" or # Permanent ignore
@@ -840,12 +869,15 @@ def main_process( output = None,
                                "sizes_largest_scc" : [],
                                "sizes_all" : [], }
             summary[bmark] = { "by_size" : { 1 : [], 2 : [], 3 : [], 4 : [] },
-                               "died_by_heap" : died_by_heap,
-                               "died_by_stack" : died_by_heap,
+                               # by_size contains apriori sizes 1 to 4 and the
+                               # cycles with these sizes. The cycle is encoded
+                               # as a list of object IDs (objId).
+                               "died_by_heap" : died_by_heap, # total of
+                               "died_by_stack" : died_by_stack, # total of
                                "number_of_objects" : number_of_objects,
                                "number_of_edges" : number_of_edges,
                                "number_of_selfloops" : 0,
-                               "types" : Counter() }
+                               "types" : Counter() } # counts of types using type IDs
             for index in xrange(len(cycles)):
                 cycle = cycles[index]
                 cycle_info_list = get_cycle_info_list( cycle = cycle,
@@ -984,10 +1016,12 @@ def main_process( output = None,
     print "===========[ RESULTS ]================================================"
     output_results_transpose( output_path = output,
                               results = results )
+    output_summary( output_path = output,
+                    summary = summary )
     os.chdir( olddir )
     # Print out results in this format:
     print "===========[ SUMMARY ]================================================"
-    pp.pprint( summary )
+    print_summary( summary )
     # TODO: Save the largest X cycles.
     #       This should be done in the loop so to cut down on duplicate work.
     print "===========[ TYPES ]=================================================="

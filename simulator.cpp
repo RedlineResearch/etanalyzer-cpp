@@ -359,6 +359,7 @@ int main(int argc, char* argv[])
     unsigned int final_time = Exec.Now();
     cout << "Done at time " << Exec.Now() << endl;
     cout << "Total objects: " << total_objects << endl;
+    assert( total_objects == Heap.size() );
     Heap.end_of_program(Exec.Now());
 
     // TODO analyze(Exec.Now());
