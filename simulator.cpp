@@ -440,6 +440,7 @@ int main(int argc, char* argv[])
                  << "number_of_edges," << Heap.numberEdges() << endl
                  << "died_by_stack," << Heap.getTotalDiedByStack() << endl
                  << "died_by_heap," << Heap.getTotalDiedByHeap() << endl
+                 << "last_update_null," << Heap.getTotalLastUpdateNull() << endl
                  << "final_time," << final_time << endl;
     summary_file << "---------------[ SUMMARY INFO END ]------------------------------------------------" << endl;
     summary_file.close();

@@ -74,6 +74,9 @@ void HeapState::end_of_program(unsigned int cur_time)
             }
             this->m_totalDiedByHeap++;
         }
+        if (obj->wasLastUpdateNull()) {
+            this->m_totalUpdateNull++;
+        }
     }
 }
 

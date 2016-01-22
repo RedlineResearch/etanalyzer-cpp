@@ -48,9 +48,12 @@ class HeapState
         map<unsigned int, bool> m_candidate_map;
 
         // Total number of objects that died by loss of heap reference
-        unsigned m_totalDiedByHeap;
+        unsigned int m_totalDiedByHeap;
         // Total number of objects that died by loss of heap reference
-        unsigned m_totalDiedByStack;
+        unsigned int m_totalDiedByStack;
+        // Total number of objects whose last update away from the object
+        // was null
+        unsigned int m_totalUpdateNull;
 
     public:
         HeapState()
@@ -76,6 +79,7 @@ class HeapState
         unsigned int size() const { return m_objects.size(); }
         unsigned int getTotalDiedByStack() { return m_totalDiedByStack; }
         unsigned int getTotalDiedByHeap() { return m_totalDiedByHeap; }
+        unsigned int getTotalLastUpdateNull() { return m_totalUpdateNull; }
 
         void add_edge(Edge* e) { m_edges.insert(e); }
         EdgeSet::iterator begin_edges() { return m_edges.begin(); }
@@ -181,7 +185,7 @@ class Object
         void setDiedByHeapFlag() { m_diedByHeap = true; }
         tribool wasLastUpdateNull() { return m_last_update_null; }
         void setLastUpdateNull() { m_last_update_null = true; }
-        void unsetLastUpdateNull() { m_last_update_null = true; }
+        void unsetLastUpdateNull() { m_last_update_null = false; }
         tribool wasReachableFromHeap() { return m_reachFromHeap; }
 
         // -- Ref counting
