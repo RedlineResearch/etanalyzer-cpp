@@ -139,7 +139,7 @@ Method* Thread::TopMethod()
         if ( ! m_methods.empty()) {
             return m_methods.back();
         } else {
-            cout << "ERROR: Asking for top of empty stack" << endl;
+            // cout << "ERROR: Asking for top of empty stack" << endl;
             return 0;
         }
     }

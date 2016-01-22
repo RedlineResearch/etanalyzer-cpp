@@ -25,6 +25,12 @@ typedef set<Object *> ObjectSet;
 typedef set<Edge *> EdgeSet;
 typedef deque< pair<int,int> > EdgeList;
 
+typedef map<Method *, set<string>> DeathSitesMap;
+// Where we save the method death sites. This has to be method pointer
+// to:
+// 1) set of object pointers
+// 2) set of object types
+// 2 seems better.
 using namespace boost::logic;
 
 class HeapState
@@ -49,11 +55,18 @@ class HeapState
 
         // Total number of objects that died by loss of heap reference
         unsigned int m_totalDiedByHeap;
-        // Total number of objects that died by loss of heap reference
+        // Total number of objects that died by stack frame going out of scope
         unsigned int m_totalDiedByStack;
         // Total number of objects whose last update away from the object
         // was null
         unsigned int m_totalUpdateNull;
+        // Died by stack with previous heap action
+        unsigned int m_diedByStackAfterHeap;
+        // Died by stack only
+        unsigned int m_diedByStackOnly;
+
+        // Map of Method * to set of object type names
+        DeathSitesMap m_death_sites_map;
 
     public:
         HeapState()
@@ -80,6 +93,8 @@ class HeapState
         unsigned int getTotalDiedByStack() { return m_totalDiedByStack; }
         unsigned int getTotalDiedByHeap() { return m_totalDiedByHeap; }
         unsigned int getTotalLastUpdateNull() { return m_totalUpdateNull; }
+        unsigned int getDiedByStackAfterHeap() { return m_diedByStackAfterHeap; }
+        unsigned int getDiedByStackOnly() { return m_diedByStackOnly; }
 
         void add_edge(Edge* e) { m_edges.insert(e); }
         EdgeSet::iterator begin_edges() { return m_edges.begin(); }
@@ -135,8 +150,8 @@ class Object
         bool m_diedByHeap;
         // Did this object die by loss of stack reference?
         bool m_diedByStack;
-        // Was this ever reachable from heap? Triboolean because it can be 'indeterminate'
-        tribool m_reachFromHeap;
+        // Method where this object died
+        Method *m_methodDeathSite;
 
     public:
         Object( unsigned int id, unsigned int size,
@@ -161,7 +176,7 @@ class Object
             , m_diedByHeap(false)
             , m_diedByStack(false)
             , m_last_update_null(indeterminate)
-            , m_reachFromHeap(indeterminate) {
+            , m_methodDeathSite(0) {
         }
 
         // -- Getters
@@ -177,7 +192,7 @@ class Object
 
         bool wasPointedAtByHeap() { return m_pointed_by_heap; }
         void setPointedAtByHeap() { m_pointed_by_heap = true; }
-        bool getRootFlag() { return m_was_root; }
+        bool wasRoot() { return m_was_root; }
         void setRootFlag() { m_was_root = true; }
         bool getDiedByStackFlag() { return m_diedByStack; }
         void setDiedByStackFlag() { m_diedByStack = true; }
@@ -186,7 +201,8 @@ class Object
         tribool wasLastUpdateNull() { return m_last_update_null; }
         void setLastUpdateNull() { m_last_update_null = true; }
         void unsetLastUpdateNull() { m_last_update_null = false; }
-        tribool wasReachableFromHeap() { return m_reachFromHeap; }
+        Method *getDeathSite() { return m_methodDeathSite; }
+        void setDeathSite(Method * method) { m_methodDeathSite = method; }
 
         // -- Ref counting
         unsigned int getRefCount() const { return m_refCount; }

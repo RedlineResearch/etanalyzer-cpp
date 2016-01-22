@@ -130,7 +130,7 @@ void ClassInfo::read_names_file(const char* filename)
 string Method::info()
 {
     stringstream ss;
-    ss << m_class->info() << "." << m_name << m_descriptor;
+    ss << m_class->info() << "." << m_name << " ~ " << m_descriptor;
     return ss.str();
 }
 
