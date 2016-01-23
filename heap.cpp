@@ -92,7 +92,7 @@ void HeapState::end_of_program(unsigned int cur_time)
             if (it == this->m_death_sites_map.end()) {
                 this->m_death_sites_map[dsite] = new set<string>; 
             }
-            this->m_death_sites_map[dsite]->insert(dsite->getName());
+            this->m_death_sites_map[dsite]->insert(obj->getType());
         }
     }
 }
