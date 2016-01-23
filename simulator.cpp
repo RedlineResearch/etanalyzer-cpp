@@ -474,13 +474,13 @@ int main(int argc, char* argv[])
         Method *meth = it->first;
         set<string> *types = it->second;
         assert(meth);
-        cout << meth->getName() << "," << types->size();
+        dsite_file << meth->getName() << "," << types->size();
         for ( set<string>::iterator sit = types->begin();
               sit != types->end();
               ++sit ) {
-            cout << *sit;
+            dsite_file << "," << *sit;
         }
-        cout << endl;
+        dsite_file << endl;
     }
     dsite_file << "---------------[ DEATH SITES INFO END ]--------------------------------------------" << endl;
     dsite_file.close();
