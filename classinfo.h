@@ -132,6 +132,8 @@ class Method : public Entity
         void addAllocSite(AllocSite* a) { m_allocsites[a->getId()] = a; }
 
         string info();
+
+        string getName();
 };
 
 class Class : public Entity

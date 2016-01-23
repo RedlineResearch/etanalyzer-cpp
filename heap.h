@@ -25,7 +25,7 @@ typedef set<Object *> ObjectSet;
 typedef set<Edge *> EdgeSet;
 typedef deque< pair<int,int> > EdgeList;
 
-typedef map<Method *, set<string>> DeathSitesMap;
+typedef map<Method *, set<string> *> DeathSitesMap;
 // Where we save the method death sites. This has to be method pointer
 // to:
 // 1) set of object pointers
@@ -95,6 +95,8 @@ class HeapState
         unsigned int getTotalLastUpdateNull() { return m_totalUpdateNull; }
         unsigned int getDiedByStackAfterHeap() { return m_diedByStackAfterHeap; }
         unsigned int getDiedByStackOnly() { return m_diedByStackOnly; }
+        DeathSitesMap::iterator begin_dsites() { return m_death_sites_map.begin(); }
+        DeathSitesMap::iterator end_dsites() { return m_death_sites_map.end(); }
 
         void add_edge(Edge* e) { m_edges.insert(e); }
         EdgeSet::iterator begin_edges() { return m_edges.begin(); }

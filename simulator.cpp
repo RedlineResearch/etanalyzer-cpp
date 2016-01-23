@@ -360,6 +360,7 @@ int main(int argc, char* argv[])
     string objectinfo_filename( basename + "-OBJECTINFO.txt" );
     string edgeinfo_filename( basename + "-EDGEINFO.txt" );
     string summary_filename( basename + "-SUMMARY.csv" );
+    string dsite_filename( basename + "-DSITES.csv" );
 
     string cycle_switch(argv[3]);
     bool cycle_flag = ((cycle_switch == "NOCYCLE") ? false : true);
@@ -464,5 +465,24 @@ int main(int argc, char* argv[])
                  << "final_time," << final_time << endl;
     summary_file << "---------------[ SUMMARY INFO END ]------------------------------------------------" << endl;
     summary_file.close();
+    //---------------------------------------------------------------------
+    ofstream dsite_file(dsite_filename);
+    dsite_file << "---------------[ DEATH SITES INFO ]------------------------------------------------" << endl;
+    for ( DeathSitesMap::iterator it = Heap.begin_dsites();
+          it != Heap.end_dsites();
+          ++it ) {
+        Method *meth = it->first;
+        set<string> *types = it->second;
+        assert(meth);
+        cout << meth->getName() << "," << types->size();
+        for ( set<string>::iterator sit = types->begin();
+              sit != types->end();
+              ++sit ) {
+            cout << *sit;
+        }
+        cout << endl;
+    }
+    dsite_file << "---------------[ DEATH SITES INFO END ]--------------------------------------------" << endl;
+    dsite_file.close();
 }
 

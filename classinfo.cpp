@@ -134,6 +134,13 @@ string Method::info()
     return ss.str();
 }
 
+string Method::getName()
+{
+    stringstream ss;
+    ss << m_class->info() << "." << m_name;
+    return ss.str();
+}
+
 string AllocSite::info()
 {
     stringstream ss;

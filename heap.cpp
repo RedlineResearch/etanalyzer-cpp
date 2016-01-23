@@ -55,6 +55,7 @@ Edge* HeapState::make_edge( Object* source, unsigned int field_id,
 void HeapState::end_of_program(unsigned int cur_time)
 {
     // -- Set death time of all remaining live objects
+    //    Also set the flags for the interesting classifications.
     for ( ObjectMap::iterator i = m_objects.begin();
           i != m_objects.end();
           ++i ) {
@@ -83,6 +84,15 @@ void HeapState::end_of_program(unsigned int cur_time)
         }
         if (obj->wasLastUpdateNull()) {
             this->m_totalUpdateNull++;
+        }
+        // Save method death site to map
+        Method *dsite = obj->getDeathSite();
+        if (dsite) {
+            DeathSitesMap::iterator it = this->m_death_sites_map.find(dsite);
+            if (it == this->m_death_sites_map.end()) {
+                this->m_death_sites_map[dsite] = new set<string>; 
+            }
+            this->m_death_sites_map[dsite]->insert(dsite->getName());
         }
     }
 }
