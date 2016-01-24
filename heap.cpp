@@ -135,7 +135,7 @@ deque< deque<int> > HeapState::scan_queue( EdgeList& edgelist )
                 if (object->getColor() == BLACK) {
                     object->mark_red();
                     object->scan();
-                    deque<int> cycle = object->collect_blue(edgelist);
+                    deque<int> cycle = object->collect_blue( edgelist );
                     if (cycle.size() > 0) {
                         result.push_back( cycle );
                     }
@@ -164,7 +164,8 @@ string Object::info() {
 
 void Object::updateField( Edge* edge,
                           unsigned int fieldId,
-                          unsigned int cur_time )
+                          unsigned int cur_time,
+                          Method *method )
 {
     EdgeMap::iterator p = this->m_fields.find(fieldId);
     if (p != this->m_fields.end()) {
@@ -174,7 +175,7 @@ void Object::updateField( Edge* edge,
             // -- Now we know the end time
             Object* old_target = old_edge->getTarget();
             if (old_target) {
-                old_target->decrementRefCountReal(cur_time);
+                old_target->decrementRefCountReal(cur_time, method);
             } 
             old_edge->setEndTime(cur_time);
         }
@@ -187,7 +188,7 @@ void Object::updateField( Edge* edge,
         target = edge->getTarget();
         // -- Increment new ref
         if (target) {
-            target->incrementRefCount();
+            target->incrementRefCountReal();
             // TODO: An increment of the refcount means this isn't a candidate root
             //       for a garbage cycle.
         }
@@ -207,7 +208,7 @@ void Object::mark_red()
     if ( (this->m_color == GREEN) || (this->m_color == BLACK) ) {
         // Only recolor if object is GREEN or BLACK.
         // Ignore if already RED or BLUE.
-        this->recolor( RED );
+        this->recolor( RED        );
         for ( EdgeMap::iterator p = this->m_fields.begin();
               p != this->m_fields.end();
               p++ ) {
@@ -261,7 +262,7 @@ void Object::scan_green()
     }
 }
 
-deque<int> Object::collect_blue(EdgeList& edgelist)
+deque<int> Object::collect_blue( EdgeList& edgelist )
 {
     deque<int> result;
     if (this->getColor() == BLUE) {
@@ -314,7 +315,7 @@ void Object::makeDead(unsigned int death_time)
     }
 }
 
-void Object::recolor(Color newColor)
+void Object::recolor( Color newColor )
 {
     // Maintain the invariant that the reference count of a node is
     // the number of GREEN or BLACK pointers to it.
@@ -332,7 +333,7 @@ void Object::recolor(Color newColor)
                 } else if ( ((this->m_color != GREEN) && (this->m_color != BLACK)) &&
                             ((newColor == GREEN) || (newColor == BLACK)) ) {
                     // increment reference count of target
-                    target->incrementRefCount();
+                    target->incrementRefCountReal();
                 }
             }
         }
@@ -340,10 +341,15 @@ void Object::recolor(Color newColor)
     this->m_color = newColor;
 }
 
-void Object::decrementRefCountReal( unsigned int cur_time )
+void Object::decrementRefCountReal( unsigned int cur_time, Method *method )
 {
     this->decrementRefCount();
     if (this->m_refCount == 0) {
+        // TODO Should we even bother with this check?
+        //      Maybe just set it to true.
+        if (!m_decToZero) {
+            m_decToZero = true;
+        }
         // -- Visit all edges
         this->recolor(GREEN);
         for ( EdgeMap::iterator p = this->m_fields.begin();
@@ -352,16 +358,35 @@ void Object::decrementRefCountReal( unsigned int cur_time )
             Edge* target_edge = p->second;
             if (target_edge) {
                 unsigned int fieldId = target_edge->getSourceField();
-                this->updateField( NULL, fieldId, cur_time );
+                this->updateField( NULL, fieldId, cur_time, method );
             }
         }
     } else {
         Color color = this->getColor();
         if (color != BLACK) {
             unsigned int objId = this->getId();
-            this->recolor(BLACK);
+            this->recolor( BLACK );
             this->m_heapptr->set_candidate(objId);
         }
     }
+}
+
+void Object::incrementRefCountReal()
+{
+    if ((this->m_refCount == 0) && this->m_decToZero) {
+        this->m_incFromZero = true;
+    }
+    this->incrementRefCount();
+    // TODO
+    // Can we take it out of the candidate set? If so, what should
+    // the new color be?
+    // {
+    //     Color color = this->getColor();
+    //     if (color != BLACK) {
+    //         unsigned int objId = this->getId();
+    //         this->recolor(BLACK);
+    //         this->m_heapptr->set_candidate(objId);
+    //     }
+    // }
 }
 

@@ -198,13 +198,16 @@ unsigned int read_trace_file(FILE* f)
                             oldObj->setLastUpdateNull();
                         }
                     }
-                    // TEMP TODO
                     // Increment and decrement refcounts
                     if (obj && target) {
                         unsigned int field_id = tokenizer.getInt(4);
                         Edge* new_edge = Heap.make_edge( obj, field_id,
                                                          target, Exec.Now() );
-                        obj->updateField( new_edge, field_id, Exec.Now() );
+                        if (thread) {
+                            Method *topMethod = thread->TopMethod();
+                            obj->updateField( new_edge, field_id, Exec.Now(), topMethod );
+                            // NOTE: topMethod COULD be NULL here.
+                        }
                         // DEBUG ONLY IF NEEDED
                         // Example:
                         // if ( (objId == tgtId) && (objId == 166454) ) {

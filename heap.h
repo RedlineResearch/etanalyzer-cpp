@@ -154,6 +154,17 @@ class Object
         bool m_diedByStack;
         // Method where this object died
         Method *m_methodDeathSite;
+        // Was this object's refcount ever decremented to zero?
+        //     indeterminate - no refcount action
+        //     false - last incremented to positive
+        //     true - decremented to zero
+        tribool m_decToZero;
+        // Was this object incremented to positive AFTER being
+        // decremented to zero?
+        //     indeterminate - not yet decremented to zero
+        //     false - decremented to zero
+        //     true - decremented to zero, then incremented to positive
+        tribool m_incFromZero;
 
     public:
         Object( unsigned int id, unsigned int size,
@@ -178,7 +189,9 @@ class Object
             , m_diedByHeap(false)
             , m_diedByStack(false)
             , m_last_update_null(indeterminate)
-            , m_methodDeathSite(0) {
+            , m_methodDeathSite(0)
+            , m_decToZero(indeterminate)
+            , m_incFromZero(indeterminate) {
         }
 
         // -- Getters
@@ -205,12 +218,15 @@ class Object
         void unsetLastUpdateNull() { m_last_update_null = false; }
         Method *getDeathSite() { return m_methodDeathSite; }
         void setDeathSite(Method * method) { m_methodDeathSite = method; }
+        tribool wasDecrementedToZero() { return m_decToZero; }
+        tribool wasIncrementedFromZero() { return m_incFromZero; }
 
         // -- Ref counting
         unsigned int getRefCount() const { return m_refCount; }
         void incrementRefCount() { m_refCount++; }
         void decrementRefCount() { m_refCount--; }
-        void decrementRefCountReal(unsigned int curtime);
+        void incrementRefCountReal();
+        void decrementRefCountReal(unsigned int cur_time, Method *method);
         // -- Access the fields
         const EdgeMap& getFields() const { return m_fields; }
         // -- Get a string representation
@@ -220,7 +236,8 @@ class Object
         // -- Update a field
         void updateField( Edge* edge,
                           unsigned int fieldId,
-                          unsigned int cur_time);
+                          unsigned int cur_time,
+                          Method *method );
         // -- Record death time
         void makeDead(unsigned int death_time);
         // -- Set the color
