@@ -198,6 +198,7 @@ class Object
             , m_diedByStack(false)
             , m_last_update_null(indeterminate)
             , m_methodDeathSite(0)
+            , m_methodRCtoZero(NULL)
             , m_decToZero(indeterminate)
             , m_incFromZero(indeterminate) {
         }

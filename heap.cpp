@@ -89,18 +89,28 @@ void HeapState::end_of_program(unsigned int cur_time)
         }
         // Save method death site to map
         Method *dsite = obj->getDeathSite();
-        if (obj->getDiedByHeapFlag() && dsite) {
-            cout << "-";
-            tmpcount++;
-        } else if (obj->getDiedByHeapFlag()) {
-            cout << "X";
-            tmpcount++;
-            // So died by heap but no saved death site. First alternative is
-            // to look for the a site that decremented to 0.
-            dsite = obj->getMethodDecToZero();
+        if (obj->getDiedByHeapFlag()) {
+            // Died by heap
+            if (dsite) {
+                cout << "-";
+                tmpcount++;
+            } else {
+                if (obj->wasDecrementedToZero()) {
+                    cout << "\\";
+                    // So died by heap but no saved death site. First alternative is
+                    // to look for the a site that decremented to 0.
+                    dsite = obj->getMethodDecToZero();
+                } else {
+                    cout << "?";
+                    // TODO: No dsite here yet
+                    // TODO TODO TODO
+                }
+                tmpcount++;
+            }
         } else {
+            // Died by stack
             assert(obj->getDiedByStackFlag());
-            cout << "/";
+            cout << "^";
             tmpcount++;
             // Died by stack flag. Look for last heap activity.
         }
