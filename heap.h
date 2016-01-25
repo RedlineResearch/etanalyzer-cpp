@@ -154,6 +154,14 @@ class Object
         bool m_diedByStack;
         // Method where this object died
         Method *m_methodDeathSite;
+        // Last method to decrement reference count
+        Method *m_lastMethodDecRC;
+        // Method where the refcount went to 0, if ever. If null, then
+        // either RC never went to 0, or we don't have the method, depending
+        // on the m_decToZero flag.
+        Method *m_methodRCtoZero;
+        // TODO: Is DeathSite _ALWAYS_ the same as RCtoZero method?
+        //
         // Was this object's refcount ever decremented to zero?
         //     indeterminate - no refcount action
         //     false - last incremented to positive
@@ -213,11 +221,25 @@ class Object
         void setDiedByStackFlag() { m_diedByStack = true; }
         bool getDiedByHeapFlag() { return m_diedByHeap; }
         void setDiedByHeapFlag() { m_diedByHeap = true; }
+        // Returns whether last update to this object was NULL.
+        // If indeterminate, then there have been no updates
         tribool wasLastUpdateNull() { return m_last_update_null; }
+        // Set the last update null flag to true
         void setLastUpdateNull() { m_last_update_null = true; }
+        // Set the last update null flag to false
         void unsetLastUpdateNull() { m_last_update_null = false; }
+        // Get the death site according the the Death event
         Method *getDeathSite() { return m_methodDeathSite; }
+        // Set the death site because of a Death event
         void setDeathSite(Method * method) { m_methodDeathSite = method; }
+        // Get the last method to decrement the reference count
+        Method *getLastMethodDecRC() { return m_lastMethodDecRC; }
+        // Get the method to decrement the reference count to zero
+        // -- If the refcount is ever incremented from zero, this is set back
+        //    to NULL
+        Method *getMethodDecToZero() { return m_methodRCtoZero; }
+        // No corresponding set of lastMethodDecRC because set happens through
+        // decrementRefCountReal
         tribool wasDecrementedToZero() { return m_decToZero; }
         tribool wasIncrementedFromZero() { return m_incFromZero; }
 
@@ -250,6 +272,9 @@ class Object
         void scan_green();
         // Searches for garbage cycle
         deque<int> collect_blue( deque< pair<int,int> >& edgelist );
+
+        // Global debug counter
+        static unsigned int g_counter;
 };
 
 class Edge

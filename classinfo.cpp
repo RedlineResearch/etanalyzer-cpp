@@ -137,7 +137,11 @@ string Method::info()
 string Method::getName()
 {
     stringstream ss;
-    ss << m_class->info() << "." << m_name;
+    if (this->m_class) {
+        ss << this->m_class->info() << "." << m_name;
+    } else {
+        ss << "NOTYPE" << "." << m_name;
+    }
     return ss.str();
 }
 

@@ -3,6 +3,7 @@
 // -- Global flags
 bool HeapState::do_refcounting = true;
 bool HeapState::debug = false;
+unsigned int Object::g_counter = 0;
 
 Object* HeapState::allocate( unsigned int id, unsigned int size,
                              char kind, char* type, AllocSite* site, 
@@ -54,6 +55,7 @@ Edge* HeapState::make_edge( Object* source, unsigned int field_id,
 // TODO Documentation :)
 void HeapState::end_of_program(unsigned int cur_time)
 {
+    unsigned int tmpcount = 0;
     // -- Set death time of all remaining live objects
     //    Also set the flags for the interesting classifications.
     for ( ObjectMap::iterator i = m_objects.begin();
@@ -87,12 +89,34 @@ void HeapState::end_of_program(unsigned int cur_time)
         }
         // Save method death site to map
         Method *dsite = obj->getDeathSite();
+        if (obj->getDiedByHeapFlag() && dsite) {
+            cout << "-";
+            tmpcount++;
+        } else if (obj->getDiedByHeapFlag()) {
+            cout << "X";
+            tmpcount++;
+            // So died by heap but no saved death site. First alternative is
+            // to look for the a site that decremented to 0.
+            dsite = obj->getMethodDecToZero();
+        } else {
+            assert(obj->getDiedByStackFlag());
+            cout << "/";
+            tmpcount++;
+            // Died by stack flag. Look for last heap activity.
+        }
         if (dsite) {
             DeathSitesMap::iterator it = this->m_death_sites_map.find(dsite);
             if (it == this->m_death_sites_map.end()) {
                 this->m_death_sites_map[dsite] = new set<string>; 
             }
             this->m_death_sites_map[dsite]->insert(obj->getType());
+        } else if (obj->getDiedByHeapFlag()) {
+            // We couldn't find a deathsite for something that died by heap.
+            // TODO ?????? TODO
+            cout << "<" << endl;
+        }
+        if (tmpcount % 79 == 0) {
+            cout << endl;
         }
     }
 }
@@ -208,7 +232,7 @@ void Object::mark_red()
     if ( (this->m_color == GREEN) || (this->m_color == BLACK) ) {
         // Only recolor if object is GREEN or BLACK.
         // Ignore if already RED or BLUE.
-        this->recolor( RED        );
+        this->recolor( RED );
         for ( EdgeMap::iterator p = this->m_fields.begin();
               p != this->m_fields.end();
               p++ ) {
@@ -344,11 +368,14 @@ void Object::recolor( Color newColor )
 void Object::decrementRefCountReal( unsigned int cur_time, Method *method )
 {
     this->decrementRefCount();
+    this->m_lastMethodDecRC = method;
     if (this->m_refCount == 0) {
         // TODO Should we even bother with this check?
         //      Maybe just set it to true.
         if (!m_decToZero) {
             m_decToZero = true;
+            m_methodRCtoZero = method;
+            this->g_counter++;
         }
         // -- Visit all edges
         this->recolor(GREEN);
@@ -361,6 +388,10 @@ void Object::decrementRefCountReal( unsigned int cur_time, Method *method )
                 this->updateField( NULL, fieldId, cur_time, method );
             }
         }
+        // DEBUG
+        // if (Object::g_counter % 1000 == 1) {
+        // cout << ".";
+        // }
     } else {
         Color color = this->getColor();
         if (color != BLACK) {
@@ -375,6 +406,8 @@ void Object::incrementRefCountReal()
 {
     if ((this->m_refCount == 0) && this->m_decToZero) {
         this->m_incFromZero = true;
+        this->m_methodRCtoZero = NULL;
+        cout << "X";
     }
     this->incrementRefCount();
     // TODO

@@ -205,6 +205,9 @@ unsigned int read_trace_file(FILE* f)
                                                          target, Exec.Now() );
                         if (thread) {
                             Method *topMethod = thread->TopMethod();
+                            if (topMethod) {
+                                topMethod->getName();
+                            }
                             obj->updateField( new_edge, field_id, Exec.Now(), topMethod );
                             // NOTE: topMethod COULD be NULL here.
                         }
@@ -476,14 +479,15 @@ int main(int argc, char* argv[])
           ++it ) {
         Method *meth = it->first;
         set<string> *types = it->second;
-        assert(meth);
-        dsite_file << meth->getName() << "," << types->size();
-        for ( set<string>::iterator sit = types->begin();
-              sit != types->end();
-              ++sit ) {
-            dsite_file << "," << *sit;
+        if (meth && types) {
+            dsite_file << meth->getName() << "," << types->size();
+            for ( set<string>::iterator sit = types->begin();
+                  sit != types->end();
+                  ++sit ) {
+                dsite_file << "," << *sit;
+            }
+            dsite_file << endl;
         }
-        dsite_file << endl;
     }
     dsite_file << "---------------[ DEATH SITES INFO END ]--------------------------------------------" << endl;
     dsite_file.close();
