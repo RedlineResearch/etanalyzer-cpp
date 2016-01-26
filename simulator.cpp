@@ -208,7 +208,7 @@ unsigned int read_trace_file(FILE* f)
                             if (topMethod) {
                                 topMethod->getName();
                             }
-                            obj->updateField( new_edge, field_id, Exec.Now(), topMethod );
+                            obj->updateField( new_edge, field_id, Exec.Now(), topMethod, HEAP );
                             // NOTE: topMethod COULD be NULL here.
                         }
                         // DEBUG ONLY IF NEEDED
@@ -233,18 +233,32 @@ unsigned int read_trace_file(FILE* f)
                         if (thread && thread->isLocalVariable(obj)) {
                             obj->setDiedByStackFlag();
                         } else {
+                            // TODO THIS IS PROBABLY WRONG
+                            // TODO TODO
                             obj->setDiedByHeapFlag();
                         }
                         obj->makeDead(Exec.Now());
                         // Get the current method
+                        Method *topMethod = NULL;
                         if (thread) {
-                            Method *topMethod = thread->TopMethod();
+                            topMethod = thread->TopMethod();
                             if (topMethod) {
                                 // cout << "XX[" << obj->getType() << "] in " << topMethod->info() << endl;
                                 obj->setDeathSite(topMethod);
                             } // else {
                             //     cout << "  Z: stack empty." << endl;
                             // }
+                        }
+                        if (obj->getDiedByStackFlag()) {
+                            for ( EdgeMap::iterator p = obj->getEdgeMapBegin();
+                                  p != obj->getEdgeMapEnd();
+                                  ++p ) {
+                                Edge* target_edge = p->second;
+                                if (target_edge) {
+                                    unsigned int fieldId = target_edge->getSourceField();
+                                    obj->updateField( NULL, fieldId, Exec.Now(), topMethod, STACK );
+                                }
+                            }
                         }
                     } else {
                         // We couldn't find the object in the Heap, so use the flags.

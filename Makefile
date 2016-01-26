@@ -1,5 +1,5 @@
 
-FLAGS=-O2 -std=c++11
+FLAGS=-O2 -std=c++11 -g -Werror
 
 simulator: simulator.o execution.o heap.o classinfo.o tokenizer.o analyze.o
 	g++ $(FLAGS) -o simulator simulator.o execution.o heap.o classinfo.o tokenizer.o analyze.o

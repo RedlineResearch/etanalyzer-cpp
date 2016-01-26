@@ -120,6 +120,12 @@ enum Color {
     GREEN = 5,
 };
 
+enum Reason {
+    STACK = 1,
+    HEAP = 2,
+    UNKNOWN = 99,
+};
+
 class Object
 {
     private:
@@ -152,6 +158,8 @@ class Object
         bool m_diedByHeap;
         // Did this object die by loss of stack reference?
         bool m_diedByStack;
+        // Reason for death
+        Reason m_reason;
         // Method where this object died
         Method *m_methodDeathSite;
         // Last method to decrement reference count
@@ -196,9 +204,11 @@ class Object
             , m_was_root(false)
             , m_diedByHeap(false)
             , m_diedByStack(false)
+            , m_reason(UNKNOWN)
             , m_last_update_null(indeterminate)
             , m_methodDeathSite(0)
             , m_methodRCtoZero(NULL)
+            , m_lastMethodDecRC(NULL)
             , m_decToZero(indeterminate)
             , m_incFromZero(indeterminate) {
         }
@@ -219,9 +229,10 @@ class Object
         bool wasRoot() { return m_was_root; }
         void setRootFlag() { m_was_root = true; }
         bool getDiedByStackFlag() { return m_diedByStack; }
-        void setDiedByStackFlag() { m_diedByStack = true; }
+        void setDiedByStackFlag() { m_diedByStack = true; m_reason = STACK; }
         bool getDiedByHeapFlag() { return m_diedByHeap; }
-        void setDiedByHeapFlag() { m_diedByHeap = true; }
+        void setDiedByHeapFlag() { m_diedByHeap = true; m_reason = HEAP; }
+        Reason getReason() { return m_reason; }
         // Returns whether last update to this object was NULL.
         // If indeterminate, then there have been no updates
         tribool wasLastUpdateNull() { return m_last_update_null; }
@@ -249,7 +260,7 @@ class Object
         void incrementRefCount() { m_refCount++; }
         void decrementRefCount() { m_refCount--; }
         void incrementRefCountReal();
-        void decrementRefCountReal(unsigned int cur_time, Method *method);
+        void decrementRefCountReal(unsigned int cur_time, Method *method, Reason r);
         // -- Access the fields
         const EdgeMap& getFields() const { return m_fields; }
         // -- Get a string representation
@@ -260,7 +271,8 @@ class Object
         void updateField( Edge* edge,
                           unsigned int fieldId,
                           unsigned int cur_time,
-                          Method *method );
+                          Method *method,
+                          Reason reason );
         // -- Record death time
         void makeDead(unsigned int death_time);
         // -- Set the color

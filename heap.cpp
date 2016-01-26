@@ -104,15 +104,16 @@ void HeapState::end_of_program(unsigned int cur_time)
                     cout << "?";
                     // TODO: No dsite here yet
                     // TODO TODO TODO
+                    // This probably should be the garbage cycles. Question is 
+                    // where should we get this?
                 }
                 tmpcount++;
             }
         } else {
-            // Died by stack
-            assert(obj->getDiedByStackFlag());
+            // Died by stack flag. Look for last heap activity.
             cout << "^";
             tmpcount++;
-            // Died by stack flag. Look for last heap activity.
+            dsite = obj->getLastMethodDecRC();
         }
         if (dsite) {
             DeathSitesMap::iterator it = this->m_death_sites_map.find(dsite);
@@ -123,7 +124,8 @@ void HeapState::end_of_program(unsigned int cur_time)
         } else if (obj->getDiedByHeapFlag()) {
             // We couldn't find a deathsite for something that died by heap.
             // TODO ?????? TODO
-            cout << "<" << endl;
+        } else {
+            assert(obj->getDiedByStackFlag());
         }
         if (tmpcount % 79 == 0) {
             cout << endl;
@@ -199,7 +201,8 @@ string Object::info() {
 void Object::updateField( Edge* edge,
                           unsigned int fieldId,
                           unsigned int cur_time,
-                          Method *method )
+                          Method *method,
+                          Reason reason )
 {
     EdgeMap::iterator p = this->m_fields.find(fieldId);
     if (p != this->m_fields.end()) {
@@ -209,7 +212,7 @@ void Object::updateField( Edge* edge,
             // -- Now we know the end time
             Object* old_target = old_edge->getTarget();
             if (old_target) {
-                old_target->decrementRefCountReal(cur_time, method);
+                old_target->decrementRefCountReal(cur_time, method, reason);
             } 
             old_edge->setEndTime(cur_time);
         }
@@ -375,7 +378,7 @@ void Object::recolor( Color newColor )
     this->m_color = newColor;
 }
 
-void Object::decrementRefCountReal( unsigned int cur_time, Method *method )
+void Object::decrementRefCountReal( unsigned int cur_time, Method *method, Reason reason )
 {
     this->decrementRefCount();
     this->m_lastMethodDecRC = method;
@@ -395,7 +398,7 @@ void Object::decrementRefCountReal( unsigned int cur_time, Method *method )
             Edge* target_edge = p->second;
             if (target_edge) {
                 unsigned int fieldId = target_edge->getSourceField();
-                this->updateField( NULL, fieldId, cur_time, method );
+                this->updateField( NULL, fieldId, cur_time, method, reason );
             }
         }
         // DEBUG
