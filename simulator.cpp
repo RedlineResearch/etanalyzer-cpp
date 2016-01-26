@@ -135,6 +135,9 @@ unsigned int read_trace_file(FILE* f)
 
     // -- Allocation time
     unsigned int AllocationTime = 0;
+    // -- Last event seen
+    LastEvent last_event = LastEvent::UNKNOWN_EVENT;
+    Object *last_object = NULL;
 
     while ( ! tokenizer.isDone()) {
         tokenizer.getLine();
@@ -188,6 +191,8 @@ unsigned int read_trace_file(FILE* f)
                     Object *oldObj = Heap.get(oldTgtId);
                     obj = Heap.get(objId);
                     target = Heap.get(tgtId);
+                    last_object = obj;
+                    last_event = LastEvent::UPDATE;
                     if (obj) {
                         obj->setPointedAtByHeap();
                     }
@@ -260,6 +265,9 @@ unsigned int read_trace_file(FILE* f)
                                 }
                             }
                         }
+                        // Set last event and object fields
+                        obj->setLastEvent( last_event );
+                        obj->setLastObject( last_object );
                     } else {
                         // We couldn't find the object in the Heap, so use the flags.
                         if (obj->wasPointedAtByHeap()) {
@@ -321,6 +329,8 @@ unsigned int read_trace_file(FILE* f)
                         }
                     }
                     root_set.insert(objId);
+                    last_event = LastEvent::ROOT;
+                    last_object = object;
                 }
                 break;
 

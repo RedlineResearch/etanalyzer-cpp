@@ -90,7 +90,7 @@ void HeapState::end_of_program(unsigned int cur_time)
         // Save method death site to map
         Method *dsite = obj->getDeathSite();
         if (obj->getDiedByHeapFlag()) {
-            // Died by heap
+            // DIED BY HEAP
             if (dsite) {
                 cout << "-";
                 tmpcount++;
@@ -101,7 +101,6 @@ void HeapState::end_of_program(unsigned int cur_time)
                     // to look for the a site that decremented to 0.
                     dsite = obj->getMethodDecToZero();
                 } else {
-                    cout << "?";
                     // TODO: No dsite here yet
                     // TODO TODO TODO
                     // This probably should be the garbage cycles. Question is 
@@ -110,7 +109,8 @@ void HeapState::end_of_program(unsigned int cur_time)
                 tmpcount++;
             }
         } else {
-            // Died by stack flag. Look for last heap activity.
+            // DIED BY STACK.
+            //   Look for last heap activity.
             cout << "^";
             tmpcount++;
             dsite = obj->getLastMethodDecRC();
@@ -124,6 +124,7 @@ void HeapState::end_of_program(unsigned int cur_time)
         } else if (obj->getDiedByHeapFlag()) {
             // We couldn't find a deathsite for something that died by heap.
             // TODO ?????? TODO
+            cout << "?";
         } else {
             assert(obj->getDiedByStackFlag());
         }
@@ -210,7 +211,7 @@ void Object::updateField( Edge* edge,
         Edge* old_edge = p->second;
         if (old_edge) {
             // -- Now we know the end time
-            Object* old_target = old_edge->getTarget();
+            Object *old_target = old_edge->getTarget();
             if (old_target) {
                 old_target->decrementRefCountReal(cur_time, method, reason);
             } 

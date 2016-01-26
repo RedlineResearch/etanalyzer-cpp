@@ -19,6 +19,18 @@ class Object;
 class Thread;
 class Edge;
 
+enum Reason {
+    STACK = 1,
+    HEAP = 2,
+    UNKNOWN_REASON = 99,
+};
+
+enum LastEvent {
+    ROOT = 1,
+    UPDATE = 2,
+    UNKNOWN_EVENT = 99,
+};
+
 typedef map<unsigned int, Object *> ObjectMap;
 typedef map<unsigned int, Edge *> EdgeMap;
 typedef set<Object *> ObjectSet;
@@ -120,12 +132,6 @@ enum Color {
     GREEN = 5,
 };
 
-enum Reason {
-    STACK = 1,
-    HEAP = 2,
-    UNKNOWN = 99,
-};
-
 class Object
 {
     private:
@@ -181,6 +187,9 @@ class Object
         //     false - decremented to zero
         //     true - decremented to zero, then incremented to positive
         tribool m_incFromZero;
+        // METHOD 2: Use Elephant Track events instead
+        LastEvent m_last_event;
+        Object *m_last_object;
 
     public:
         Object( unsigned int id, unsigned int size,
@@ -204,13 +213,15 @@ class Object
             , m_was_root(false)
             , m_diedByHeap(false)
             , m_diedByStack(false)
-            , m_reason(UNKNOWN)
+            , m_reason(UNKNOWN_REASON)
             , m_last_update_null(indeterminate)
             , m_methodDeathSite(0)
             , m_methodRCtoZero(NULL)
             , m_lastMethodDecRC(NULL)
             , m_decToZero(indeterminate)
-            , m_incFromZero(indeterminate) {
+            , m_incFromZero(indeterminate)
+            , m_last_event(LastEvent::UNKNOWN_EVENT)
+            , m_last_object(NULL) {
         }
 
         // -- Getters
@@ -254,6 +265,12 @@ class Object
         // decrementRefCountReal
         tribool wasDecrementedToZero() { return m_decToZero; }
         tribool wasIncrementedFromZero() { return m_incFromZero; }
+        // Set and get last event
+        void setLastEvent( LastEvent le ) { m_last_event = le; }
+        LastEvent getLastEvent() { return m_last_event; }
+        // Set and get last Object 
+        void setLastObject( Object *obj ) { m_last_object = obj; }
+        Object * getLastObject() { return m_last_object; }
 
         // -- Ref counting
         unsigned int getRefCount() const { return m_refCount; }
