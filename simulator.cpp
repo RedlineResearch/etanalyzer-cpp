@@ -235,11 +235,12 @@ unsigned int read_trace_file(FILE* f)
                     if (obj) {
                         unsigned int threadId = tokenizer.getInt(2);
                         Thread *thread = Exec.getThread(threadId);
-                        if (thread && thread->isLocalVariable(obj)) {
+                        // Set last event and object fields
+                        obj->setLastEvent( last_event );
+                        obj->setLastObject( last_object );
+                        if (last_event == LastEvent::ROOT) {
                             obj->setDiedByStackFlag();
-                        } else {
-                            // TODO THIS IS PROBABLY WRONG
-                            // TODO TODO
+                        } else if (last_event == LastEvent::UPDATE) {
                             obj->setDiedByHeapFlag();
                         }
                         obj->makeDead(Exec.Now());
@@ -248,11 +249,8 @@ unsigned int read_trace_file(FILE* f)
                         if (thread) {
                             topMethod = thread->TopMethod();
                             if (topMethod) {
-                                // cout << "XX[" << obj->getType() << "] in " << topMethod->info() << endl;
                                 obj->setDeathSite(topMethod);
-                            } // else {
-                            //     cout << "  Z: stack empty." << endl;
-                            // }
+                            } 
                         }
                         if (obj->getDiedByStackFlag()) {
                             for ( EdgeMap::iterator p = obj->getEdgeMapBegin();
@@ -265,16 +263,8 @@ unsigned int read_trace_file(FILE* f)
                                 }
                             }
                         }
-                        // Set last event and object fields
-                        obj->setLastEvent( last_event );
-                        obj->setLastObject( last_object );
                     } else {
-                        // We couldn't find the object in the Heap, so use the flags.
-                        if (obj->wasPointedAtByHeap()) {
-                            obj->setDiedByHeapFlag();
-                        } else {
-                            obj->setDiedByStackFlag();
-                        }
+                        assert(false);
                     }
                 }
                 break;
@@ -487,11 +477,12 @@ int main(int argc, char* argv[])
     summary_file << "---------------[ SUMMARY INFO ]----------------------------------------------------" << endl;
     summary_file << "number_of_objects," << Heap.size() << endl
                  << "number_of_edges," << Heap.numberEdges() << endl
-                 << "died_by_stack," << Heap.getTotalDiedByStack() << endl
+                 << "died_by_stack," << Heap.getTotalDiedByStack2() << endl
+                 << "died_by_heap," << Heap.getTotalDiedByHeap2() << endl
+                 << "died_unknown," << Heap.getTotalDiedUnknown() << endl
+                 << "last_update_null," << Heap.getTotalLastUpdateNull() << endl
                  << "died_by_stack_only," << Heap.getDiedByStackOnly() << endl
                  << "died_by_stack_after_heap," << Heap.getDiedByStackAfterHeap() << endl
-                 << "died_by_heap," << Heap.getTotalDiedByHeap() << endl
-                 << "last_update_null," << Heap.getTotalLastUpdateNull() << endl
                  << "final_time," << final_time << endl;
     summary_file << "---------------[ SUMMARY INFO END ]------------------------------------------------" << endl;
     summary_file.close();

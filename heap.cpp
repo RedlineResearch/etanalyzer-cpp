@@ -66,24 +66,20 @@ void HeapState::end_of_program(unsigned int cur_time)
             obj->makeDead(cur_time);
         }
         // Do the count of heap vs stack loss here. TODO
-        if (obj->getDiedByStackFlag()) {
-            this->m_totalDiedByStack++;
+        // VERSION 2
+        if (obj->getLastEvent() == LastEvent::ROOT) {
+            this->m_totalDiedByStack_ver2++;
             if (obj->wasPointedAtByHeap()) {
                 this->m_diedByStackAfterHeap++;
             } else {
                 this->m_diedByStackOnly++;
             }
+        } else if (obj->getLastEvent() == LastEvent::UPDATE) {
+            this->m_totalDiedByHeap_ver2++;
         } else {
-            // Setting the flag may not be necessary, but it may be useful
-            // if code is written in the future that runs after
-            // 'end_of_program' and depends on the flags being set.
-            if (!obj->getDiedByHeapFlag()) {
-                obj->setDiedByHeapFlag();
-            }
-            this->m_totalDiedByHeap++;
-            // TODO: Is this interesting?
-            //       if (obj->wasRoot()) { this->(); }
+            this->m_totalDiedUnknown_ver2++;
         }
+        // END VERSION 2
         if (obj->wasLastUpdateNull()) {
             this->m_totalUpdateNull++;
         }

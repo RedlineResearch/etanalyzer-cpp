@@ -65,10 +65,12 @@ class HeapState
         // Map from IDs to bool if possible cyle root
         map<unsigned int, bool> m_candidate_map;
 
-        // Total number of objects that died by loss of heap reference
-        unsigned int m_totalDiedByHeap;
-        // Total number of objects that died by stack frame going out of scope
-        unsigned int m_totalDiedByStack;
+        // Total number of objects that died by loss of heap reference version 2
+        unsigned int m_totalDiedByHeap_ver2;
+        // Total number of objects that died by stack frame going out of scope version 2
+        unsigned int m_totalDiedByStack_ver2;
+        // Total number of objects unknown using version 2 method
+        unsigned int m_totalDiedUnknown_ver2;
         // Total number of objects whose last update away from the object
         // was null
         unsigned int m_totalUpdateNull;
@@ -83,7 +85,14 @@ class HeapState
     public:
         HeapState()
             : m_objects()
-            , m_candidate_map() {
+            , m_candidate_map()
+            , m_death_sites_map()
+            , m_totalDiedByHeap_ver2(0)
+            , m_totalDiedByStack_ver2(0)
+            , m_totalDiedUnknown_ver2(0)
+            , m_totalUpdateNull(0)
+            , m_diedByStackAfterHeap(0)
+            , m_diedByStackOnly(0) {
         }
 
         Object* allocate( unsigned int id,
@@ -102,8 +111,9 @@ class HeapState
         ObjectMap::iterator begin() { return m_objects.begin(); }
         ObjectMap::iterator end() { return m_objects.end(); }
         unsigned int size() const { return m_objects.size(); }
-        unsigned int getTotalDiedByStack() { return m_totalDiedByStack; }
-        unsigned int getTotalDiedByHeap() { return m_totalDiedByHeap; }
+        unsigned int getTotalDiedByStack2() { return m_totalDiedByStack_ver2; }
+        unsigned int getTotalDiedByHeap2() { return m_totalDiedByHeap_ver2; }
+        unsigned int getTotalDiedUnknown() { return m_totalDiedUnknown_ver2; }
         unsigned int getTotalLastUpdateNull() { return m_totalUpdateNull; }
         unsigned int getDiedByStackAfterHeap() { return m_diedByStackAfterHeap; }
         unsigned int getDiedByStackOnly() { return m_diedByStackOnly; }
