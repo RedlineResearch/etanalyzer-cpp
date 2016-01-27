@@ -69,15 +69,19 @@ void HeapState::end_of_program(unsigned int cur_time)
         // VERSION 2
         if (obj->getLastEvent() == LastEvent::ROOT) {
             this->m_totalDiedByStack_ver2++;
+            obj->setDiedByStackFlag();
             if (obj->wasPointedAtByHeap()) {
                 this->m_diedByStackAfterHeap++;
             } else {
                 this->m_diedByStackOnly++;
             }
-        } else if (obj->getLastEvent() == LastEvent::UPDATE) {
-            this->m_totalDiedByHeap_ver2++;
         } else {
-            this->m_totalDiedUnknown_ver2++;
+            if (obj->getLastEvent() == LastEvent::UPDATE) {
+                this->m_totalDiedByHeap_ver2++;
+                obj->setDiedByHeapFlag();
+            } else {
+                this->m_totalDiedUnknown_ver2++;
+            }
         }
         // END VERSION 2
         if (obj->wasLastUpdateNull()) {
@@ -120,9 +124,7 @@ void HeapState::end_of_program(unsigned int cur_time)
         } else if (obj->getDiedByHeapFlag()) {
             // We couldn't find a deathsite for something that died by heap.
             // TODO ?????? TODO
-            cout << "h";
         } else if (obj->getDiedByStackFlag()) {
-            cout << "s";
         } else {
             cout << "U";
         }
