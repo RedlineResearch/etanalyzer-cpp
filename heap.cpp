@@ -64,6 +64,7 @@ void HeapState::end_of_program(unsigned int cur_time)
         Object* obj = i->second;
         if (obj->isLive(cur_time)) {
             obj->makeDead(cur_time);
+            obj->setLastEvent( LastEvent::ROOT );
         }
         // Do the count of heap vs stack loss here. TODO
         // VERSION 2
@@ -100,13 +101,13 @@ void HeapState::end_of_program(unsigned int cur_time)
                     // So died by heap but no saved death site. First alternative is
                     // to look for the a site that decremented to 0.
                     dsite = obj->getMethodDecToZero();
+                    tmpcount++;
                 } else {
                     // TODO: No dsite here yet
                     // TODO TODO TODO
                     // This probably should be the garbage cycles. Question is 
                     // where should we get this?
                 }
-                tmpcount++;
             }
         } else {
             if (obj->getDiedByStackFlag()) {
@@ -131,6 +132,7 @@ void HeapState::end_of_program(unsigned int cur_time)
                 //
             } else {
                 cout << "U";
+                    tmpcount++;
             }
         }
         if (tmpcount % 79 == 0) {
