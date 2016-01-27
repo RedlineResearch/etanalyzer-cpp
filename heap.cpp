@@ -120,9 +120,11 @@ void HeapState::end_of_program(unsigned int cur_time)
         } else if (obj->getDiedByHeapFlag()) {
             // We couldn't find a deathsite for something that died by heap.
             // TODO ?????? TODO
-            cout << "?";
+            cout << "h";
+        } else if (obj->getDiedByStackFlag()) {
+            cout << "s";
         } else {
-            assert(obj->getDiedByStackFlag());
+            cout << "U";
         }
         if (tmpcount % 79 == 0) {
             cout << endl;
