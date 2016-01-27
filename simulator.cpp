@@ -7,6 +7,7 @@
 #include <vector>
 #include <deque>
 #include <string>
+#include <utility>
 
 using namespace std;
 
@@ -15,7 +16,10 @@ using namespace std;
 #include "execution.h"
 #include "heap.h"
 #include "refstate.h"
+#include "lastmap.h"
 
+// ----------------------------------------------------------------------
+// Types
 class Object;
 class CCNode;
 
@@ -30,6 +34,10 @@ ExecState Exec(2); // Method-only context
 
 // -- Turn on debugging
 bool debug = false;
+
+// -- Remember the last event by thread ID
+// TODO: Types for object and thread IDs?
+LastMap last_map;
 
 // ----------------------------------------------------------------------
 //   Analysis
@@ -135,10 +143,6 @@ unsigned int read_trace_file(FILE* f)
 
     // -- Allocation time
     unsigned int AllocationTime = 0;
-    // -- Last event seen
-    LastEvent last_event = LastEvent::UNKNOWN_EVENT;
-    Object *last_object = NULL;
-
     while ( ! tokenizer.isDone()) {
         tokenizer.getLine();
         if (tokenizer.isDone()) {
@@ -191,8 +195,7 @@ unsigned int read_trace_file(FILE* f)
                     Object *oldObj = Heap.get(oldTgtId);
                     obj = Heap.get(objId);
                     target = Heap.get(tgtId);
-                    last_object = obj;
-                    last_event = LastEvent::UPDATE;
+                    last_map.setLast( threadId, LastEvent::UPDATE, obj );
                     if (obj) {
                         obj->setPointedAtByHeap();
                     }
@@ -235,7 +238,11 @@ unsigned int read_trace_file(FILE* f)
                     if (obj) {
                         unsigned int threadId = tokenizer.getInt(2);
                         Thread *thread = Exec.getThread(threadId);
-                        // Set last event and object fields
+                        // Get last event and object from last_map
+                        pair<LastEvent, Object *> last_pair = last_map.getLastEventAndObject( threadId );
+                        LastEvent last_event = last_pair.first;
+                        Object *last_object = last_pair.second;
+                        // Set the object fields
                         obj->setLastEvent( last_event );
                         obj->setLastObject( last_object );
                         if (last_event == LastEvent::ROOT) {
@@ -319,8 +326,7 @@ unsigned int read_trace_file(FILE* f)
                         }
                     }
                     root_set.insert(objId);
-                    last_event = LastEvent::ROOT;
-                    last_object = object;
+                    last_map.setLast( threadId, LastEvent::ROOT, object );
                 }
                 break;
 
