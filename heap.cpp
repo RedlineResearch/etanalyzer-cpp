@@ -109,11 +109,13 @@ void HeapState::end_of_program(unsigned int cur_time)
                 tmpcount++;
             }
         } else {
-            // DIED BY STACK.
-            //   Look for last heap activity.
-            cout << "^";
-            tmpcount++;
-            dsite = obj->getLastMethodDecRC();
+            if (obj->getDiedByStackFlag()) {
+                // DIED BY STACK.
+                //   Look for last heap activity.
+                cout << "^";
+                tmpcount++;
+                dsite = obj->getLastMethodDecRC();
+            }
         }
         if (dsite) {
             DeathSitesMap::iterator it = this->m_death_sites_map.find(dsite);
@@ -121,12 +123,15 @@ void HeapState::end_of_program(unsigned int cur_time)
                 this->m_death_sites_map[dsite] = new set<string>; 
             }
             this->m_death_sites_map[dsite]->insert(obj->getType());
-        } else if (obj->getDiedByHeapFlag()) {
-            // We couldn't find a deathsite for something that died by heap.
-            // TODO ?????? TODO
-        } else if (obj->getDiedByStackFlag()) {
         } else {
-            cout << "U";
+            if (obj->getDiedByHeapFlag()) {
+                // We couldn't find a deathsite for something that died by heap.
+                // TODO ?????? TODO
+            } else if (obj->getDiedByStackFlag()) {
+                //
+            } else {
+                cout << "U";
+            }
         }
         if (tmpcount % 79 == 0) {
             cout << endl;
