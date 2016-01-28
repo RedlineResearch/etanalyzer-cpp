@@ -854,6 +854,10 @@ def main_process( output = None,
             number_of_edges = summary_sim["number_of_edges"]
             died_by_stack = summary_sim["died_by_stack"]
             died_by_heap = summary_sim["died_by_heap"]
+            died_unknown = summary_sim["died_unknown"]
+            died_by_stack_after_heap = summary_sim["died_by_stack_after_heap"]
+            died_by_stack_only = summary_sim["died_by_stack_only"]
+            last_update_null = summary_sim["last_update_null"]
             final_time = summary_sim["final_time"]
             selfloops = set()
             edgedict = create_edge_dictionary( edges, selfloops )
@@ -1026,17 +1030,19 @@ def main_process( output = None,
     #       This should be done in the loop so to cut down on duplicate work.
     print "===========[ TYPES ]=================================================="
     benchmarks = summary.keys()
+    pp.pprint(benchmarks)
+    # TODO
     print "---------------[ Common to ALL ]--------------------------------------"
-    common_all = set.intersection( *[ set(summary[b]["types"].keys()) for b in benchmarks ] )
-    common_all = [ rev_typedict[x] for x in common_all ]
-    pp.pprint( common_all )
-    print "---------------[ Counter over all benchmarks ]------------------------"
-    g_types = Counter()
-    for bmark, bdict in summary.iteritems():
-        g_types.update( bdict["types"] )
-    for key, value in g_types.iteritems():
-        print "%s: %d" % (rev_typedict[key], value)
-    print "Number of types - global: %d" % len(g_types)
+    # common_all = set.intersection( *[ set(summary[b]["types"].keys()) for b in benchmarks ] )
+    # common_all = [ rev_typedict[x] for x in common_all ]
+    # pp.pprint( common_all )
+    # print "---------------[ Counter over all benchmarks ]------------------------"
+    # g_types = Counter()
+    # for bmark, bdict in summary.iteritems():
+    #     g_types.update( bdict["types"] )
+    # for key, value in g_types.iteritems():
+    #     print "%s: %d" % (rev_typedict[key], value)
+    # print "Number of types - global: %d" % len(g_types)
     print "===========[ DONE ]==================================================="
     exit(1000)
 
