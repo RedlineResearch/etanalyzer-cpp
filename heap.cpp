@@ -76,10 +76,13 @@ void HeapState::end_of_program(unsigned int cur_time)
             } else {
                 this->m_diedByStackOnly++;
             }
-        } else if (obj->getDiedByHeapFlag() || (obj->getReason() == HEAP)) {
+        } else if ( obj->getDiedByHeapFlag() ||
+                    (obj->getReason() == HEAP) ||
+                    (obj->getLastEvent() == LastEvent::UPDATE) ) {
             this->m_totalDiedByHeap_ver2++;
             obj->setDiedByHeapFlag();
-        } else if (obj->getReason() == STACK) {
+        } else if ( (obj->getReason() == STACK) ||
+                    (obj->getLastEvent() == LastEvent::ROOT) ) {
             this->m_totalDiedByStack_ver2++;
             if (obj->wasPointedAtByHeap()) {
                 this->m_diedByStackAfterHeap++;
@@ -446,6 +449,11 @@ void Object::decrementRefCountReal( unsigned int cur_time, Method *method, Reaso
 {
     this->decrementRefCount();
     this->m_lastMethodDecRC = method;
+    if (reason == STACK) {
+        this->setLastEvent( LastEvent::ROOT );
+    } else if (reason == HEAP) {
+        this->setLastEvent( LastEvent::UPDATE);
+    }
     if (this->m_refCount == 0) {
         // TODO Should we even bother with this check?
         //      Maybe just set it to true.
