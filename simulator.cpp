@@ -16,7 +16,7 @@ using namespace std;
 #include "execution.h"
 #include "heap.h"
 #include "refstate.h"
-#include "lastmap.h"
+// #include "lastmap.h"
 
 // ----------------------------------------------------------------------
 // Types
@@ -37,7 +37,7 @@ bool debug = false;
 
 // -- Remember the last event by thread ID
 // TODO: Types for object and thread IDs?
-LastMap last_map;
+// TODO LastMap last_map;
 
 // ----------------------------------------------------------------------
 //   Analysis
@@ -195,7 +195,7 @@ unsigned int read_trace_file(FILE* f)
                     Object *oldObj = Heap.get(oldTgtId);
                     obj = Heap.get(objId);
                     target = Heap.get(tgtId);
-                    last_map.setLast( threadId, LastEvent::UPDATE, obj );
+                    // TODO last_map.setLast( threadId, LastEvent::UPDATE, obj );
                     if (obj) {
                         obj->setPointedAtByHeap();
                     }
@@ -238,18 +238,18 @@ unsigned int read_trace_file(FILE* f)
                     if (obj) {
                         unsigned int threadId = tokenizer.getInt(2);
                         Thread *thread = Exec.getThread(threadId);
-                        // Get last event and object from last_map
-                        pair<LastEvent, Object *> last_pair = last_map.getLastEventAndObject( threadId );
-                        LastEvent last_event = last_pair.first;
-                        Object *last_object = last_pair.second;
-                        // Set the object fields
-                        obj->setLastEvent( last_event );
-                        obj->setLastObject( last_object );
-                        if (last_event == LastEvent::ROOT) {
-                            obj->setDiedByStackFlag();
-                        } else if (last_event == LastEvent::UPDATE) {
-                            obj->setDiedByHeapFlag();
-                        }
+                        // TODO // Get last event and object from last_map
+                        // TODO pair<LastEvent, Object *> last_pair = last_map.getLastEventAndObject( threadId );
+                        // TODO LastEvent last_event = last_pair.first;
+                        // TODO Object *last_object = last_pair.second;
+                        // TODO // Set the object fields
+                        // TODO obj->setLastEvent( last_event );
+                        // TODO obj->setLastObject( last_object );
+                        // TODO if (last_event == LastEvent::ROOT) {
+                        // TODO     obj->setDiedByStackFlag();
+                        // TODO } else if (last_event == LastEvent::UPDATE) {
+                        // TODO     obj->setDiedByHeapFlag();
+                        // TODO }
                         obj->makeDead(Exec.Now());
                         // Get the current method
                         Method *topMethod = NULL;
@@ -290,6 +290,7 @@ unsigned int read_trace_file(FILE* f)
                 break;
 
             case 'E':
+            case 'X':
                 {
                     // E <methodid> <receiver> [<exceptionobj>] <threadid>
                     // 0      1         2             3             3/4
@@ -326,7 +327,7 @@ unsigned int read_trace_file(FILE* f)
                         }
                     }
                     root_set.insert(objId);
-                    last_map.setLast( threadId, LastEvent::ROOT, object );
+                    // TODO last_map.setLast( threadId, LastEvent::ROOT, object );
                 }
                 break;
 

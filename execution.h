@@ -76,6 +76,10 @@ typedef deque<Method *> MethodDeque;
 typedef set<Object *> LocalVarSet;
 typedef deque<LocalVarSet *> LocalVarDeque;
 
+// TODO typedef unsigned int threadId_t;
+// TODO typedef deque< pair<LastEvent, Object*> > LastEventDeque_t;
+// TODO typedef map<threadId_t, LastEventDeque_t> LastMap_t;
+
 class Thread
 {
     private:
@@ -91,6 +95,7 @@ class Thread
         LocalVarDeque m_locals;
         // -- Local stack variables that have root events and died this scope
         LocalVarDeque m_deadlocals;
+        // -- LastEvent
 
     public:
         Thread( unsigned int id, unsigned int kind )

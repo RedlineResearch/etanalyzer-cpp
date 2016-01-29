@@ -64,27 +64,45 @@ void HeapState::end_of_program(unsigned int cur_time)
         Object* obj = i->second;
         if (obj->isLive(cur_time)) {
             obj->makeDead(cur_time);
+            obj->setDiedByStackFlag();
             obj->setLastEvent( LastEvent::ROOT );
         }
         // Do the count of heap vs stack loss here. TODO
-        // VERSION 2
-        if (obj->getLastEvent() == LastEvent::ROOT) {
+        // VERSION 1
+        if (obj->getDiedByStackFlag()) {
             this->m_totalDiedByStack_ver2++;
-            obj->setDiedByStackFlag();
             if (obj->wasPointedAtByHeap()) {
                 this->m_diedByStackAfterHeap++;
             } else {
                 this->m_diedByStackOnly++;
             }
         } else {
-            if (obj->getLastEvent() == LastEvent::UPDATE) {
+            if (obj->getDiedByHeapFlag()) {
                 this->m_totalDiedByHeap_ver2++;
                 obj->setDiedByHeapFlag();
             } else {
                 this->m_totalDiedUnknown_ver2++;
             }
         }
-        // END VERSION 2
+        // END VERSION 1
+        // TODO // VERSION 2
+        // TODO if (obj->getLastEvent() == LastEvent::ROOT) {
+        // TODO     this->m_totalDiedByStack_ver2++;
+        // TODO     obj->setDiedByStackFlag();
+        // TODO     if (obj->wasPointedAtByHeap()) {
+        // TODO         this->m_diedByStackAfterHeap++;
+        // TODO     } else {
+        // TODO         this->m_diedByStackOnly++;
+        // TODO     }
+        // TODO } else {
+        // TODO     if (obj->getLastEvent() == LastEvent::UPDATE) {
+        // TODO         this->m_totalDiedByHeap_ver2++;
+        // TODO         obj->setDiedByHeapFlag();
+        // TODO     } else {
+        // TODO         this->m_totalDiedUnknown_ver2++;
+        // TODO     }
+        // TODO }
+        // TODO // END VERSION 2
         if (obj->wasLastUpdateNull()) {
             this->m_totalUpdateNull++;
         }
@@ -398,6 +416,7 @@ void Object::decrementRefCountReal( unsigned int cur_time, Method *method, Reaso
             m_methodRCtoZero = method;
             this->g_counter++;
         }
+        this->m_reason = reason;
         // -- Visit all edges
         this->recolor(GREEN);
         for ( EdgeMap::iterator p = this->m_fields.begin();
