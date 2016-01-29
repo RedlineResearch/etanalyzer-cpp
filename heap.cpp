@@ -416,7 +416,11 @@ void Object::decrementRefCountReal( unsigned int cur_time, Method *method, Reaso
             m_methodRCtoZero = method;
             this->g_counter++;
         }
-        this->m_reason = reason;
+        if (reason == STACK) {
+            this->setDiedByStackFlag();
+        } else {
+            this->setDiedByHeapFlag();
+        }
         // -- Visit all edges
         this->recolor(GREEN);
         for ( EdgeMap::iterator p = this->m_fields.begin();

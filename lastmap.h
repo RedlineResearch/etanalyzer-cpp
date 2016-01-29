@@ -1,13 +1,15 @@
 #ifndef LASTMAP_H
 #define LASTMAP_H
 
+#include <deque>
 #include <map>
 #include <utility>
 
 #include "heap.h"
 
-typedef map<unsigned int, pair<LastEvent, Object *>> _LastMap_t;
 typedef unsigned int threadId_t;
+typedef deque< pair<LastEvent, Object*> > _LastEventDeque;
+typedef map<threadId_t, LastEventDeque> _LastMap_t;
 
 // ----------------------------------------------------------------------
 //   Maps thread IDs to events and object pointers
