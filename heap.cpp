@@ -76,13 +76,18 @@ void HeapState::end_of_program(unsigned int cur_time)
             } else {
                 this->m_diedByStackOnly++;
             }
-        } else {
-            if (obj->getDiedByHeapFlag()) {
-                this->m_totalDiedByHeap_ver2++;
-                obj->setDiedByHeapFlag();
+        } else if (obj->getDiedByHeapFlag() || (obj->getReason() == HEAP)) {
+            this->m_totalDiedByHeap_ver2++;
+            obj->setDiedByHeapFlag();
+        } else if (obj->getReason() == STACK) {
+            this->m_totalDiedByStack_ver2++;
+            if (obj->wasPointedAtByHeap()) {
+                this->m_diedByStackAfterHeap++;
             } else {
-                this->m_totalDiedUnknown_ver2++;
+                this->m_diedByStackOnly++;
             }
+        } else {
+            this->m_totalDiedUnknown_ver2++;
         }
         // END VERSION 1
         // TODO // VERSION 2
