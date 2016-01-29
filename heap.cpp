@@ -271,6 +271,11 @@ void Object::updateField( Edge* edge,
             // -- Now we know the end time
             Object *old_target = old_edge->getTarget();
             if (old_target) {
+                if (reason == HEAP) {
+                    old_target->setHeapReason( cur_time );
+                } else if (reason == STACK) {
+                    old_target->setStackReason( cur_time );
+                }
                 old_target->decrementRefCountReal(cur_time, method, reason);
             } 
             old_edge->setEndTime(cur_time);
@@ -475,11 +480,6 @@ void Object::decrementRefCountReal( unsigned int cur_time, Method *method, Reaso
             unsigned int objId = this->getId();
             this->recolor( BLACK );
             this->m_heapptr->set_candidate(objId);
-        }
-        if (reason == HEAP) {
-            this->setHeapReason( cur_time );
-        } else {
-            this->setStackReason( cur_time );
         }
     }
 }

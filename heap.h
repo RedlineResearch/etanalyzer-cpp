@@ -252,7 +252,11 @@ class Object
         bool wasPointedAtByHeap() { return m_pointed_by_heap; }
         void setPointedAtByHeap() { m_pointed_by_heap = true; }
         bool wasRoot() { return m_was_root; }
-        void setRootFlag() { m_was_root = true; }
+        void setRootFlag( unsigned int t ) {
+            m_was_root = true;
+            m_reason = STACK;
+            m_last_action_time = t;
+        }
         bool getDiedByStackFlag() { return m_diedByStack; }
         void setDiedByStackFlag() { m_diedByStack = true; m_reason = STACK; }
         void setStackReason( unsigned int t ) { m_reason = STACK; m_last_action_time = t; }

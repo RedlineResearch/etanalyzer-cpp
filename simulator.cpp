@@ -320,7 +320,7 @@ unsigned int read_trace_file(FILE* f)
                     unsigned int threadId = tokenizer.getInt(2);
                     // cout << "objId: " << objId << "     threadId: " << threadId << endl;
                     if (object) {
-                        object->setRootFlag();
+                        object->setRootFlag(Exec.Now());
                         Thread *thread = Exec.getThread(threadId);
                         if (thread) {
                             thread->objectRoot(object);
