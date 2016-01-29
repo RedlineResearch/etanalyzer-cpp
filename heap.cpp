@@ -115,7 +115,7 @@ void HeapState::end_of_program(unsigned int cur_time)
                 tmpcount++;
             } else {
                 if (obj->wasDecrementedToZero()) {
-                    cout << "\\";
+                    cout << "o";
                     // So died by heap but no saved death site. First alternative is
                     // to look for the a site that decremented to 0.
                     dsite = obj->getMethodDecToZero();
@@ -150,7 +150,7 @@ void HeapState::end_of_program(unsigned int cur_time)
                 //
             } else {
                 cout << "U";
-                    tmpcount++;
+                tmpcount++;
             }
         }
         if (tmpcount % 79 == 0) {
@@ -182,6 +182,33 @@ void HeapState::analyze()
 }
 
 // TODO Documentation :)
+void HeapState::set_reason_for_cycles( deque< deque<int> >& cycles )
+{
+    for ( deque< deque<int> >::iterator it = cycles.begin();
+          it != cycles.end();
+          ++it ) {
+        Reason reason = UNKNOWN_REASON;
+        unsigned int last_action_time = 0;
+        for ( deque<int>::iterator objit = it->begin();
+              objit != it->end();
+              ++objit ) {
+            Object* object = this->get(*objit);
+            unsigned int objtime = object->getLastActionTime();
+            if (objtime > last_action_time) {
+                reason = object->getReason();
+                last_action_time = objtime;
+            }
+        }
+        for ( deque<int>::iterator objit = it->begin();
+              objit != it->end();
+              ++objit ) {
+            Object* object = this->get(*objit);
+            object->setReason( reason, last_action_time );
+        }
+    }
+}
+
+// TODO Documentation :)
 deque< deque<int> > HeapState::scan_queue( EdgeList& edgelist )
 {
     deque< deque<int> > result;
@@ -205,6 +232,7 @@ deque< deque<int> > HeapState::scan_queue( EdgeList& edgelist )
             }
         }
     }
+    this->set_reason_for_cycles( result );
     return result;
 }
 
@@ -442,6 +470,11 @@ void Object::decrementRefCountReal( unsigned int cur_time, Method *method, Reaso
             unsigned int objId = this->getId();
             this->recolor( BLACK );
             this->m_heapptr->set_candidate(objId);
+        }
+        if (reason == HEAP) {
+            this->setHeapReason( cur_time );
+        } else {
+            this->setStackReason( cur_time );
         }
     }
 }

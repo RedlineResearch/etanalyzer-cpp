@@ -132,6 +132,7 @@ class HeapState
         void process_queue();
         void analyze();
         deque< deque<int> > scan_queue( EdgeList& edgelist );
+        void set_reason_for_cycles( deque< deque<int> >& cycles );
 };
 
 enum Color {
@@ -176,6 +177,8 @@ class Object
         bool m_diedByStack;
         // Reason for death
         Reason m_reason;
+        // Time that m_reason happened
+        unsigned int m_last_action_time;
         // Method where this object died
         Method *m_methodDeathSite;
         // Last method to decrement reference count
@@ -224,6 +227,7 @@ class Object
             , m_diedByHeap(false)
             , m_diedByStack(false)
             , m_reason(UNKNOWN_REASON)
+            , m_last_action_time(0)
             , m_last_update_null(indeterminate)
             , m_methodDeathSite(0)
             , m_methodRCtoZero(NULL)
@@ -251,9 +255,13 @@ class Object
         void setRootFlag() { m_was_root = true; }
         bool getDiedByStackFlag() { return m_diedByStack; }
         void setDiedByStackFlag() { m_diedByStack = true; m_reason = STACK; }
+        void setStackReason( unsigned int t ) { m_reason = STACK; m_last_action_time = t; }
         bool getDiedByHeapFlag() { return m_diedByHeap; }
         void setDiedByHeapFlag() { m_diedByHeap = true; m_reason = HEAP; }
+        void setHeapReason( unsigned int t ) { m_reason = HEAP; m_last_action_time = t; }
+        Reason setReason( Reason r, unsigned int t ) { m_reason = r; m_last_action_time = t; }
         Reason getReason() { return m_reason; }
+        unsigned int getLastActionTime() { return m_last_action_time; }
         // Returns whether last update to this object was NULL.
         // If indeterminate, then there have been no updates
         tribool wasLastUpdateNull() { return m_last_update_null; }

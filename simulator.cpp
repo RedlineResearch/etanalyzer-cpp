@@ -405,7 +405,7 @@ int main(int argc, char* argv[])
     Heap.end_of_program(Exec.Now());
 
     // TODO analyze(Exec.Now());
-    if (cycle_flag) {
+    if (true) {
         deque< pair<int,int> > edgelist;
         deque< deque<int> > cycle_list = Heap.scan_queue( edgelist );
         filter_edgelist( edgelist, cycle_list );
