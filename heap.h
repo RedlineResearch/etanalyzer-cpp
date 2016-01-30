@@ -78,9 +78,18 @@ class HeapState
         unsigned int m_diedByStackAfterHeap;
         // Died by stack only
         unsigned int m_diedByStackOnly;
+        // Number of objects with no death sites
+        unsigned int m_no_dsites_count;
+        // Number of VM objects that always have RC 0
+        unsigned int m_vm_refcount_0;
+        // Number of VM objects that have RC > 0 at some point
+        unsigned int m_vm_refcount_positive;
 
         // Map of Method * to set of object type names
         DeathSitesMap m_death_sites_map;
+
+        void update_death_counters( Object *obj );
+        Method * get_method_death_site( Object *obj );
 
     public:
         HeapState()
@@ -92,7 +101,10 @@ class HeapState
             , m_totalDiedUnknown_ver2(0)
             , m_totalUpdateNull(0)
             , m_diedByStackAfterHeap(0)
-            , m_diedByStackOnly(0) {
+            , m_diedByStackOnly(0)
+            , m_no_dsites_count(0)
+            , m_vm_refcount_positive(0)
+            , m_vm_refcount_0(0) {
         }
 
         Object* allocate( unsigned int id,
@@ -111,12 +123,15 @@ class HeapState
         ObjectMap::iterator begin() { return m_objects.begin(); }
         ObjectMap::iterator end() { return m_objects.end(); }
         unsigned int size() const { return m_objects.size(); }
-        unsigned int getTotalDiedByStack2() { return m_totalDiedByStack_ver2; }
-        unsigned int getTotalDiedByHeap2() { return m_totalDiedByHeap_ver2; }
-        unsigned int getTotalDiedUnknown() { return m_totalDiedUnknown_ver2; }
-        unsigned int getTotalLastUpdateNull() { return m_totalUpdateNull; }
-        unsigned int getDiedByStackAfterHeap() { return m_diedByStackAfterHeap; }
-        unsigned int getDiedByStackOnly() { return m_diedByStackOnly; }
+        unsigned int getTotalDiedByStack2() const { return m_totalDiedByStack_ver2; }
+        unsigned int getTotalDiedByHeap2() const { return m_totalDiedByHeap_ver2; }
+        unsigned int getTotalDiedUnknown() const { return m_totalDiedUnknown_ver2; }
+        unsigned int getTotalLastUpdateNull() const { return m_totalUpdateNull; }
+        unsigned int getDiedByStackAfterHeap() const { return m_diedByStackAfterHeap; }
+        unsigned int getDiedByStackOnly() const { return m_diedByStackOnly; }
+        unsigned int getNumberNoDeathSites() const { return m_no_dsites_count; }
+        unsigned int getVMObjectsRefCountZero() const { return m_vm_refcount_0; }
+        unsigned int getVMObjectsRefCountPositive() const { return m_vm_refcount_positive; }
         DeathSitesMap::iterator begin_dsites() { return m_death_sites_map.begin(); }
         DeathSitesMap::iterator end_dsites() { return m_death_sites_map.end(); }
 
@@ -160,6 +175,7 @@ class Object
         unsigned int m_refCount;
         Color m_color;
         ObjectRefState m_refState;
+        unsigned int m_maxRefCount;
 
         EdgeMap m_fields;
 
@@ -220,6 +236,7 @@ class Object
             , m_createTime(create_time)
             , m_deathTime(UINT_MAX)
             , m_refCount(0)
+            , m_maxRefCount(0)
             , m_color(GREEN)
             , m_heapptr(heap)
             , m_pointed_by_heap(false)
@@ -242,6 +259,7 @@ class Object
         unsigned int getId() const { return m_id; }
         unsigned int getSize() const { return m_size; }
         const string& getType() const { return m_type; }
+        char getKind() const { return m_kind; }
         Thread* getThread() const { return m_thread; }
         unsigned int getCreateTime() const { return m_createTime; }
         unsigned int getDeathTime() const { return m_deathTime; }
@@ -249,53 +267,54 @@ class Object
         EdgeMap::iterator const getEdgeMapBegin() { return m_fields.begin(); }
         EdgeMap::iterator const getEdgeMapEnd() { return m_fields.end(); }
 
-        bool wasPointedAtByHeap() { return m_pointed_by_heap; }
+        bool wasPointedAtByHeap() const { return m_pointed_by_heap; }
         void setPointedAtByHeap() { m_pointed_by_heap = true; }
-        bool wasRoot() { return m_was_root; }
+        bool wasRoot() const { return m_was_root; }
         void setRootFlag( unsigned int t ) {
             m_was_root = true;
             m_reason = STACK;
             m_last_action_time = t;
         }
-        bool getDiedByStackFlag() { return m_diedByStack; }
+        bool getDiedByStackFlag() const { return m_diedByStack; }
         void setDiedByStackFlag() { m_diedByStack = true; m_reason = STACK; }
         void setStackReason( unsigned int t ) { m_reason = STACK; m_last_action_time = t; }
-        bool getDiedByHeapFlag() { return m_diedByHeap; }
+        bool getDiedByHeapFlag() const { return m_diedByHeap; }
         void setDiedByHeapFlag() { m_diedByHeap = true; m_reason = HEAP; }
         void setHeapReason( unsigned int t ) { m_reason = HEAP; m_last_action_time = t; }
         Reason setReason( Reason r, unsigned int t ) { m_reason = r; m_last_action_time = t; }
-        Reason getReason() { return m_reason; }
-        unsigned int getLastActionTime() { return m_last_action_time; }
+        Reason getReason() const { return m_reason; }
+        unsigned int getLastActionTime() const { return m_last_action_time; }
         // Returns whether last update to this object was NULL.
         // If indeterminate, then there have been no updates
-        tribool wasLastUpdateNull() { return m_last_update_null; }
+        tribool wasLastUpdateNull() const { return m_last_update_null; }
         // Set the last update null flag to true
         void setLastUpdateNull() { m_last_update_null = true; }
         // Set the last update null flag to false
         void unsetLastUpdateNull() { m_last_update_null = false; }
         // Get the death site according the the Death event
-        Method *getDeathSite() { return m_methodDeathSite; }
+        Method *getDeathSite() const { return m_methodDeathSite; }
         // Set the death site because of a Death event
         void setDeathSite(Method * method) { m_methodDeathSite = method; }
         // Get the last method to decrement the reference count
-        Method *getLastMethodDecRC() { return m_lastMethodDecRC; }
+        Method *getLastMethodDecRC() const { return m_lastMethodDecRC; }
         // Get the method to decrement the reference count to zero
         // -- If the refcount is ever incremented from zero, this is set back
         //    to NULL
-        Method *getMethodDecToZero() { return m_methodRCtoZero; }
+        Method *getMethodDecToZero() const { return m_methodRCtoZero; }
         // No corresponding set of lastMethodDecRC because set happens through
         // decrementRefCountReal
         tribool wasDecrementedToZero() { return m_decToZero; }
-        tribool wasIncrementedFromZero() { return m_incFromZero; }
+        tribool wasIncrementedFromZero() const { return m_incFromZero; }
         // Set and get last event
         void setLastEvent( LastEvent le ) { m_last_event = le; }
-        LastEvent getLastEvent() { return m_last_event; }
+        LastEvent getLastEvent() const { return m_last_event; }
         // Set and get last Object 
         void setLastObject( Object *obj ) { m_last_object = obj; }
-        Object * getLastObject() { return m_last_object; }
+        Object * getLastObject() const { return m_last_object; }
 
         // -- Ref counting
         unsigned int getRefCount() const { return m_refCount; }
+        unsigned int getMaxRefCount() const { return m_maxRefCount; }
         void incrementRefCount() { m_refCount++; }
         void decrementRefCount() { m_refCount--; }
         void incrementRefCountReal();

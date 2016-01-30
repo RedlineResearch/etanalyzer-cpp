@@ -53,9 +53,92 @@ Edge* HeapState::make_edge( Object* source, unsigned int field_id,
 }
 
 // TODO Documentation :)
+void HeapState::update_death_counters( Object *obj )
+{
+    // VERSION 1
+    if (obj->getDiedByStackFlag()) {
+        this->m_totalDiedByStack_ver2++;
+        if (obj->wasPointedAtByHeap()) {
+            this->m_diedByStackAfterHeap++;
+        } else {
+            this->m_diedByStackOnly++;
+        }
+    } else if ( obj->getDiedByHeapFlag() ||
+                (obj->getReason() == HEAP) ||
+                (obj->getLastEvent() == LastEvent::UPDATE) ||
+                obj->wasPointedAtByHeap() ) {
+        this->m_totalDiedByHeap_ver2++;
+        obj->setDiedByHeapFlag();
+    } else if ( (obj->getReason() == STACK) ||
+                (obj->getLastEvent() == LastEvent::ROOT) ) {
+        this->m_totalDiedByStack_ver2++;
+        if (obj->wasPointedAtByHeap()) {
+            this->m_diedByStackAfterHeap++;
+        } else {
+            this->m_diedByStackOnly++;
+        }
+    } else {
+        // cout << "X: ObjectID [" << obj->getId() << "][" << obj->getType()
+        //      << "] RC = " << obj->getRefCount() << " maxRC: " << obj->getMaxRefCount()
+        //      << " Atype: " << obj->getKind() << endl;
+        // All these objects were never a target of an Update event. For example,
+        // most VM allocated objects (by event V) are never targeted by
+        // the Java user program, and thus end up here. We consider these
+        // to be "STACK" caused death as we can associate these with the main function.
+        this->m_totalDiedByStack_ver2++;
+        this->m_diedByStackOnly++;
+    }
+    // END VERSION 1
+    // TODO // VERSION 2
+    // TODO if (obj->getLastEvent() == LastEvent::ROOT) {
+    // TODO     this->m_totalDiedByStack_ver2++;
+    // TODO     obj->setDiedByStackFlag();
+    // TODO     if (obj->wasPointedAtByHeap()) {
+    // TODO         this->m_diedByStackAfterHeap++;
+    // TODO     } else {
+    // TODO         this->m_diedByStackOnly++;
+    // TODO     }
+    // TODO } else {
+    // TODO     if (obj->getLastEvent() == LastEvent::UPDATE) {
+    // TODO         this->m_totalDiedByHeap_ver2++;
+    // TODO         obj->setDiedByHeapFlag();
+    // TODO     } else {
+    // TODO         this->m_totalDiedUnknown_ver2++;
+    // TODO     }
+    // TODO }
+    // TODO // END VERSION 2
+}
+
+Method * HeapState::get_method_death_site( Object *obj )
+{
+    Method *dsite = obj->getDeathSite();
+    if (obj->getDiedByHeapFlag()) {
+        // DIED BY HEAP
+        if (!dsite) {
+            if (obj->wasDecrementedToZero()) {
+                // So died by heap but no saved death site. First alternative is
+                // to look for the a site that decremented to 0.
+                dsite = obj->getMethodDecToZero();
+            } else {
+                // TODO: No dsite here yet
+                // TODO TODO TODO
+                // This probably should be the garbage cycles. Question is 
+                // where should we get this?
+            }
+        }
+    } else {
+        if (obj->getDiedByStackFlag()) {
+            // DIED BY STACK.
+            //   Look for last heap activity.
+            dsite = obj->getLastMethodDecRC();
+        }
+    }
+    return dsite;
+}
+
+// TODO Documentation :)
 void HeapState::end_of_program(unsigned int cur_time)
 {
-    unsigned int tmpcount = 0;
     // -- Set death time of all remaining live objects
     //    Also set the flags for the interesting classifications.
     for ( ObjectMap::iterator i = m_objects.begin();
@@ -67,83 +150,16 @@ void HeapState::end_of_program(unsigned int cur_time)
             obj->setDiedByStackFlag();
             obj->setLastEvent( LastEvent::ROOT );
         }
-        // Do the count of heap vs stack loss here. TODO
-        // VERSION 1
-        if (obj->getDiedByStackFlag()) {
-            this->m_totalDiedByStack_ver2++;
-            if (obj->wasPointedAtByHeap()) {
-                this->m_diedByStackAfterHeap++;
-            } else {
-                this->m_diedByStackOnly++;
-            }
-        } else if ( obj->getDiedByHeapFlag() ||
-                    (obj->getReason() == HEAP) ||
-                    (obj->getLastEvent() == LastEvent::UPDATE) ) {
-            this->m_totalDiedByHeap_ver2++;
-            obj->setDiedByHeapFlag();
-        } else if ( (obj->getReason() == STACK) ||
-                    (obj->getLastEvent() == LastEvent::ROOT) ) {
-            this->m_totalDiedByStack_ver2++;
-            if (obj->wasPointedAtByHeap()) {
-                this->m_diedByStackAfterHeap++;
-            } else {
-                this->m_diedByStackOnly++;
-            }
-        } else {
-            this->m_totalDiedUnknown_ver2++;
-        }
-        // END VERSION 1
-        // TODO // VERSION 2
-        // TODO if (obj->getLastEvent() == LastEvent::ROOT) {
-        // TODO     this->m_totalDiedByStack_ver2++;
-        // TODO     obj->setDiedByStackFlag();
-        // TODO     if (obj->wasPointedAtByHeap()) {
-        // TODO         this->m_diedByStackAfterHeap++;
-        // TODO     } else {
-        // TODO         this->m_diedByStackOnly++;
-        // TODO     }
-        // TODO } else {
-        // TODO     if (obj->getLastEvent() == LastEvent::UPDATE) {
-        // TODO         this->m_totalDiedByHeap_ver2++;
-        // TODO         obj->setDiedByHeapFlag();
-        // TODO     } else {
-        // TODO         this->m_totalDiedUnknown_ver2++;
-        // TODO     }
-        // TODO }
-        // TODO // END VERSION 2
+        // Do the count of heap vs stack loss here.
+        this->update_death_counters(obj);
+
         if (obj->wasLastUpdateNull()) {
             this->m_totalUpdateNull++;
         }
         // Save method death site to map
-        Method *dsite = obj->getDeathSite();
-        if (obj->getDiedByHeapFlag()) {
-            // DIED BY HEAP
-            if (dsite) {
-                cout << "-";
-                tmpcount++;
-            } else {
-                if (obj->wasDecrementedToZero()) {
-                    cout << "o";
-                    // So died by heap but no saved death site. First alternative is
-                    // to look for the a site that decremented to 0.
-                    dsite = obj->getMethodDecToZero();
-                    tmpcount++;
-                } else {
-                    // TODO: No dsite here yet
-                    // TODO TODO TODO
-                    // This probably should be the garbage cycles. Question is 
-                    // where should we get this?
-                }
-            }
-        } else {
-            if (obj->getDiedByStackFlag()) {
-                // DIED BY STACK.
-                //   Look for last heap activity.
-                cout << "^";
-                tmpcount++;
-                dsite = obj->getLastMethodDecRC();
-            }
-        }
+        Method *dsite = this->get_method_death_site( obj );
+
+        // Process the death sites
         if (dsite) {
             DeathSitesMap::iterator it = this->m_death_sites_map.find(dsite);
             if (it == this->m_death_sites_map.end()) {
@@ -151,18 +167,14 @@ void HeapState::end_of_program(unsigned int cur_time)
             }
             this->m_death_sites_map[dsite]->insert(obj->getType());
         } else {
-            if (obj->getDiedByHeapFlag()) {
-                // We couldn't find a deathsite for something that died by heap.
-                // TODO ?????? TODO
-            } else if (obj->getDiedByStackFlag()) {
-                //
-            } else {
-                cout << "U";
-                tmpcount++;
-            }
-        }
-        if (tmpcount % 79 == 0) {
-            cout << endl;
+            this->m_no_dsites_count++;
+            // TODO if (obj->getDiedByHeapFlag()) {
+            //     // We couldn't find a deathsite for something that died by heap.
+            //     // TODO ?????? TODO
+            // } else if (obj->getDiedByStackFlag()) {
+            //     // ?
+            // } else {
+            // }
         }
     }
 }
@@ -497,9 +509,9 @@ void Object::incrementRefCountReal()
     if ((this->m_refCount == 0) && this->m_decToZero) {
         this->m_incFromZero = true;
         this->m_methodRCtoZero = NULL;
-        cout << "X";
     }
     this->incrementRefCount();
+    this->m_maxRefCount = std::max( m_refCount, m_maxRefCount );
     // TODO
     // Can we take it out of the candidate set? If so, what should
     // the new color be?

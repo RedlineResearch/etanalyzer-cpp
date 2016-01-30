@@ -486,10 +486,12 @@ int main(int argc, char* argv[])
                  << "number_of_edges," << Heap.numberEdges() << endl
                  << "died_by_stack," << Heap.getTotalDiedByStack2() << endl
                  << "died_by_heap," << Heap.getTotalDiedByHeap2() << endl
-                 << "died_unknown," << Heap.getTotalDiedUnknown() << endl
                  << "last_update_null," << Heap.getTotalLastUpdateNull() << endl
                  << "died_by_stack_only," << Heap.getDiedByStackOnly() << endl
                  << "died_by_stack_after_heap," << Heap.getDiedByStackAfterHeap() << endl
+                 << "no_death_sites," << Heap.getNumberNoDeathSites() << endl
+                 << "vm_RC_zero," << Heap.getVMObjectsRefCountZero() << endl
+                 << "vm_RC_positive," << Heap.getVMObjectsRefCountPositive() << endl
                  << "final_time," << final_time << endl;
     summary_file << "---------------[ SUMMARY INFO END ]------------------------------------------------" << endl;
     summary_file.close();
