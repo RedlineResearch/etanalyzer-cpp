@@ -192,16 +192,6 @@ void HeapState::unset_candidate(unsigned int objId)
 }
 
 // TODO Documentation :)
-void HeapState::process_queue()
-{
-}
-
-// TODO Documentation :)
-void HeapState::analyze()
-{
-}
-
-// TODO Documentation :)
 void HeapState::set_reason_for_cycles( deque< deque<int> >& cycles )
 {
     for ( deque< deque<int> >::iterator it = cycles.begin();

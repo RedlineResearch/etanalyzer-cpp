@@ -144,8 +144,6 @@ class HeapState
 
         void set_candidate(unsigned int objId);
         void unset_candidate(unsigned int objId);
-        void process_queue();
-        void analyze();
         deque< deque<int> > scan_queue( EdgeList& edgelist );
         void set_reason_for_cycles( deque< deque<int> >& cycles );
 };
