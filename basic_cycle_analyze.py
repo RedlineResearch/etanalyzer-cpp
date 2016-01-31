@@ -854,7 +854,6 @@ def main_process( output = None,
             number_of_edges = summary_sim["number_of_edges"]
             died_by_stack = summary_sim["died_by_stack"]
             died_by_heap = summary_sim["died_by_heap"]
-            died_unknown = summary_sim["died_unknown"]
             died_by_stack_after_heap = summary_sim["died_by_stack_after_heap"]
             died_by_stack_only = summary_sim["died_by_stack_only"]
             last_update_null = summary_sim["last_update_null"]
