@@ -60,7 +60,7 @@ flush.console()
 d <- xcsv
 d$benchmark <- factor(d$benchmark, levels = d[ order(d$byHeap_percent), "benchmark"])
 xcsv.melt <- melt(d[,c("benchmark", "byHeap_percent", "byStack_percent")])
-xcsv.melt
+# DEBUG: xcsv.melt
 result = tryCatch( {
         p <- ggplot( xcsv.melt,
                      aes( x = benchmark,
@@ -77,5 +77,4 @@ result = tryCatch( {
 
 #--------------------------------------------------
 print("    DONE.")
-# DEBUG: xcsv.melt
 flush.console()
