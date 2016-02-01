@@ -673,11 +673,11 @@ def output_summary( output_path = None,
                    "died_by_stack_size", "died_by_heap_size", ]
         csvwriter.writerow( header )
         for bmark, d in summary.iteritems():
-            row = [ bmark, d["number_of_objects"], d["number_of_edges"],
-                    d["died_by_heap"], d["died_by_stack"],
-                    d["died_by_stack"], d["died_by_stack_after_heap"],
-                    d["died_by_stack_only"], d["last_update_null"], d["number_of_selfloops"],
-                    d["sbysize"]["died_by_stack"], d["sbysize"]["died_by_heap"], ]
+            row = [ bmark, d["number_of_objects"], d["number_of_edges"], d["died_by_heap"],
+                    d["died_by_stack"], d["died_by_stack_after_heap"], d["died_by_stack_only"],
+                    d["last_update_null"], d["number_of_selfloops"],
+                    d["size_died_by_stack"], d["size_died_by_heap"],
+                    ]
             csvwriter.writerow( row )
 
 def create_work_directory( work_dir, logger = None, interactive = False ):
@@ -795,7 +795,11 @@ def skip_benchmark(bmark):
 def summary_by_size( objinfo = None,
                      cycles = None,
                      typedict = None,
+                     summary = None,
                      logger = None ):
+    print summary.keys()
+    sbysize = summary["sbysize"]
+    exit(1000)
     dbh = 0
     dbs = 0
     total_size = 0
@@ -887,17 +891,17 @@ def main_process( output = None,
             objectinfo_path = os.path.join(cycle_cpp_dir, objectinfo_config[bmark])
             object_info_dict = get_object_info( objectinfo_path, typedict, rev_typedict )
             # Get summary
-            print "==============================================================================="
             summary_path = os.path.join(cycle_cpp_dir, summary_config[bmark])
             summary_sim = get_summary( summary_path )
             #     get summary by size
-            sbysize = summary_by_size( object_info_dict, cycles, typedict )
             number_of_objects = summary_sim["number_of_objects"]
             number_of_edges = summary_sim["number_of_edges"]
             died_by_stack = summary_sim["died_by_stack"]
             died_by_heap = summary_sim["died_by_heap"]
             died_by_stack_after_heap = summary_sim["died_by_stack_after_heap"]
             died_by_stack_only = summary_sim["died_by_stack_only"]
+            size_died_by_stack = summary_sim["size_died_by_stack"]
+            size_died_by_heap = summary_sim["size_died_by_heap"]
             last_update_null = summary_sim["last_update_null"]
             final_time = summary_sim["final_time"]
             selfloops = set()
@@ -926,7 +930,9 @@ def main_process( output = None,
                                "number_of_edges" : number_of_edges,
                                "number_of_selfloops" : 0,
                                "types" : Counter(), # counts of types using type IDs
-                               "sbysize" : sbysize, } # Summary by actual size, not cycle size
+                               "size_died_by_stack" : size_died_by_stack, # size, not object count
+                               "size_died_by_heap" : size_died_by_heap, # size, not object count
+                               }
             for index in xrange(len(cycles)):
                 cycle = cycles[index]
                 cycle_info_list = get_cycle_info_list( cycle = cycle,
@@ -942,17 +948,17 @@ def main_process( output = None,
                 # Get the actual cycle - LARGEST
                 # Sanity check 1: Is it a DAG?
                 if nx.is_directed_acyclic_graph(G):
-                    logger.warning( "Not a cycle." )
-                    logger.warning( "Nodes: %s" % str(G.nodes()) )
-                    logger.warning( "Edges: %s" % str(G.edges()) )
+                    logger.error( "Not a cycle." )
+                    logger.error( "Nodes: %s" % str(G.nodes()) )
+                    logger.error( "Edges: %s" % str(G.edges()) )
                     continue
                 ctmplist = list( nx.simple_cycles(G) )
                 # Sanity check 2: Check to see it's not empty.
                 if len(ctmplist) == 0:
                     # No cycles!!!
-                    logger.warning( "Not a cycle." )
-                    logger.warning( "Nodes: %s" % str(G.nodes()) )
-                    logger.warning( "Edges: %s" % str(G.edges()) )
+                    logger.error( "Not a cycle." )
+                    logger.error( "Nodes: %s" % str(G.nodes()) )
+                    logger.error( "Edges: %s" % str(G.edges()) )
                     continue
                 # TODO TODO TODO
                 # Interesting cases are:
@@ -962,6 +968,7 @@ def main_process( output = None,
                 #     * Option 2: ????
                 # 
                 # Get Strongly Connected Components
+                print "XXXXX DEBUG XXXXXX"
                 scclist = list(nx.strongly_connected_components(G))
                 # Strong connected-ness is a better indication of what we want
                 # Unless the cycle is a single node with a self pointer.
@@ -1027,6 +1034,7 @@ def main_process( output = None,
                 results[bmark]["sizes_largest_scc"].append(cycle_sizes)
                 results[bmark]["sizes_all"].append(total_sizes)
                 # End SIZE PER TYPE COUNT
+                print "---- END ----"
             largelist = save_largest_cycles( results[bmark]["graph"], num = 5 )
             # Make directory and Cd into directory
             if not os.path.isdir(bmark):
