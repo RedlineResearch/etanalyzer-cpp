@@ -370,6 +370,10 @@ def get_typeId( mytype, typedict, rev_typedict ):
         rev_typedict[lastkey + 1] = mytype
         return lastkey + 1
 
+# Input: objectinfo_path that points to the object information
+# Output:
+#    typedict: typeId -> actual type
+#    rev_typedict:  actual type -> typeId
 def get_object_info( objectinfo_path, typedict, rev_typedict ):
     start = False
     done = False
@@ -664,11 +668,16 @@ def output_summary( output_path = None,
     with open(output_path, "wb") as fp:
         csvwriter = csv.writer(fp)
         header = [ "benchmark", "total_objects", "total_edges", "died_by_heap",
-                   "died_by_stack", ]
+                   "died_by_stack", "died_by_stack_after_heap", "died_by_stack_only",
+                   "last_update_null", "number_of_selfloops",
+                   "died_by_stack_size", "died_by_heap_size", ]
         csvwriter.writerow( header )
         for bmark, d in summary.iteritems():
             row = [ bmark, d["number_of_objects"], d["number_of_edges"],
-                    d["died_by_heap"], d["died_by_stack"], ]
+                    d["died_by_heap"], d["died_by_stack"],
+                    d["died_by_stack"], d["died_by_stack_after_heap"],
+                    d["died_by_stack_only"], d["last_update_null"], d["number_of_selfloops"],
+                    d["sbysize"]["died_by_stack"], d["sbysize"]["died_by_heap"], ]
             csvwriter.writerow( row )
 
 def create_work_directory( work_dir, logger = None, interactive = False ):
@@ -783,6 +792,36 @@ def skip_benchmark(bmark):
              # )
            )
 
+def summary_by_size( objinfo = None,
+                     cycles = None,
+                     typedict = None,
+                     logger = None ):
+    dbh = 0
+    dbs = 0
+    total_size = 0
+    # TODO
+    dbs_after_heap = 0
+    dbs_only = 0
+    last_update_null = 0
+    # END TODO
+    tmp = 0
+    for cycle in cycles:
+        for c in cycle:
+            mysize = objinfo[c][SIZE]
+            total_size += mysize
+            reason = objinfo[c][REASON]
+            if reason == "S":
+                dbs += mysize
+            elif reason == "H":
+                dbh += mysize
+    sbysize = { "died_by_heap" : dbh, # size
+                "died_by_stack" : dbs, # size
+                "died_by_stack_after_heap" : dbs_after_heap, # subset of died_by_stack TODO
+                "died_by_stack_only" : dbs_only, # subset of died_by_stack TODO
+                "last_update_null" : last_update_null, # subset of died_by_heap TODO
+                "size" : total_size, }
+    return sbysize
+
 def main_process( output = None,
                   main_config = None,
                   benchmark = None,
@@ -836,7 +875,8 @@ def main_process( output = None,
             logger.critical( "Opening %s." % abspath )
             # Get cycles
             cycles = get_cycles( abspath )
-            get_cycles_result = {}
+            # TODO What is this? 
+            # TODO get_cycles_result = {}
             # Get edges
             edgepath = os.path.join(cycle_cpp_dir, edge_config[bmark])
             edges = get_edges( edgepath )
@@ -850,6 +890,8 @@ def main_process( output = None,
             print "==============================================================================="
             summary_path = os.path.join(cycle_cpp_dir, summary_config[bmark])
             summary_sim = get_summary( summary_path )
+            #     get summary by size
+            sbysize = summary_by_size( object_info_dict, cycles, typedict )
             number_of_objects = summary_sim["number_of_objects"]
             number_of_edges = summary_sim["number_of_edges"]
             died_by_stack = summary_sim["died_by_stack"]
@@ -874,13 +916,17 @@ def main_process( output = None,
             summary[bmark] = { "by_size" : { 1 : [], 2 : [], 3 : [], 4 : [] },
                                # by_size contains apriori sizes 1 to 4 and the
                                # cycles with these sizes. The cycle is encoded
-                               # as a list of object IDs (objId).
+                               # as a list of object IDs (objId). by_size here means by cycle size
                                "died_by_heap" : died_by_heap, # total of
                                "died_by_stack" : died_by_stack, # total of
+                               "died_by_stack_after_heap" : died_by_stack_after_heap, # subset of died_by_stack
+                               "died_by_stack_only" : died_by_stack_only, # subset of died_by_stack
+                               "last_update_null" : last_update_null, # subset of died_by_heap
                                "number_of_objects" : number_of_objects,
                                "number_of_edges" : number_of_edges,
                                "number_of_selfloops" : 0,
-                               "types" : Counter() } # counts of types using type IDs
+                               "types" : Counter(), # counts of types using type IDs
+                               "sbysize" : sbysize, } # Summary by actual size, not cycle size
             for index in xrange(len(cycles)):
                 cycle = cycles[index]
                 cycle_info_list = get_cycle_info_list( cycle = cycle,

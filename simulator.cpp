@@ -450,7 +450,10 @@ int main(int argc, char* argv[])
                     << "," << object->getDeathTime()
                     << "," << object->getSize()
                     << "," << object->getType()
-                    << "," << (object->getDiedByStackFlag() ? "S" : "H") << endl;
+                    << "," << (object->getDiedByStackFlag() ? "S" : "H")
+                    << "," << (object->wasLastUpdateNull() ? "NULL" : "VAL")
+                    << "," << (object->getDiedByStackFlag() && object->wasPointedAtByHeap() ? "SHEAP" : "SONLY" )
+                    << endl;
             }
         }
         object_info_file << "---------------[ OBJECT INFO END ]----------------------------------------------" << endl;
