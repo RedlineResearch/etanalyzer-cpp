@@ -71,6 +71,10 @@ class HeapState
         unsigned int m_totalDiedByStack_ver2;
         // Total number of objects unknown using version 2 method
         unsigned int m_totalDiedUnknown_ver2;
+        // Size of objects that died by loss of heap reference
+        unsigned int m_sizeDiedByHeap;
+        // Size of objects that died by stack frame going out of scope
+        unsigned int m_sizeDiedByStack;
         // Total number of objects whose last update away from the object
         // was null
         unsigned int m_totalUpdateNull;
@@ -98,6 +102,8 @@ class HeapState
             , m_death_sites_map()
             , m_totalDiedByHeap_ver2(0)
             , m_totalDiedByStack_ver2(0)
+            , m_sizeDiedByHeap(0)
+            , m_sizeDiedByStack(0)
             , m_totalDiedUnknown_ver2(0)
             , m_totalUpdateNull(0)
             , m_diedByStackAfterHeap(0)
@@ -126,6 +132,8 @@ class HeapState
         unsigned int getTotalDiedByStack2() const { return m_totalDiedByStack_ver2; }
         unsigned int getTotalDiedByHeap2() const { return m_totalDiedByHeap_ver2; }
         unsigned int getTotalDiedUnknown() const { return m_totalDiedUnknown_ver2; }
+        unsigned int getSizeDiedByHeap() const { return m_sizeDiedByHeap; }
+        unsigned int getSizeDiedByStack() const { return m_sizeDiedByStack; }
         unsigned int getTotalLastUpdateNull() const { return m_totalUpdateNull; }
         unsigned int getDiedByStackAfterHeap() const { return m_diedByStackAfterHeap; }
         unsigned int getDiedByStackOnly() const { return m_diedByStackOnly; }

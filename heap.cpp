@@ -58,6 +58,7 @@ void HeapState::update_death_counters( Object *obj )
     // VERSION 1
     if (obj->getDiedByStackFlag()) {
         this->m_totalDiedByStack_ver2++;
+        this->m_sizeDiedByStack += obj->getSize();
         if (obj->wasPointedAtByHeap()) {
             this->m_diedByStackAfterHeap++;
         } else {
@@ -68,10 +69,12 @@ void HeapState::update_death_counters( Object *obj )
                 (obj->getLastEvent() == LastEvent::UPDATE) ||
                 obj->wasPointedAtByHeap() ) {
         this->m_totalDiedByHeap_ver2++;
+        this->m_sizeDiedByHeap += obj->getSize();
         obj->setDiedByHeapFlag();
     } else if ( (obj->getReason() == STACK) ||
                 (obj->getLastEvent() == LastEvent::ROOT) ) {
         this->m_totalDiedByStack_ver2++;
+        this->m_sizeDiedByStack += obj->getSize();
         if (obj->wasPointedAtByHeap()) {
             this->m_diedByStackAfterHeap++;
         } else {
@@ -86,6 +89,7 @@ void HeapState::update_death_counters( Object *obj )
         // the Java user program, and thus end up here. We consider these
         // to be "STACK" caused death as we can associate these with the main function.
         this->m_totalDiedByStack_ver2++;
+        this->m_sizeDiedByStack += obj->getSize();
         this->m_diedByStackOnly++;
     }
     // END VERSION 1
@@ -107,6 +111,15 @@ void HeapState::update_death_counters( Object *obj )
     // TODO     }
     // TODO }
     // TODO // END VERSION 2
+    
+    // VM type objects
+    if (obj->getKind() == 'V') {
+        if (obj->getRefCount() == 0) {
+            m_vm_refcount_0++;
+        } else {
+            m_vm_refcount_positive++;
+        }
+    }
 }
 
 Method * HeapState::get_method_death_site( Object *obj )
@@ -147,7 +160,7 @@ void HeapState::end_of_program(unsigned int cur_time)
         Object* obj = i->second;
         if (obj->isLive(cur_time)) {
             obj->makeDead(cur_time);
-            obj->setDiedByStackFlag();
+            obj->setDiedByStackFlag(); // TODO This seems the most reasonable for this.
             obj->setLastEvent( LastEvent::ROOT );
         }
         // Do the count of heap vs stack loss here.
