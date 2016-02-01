@@ -771,7 +771,7 @@ def print_summary( summary ):
         for key, value in fdict.iteritems():
             if key == "by_size":
                 continue
-            if key == "types":
+            if key == "types" or key == "sbysize":
                 print "    [%s]: %s" % (key, pp.pformat(value))
             else:
                 print "    [%s]: %d" % (key, value)
