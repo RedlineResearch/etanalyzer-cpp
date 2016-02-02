@@ -168,6 +168,11 @@ void HeapState::end_of_program(unsigned int cur_time)
 
         if (obj->wasLastUpdateNull()) {
             this->m_totalUpdateNull++;
+            if (obj->getDiedByStackFlag()) {
+                this->m_totalUpdateNullStack++;
+            } else {
+                this->m_totalUpdateNullHeap++;
+            }
         }
         // Save method death site to map
         Method *dsite = this->get_method_death_site( obj );

@@ -968,7 +968,6 @@ def main_process( output = None,
                 #     * Option 2: ????
                 # 
                 # Get Strongly Connected Components
-                print "XXXXX DEBUG XXXXXX"
                 scclist = list(nx.strongly_connected_components(G))
                 # Strong connected-ness is a better indication of what we want
                 # Unless the cycle is a single node with a self pointer.

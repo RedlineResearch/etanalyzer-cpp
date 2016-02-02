@@ -490,6 +490,8 @@ int main(int argc, char* argv[])
                  << "died_by_stack," << Heap.getTotalDiedByStack2() << endl
                  << "died_by_heap," << Heap.getTotalDiedByHeap2() << endl
                  << "last_update_null," << Heap.getTotalLastUpdateNull() << endl
+                 << "last_update_null_heap," << Heap.getTotalLastUpdateNullHeap() << endl
+                 << "last_update_null_stack," << Heap.getTotalLastUpdateNullStack() << endl
                  << "died_by_stack_only," << Heap.getDiedByStackOnly() << endl
                  << "died_by_stack_after_heap," << Heap.getDiedByStackAfterHeap() << endl
                  << "no_death_sites," << Heap.getNumberNoDeathSites() << endl

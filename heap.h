@@ -78,6 +78,10 @@ class HeapState
         // Total number of objects whose last update away from the object
         // was null
         unsigned int m_totalUpdateNull;
+        //    -- that was part of the heap
+        unsigned int m_totalUpdateNullHeap;
+        //    -- that was part of the stack
+        unsigned int m_totalUpdateNullStack;
         // Died by stack with previous heap action
         unsigned int m_diedByStackAfterHeap;
         // Died by stack only
@@ -106,6 +110,8 @@ class HeapState
             , m_sizeDiedByStack(0)
             , m_totalDiedUnknown_ver2(0)
             , m_totalUpdateNull(0)
+            , m_totalUpdateNullHeap(0)
+            , m_totalUpdateNullStack(0)
             , m_diedByStackAfterHeap(0)
             , m_diedByStackOnly(0)
             , m_no_dsites_count(0)
@@ -135,6 +141,8 @@ class HeapState
         unsigned int getSizeDiedByHeap() const { return m_sizeDiedByHeap; }
         unsigned int getSizeDiedByStack() const { return m_sizeDiedByStack; }
         unsigned int getTotalLastUpdateNull() const { return m_totalUpdateNull; }
+        unsigned int getTotalLastUpdateNullHeap() const { return m_totalUpdateNullHeap; }
+        unsigned int getTotalLastUpdateNullStack() const { return m_totalUpdateNullStack; }
         unsigned int getDiedByStackAfterHeap() const { return m_diedByStackAfterHeap; }
         unsigned int getDiedByStackOnly() const { return m_diedByStackOnly; }
         unsigned int getNumberNoDeathSites() const { return m_no_dsites_count; }
