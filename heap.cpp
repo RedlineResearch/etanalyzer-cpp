@@ -64,13 +64,6 @@ void HeapState::update_death_counters( Object *obj )
         } else {
             this->m_diedByStackOnly++;
         }
-    } else if ( obj->getDiedByHeapFlag() ||
-                (obj->getReason() == HEAP) ||
-                (obj->getLastEvent() == LastEvent::UPDATE) ||
-                obj->wasPointedAtByHeap() ) {
-        this->m_totalDiedByHeap_ver2++;
-        this->m_sizeDiedByHeap += obj->getSize();
-        obj->setDiedByHeapFlag();
     } else if ( (obj->getReason() == STACK) ||
                 (obj->getLastEvent() == LastEvent::ROOT) ) {
         this->m_totalDiedByStack_ver2++;
@@ -80,6 +73,13 @@ void HeapState::update_death_counters( Object *obj )
         } else {
             this->m_diedByStackOnly++;
         }
+    } else if ( obj->getDiedByHeapFlag() ||
+                (obj->getReason() == HEAP) ||
+                (obj->getLastEvent() == LastEvent::UPDATE) ||
+                obj->wasPointedAtByHeap() ) {
+        this->m_totalDiedByHeap_ver2++;
+        this->m_sizeDiedByHeap += obj->getSize();
+        obj->setDiedByHeapFlag();
     } else {
         // cout << "X: ObjectID [" << obj->getId() << "][" << obj->getType()
         //      << "] RC = " << obj->getRefCount() << " maxRC: " << obj->getMaxRefCount()
