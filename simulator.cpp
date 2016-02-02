@@ -493,8 +493,8 @@ int main(int argc, char* argv[])
                  << "died_by_stack_only," << Heap.getDiedByStackOnly() << endl
                  << "died_by_stack_after_heap," << Heap.getDiedByStackAfterHeap() << endl
                  << "no_death_sites," << Heap.getNumberNoDeathSites() << endl
-                 << "size_died_by_stack," << Heap.getTotalDiedByStack2() << endl
-                 << "size_died_by_heap," << Heap.getTotalDiedByHeap2() << endl
+                 << "size_died_by_stack," << Heap.getSizeDiedByStack() << endl
+                 << "size_died_by_heap," << Heap.getSizeDiedByHeap() << endl
                  << "vm_RC_zero," << Heap.getVMObjectsRefCountZero() << endl
                  << "vm_RC_positive," << Heap.getVMObjectsRefCountPositive() << endl
                  << "final_time," << final_time << endl;
