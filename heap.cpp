@@ -64,6 +64,9 @@ void HeapState::update_death_counters( Object *obj )
         } else {
             this->m_diedByStackOnly++;
         }
+        if (obj->wasLastUpdateNull()) {
+            this->m_totalUpdateNullStack++;
+        }
     } else if ( (obj->getReason() == STACK) ||
                 (obj->getLastEvent() == LastEvent::ROOT) ) {
         this->m_totalDiedByStack_ver2++;
@@ -73,6 +76,9 @@ void HeapState::update_death_counters( Object *obj )
         } else {
             this->m_diedByStackOnly++;
         }
+        if (obj->wasLastUpdateNull()) {
+            this->m_totalUpdateNullStack++;
+        }
     } else if ( obj->getDiedByHeapFlag() ||
                 (obj->getReason() == HEAP) ||
                 (obj->getLastEvent() == LastEvent::UPDATE) ||
@@ -80,6 +86,9 @@ void HeapState::update_death_counters( Object *obj )
         this->m_totalDiedByHeap_ver2++;
         this->m_sizeDiedByHeap += obj->getSize();
         obj->setDiedByHeapFlag();
+        if (obj->wasLastUpdateNull()) {
+            this->m_totalUpdateNullHeap++;
+        }
     } else {
         // cout << "X: ObjectID [" << obj->getId() << "][" << obj->getType()
         //      << "] RC = " << obj->getRefCount() << " maxRC: " << obj->getMaxRefCount()
@@ -91,6 +100,12 @@ void HeapState::update_death_counters( Object *obj )
         this->m_totalDiedByStack_ver2++;
         this->m_sizeDiedByStack += obj->getSize();
         this->m_diedByStackOnly++;
+        if (obj->wasLastUpdateNull()) {
+            this->m_totalUpdateNullStack++;
+        }
+    }
+    if (obj->wasLastUpdateNull()) {
+        this->m_totalUpdateNull++;
     }
     // END VERSION 1
     // TODO // VERSION 2
@@ -166,14 +181,6 @@ void HeapState::end_of_program(unsigned int cur_time)
         // Do the count of heap vs stack loss here.
         this->update_death_counters(obj);
 
-        if (obj->wasLastUpdateNull()) {
-            this->m_totalUpdateNull++;
-            if (obj->getDiedByStackFlag()) {
-                this->m_totalUpdateNullStack++;
-            } else {
-                this->m_totalUpdateNullHeap++;
-            }
-        }
         // Save method death site to map
         Method *dsite = this->get_method_death_site( obj );
 

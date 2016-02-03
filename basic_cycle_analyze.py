@@ -670,13 +670,15 @@ def output_summary( output_path = None,
         header = [ "benchmark", "total_objects", "total_edges", "died_by_heap",
                    "died_by_stack", "died_by_stack_after_heap", "died_by_stack_only",
                    "last_update_null", "number_of_selfloops",
-                   "died_by_stack_size", "died_by_heap_size", ]
+                   "died_by_stack_size", "died_by_heap_size",
+                   "last_update_null_heap", "last_update_null_stack", ]
         csvwriter.writerow( header )
         for bmark, d in summary.iteritems():
             row = [ bmark, d["number_of_objects"], d["number_of_edges"], d["died_by_heap"],
                     d["died_by_stack"], d["died_by_stack_after_heap"], d["died_by_stack_only"],
                     d["last_update_null"], d["number_of_selfloops"],
                     d["size_died_by_stack"], d["size_died_by_heap"],
+                    d["last_update_null_heap"], d["last_update_null_stack"],
                     ]
             csvwriter.writerow( row )
 
@@ -903,6 +905,8 @@ def main_process( output = None,
             size_died_by_stack = summary_sim["size_died_by_stack"]
             size_died_by_heap = summary_sim["size_died_by_heap"]
             last_update_null = summary_sim["last_update_null"]
+            last_update_null_heap = summary_sim["last_update_null_heap"]
+            last_update_null_stack = summary_sim["last_update_null_stack"]
             final_time = summary_sim["final_time"]
             selfloops = set()
             edgedict = create_edge_dictionary( edges, selfloops )
@@ -926,6 +930,8 @@ def main_process( output = None,
                                "died_by_stack_after_heap" : died_by_stack_after_heap, # subset of died_by_stack
                                "died_by_stack_only" : died_by_stack_only, # subset of died_by_stack
                                "last_update_null" : last_update_null, # subset of died_by_heap
+                               "last_update_null_heap" : last_update_null_heap, # subset of died_by_heap
+                               "last_update_null_stack" : last_update_null_stack, # subset of died_by_heap
                                "number_of_objects" : number_of_objects,
                                "number_of_edges" : number_of_edges,
                                "number_of_selfloops" : 0,
@@ -1033,7 +1039,6 @@ def main_process( output = None,
                 results[bmark]["sizes_largest_scc"].append(cycle_sizes)
                 results[bmark]["sizes_all"].append(total_sizes)
                 # End SIZE PER TYPE COUNT
-                print "---- END ----"
             largelist = save_largest_cycles( results[bmark]["graph"], num = 5 )
             # Make directory and Cd into directory
             if not os.path.isdir(bmark):
