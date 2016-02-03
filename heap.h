@@ -65,6 +65,9 @@ class HeapState
         // Map from IDs to bool if possible cyle root
         map<unsigned int, bool> m_candidate_map;
 
+        unsigned int m_liveSize; // current live size of program in bytes
+        unsigned int m_maxLiveSize; // max live size of program in bytes
+
         // Total number of objects that died by loss of heap reference version 2
         unsigned int m_totalDiedByHeap_ver2;
         // Total number of objects that died by stack frame going out of scope version 2
@@ -104,6 +107,8 @@ class HeapState
             : m_objects()
             , m_candidate_map()
             , m_death_sites_map()
+            , m_maxLiveSize(0)
+            , m_liveSize(0)
             , m_totalDiedByHeap_ver2(0)
             , m_totalDiedByStack_ver2(0)
             , m_sizeDiedByHeap(0)
@@ -132,9 +137,13 @@ class HeapState
 
         Edge* make_edge( Object* source, unsigned int field_id, Object* target, unsigned int cur_time);
 
+        void makeDead(Object * obj, unsigned int death_time);
+
         ObjectMap::iterator begin() { return m_objects.begin(); }
         ObjectMap::iterator end() { return m_objects.end(); }
         unsigned int size() const { return m_objects.size(); }
+        unsigned int liveSize() const { return m_liveSize; }
+        unsigned int maxLiveSize() const { return m_maxLiveSize; }
         unsigned int getTotalDiedByStack2() const { return m_totalDiedByStack_ver2; }
         unsigned int getTotalDiedByHeap2() const { return m_totalDiedByHeap_ver2; }
         unsigned int getTotalDiedUnknown() const { return m_totalDiedUnknown_ver2; }

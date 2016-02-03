@@ -20,7 +20,10 @@ Object* HeapState::allocate( unsigned int id, unsigned int size,
     if (m_objects.size() % 100000 == 0) {
         cout << "OBJECTS: " << m_objects.size() << endl;
     }
-
+    this->m_liveSize += size;
+    if (this->m_maxLiveSize < this->m_liveSize) {
+        this->m_maxLiveSize = this->m_liveSize;
+    }
     return obj;
 }
 
@@ -50,6 +53,16 @@ Edge* HeapState::make_edge( Object* source, unsigned int field_id,
     }
 
     return new_edge;
+}
+
+void HeapState::makeDead(Object * obj, unsigned int death_time)
+{
+    this->m_liveSize -= obj->getSize();
+    if (this->m_liveSize < 0) {
+        cout << "ERROR: liveSize is negative: " << this->m_liveSize << endl;
+        this->m_liveSize = 0;
+    }
+    obj->makeDead(death_time);
 }
 
 // TODO Documentation :)
