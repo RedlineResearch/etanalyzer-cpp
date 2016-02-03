@@ -117,8 +117,7 @@ d <- xcsv
 d$byStackOnly_percent <- round( (d$died_by_stack_only / d$total_objects) * 100, digits = 1 )
 d$byStackAfterHeap_percent <- round( (d$died_by_stack_after_heap / d$total_objects) * 100, digits = 1 )
 d$byHeapAfterNull_percent <- round( (d$last_update_null_heap / d$total_objects) * 100, digits = 1 )
-d$byHeapAfterValid_percent <- round( ((d$died_by_heap - d$last_update_null) / d$total_objects) * 100, digits = 1 )
-# d$byHeapAfterValid_percent[ d$byHeapAfterValid_percent < 0 ] <- 0.0
+d$byHeapAfterValid_percent <- round( ((d$died_by_heap - d$last_update_null_heap) / d$total_objects) * 100, digits = 1 )
 d$benchmark <- factor( d$benchmark, levels = d[ order( d$byHeap_percent), "benchmark" ] )
 xcsv.heap.melt <- melt(d[,c( "benchmark", "byHeapAfterNull_percent", "byHeapAfterValid_percent", "byStack_percent" )])
 xcsv.stack.melt <- melt(d[,c( "benchmark", "byHeap_percent", "byStackOnly_percent", "byStackAfterHeap_percent" )])
@@ -165,10 +164,13 @@ result = tryCatch( {
 
 # =====================================================================
 d <- xcsv
+d
 d$byHeapAfterNull_percent <- round( (d$last_update_null_heap / d$died_by_heap) * 100, digits = 1 )
 d$byHeapAfterValid_percent <- round( ((d$died_by_heap - d$last_update_null_heap) / d$died_by_heap) * 100, digits = 1 )
+# d$byHeapAfterValid_percent[ ,d$byHeapAfterValid_percent < 0 ] <- rep(0.0)
 d$benchmark <- factor( d$benchmark, levels = d[ order( d$byHeapAfterNull_percent), "benchmark" ] )
 xcsv.heap.melt <- melt(d[,c( "benchmark", "byHeapAfterNull_percent", "byHeapAfterValid_percent" )])
+xcsv.heap.melt
 print("======================================================================")
 print("Death by heap broken down")
 deathreason.out <- "/data/rveroy/pulsrc/data-ismm-2016/y-GRAPHS/08-deathcause-heap-only.pdf"
