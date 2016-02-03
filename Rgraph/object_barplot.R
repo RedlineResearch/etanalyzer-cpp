@@ -9,7 +9,7 @@ library(reshape2)
 cargs <- commandArgs(TRUE)
 datafile <- cargs[1]
 # datafile <- "/data/rveroy/pulsrc/data-ismm-2016/all.csv"
-objcount.out <- "/data/rveroy/pulsrc/data-ismm-2016/y-GRAPHS/object_barplot.pdf"
+objcount.out <- "/data/rveroy/pulsrc/data-ismm-2016/y-GRAPHS/01-object_barplot.pdf"
 title <- "Object Count"
 xlabel <- "Number of objects allocated"
 # width <- as.integer(cargs[4])
@@ -40,7 +40,7 @@ result = tryCatch( {
 #--------------------------------------------------
 # Object count log scale
 print("Object count barplot - log")
-objcount.out <- "/data/rveroy/pulsrc/data-ismm-2016/y-GRAPHS/object_barplot-log.pdf"
+objcount.out <- "/data/rveroy/pulsrc/data-ismm-2016/y-GRAPHS/02-object_barplot-log.pdf"
 flush.console()
 result = tryCatch( {
         p <- ggplot( xcsv, aes(x = benchmark, y = total_objects)) +
@@ -57,7 +57,7 @@ result = tryCatch( {
 #--------------------------------------------------
 # Died by heap vs stack percentage  stacked plot
 print("Death by stack vs by heap")
-deathreason.out <- "/data/rveroy/pulsrc/data-ismm-2016/y-GRAPHS/deathcause.pdf"
+deathreason.out <- "/data/rveroy/pulsrc/data-ismm-2016/y-GRAPHS/03-deathcause.pdf"
 flush.console()
 # mtcars3$car <-factor(mtcars2$car, levels=mtcars2[order(mtcars$mpg), "car"])
 d <- xcsv
@@ -82,7 +82,7 @@ print("======================================================================")
 #--------------------------------------------------
 # Died by heap vs stack size percentage  stacked plot
 print("Death by stack vs by heap - size")
-deathreason.out <- "/data/rveroy/pulsrc/data-ismm-2016/y-GRAPHS/deathcause-size.pdf"
+deathreason.out <- "/data/rveroy/pulsrc/data-ismm-2016/y-GRAPHS/04-deathcause-size.pdf"
 flush.console()
 d <- xcsv
 d$byHeapSize_percent <- round( (d$died_by_heap_size / (d$died_by_heap_size + d$died_by_stack_size)) * 100, digits = 1 )
@@ -110,7 +110,7 @@ print("======================================================================")
 # with stack split into by 
 # - stack only
 # - stack after heap
-deathreason.out <- "/data/rveroy/pulsrc/data-ismm-2016/y-GRAPHS/deathcause-stack.pdf"
+deathreason.out <- "/data/rveroy/pulsrc/data-ismm-2016/y-GRAPHS/05-deathcause-stack.pdf"
 # deathreason.out <- "/data/rveroy/pulsrc/data-ismm-2016/y-GRAPHS/deathcause-stack.pdf"
 flush.console()
 d <- xcsv
@@ -146,7 +146,7 @@ result = tryCatch( {
 
 print("======================================================================")
 print("Death by heap broken down")
-deathreason.out <- "/data/rveroy/pulsrc/data-ismm-2016/y-GRAPHS/deathcause-heap.pdf"
+deathreason.out <- "/data/rveroy/pulsrc/data-ismm-2016/y-GRAPHS/07-deathcause-heap.pdf"
 xcsv.heap.melt
 flush.console()
 result = tryCatch( {
@@ -167,16 +167,11 @@ result = tryCatch( {
 d <- xcsv
 d$byHeapAfterNull_percent <- round( (d$last_update_null_heap / d$died_by_heap) * 100, digits = 1 )
 d$byHeapAfterValid_percent <- round( ((d$died_by_heap - d$last_update_null_heap) / d$died_by_heap) * 100, digits = 1 )
-
-# d$byStackOnly_percent <- round( (d$died_by_stack_only / d$died_by_stack) * 100, digits = 1 )
-# d$byStackAfterHeap_percent <- round( (d$died_by_stack_after_heap / d$died_by_stack ) * 100, digits = 1 )
-
 d$benchmark <- factor( d$benchmark, levels = d[ order( d$byHeapAfterNull_percent), "benchmark" ] )
 xcsv.heap.melt <- melt(d[,c( "benchmark", "byHeapAfterNull_percent", "byHeapAfterValid_percent" )])
 print("======================================================================")
 print("Death by heap broken down")
-deathreason.out <- "/data/rveroy/pulsrc/data-ismm-2016/y-GRAPHS/deathcause-heap-only.pdf"
-xcsv.heap.melt
+deathreason.out <- "/data/rveroy/pulsrc/data-ismm-2016/y-GRAPHS/08-deathcause-heap-only.pdf"
 flush.console()
 result = tryCatch( {
         p <- ggplot( xcsv.heap.melt,
@@ -185,9 +180,30 @@ result = tryCatch( {
                           fill = variable ) ) + geom_bar( stat = "identity" ) + coord_flip() + scale_fill_manual( values = c("#A6CEE3", "#1F78B4") )
         ggsave(filename = deathreason.out, plot = p)
     }, warning = function(w) {
-        print(paste("WARNING: failed on death reason stack vs heap."))
+        print(paste("WARNING: failed on heap last null breakdown."))
     }, error = function(e) {
-        print(paste("ERROR: failed on death reason stack vs heap."))
+        print(paste("ERROR: failed on heap last null breakdown."))
+    }, finally = {
+    }
+)
+
+print("======================================================================")
+d <- xcsv
+d$byStackOnly_percent <- round( (d$died_by_stack_only / d$died_by_stack) * 100, digits = 1 )
+d$byStackAfterHeap_percent <- round( (d$died_by_stack_after_heap / d$died_by_stack ) * 100, digits = 1 )
+d$benchmark <- factor( d$benchmark, levels = d[ order( d$byStackOnly_percent), "benchmark" ] )
+xcsv.stack.melt <- melt(d[,c( "benchmark", "byStackOnly_percent", "byStackAfterHeap_percent" )])
+deathreason.out <- "/data/rveroy/pulsrc/data-ismm-2016/y-GRAPHS/06-deathcause-stack-only.pdf"
+result = tryCatch( {
+        p <- ggplot( xcsv.stack.melt,
+                     aes( x = benchmark,
+                          y = value,
+                          fill = variable ) ) + geom_bar( stat = "identity" ) + coord_flip() + scale_fill_manual( values = c("#B2DF8A", "#33A02C") )
+        ggsave(filename = deathreason.out, plot = p)
+    }, warning = function(w) {
+        print(paste("WARNING: failed on death reason stack breakdown"))
+    }, error = function(e) {
+        print(paste("ERROR: failed on death reason stack breakdown"))
     }, finally = {
     }
 )
