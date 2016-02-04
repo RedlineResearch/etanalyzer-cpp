@@ -671,14 +671,14 @@ def output_summary( output_path = None,
                    "died_by_stack", "died_by_stack_after_heap", "died_by_stack_only",
                    "last_update_null", "number_of_selfloops",
                    "died_by_stack_size", "died_by_heap_size",
-                   "last_update_null_heap", "last_update_null_stack", ]
+                   "last_update_null_heap", "last_update_null_stack", "max_live_size", ]
         csvwriter.writerow( header )
         for bmark, d in summary.iteritems():
             row = [ bmark, d["number_of_objects"], d["number_of_edges"], d["died_by_heap"],
                     d["died_by_stack"], d["died_by_stack_after_heap"], d["died_by_stack_only"],
                     d["last_update_null"], d["number_of_selfloops"],
                     d["size_died_by_stack"], d["size_died_by_heap"],
-                    d["last_update_null_heap"], d["last_update_null_stack"],
+                    d["last_update_null_heap"], d["last_update_null_stack"], d["max_live_size"],
                     ]
             csvwriter.writerow( row )
 
@@ -907,6 +907,7 @@ def main_process( output = None,
             last_update_null = summary_sim["last_update_null"]
             last_update_null_heap = summary_sim["last_update_null_heap"]
             last_update_null_stack = summary_sim["last_update_null_stack"]
+            max_live_size = summary_sim["max_live_size"]
             final_time = summary_sim["final_time"]
             selfloops = set()
             edgedict = create_edge_dictionary( edges, selfloops )
@@ -932,6 +933,7 @@ def main_process( output = None,
                                "last_update_null" : last_update_null, # subset of died_by_heap
                                "last_update_null_heap" : last_update_null_heap, # subset of died_by_heap
                                "last_update_null_stack" : last_update_null_stack, # subset of died_by_heap
+                               "max_live_size" : max_live_size,
                                "number_of_objects" : number_of_objects,
                                "number_of_edges" : number_of_edges,
                                "number_of_selfloops" : 0,
