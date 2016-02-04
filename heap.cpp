@@ -68,39 +68,47 @@ void HeapState::makeDead(Object * obj, unsigned int death_time)
 // TODO Documentation :)
 void HeapState::update_death_counters( Object *obj )
 {
+    unsigned int obj_size = obj->getSize();
     // VERSION 1
     if (obj->getDiedByStackFlag()) {
         this->m_totalDiedByStack_ver2++;
-        this->m_sizeDiedByStack += obj->getSize();
+        this->m_sizeDiedByStack += obj_size;
         if (obj->wasPointedAtByHeap()) {
             this->m_diedByStackAfterHeap++;
+            this->m_diedByStackAfterHeap_size += obj_size;
         } else {
             this->m_diedByStackOnly++;
+            this->m_diedByStackOnly_size += obj_size;
         }
         if (obj->wasLastUpdateNull()) {
             this->m_totalUpdateNullStack++;
+            this->m_totalUpdateNullStack_size += obj_size;
         }
     } else if ( (obj->getReason() == STACK) ||
                 (obj->getLastEvent() == LastEvent::ROOT) ) {
         this->m_totalDiedByStack_ver2++;
-        this->m_sizeDiedByStack += obj->getSize();
+        this->m_sizeDiedByStack += obj_size;
         if (obj->wasPointedAtByHeap()) {
             this->m_diedByStackAfterHeap++;
+            this->m_diedByStackAfterHeap_size += obj_size;
         } else {
             this->m_diedByStackOnly++;
+            this->m_diedByStackOnly_size += obj_size;
         }
         if (obj->wasLastUpdateNull()) {
             this->m_totalUpdateNullStack++;
+            this->m_totalUpdateNullStack_size += obj_size;
         }
     } else if ( obj->getDiedByHeapFlag() ||
                 (obj->getReason() == HEAP) ||
                 (obj->getLastEvent() == LastEvent::UPDATE) ||
                 obj->wasPointedAtByHeap() ) {
         this->m_totalDiedByHeap_ver2++;
-        this->m_sizeDiedByHeap += obj->getSize();
+        this->m_sizeDiedByHeap += obj_size;
         obj->setDiedByHeapFlag();
         if (obj->wasLastUpdateNull()) {
             this->m_totalUpdateNullHeap++;
+            this->m_totalUpdateNullHeap_size += obj_size;
         }
     } else {
         // cout << "X: ObjectID [" << obj->getId() << "][" << obj->getType()
@@ -111,14 +119,17 @@ void HeapState::update_death_counters( Object *obj )
         // the Java user program, and thus end up here. We consider these
         // to be "STACK" caused death as we can associate these with the main function.
         this->m_totalDiedByStack_ver2++;
-        this->m_sizeDiedByStack += obj->getSize();
+        this->m_sizeDiedByStack += obj_size;
         this->m_diedByStackOnly++;
+        this->m_diedByStackOnly_size += obj_size;
         if (obj->wasLastUpdateNull()) {
             this->m_totalUpdateNullStack++;
+            this->m_totalUpdateNullStack_size += obj_size;
         }
     }
     if (obj->wasLastUpdateNull()) {
         this->m_totalUpdateNull++;
+        this->m_totalUpdateNull_size += obj_size;
     }
     // END VERSION 1
     // TODO // VERSION 2
@@ -127,6 +138,7 @@ void HeapState::update_death_counters( Object *obj )
     // TODO     obj->setDiedByStackFlag();
     // TODO     if (obj->wasPointedAtByHeap()) {
     // TODO         this->m_diedByStackAfterHeap++;
+    // TODO         this->m_diedByStackAfterHeap_size += obj_size;
     // TODO     } else {
     // TODO         this->m_diedByStackOnly++;
     // TODO     }

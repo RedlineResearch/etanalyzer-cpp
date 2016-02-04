@@ -78,6 +78,7 @@ class HeapState
         unsigned int m_sizeDiedByHeap;
         // Size of objects that died by stack frame going out of scope
         unsigned int m_sizeDiedByStack;
+
         // Total number of objects whose last update away from the object
         // was null
         unsigned int m_totalUpdateNull;
@@ -85,10 +86,22 @@ class HeapState
         unsigned int m_totalUpdateNullHeap;
         //    -- that was part of the stack
         unsigned int m_totalUpdateNullStack;
+        // Size of objects whose last update away from the object was null
+        unsigned int m_totalUpdateNull_size;
+        //    -- that was part of the heap
+        unsigned int m_totalUpdateNullHeap_size;
+        //    -- that was part of the stack
+        unsigned int m_totalUpdateNullStack_size;
+
         // Died by stack with previous heap action
         unsigned int m_diedByStackAfterHeap;
         // Died by stack only
         unsigned int m_diedByStackOnly;
+        // Died by stack with previous heap action -- size
+        unsigned int m_diedByStackAfterHeap_size;
+        // Died by stack only -- size
+        unsigned int m_diedByStackOnly_size;
+
         // Number of objects with no death sites
         unsigned int m_no_dsites_count;
         // Number of VM objects that always have RC 0
@@ -117,6 +130,9 @@ class HeapState
             , m_totalUpdateNull(0)
             , m_totalUpdateNullHeap(0)
             , m_totalUpdateNullStack(0)
+            , m_totalUpdateNull_size(0)
+            , m_totalUpdateNullHeap_size(0)
+            , m_totalUpdateNullStack_size(0)
             , m_diedByStackAfterHeap(0)
             , m_diedByStackOnly(0)
             , m_no_dsites_count(0)
@@ -144,19 +160,30 @@ class HeapState
         unsigned int size() const { return m_objects.size(); }
         unsigned int liveSize() const { return m_liveSize; }
         unsigned int maxLiveSize() const { return m_maxLiveSize; }
+
         unsigned int getTotalDiedByStack2() const { return m_totalDiedByStack_ver2; }
         unsigned int getTotalDiedByHeap2() const { return m_totalDiedByHeap_ver2; }
         unsigned int getTotalDiedUnknown() const { return m_totalDiedUnknown_ver2; }
         unsigned int getSizeDiedByHeap() const { return m_sizeDiedByHeap; }
         unsigned int getSizeDiedByStack() const { return m_sizeDiedByStack; }
+
         unsigned int getTotalLastUpdateNull() const { return m_totalUpdateNull; }
         unsigned int getTotalLastUpdateNullHeap() const { return m_totalUpdateNullHeap; }
         unsigned int getTotalLastUpdateNullStack() const { return m_totalUpdateNullStack; }
+        unsigned int getSizeLastUpdateNull() const { return m_totalUpdateNull_size; }
+        unsigned int getSizeLastUpdateNullHeap() const { return m_totalUpdateNullHeap_size; }
+        unsigned int getSizeLastUpdateNullStack() const { return m_totalUpdateNullStack_size; }
+
         unsigned int getDiedByStackAfterHeap() const { return m_diedByStackAfterHeap; }
         unsigned int getDiedByStackOnly() const { return m_diedByStackOnly; }
+        unsigned int getSizeDiedByStackAfterHeap() const { return m_diedByStackAfterHeap_size; }
+        unsigned int getSizeDiedByStackOnly() const { return m_diedByStackOnly_size; }
+
         unsigned int getNumberNoDeathSites() const { return m_no_dsites_count; }
+
         unsigned int getVMObjectsRefCountZero() const { return m_vm_refcount_0; }
         unsigned int getVMObjectsRefCountPositive() const { return m_vm_refcount_positive; }
+
         DeathSitesMap::iterator begin_dsites() { return m_death_sites_map.begin(); }
         DeathSitesMap::iterator end_dsites() { return m_death_sites_map.end(); }
 

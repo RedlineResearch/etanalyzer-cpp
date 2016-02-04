@@ -483,6 +483,11 @@ int main(int argc, char* argv[])
     } else {
         cout << "NOCYCLE chosen. Skipping cycle detection." << endl;
     }
+    //     unsigned int getSizeLastUpdateNull() const { return m_totalUpdateNull_size; }
+    //     unsigned int getSizeLastUpdateNullHeap() const { return m_totalUpdateNullHeap_size; }
+    //     unsigned int getSizeLastUpdateNullStack() const { return m_totalUpdateNullStack_size; }
+    //     unsigned int getSizeDiedByStackAfterHeap() const { return m_diedByStackAfterHeap_size; }
+    //     unsigned int getSizeDiedByStackOnly() const { return m_diedByStackOnly_size; }
     ofstream summary_file(summary_filename);
     summary_file << "---------------[ SUMMARY INFO ]----------------------------------------------------" << endl;
     summary_file << "number_of_objects," << Heap.size() << endl
@@ -492,8 +497,13 @@ int main(int argc, char* argv[])
                  << "last_update_null," << Heap.getTotalLastUpdateNull() << endl
                  << "last_update_null_heap," << Heap.getTotalLastUpdateNullHeap() << endl
                  << "last_update_null_stack," << Heap.getTotalLastUpdateNullStack() << endl
+                 << "last_update_null_size," << Heap.getSizeLastUpdateNull() << endl
+                 << "last_update_null_heap_size," << Heap.getSizeLastUpdateNullHeap() << endl
+                 << "last_update_null_stack_size," << Heap.getSizeLastUpdateNullStack() << endl
                  << "died_by_stack_only," << Heap.getDiedByStackOnly() << endl
-                 << "died_by_stack_after_heap," << Heap.getDiedByStackAfterHeap() << endl
+                 << "died_by_stack_after_heap," << Heap.getSizeDiedByStackAfterHeap() << endl
+                 << "died_by_stack_only_size," << Heap.getSizeDiedByStackOnly() << endl
+                 << "died_by_stack_after_heap_size," << Heap.getDiedByStackAfterHeap() << endl
                  << "no_death_sites," << Heap.getNumberNoDeathSites() << endl
                  << "size_died_by_stack," << Heap.getSizeDiedByStack() << endl
                  << "size_died_by_heap," << Heap.getSizeDiedByHeap() << endl
