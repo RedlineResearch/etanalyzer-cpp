@@ -55,8 +55,8 @@ def debug_lifetimes( G, cycle, bmark, logger ):
     for x in cycle:
         if G.node[x]["lifetime"] <= 0:
             n = G.node[x]
-            print "XXX %s: [ %d - %s ] lifetime: %d" % \
-                (bmark, x, n["type"], n["lifetime"])
+            # print "XXX %s: [ %d - %s ] lifetime: %d" % \
+            #     (bmark, x, n["type"], n["lifetime"])
             logger.critical( "XXX: [ %d - %s ] lifetime: %d" %
                              (x, n["type"], n["lifetime"]) )
 
