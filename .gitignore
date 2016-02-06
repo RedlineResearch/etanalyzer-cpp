@@ -10,3 +10,6 @@ build
 taskArtifacts
 .gradle
 temp.txt
+STASH
+libsqlite4java-linux-amd64.so
+sqlite4java.jar
