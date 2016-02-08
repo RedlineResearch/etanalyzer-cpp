@@ -17,8 +17,8 @@ xlabel <- "Number of objects allocated"
 
 xcsv <- read.table( datafile, sep = ",", header = TRUE )
 # Add derived information
-xcsv$byHeap_percent <- round( (xcsv$died_by_heap / xcsv$total_objects) * 100, digits = 1 )
-xcsv$byStack_percent <- round( (xcsv$died_by_stack / xcsv$total_objects) * 100, digits = 1 )
+xcsv$byHeap_percent <- round( (xcsv$died_by_heap / xcsv$total_objects) * 100, digits = 2 )
+xcsv$byStack_percent <- round( (xcsv$died_by_stack / xcsv$total_objects) * 100, digits = 2 )
 xcsv$totalSize <- xcsv$died_by_stack_size + xcsv$died_by_heap_size
 
 print("======================================================================")
@@ -116,8 +116,8 @@ deathreason.out <- "/data/rveroy/pulsrc/data-ismm-2016/y-GRAPHS/ALL-06-percent-d
 flush.console()
 d <- xcsv
 # Sort the benchmarks
-d$byHeapSize_percent <- round( (d$died_by_heap_size / (d$died_by_heap_size + d$died_by_stack_size)) * 100, digits = 1 )
-d$byStackSize_percent <- round( (d$died_by_stack_size / (d$died_by_heap_size + d$died_by_stack_size)) * 100, digits = 1 )
+d$byHeapSize_percent <- round( (d$died_by_heap_size / (d$died_by_heap_size + d$died_by_stack_size)) * 100, digits = 2 )
+d$byStackSize_percent <- round( (d$died_by_stack_size / (d$died_by_heap_size + d$died_by_stack_size)) * 100, digits = 2 )
 d$benchmark <- factor(d$benchmark, levels = d[ order(d$max_live_size), "benchmark"])
 xcsv.melt <- melt(d[,c("benchmark", "byHeapSize_percent", "byStackSize_percent")])
 d.actual.size.melt <- melt(d[,c("benchmark", "died_by_heap_size", "died_by_stack_size")])
@@ -171,10 +171,10 @@ print("======================================================================")
 flush.console()
 d <- xcsv
 # Sort the benchmarks
-d$byStackOnly_percent <- round( (d$died_by_stack_only / d$total_objects) * 100, digits = 1 )
-d$byStackAfterHeap_percent <- round( (d$died_by_stack_after_heap / d$total_objects) * 100, digits = 1 )
-d$byHeapAfterValid_percent <- round( ((d$died_by_heap - d$last_update_null_heap) / d$total_objects) * 100, digits = 1 )
-d$byHeapAfterNull_percent <- round( (d$last_update_null_heap / d$total_objects) * 100, digits = 1 )
+d$byStackOnly_percent <- round( (d$died_by_stack_only / d$total_objects) * 100, digits = 2 )
+d$byStackAfterHeap_percent <- round( (d$died_by_stack_after_heap / d$total_objects) * 100, digits = 2 )
+d$byHeapAfterValid_percent <- round( ((d$died_by_heap - d$last_update_null_heap) / d$total_objects) * 100, digits = 2 )
+d$byHeapAfterNull_percent <- round( (d$last_update_null_heap / d$total_objects) * 100, digits = 2 )
 d$benchmark <- factor( d$benchmark, levels = d[ order( d$max_live_size), "benchmark" ] )
 xcsv.heap.melt <- melt(d[,c( "benchmark", "byHeapAfterNull_percent", "byHeapAfterValid_percent", "byStack_percent" )])
 xcsv.stack.melt <- melt(d[,c( "benchmark", "byHeap_percent", "byStackOnly_percent", "byStackAfterHeap_percent" )])
@@ -207,9 +207,9 @@ flush.console()
 print("DEBUG:")
 d <- xcsv
 # Sort the benchmarks
-# d$byStackOnly_percent <- round( (d$died_by_stack_only / d$total_objects) * 100, digits = 1 )
-# d$byStackAfterHeap_percent <- round( (d$died_by_stack_after_heap / d$total_objects) * 100, digits = 1 )
-# d$byHeapAfterNull_percent <- round( (d$last_update_null_heap / d$total_objects) * 100, digits = 1 )
+# d$byStackOnly_percent <- round( (d$died_by_stack_only / d$total_objects) * 100, digits = 2 )
+# d$byStackAfterHeap_percent <- round( (d$died_by_stack_after_heap / d$total_objects) * 100, digits = 2 )
+# d$byHeapAfterNull_percent <- round( (d$last_update_null_heap / d$total_objects) * 100, digits = 2 )
 # d$benchmark <- factor( d$benchmark, levels = d[ order( d$max_live_size), "benchmark" ] )
 d$last_update_valid_heap_size <- d$died_by_heap_size - d$last_update_null_heap_size
 d
@@ -260,10 +260,10 @@ print("======================================================================")
 flush.console()
 d <- xcsv
 # Sort the benchmarks
-# d$byStackOnly_percent <- round( (d$died_by_stack_only / d$total_objects) * 100, digits = 1 )
-# d$byStackAfterHeap_percent <- round( (d$died_by_stack_after_heap / d$total_objects) * 100, digits = 1 )
-# d$byHeapAfterValid_percent <- round( ((d$died_by_heap - d$last_update_null_heap) / d$total_objects) * 100, digits = 1 )
-# d$byHeapAfterNull_percent <- round( (d$last_update_null_heap / d$total_objects) * 100, digits = 1 )
+# d$byStackOnly_percent <- round( (d$died_by_stack_only / d$total_objects) * 100, digits = 2 )
+# d$byStackAfterHeap_percent <- round( (d$died_by_stack_after_heap / d$total_objects) * 100, digits = 2 )
+# d$byHeapAfterValid_percent <- round( ((d$died_by_heap - d$last_update_null_heap) / d$total_objects) * 100, digits = 2 )
+# d$byHeapAfterNull_percent <- round( (d$last_update_null_heap / d$total_objects) * 100, digits = 2 )
 d$last_update_valid_heap <- d$died_by_heap - d$last_update_null_heap
 d$benchmark <- factor( d$benchmark, levels = d[ order( d$max_live_size), "benchmark" ] )
 xcsv.heap.melt <- melt(d[,c( "benchmark", "last_update_null_heap", "last_update_valid_heap", "died_by_stack" )])
@@ -308,8 +308,8 @@ result = tryCatch( {
 # =====================================================================
 d <- xcsv
 # Sort the benchmarks
-d$byHeapAfterNull_percent <- round( (d$last_update_null_heap / d$died_by_heap) * 100, digits = 1 )
-d$byHeapAfterValid_percent <- round( ((d$died_by_heap - d$last_update_null_heap) / d$died_by_heap) * 100, digits = 1 )
+d$byHeapAfterNull_percent <- round( (d$last_update_null_heap / d$died_by_heap) * 100, digits = 2 )
+d$byHeapAfterValid_percent <- round( ((d$died_by_heap - d$last_update_null_heap) / d$died_by_heap) * 100, digits = 2 )
 d$benchmark <- factor(d$benchmark, levels = d[ order(d$max_live_size), "benchmark"])
 xcsv.heap.melt <- melt(d[,c( "benchmark", "byHeapAfterNull_percent", "byHeapAfterValid_percent" )])
 xcsv.heap.melt
@@ -335,8 +335,8 @@ print("======================================================================")
 d <- xcsv
 # Sort the benchmarks
 # Drill down to stack only - by stack only vs after heap - object count
-d$byStackOnly_percent <- round( (d$died_by_stack_only / d$died_by_stack) * 100, digits = 1 )
-d$byStackAfterHeap_percent <- round( (d$died_by_stack_after_heap / d$died_by_stack ) * 100, digits = 1 )
+d$byStackOnly_percent <- round( (d$died_by_stack_only / d$died_by_stack) * 100, digits = 2 )
+d$byStackAfterHeap_percent <- round( (d$died_by_stack_after_heap / d$died_by_stack ) * 100, digits = 2 )
 d$benchmark <- factor(d$benchmark, levels = d[ order(d$max_live_size), "benchmark"])
 xcsv.stack.melt <- melt(d[,c( "benchmark", "byStackOnly_percent", "byStackAfterHeap_percent" )])
 deathreason.out <- "/data/rveroy/pulsrc/data-ismm-2016/y-GRAPHS/06-percent-deathcause-stack-only.pdf"
