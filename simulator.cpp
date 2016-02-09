@@ -250,7 +250,7 @@ unsigned int read_trace_file(FILE* f)
                         // TODO } else if (last_event == LastEvent::UPDATE) {
                         // TODO     obj->setDiedByHeapFlag();
                         // TODO }
-                        Heap->makeDead(obj, Exec.Now());
+                        Heap.makeDead(obj, Exec.Now());
                         // Get the current method
                         Method *topMethod = NULL;
                         if (thread) {
