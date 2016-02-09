@@ -250,7 +250,7 @@ unsigned int read_trace_file(FILE* f)
                         // TODO } else if (last_event == LastEvent::UPDATE) {
                         // TODO     obj->setDiedByHeapFlag();
                         // TODO }
-                        obj->makeDead(Exec.Now());
+                        Heap->makeDead(obj, Exec.Now());
                         // Get the current method
                         Method *topMethod = NULL;
                         if (thread) {
@@ -408,7 +408,7 @@ int main(int argc, char* argv[])
     // if (true) {
     // TODO Maybe use a finer grained selection of options here.
     //      But for now, doing it this way.
-    if (true) {
+    if (cycle_flag) {
         deque< pair<int,int> > edgelist;
         deque< deque<int> > cycle_list = Heap.scan_queue( edgelist );
         filter_edgelist( edgelist, cycle_list );
