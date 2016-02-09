@@ -16,18 +16,20 @@ xcsv$died_by_stack_perc <- round( (xcsv$died_by_stack / xcsv$total_objects) * 10
 xcsv$died_by_stack_size <- round( xcsv$died_by_stack_size / (1024*1024) )
 xcsv$died_by_heap_size <- round( xcsv$died_by_heap_size / (1024*1024) )
 xcsv$total_size <- xcsv$died_by_stack_size + xcsv$died_by_heap_size
+xcsv$total_size_mb <- round( xcsv$total_size / (1024*1024) )
 xcsv$benchmark <- factor( xcsv$benchmark, levels = xcsv[ order( xcsv$max_live_size), "benchmark" ] )
 xcsv$died_by_heap_size_perc <- round( (xcsv$died_by_heap_size / xcsv$total_size) * 100, digits = 2 )
 xcsv$died_by_stack_size_perc <- round( (xcsv$died_by_stack_size / xcsv$total_size) * 100, digits = 2 )
-# xcsv$died_by_heap_kb <- round( xcsv$died_by )
 
 print("======================================================================")
 xcsv
-t1 <- xcsv[c( "benchmark", "total_objects",
+t1 <- xcsv[c( "benchmark",
+              "total_objects",
               "died_by_heap", "died_by_heap_perc",
               "died_by_stack", "died_by_stack_perc",
+              "total_size_mb",
               "died_by_heap_size", "died_by_heap_size_perc",
-              "died_by_stack_size", "died_by_stack_size_perc") ]
+              "died_by_stack_size", "died_by_stack_size_perc" ) ]
 print("======================================================================")
 
 t1.2 <- t1
@@ -51,10 +53,6 @@ cap1 <- c("How objects died for the Dacapo and SpecJVM98 benchmarks. Benchmarks 
 # Latex label
 lab1 <- "tableOverview"
 
-# Rename the columns now with spaces
-names(t1.2) <- c( "Benchmark", "Total objects",
-                  "By heap", "By heap %", "By stack", "By stack %",
-                  "By heap ", "By heap %", "By stack", "By stack %" )
 # Create the table
 x1 <- xtable( t1.2,
               caption = cap1, 

@@ -20,7 +20,8 @@ Object* HeapState::allocate( unsigned int id, unsigned int size,
     if (m_objects.size() % 100000 == 0) {
         cout << "OBJECTS: " << m_objects.size() << endl;
     }
-    this->m_liveSize += size;
+    unsigned long int temp = this->m_liveSize + obj->getSize();
+    this->m_liveSize = ( (temp < this->m_liveSize) ? ULONG_MAX : temp);
     if (this->m_maxLiveSize < this->m_liveSize) {
         this->m_maxLiveSize = this->m_liveSize;
     }
@@ -57,10 +58,15 @@ Edge* HeapState::make_edge( Object* source, unsigned int field_id,
 
 void HeapState::makeDead(Object * obj, unsigned int death_time)
 {
-    this->m_liveSize -= obj->getSize();
-    if (this->m_liveSize < 0) {
-        cout << "ERROR: liveSize is negative: " << this->m_liveSize << endl;
+    unsigned long int temp = this->m_liveSize - obj->getSize();
+    if (temp > this->m_liveSize) {
+        // OVERFLOW, underflow?
         this->m_liveSize = 0;
+        cerr << "UNDERFLOW of substraction." << endl;
+        // TODO If this happens, maybe we should think about why it happens.
+    } else {
+        // All good. Fight on.
+        this->m_liveSize = temp;
     }
     obj->makeDead(death_time);
 }
@@ -199,7 +205,7 @@ void HeapState::end_of_program(unsigned int cur_time)
           ++i ) {
         Object* obj = i->second;
         if (obj->isLive(cur_time)) {
-            obj->makeDead(cur_time);
+            this->makeDead(obj, cur_time);
             obj->setDiedByStackFlag(); // TODO This seems the most reasonable for this.
             obj->setLastEvent( LastEvent::ROOT );
         }

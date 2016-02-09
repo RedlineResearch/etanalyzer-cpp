@@ -65,8 +65,8 @@ class HeapState
         // Map from IDs to bool if possible cyle root
         map<unsigned int, bool> m_candidate_map;
 
-        unsigned int m_liveSize; // current live size of program in bytes
-        unsigned int m_maxLiveSize; // max live size of program in bytes
+        unsigned long int m_liveSize; // current live size of program in bytes
+        unsigned long int m_maxLiveSize; // max live size of program in bytes
 
         // Total number of objects that died by loss of heap reference version 2
         unsigned int m_totalDiedByHeap_ver2;
@@ -158,8 +158,8 @@ class HeapState
         ObjectMap::iterator begin() { return m_objects.begin(); }
         ObjectMap::iterator end() { return m_objects.end(); }
         unsigned int size() const { return m_objects.size(); }
-        unsigned int liveSize() const { return m_liveSize; }
-        unsigned int maxLiveSize() const { return m_maxLiveSize; }
+        unsigned long int liveSize() const { return m_liveSize; }
+        unsigned long int maxLiveSize() const { return m_maxLiveSize; }
 
         unsigned int getTotalDiedByStack2() const { return m_totalDiedByStack_ver2; }
         unsigned int getTotalDiedByHeap2() const { return m_totalDiedByHeap_ver2; }
