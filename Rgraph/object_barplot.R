@@ -9,9 +9,6 @@ library(reshape2)
 cargs <- commandArgs(TRUE)
 datafile <- cargs[1]
 # datafile <- "/data/rveroy/pulsrc/data-ismm-2016/all.csv"
-objcount.out <- "/data/rveroy/pulsrc/data-ismm-2016/y-GRAPHS/ALL-01-object_barplot.pdf"
-title <- "Object Count"
-xlabel <- "Number of objects allocated"
 # width <- as.integer(cargs[4])
 # height <- as.integer(cargs[5])
 
@@ -20,6 +17,7 @@ xcsv <- read.table( datafile, sep = ",", header = TRUE )
 xcsv$byHeap_percent <- round( (xcsv$died_by_heap / xcsv$total_objects) * 100, digits = 2 )
 xcsv$byStack_percent <- round( (xcsv$died_by_stack / xcsv$total_objects) * 100, digits = 2 )
 xcsv$totalSize <- xcsv$died_by_stack_size + xcsv$died_by_heap_size
+xcsv$totalSize_MB <- xcsv$totalSize / (1024*1024)
 
 print("======================================================================")
 xcsv
@@ -29,11 +27,15 @@ print("======================================================================")
 # Object count linear scale
 print("Object count barplot - linear")
 flush.console()
+objcount.out <- "/data/rveroy/pulsrc/data-ismm-2016/y-GRAPHS/ALL-01-object_barplot.pdf"
+xlabel <- "Benchmark"
+ylabel <- "Objects"
 d <- xcsv
 d$benchmark <- factor(d$benchmark, levels = d[ order(d$max_live_size), "benchmark"])
 result = tryCatch( {
         p <- ggplot( d, aes(x = benchmark, y = total_objects)) +
              geom_bar( stat = "identity" ) + coord_flip()
+        p <- p + labs( x = xlabel, y = ylabel )
         ggsave(filename = objcount.out, plot = p)
     }, warning = function(w) {
         print(paste("WARNING: failed on object count - linear scale"))
@@ -49,11 +51,14 @@ print("======================================================================")
 print("Size barplot")
 objcount.out <- "/data/rveroy/pulsrc/data-ismm-2016/y-GRAPHS/ALL-02-size-barplot.pdf"
 flush.console()
+xlabel <- "Benchmark"
+ylabel <- "Size allocated in MB"
 d <- xcsv
 d$benchmark <- factor(d$benchmark, levels = d[ order(d$max_live_size), "benchmark"])
 result = tryCatch( {
-        p <- ggplot( d, aes(x = benchmark, y = totalSize )) +
+        p <- ggplot( d, aes(x = benchmark, y = totalSize_MB )) +
              geom_bar( stat = "identity" ) + coord_flip()
+        p <- p + labs( x = xlabel, y = ylabel )
         ggsave(filename = objcount.out, plot = p)
     }, warning = function(w) {
         print(paste("WARNING: failed on size barplot"))
@@ -69,6 +74,8 @@ print("======================================================================")
 print("Death by stack vs by heap")
 deathreason.out <- "/data/rveroy/pulsrc/data-ismm-2016/y-GRAPHS/ALL-04-percent-deathcause-object-count.pdf"
 flush.console()
+xlabel <- "Benchmark"
+ylabel <- "Percentage of objects"
 d <- xcsv
 # Sort the benchmarks
 d$benchmark <- factor(d$benchmark, levels = d[ order(d$max_live_size), "benchmark"])
@@ -77,7 +84,12 @@ result = tryCatch( {
         p <- ggplot( xcsv.melt,
                      aes( x = benchmark,
                           y = value,
-                          fill = variable ) ) + geom_bar( stat = "identity" ) + coord_flip() + scale_fill_manual( values = c("#1F78B4", "#33A02C") )
+                          fill = variable ) )
+        p <- p + labs( x = xlabel, y = ylabel )
+        p <- p + geom_bar( stat = "identity" ) + coord_flip()
+        p <- p + scale_fill_manual( values = c("#1F78B4", "#33A02C"),
+                                    name = "% of objects died",
+                                    labels = c("By heap", "By stack"))
         ggsave(filename = deathreason.out, plot = p)
     }, warning = function(w) {
         print(paste("WARNING: failed on death reason stack vs heap."))
@@ -89,6 +101,8 @@ result = tryCatch( {
 print("======================================================================")
 
 deathreason.out <- "/data/rveroy/pulsrc/data-ismm-2016/y-GRAPHS/ALL-03-actual-deathcause-object-count.pdf"
+xlabel <- "Benchmark"
+ylabel <- "Objects"
 d <- xcsv
 # Sort the benchmarks
 d$benchmark <- factor(d$benchmark, levels = d[ order(d$max_live_size), "benchmark"])
@@ -98,7 +112,12 @@ result = tryCatch( {
         p <- ggplot( xcsv.melt,
                      aes( x = benchmark,
                           y = value,
-                          fill = variable ) ) + geom_bar( stat = "identity" ) + coord_flip() + scale_fill_manual( values = c("#1F78B4", "#33A02C") )
+                          fill = variable ) )
+        p <- p +  geom_bar( stat = "identity" ) + coord_flip()
+        p <- p + scale_fill_manual( values = c("#1F78B4", "#33A02C"),
+                                    name = "Objects died",
+                                    labels = c("By heap", "By stack") )
+        p <- p + labs( x = xlabel, y = ylabel )
         ggsave(filename = deathreason.out, plot = p)
     }, warning = function(w) {
         print(paste("WARNING: failed on death reason stack vs heap."))
