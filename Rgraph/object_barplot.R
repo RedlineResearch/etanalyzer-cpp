@@ -134,7 +134,7 @@ print("Death by stack vs by heap - size")
 deathreason.out <- "/data/rveroy/pulsrc/data-ismm-2016/y-GRAPHS/ALL-06-percent-deathcause-size.pdf"
 flush.console()
 xlabel <- "Benchmark"
-ylabel <- "Percentage of objects"
+ylabel <- "Percentage by size"
 d <- xcsv
 # Sort the benchmarks
 d$byHeapSize_percent <- round( (d$died_by_heap_size / (d$died_by_heap_size + d$died_by_stack_size)) * 100, digits = 2 )
