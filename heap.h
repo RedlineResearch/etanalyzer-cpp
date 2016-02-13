@@ -55,6 +55,9 @@ class HeapState
         // -- Turn on debugging
         static bool debug;
 
+        // -- Turn on output of objects to stdout
+        bool m_obj_debug_flag;
+
     private:
         // -- Map from IDs to objects
         ObjectMap m_objects;
@@ -137,8 +140,12 @@ class HeapState
             , m_diedByStackOnly(0)
             , m_no_dsites_count(0)
             , m_vm_refcount_positive(0)
-            , m_vm_refcount_0(0) {
+            , m_vm_refcount_0(0)
+            , m_obj_debug_flag(false) {
         }
+
+        void enableObjectDebug() { m_obj_debug_flag = true; }
+        void disableObjectDebug() { m_obj_debug_flag = false; }
 
         Object* allocate( unsigned int id,
                           unsigned int size,
@@ -373,6 +380,8 @@ class Object
         const EdgeMap& getFields() const { return m_fields; }
         // -- Get a string representation
         string info();
+        // -- Get a string representation for a dead object
+        string info2();
         // -- Check live
         bool isLive(unsigned int tm) const { return (tm < m_deathTime); }
         // -- Update a field

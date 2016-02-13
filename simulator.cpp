@@ -267,6 +267,8 @@ unsigned int read_trace_file(FILE* f)
                                 if (target_edge) {
                                     unsigned int fieldId = target_edge->getSourceField();
                                     obj->updateField( NULL, fieldId, Exec.Now(), topMethod, STACK );
+                                    // NOTE: STACK is used because the object that died,
+                                    // died by STACK.
                                 }
                             }
                         }
@@ -376,9 +378,9 @@ void filter_edgelist( deque< pair<int,int> >& edgelist, deque< deque<int> >& cyc
 
 int main(int argc, char* argv[])
 {
-    if (argc != 4) {
+    if (argc != 5) {
         cout << argc << endl;
-        cout << "Usage: " << argv[0] << " <namesfile> <output base name> <CYCLE/NOCYCLE>" << endl;
+        cout << "Usage: " << argv[0] << " <namesfile> <output base name> <CYCLE/NOCYCLE> <OBJDEBUG/NOOBJDEBUG>" << endl;
         exit(1);
     }
     string basename(argv[2]);
@@ -392,6 +394,12 @@ int main(int argc, char* argv[])
     string cycle_switch(argv[3]);
     bool cycle_flag = ((cycle_switch == "NOCYCLE") ? false : true);
     
+    string obj_debug_switch(argv[4]);
+    bool obj_debug_flag = ((obj_debug_switch == "OBJDEBUG") ? true : false);
+    if (obj_debug_flag) {
+        cout << "Enable OBJECT DEBUG." << endl;
+        Heap.enableObjectDebug(); // default is no debug
+    }
     cout << "Read names file..." << endl;
     ClassInfo::read_names_file(argv[1]);
 

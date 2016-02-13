@@ -76,6 +76,7 @@ void HeapState::update_death_counters( Object *obj )
 {
     unsigned int obj_size = obj->getSize();
     // VERSION 1
+    // TODO: This could use some refactoring.
     if (obj->getDiedByStackFlag()) {
         this->m_totalDiedByStack_ver2++;
         this->m_sizeDiedByStack += obj_size;
@@ -89,6 +90,9 @@ void HeapState::update_death_counters( Object *obj )
         if (obj->wasLastUpdateNull()) {
             this->m_totalUpdateNullStack++;
             this->m_totalUpdateNullStack_size += obj_size;
+        }
+        if (m_obj_debug_flag) {
+            cout << "S> " << obj->info2() << endl;
         }
     } else if ( (obj->getReason() == STACK) ||
                 (obj->getLastEvent() == LastEvent::ROOT) ) {
@@ -105,6 +109,9 @@ void HeapState::update_death_counters( Object *obj )
             this->m_totalUpdateNullStack++;
             this->m_totalUpdateNullStack_size += obj_size;
         }
+        if (m_obj_debug_flag) {
+            cout << "S> " << obj->info2() << endl;
+        }
     } else if ( obj->getDiedByHeapFlag() ||
                 (obj->getReason() == HEAP) ||
                 (obj->getLastEvent() == LastEvent::UPDATE) ||
@@ -115,6 +122,9 @@ void HeapState::update_death_counters( Object *obj )
         if (obj->wasLastUpdateNull()) {
             this->m_totalUpdateNullHeap++;
             this->m_totalUpdateNullHeap_size += obj_size;
+        }
+        if (m_obj_debug_flag) {
+            cout << "H> " << obj->info2() << endl;
         }
     } else {
         // cout << "X: ObjectID [" << obj->getId() << "][" << obj->getType()
@@ -131,6 +141,9 @@ void HeapState::update_death_counters( Object *obj )
         if (obj->wasLastUpdateNull()) {
             this->m_totalUpdateNullStack++;
             this->m_totalUpdateNullStack_size += obj_size;
+        }
+        if (m_obj_debug_flag) {
+            cout << "S> " << obj->info2() << endl;
         }
     }
     if (obj->wasLastUpdateNull()) {
@@ -321,6 +334,22 @@ string Object::info() {
        << " @"
        << m_createTime
        << ")";
+    return ss.str();
+}
+
+string Object::info2() {
+    stringstream ss;
+    ss << "OBJ 0x"
+       << hex
+       << m_id
+       << dec
+       << "("
+       << m_type << " "
+       << (m_site != 0 ? m_site->info() : "<NONE>")
+       << " @"
+       << m_createTime
+       << ")"
+       << " : " << (m_deathTime - m_createTime);
     return ss.str();
 }
 
