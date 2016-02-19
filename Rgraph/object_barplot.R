@@ -18,9 +18,33 @@ xcsv$byHeap_percent <- round( (xcsv$died_by_heap / xcsv$total_objects) * 100, di
 xcsv$byStack_percent <- round( (xcsv$died_by_stack / xcsv$total_objects) * 100, digits = 2 )
 xcsv$totalSize <- xcsv$died_by_stack_size + xcsv$died_by_heap_size
 xcsv$totalSize_MB <- xcsv$totalSize / (1024*1024)
+xcsv$max_live_size_MB <- xcsv$max_live_size / (1024*1024)
 
 print("======================================================================")
 xcsv
+
+print("======================================================================")
+#--------------------------------------------------
+# MAX LIVE SIZE GRAPH
+print("Max live size barplot")
+flush.console()
+objcount.out <- "/data/rveroy/pulsrc/data-ismm-2016/y-GRAPHS/ALL-00-maxlivesize-barplot.pdf"
+xlabel <- "Benchmark"
+ylabel <- "Size MB"
+d <- xcsv
+d$benchmark <- factor(d$benchmark, levels = d[ order(d$max_live_size_MB), "benchmark"])
+result = tryCatch( {
+        p <- ggplot( d, aes(x = benchmark, y = max_live_size_MB)) +
+             geom_bar( stat = "identity" ) + coord_flip()
+        p <- p + labs( x = xlabel, y = ylabel )
+        ggsave(filename = objcount.out, plot = p)
+    }, warning = function(w) {
+        print(paste("WARNING: failed on max live size barplot"))
+    }, error = function(e) {
+        print(paste("ERROR: failed on max live size barplot"))
+    }, finally = {
+    }
+)
 
 print("======================================================================")
 #--------------------------------------------------
@@ -87,7 +111,7 @@ result = tryCatch( {
                           fill = variable ) )
         p <- p + labs( x = xlabel, y = ylabel )
         p <- p + geom_bar( stat = "identity" ) + coord_flip()
-        p <- p + scale_fill_manual( values = c("#1F78B4", "#33A02C"),
+        p <- p + scale_fill_manual( values = c("#4292C6", "#33A02C"),
                                     name = "% of objects died",
                                     labels = c("By heap", "By stack") )
         ggsave(filename = deathreason.out, plot = p)
@@ -114,7 +138,7 @@ result = tryCatch( {
                           y = value,
                           fill = variable ) )
         p <- p +  geom_bar( stat = "identity" ) + coord_flip()
-        p <- p + scale_fill_manual( values = c("#1F78B4", "#33A02C"),
+        p <- p + scale_fill_manual( values = c("#4292C6", "#33A02C"),
                                     name = "Objects died",
                                     labels = c("By heap", "By stack") )
         p <- p + labs( x = xlabel, y = ylabel )
@@ -150,7 +174,7 @@ result = tryCatch( {
                           y = value,
                           fill = variable ) )
         p <- p + geom_bar( stat = "identity" ) + coord_flip()
-        p <- p + scale_fill_manual( values = c("#1F78B4", "#33A02C"),
+        p <- p + scale_fill_manual( values = c("#4292C6", "#33A02C"),
                                     name = "Size % died",
                                     labels = c("By heap", "By stack") )
         p <- p + labs( x = xlabel, y = ylabel )
@@ -174,7 +198,7 @@ result = tryCatch( {
                           y = value,
                           fill = variable ) )
         p <- p + geom_bar( stat = "identity" ) + coord_flip()
-        p <- p + scale_fill_manual( values = c("#1F78B4", "#33A02C"),
+        p <- p + scale_fill_manual( values = c("#4292C6", "#33A02C"),
                                      name = "Died",
                                      labels = c("By heap", "By stack") )
         p <- p + labs( x = xlabel, y = ylabel )
@@ -210,7 +234,7 @@ d$byHeapAfterValid_percent <- round( ((d$died_by_heap - d$last_update_null_heap)
 d$byHeapAfterNull_percent <- round( (d$last_update_null_heap / d$total_objects) * 100, digits = 2 )
 d$benchmark <- factor( d$benchmark, levels = d[ order( d$max_live_size), "benchmark" ] )
 xcsv.heap.melt <- melt(d[,c( "benchmark", "byHeapAfterNull_percent", "byHeapAfterValid_percent", "byStack_percent" )])
-xcsv.stack.melt <- melt(d[,c( "benchmark", "byHeap_percent", "byStackOnly_percent", "byStackAfterHeap_percent" )])
+xcsv.stack.melt <- melt(d[,c( "benchmark", "byHeap_percent", "byStackAfterHeap_percent", "byStackOnly_percent" )])
 
 xlabel <- "Benchmark"
 ylabel <- "Objects"
@@ -221,11 +245,11 @@ result = tryCatch( {
                           y = value,
                           fill = variable ) )
         p <- p + geom_bar( stat = "identity" ) + coord_flip()
-        p <- p + scale_fill_manual( values = c("#1F78B4", "#B2DF8A", "#33A02C"),
+        p <- p + scale_fill_manual( values = c("#4292C6", "#CCECE6", "#33A02C"),
                                     name = "Objects died",
                                     labels = c("By heap",
-                                               "By stack only",
-                                               "By stack after heap") )
+                                               "By stack after heap",
+                                               "By stack only") )
         p <- p + labs( x = xlabel, y = ylabel )
         ggsave(filename = deathreason.out, plot = p)
     }, warning = function(w) {
@@ -263,7 +287,7 @@ result = tryCatch( {
         p <- ggplot( xcsv.stack.melt,
                      aes( x = benchmark,
                           y = value,
-                          fill = variable ) ) + geom_bar( stat = "identity" ) + coord_flip() + scale_fill_manual( values = c("#1F78B4", "#B2DF8A", "#33A02C") )
+                          fill = variable ) ) + geom_bar( stat = "identity" ) + coord_flip() + scale_fill_manual( values = c("#4292C6", "#B2DF8A", "#33A02C") )
         ggsave(filename = deathreason.out, plot = p)
     }, warning = function(w) {
         print(paste("WARNING: failed on death reason stack vs heap - SIZE."))
@@ -281,7 +305,7 @@ result = tryCatch( {
         p <- ggplot( xcsv.heap.melt,
                      aes( x = benchmark,
                           y = value,
-                          fill = variable ) ) + geom_bar( stat = "identity" ) + coord_flip() + scale_fill_manual( values = c("#A6CEE3", "#1F78B4", "#33A02C") )
+                          fill = variable ) ) + geom_bar( stat = "identity" ) + coord_flip() + scale_fill_manual( values = c("#A6CEE3", "#4292C6", "#33A02C") )
         ggsave(filename = deathreason.out, plot = p)
     }, warning = function(w) {
         print(paste("WARNING: failed on death reason stack vs heap."))
@@ -316,7 +340,7 @@ result = tryCatch( {
         p <- ggplot( xcsv.stack.melt,
                      aes( x = benchmark,
                           y = value,
-                          fill = variable ) ) + geom_bar( stat = "identity" ) + coord_flip() + scale_fill_manual( values = c("#1F78B4", "#B2DF8A", "#33A02C") )
+                          fill = variable ) ) + geom_bar( stat = "identity" ) + coord_flip() + scale_fill_manual( values = c("#4292C6", "#B2DF8A", "#33A02C") )
         ggsave(filename = deathreason.out, plot = p)
     }, warning = function(w) {
         print(paste("WARNING: failed on death reason stack vs heap."))
@@ -334,7 +358,7 @@ result = tryCatch( {
         p <- ggplot( xcsv.heap.melt,
                      aes( x = benchmark,
                           y = value,
-                          fill = variable ) ) + geom_bar( stat = "identity" ) + coord_flip() + scale_fill_manual( values = c("#A6CEE3", "#1F78B4", "#33A02C") )
+                          fill = variable ) ) + geom_bar( stat = "identity" ) + coord_flip() + scale_fill_manual( values = c("#A6CEE3", "#4292C6", "#33A02C") )
         ggsave(filename = deathreason.out, plot = p)
     }, warning = function(w) {
         print(paste("WARNING: failed on death reason stack vs heap."))
@@ -355,12 +379,19 @@ xcsv.heap.melt
 print("======================================================================")
 print("Death by heap broken down")
 deathreason.out <- "/data/rveroy/pulsrc/data-ismm-2016/y-GRAPHS/08-deathcause-heap-only.pdf"
+xlabel <- "Benchmark"
+ylabel <- "Percentage of objects"
 flush.console()
 result = tryCatch( {
         p <- ggplot( xcsv.heap.melt,
                      aes( x = benchmark,
                           y = value,
-                          fill = variable ) ) + geom_bar( stat = "identity" ) + coord_flip() + scale_fill_manual( values = c("#A6CEE3", "#1F78B4") )
+                          fill = variable ) )
+        p <- p + geom_bar( stat = "identity" ) + coord_flip()
+        p <- p + scale_fill_manual( values = c("#A6CEE3", "#4292C6"),
+                                    labels = c("After null",
+                                               "To valid target") )
+        p <- p + labs( x = xlabel, y = ylabel )
         ggsave(filename = deathreason.out, plot = p)
     }, warning = function(w) {
         print(paste("WARNING: failed on heap last null breakdown."))
@@ -377,13 +408,20 @@ d <- xcsv
 d$byStackOnly_percent <- round( (d$died_by_stack_only / d$died_by_stack) * 100, digits = 2 )
 d$byStackAfterHeap_percent <- round( (d$died_by_stack_after_heap / d$died_by_stack ) * 100, digits = 2 )
 d$benchmark <- factor(d$benchmark, levels = d[ order(d$max_live_size), "benchmark"])
-xcsv.stack.melt <- melt(d[,c( "benchmark", "byStackOnly_percent", "byStackAfterHeap_percent" )])
+xcsv.stack.melt <- melt(d[,c( "benchmark", "byStackAfterHeap_percent", "byStackOnly_percent" )])
 deathreason.out <- "/data/rveroy/pulsrc/data-ismm-2016/y-GRAPHS/06-percent-deathcause-stack-only.pdf"
+xlabel <- "Benchmark"
+ylabel <- "Percentage of objects"
 result = tryCatch( {
         p <- ggplot( xcsv.stack.melt,
                      aes( x = benchmark,
                           y = value,
-                          fill = variable ) ) + geom_bar( stat = "identity" ) + coord_flip() + scale_fill_manual( values = c("#B2DF8A", "#33A02C") )
+                          fill = variable ) )
+        p <- p + geom_bar( stat = "identity" ) + coord_flip()
+        p <- p + scale_fill_manual( values = c("#CCECE6", "#33A02C"),
+                                    name = "% of objects died",
+                                    labels = c("By stack after heap", "By stack only") )
+        p <- p + labs( x = xlabel, y = ylabel )
         ggsave(filename = deathreason.out, plot = p)
     }, warning = function(w) {
         print(paste("WARNING: failed on death reason stack breakdown"))
