@@ -299,6 +299,42 @@ deque< deque<int> > HeapState::scan_queue( EdgeList& edgelist )
     return result;
 }
 
+// TODO Documentation :)
+deque< deque<int> > HeapState::scan_queue2( EdgeList& edgelist, map<unsigned int, bool>& not_candidate_map )
+{
+    deque< deque<int> > result;
+    unsigned int hit_total;
+    unsigned int miss_total;
+    cout << "Queue size: " << this->m_candidate_map.size() << endl;
+    for ( map<unsigned int, bool>::iterator i = this->m_candidate_map.begin();
+          i != this->m_candidate_map.end();
+          ++i ) {
+        int objId = i->first;
+        bool flag = i->second;
+        if (not_candidate_map[objId]) {
+            ++miss_total;
+        } else {
+            ++hit_total;
+        }
+        if (flag) {
+            Object* object = this->get(objId);
+            if (object) {
+                if (object->getColor() == BLACK) {
+                    object->mark_red();
+                    object->scan();
+                    deque<int> cycle = object->collect_blue( edgelist );
+                    if (cycle.size() > 0) {
+                        result.push_back( cycle );
+                    }
+                }
+            }
+        }
+    }
+    this->set_reason_for_cycles( result );
+    cout << "  MISSES: " << miss_total << "   HITS: " << hit_total << endl;
+    return result;
+}
+
 // -- Return a string with some information
 string Object::info() {
     stringstream ss;

@@ -44,6 +44,9 @@ bool debug = false;
 deque< deque<Object*> > cycle_list;
 set<unsigned int> root_set;
 
+map<unsigned int, unsigned int> deathrc_map;
+map<unsigned int, bool> not_candidate_map;
+
 void sanity_check()
 {
 /*
@@ -272,6 +275,9 @@ unsigned int read_trace_file(FILE* f)
                                 }
                             }
                         }
+                        unsigned int rc = obj->getRefCount();
+                        deathrc_map[objId] = rc;
+                        not_candidate_map[objId] = (rc == 0);
                     } else {
                         assert(false);
                     }
@@ -418,7 +424,8 @@ int main(int argc, char* argv[])
     //      But for now, doing it this way.
     if (cycle_flag) {
         deque< pair<int,int> > edgelist;
-        deque< deque<int> > cycle_list = Heap.scan_queue( edgelist );
+        // deque< deque<int> > cycle_list = Heap.scan_queue( edgelist );
+        deque< deque<int> > cycle_list = Heap.scan_queue2( edgelist, not_candidate_map );
         filter_edgelist( edgelist, cycle_list );
         // TODO Heap.analyze();
         cout << "DONE. Getting cycles." << endl;
