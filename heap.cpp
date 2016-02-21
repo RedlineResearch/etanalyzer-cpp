@@ -300,37 +300,42 @@ deque< deque<int> > HeapState::scan_queue( EdgeList& edgelist )
 }
 
 // TODO Documentation :)
-deque< deque<int> > HeapState::scan_queue2( EdgeList& edgelist, map<unsigned int, bool>& not_candidate_map )
+deque< Graph > HeapState::scan_queue2( EdgeList& edgelist, map<unsigned int, bool>& not_candidate_map )
 {
-    deque< deque<int> > result;
+    deque< Graph > result;
     unsigned int hit_total;
     unsigned int miss_total;
     cout << "Queue size: " << this->m_candidate_map.size() << endl;
+    // TODO
+    // 1. Convert m_candidate_map to a Boost Graph Library
+    // 2. Run SCC algorithm
+    // 3. Run reachability from the SCCs to the rest
+    // 4. ??? That's it?
+    //
+    // TODO: Add bimap
+    //    objId <-> graph ID
+    //
     for ( map<unsigned int, bool>::iterator i = this->m_candidate_map.begin();
           i != this->m_candidate_map.end();
           ++i ) {
         int objId = i->first;
         bool flag = i->second;
-        if (not_candidate_map[objId]) {
-            ++miss_total;
-        } else {
-            ++hit_total;
-        }
         if (flag) {
-            Object* object = this->get(objId);
-            if (object) {
-                if (object->getColor() == BLACK) {
-                    object->mark_red();
-                    object->scan();
-                    deque<int> cycle = object->collect_blue( edgelist );
-                    if (cycle.size() > 0) {
-                        result.push_back( cycle );
+            Object *obj = this->get(objId);
+            if (obj) {
+                for ( EdgeMap::iterator p = obj->getEdgeMapBegin();
+                      p != obj->getEdgeMapEnd();
+                      ++p ) {
+                    Edge* target_edge = p->second;
+                    if (target_edge) {
+                        unsigned int fieldId = target_edge->getSourceField();
+                        Object *tgtObj = target_edge->getTarget();
                     }
                 }
             }
         }
     }
-    this->set_reason_for_cycles( result );
+    // this->set_reason_for_cycles( result );
     cout << "  MISSES: " << miss_total << "   HITS: " << hit_total << endl;
     return result;
 }

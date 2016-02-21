@@ -11,6 +11,8 @@
 #include <limits.h>
 #include <assert.h>
 #include <boost/logic/tribool.hpp>
+#include <boost/graph/adjacency_list.hpp>
+#include <boost/bimap.hpp>
 
 #include "classinfo.h"
 #include "refstate.h"
@@ -43,7 +45,11 @@ typedef map<Method *, set<string> *> DeathSitesMap;
 // 1) set of object pointers
 // 2) set of object types
 // 2 seems better.
+using namespace boost;
 using namespace boost::logic;
+using namespace boost::graph;
+
+typedef adjacency_list<vecS, listS, directedS> Graph;
 
 class HeapState
 {
@@ -204,7 +210,7 @@ class HeapState
         void set_candidate(unsigned int objId);
         void unset_candidate(unsigned int objId);
         deque< deque<int> > scan_queue( EdgeList& edgelist );
-        deque< deque<int> > scan_queue2( EdgeList& edgelist, map<unsigned int, bool>& ncmap );
+        deque< Graph > scan_queue2( EdgeList& edgelist, map<unsigned int, bool>& ncmap );
         void set_reason_for_cycles( deque< deque<int> >& cycles );
 };
 

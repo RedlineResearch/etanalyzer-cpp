@@ -425,7 +425,83 @@ int main(int argc, char* argv[])
     if (cycle_flag) {
         deque< pair<int,int> > edgelist;
         // deque< deque<int> > cycle_list = Heap.scan_queue( edgelist );
-        deque< deque<int> > cycle_list = Heap.scan_queue2( edgelist, not_candidate_map );
+        deque< Graph > cycle_list2 = Heap.scan_queue2( edgelist, not_candidate_map );
+        deque< deque<int> > cycle_list;
+        filter_edgelist( edgelist, cycle_list );
+        // TODO Heap.analyze();
+        cout << "DONE. Getting cycles." << endl;
+        set<int> node_set;
+        ofstream cycle_file(cycle_filename);
+        cycle_file << "---------------[ CYCLES ]-------------------------------------------------------" << endl;
+        for ( deque< deque<int> >::iterator it = cycle_list.begin();
+              it != cycle_list.end();
+              ++it ) {
+            for ( deque<int>::iterator tmp = it->begin();
+                  tmp != it->end();
+                  ++tmp ) {
+                cycle_file << *tmp << ",";
+                node_set.insert(*tmp);
+            }
+            cycle_file << endl;
+        }
+        cycle_file << "---------------[ CYCLES END ]---------------------------------------------------" << endl;
+        cycle_file.close();
+        ofstream edge_file(edge_filename);
+        edge_file << "===============[ EDGES ]========================================================" << endl;
+        for ( EdgeList::iterator it = edgelist.begin();
+              it != edgelist.end();
+              ++it ) {
+            edge_file << it->first << " -> " << it->second
+                 << endl;
+        }
+        edge_file << "===============[ EDGES END ]====================================================" << endl;
+        edge_file.close();
+        ofstream object_info_file(objectinfo_filename);
+        object_info_file << "---------------[ OBJECT INFO ]--------------------------------------------------" << endl;
+        for ( deque< deque<int> >::iterator it = cycle_list.begin();
+              it != cycle_list.end();
+              ++it ) {
+            for ( deque<int>::iterator tmp = it->begin();
+                  tmp != it->end();
+                  ++tmp ) {
+                Object* object = Heap.get(*tmp);
+                object_info_file << *tmp << "," << object->getCreateTime()
+                    << "," << object->getDeathTime()
+                    << "," << object->getSize()
+                    << "," << object->getType()
+                    << "," << (object->getDiedByStackFlag() ? "S" : "H")
+                    << "," << (object->wasLastUpdateNull() ? "NULL" : "VAL")
+                    << "," << (object->getDiedByStackFlag() && object->wasPointedAtByHeap() ? "SHEAP" : "SONLY" )
+                    << endl;
+            }
+        }
+        object_info_file << "---------------[ OBJECT INFO END ]----------------------------------------------" << endl;
+        object_info_file.close();
+        ofstream edge_info_file(edgeinfo_filename);
+        edge_info_file << "---------------[ EDGE INFO ]----------------------------------------------------" << endl;
+        // srcId, tgtId, allocTime, deathTime
+        unsigned int total_edges;
+        for ( EdgeSet::iterator it = Heap.begin_edges();
+              it != Heap.end_edges();
+              ++it ) {
+            Edge* eptr = *it;
+            Object* source = eptr->getSource();
+            Object* target = eptr->getTarget();
+            unsigned int srcId = source->getId();
+            unsigned int tgtId = target->getId();
+            set<int>::iterator srcit = node_set.find(srcId);
+            set<int>::iterator tgtit = node_set.find(tgtId);
+            if ( (srcit != node_set.end()) || (srcit != node_set.end()) ) {
+                edge_info_file << srcId << "," << tgtId << "," << eptr->getCreateTime() << ","
+                               << eptr->getEndTime() << endl;
+            }
+            total_edges++;
+        }
+        edge_info_file << "---------------[ EDGE INFO END ]------------------------------------------------" << endl;
+        edge_info_file.close();
+    } else if (false) {
+        deque< pair<int,int> > edgelist;
+        deque< deque<int> > cycle_list = Heap.scan_queue( edgelist );
         filter_edgelist( edgelist, cycle_list );
         // TODO Heap.analyze();
         cout << "DONE. Getting cycles." << endl;
