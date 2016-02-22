@@ -422,10 +422,11 @@ int main(int argc, char* argv[])
     // if (true) {
     // TODO Maybe use a finer grained selection of options here.
     //      But for now, doing it this way.
+    ComponentMap_t cmap;
     if (cycle_flag) {
         deque< pair<int,int> > edgelist;
         // deque< deque<int> > cycle_list = Heap.scan_queue( edgelist );
-        deque< Graph > cycle_list2 = Heap.scan_queue2( edgelist, not_candidate_map );
+        Graph_t* result = Heap.scan_queue2( edgelist, not_candidate_map, cmap );
         deque< deque<int> > cycle_list;
         filter_edgelist( edgelist, cycle_list );
         // TODO Heap.analyze();

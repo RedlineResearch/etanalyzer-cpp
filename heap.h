@@ -13,6 +13,7 @@
 #include <boost/logic/tribool.hpp>
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/bimap.hpp>
+#include <boost/property_map/property_map.hpp>
 
 #include "classinfo.h"
 #include "refstate.h"
@@ -33,8 +34,9 @@ enum LastEvent {
     UNKNOWN_EVENT = 99,
 };
 
-typedef map<unsigned int, Object *> ObjectMap;
-typedef map<unsigned int, Edge *> EdgeMap;
+typedef unsigned int ObjectId_t;
+typedef map<ObjectId_t, Object *> ObjectMap;
+typedef map<ObjectId_t, Edge *> EdgeMap;
 typedef set<Object *> ObjectSet;
 typedef set<Edge *> EdgeSet;
 typedef deque< pair<int,int> > EdgeList;
@@ -49,7 +51,11 @@ using namespace boost;
 using namespace boost::logic;
 using namespace boost::graph;
 
-typedef adjacency_list<vecS, listS, directedS> Graph;
+typedef adjacency_list<vecS, listS, directedS> Graph_t;
+typedef std::pair<unsigned int, unsigned int> GEdge_t;
+typedef unsigned int  NodeId_t;
+typedef bimap<ObjectId_t, NodeId_t> GraphBiMap_t;
+typedef boost::associative_property_map<std::map<int, NodeId_t>> ComponentMap_t;
 
 class HeapState
 {
@@ -123,6 +129,8 @@ class HeapState
 
         void update_death_counters( Object *obj );
         Method * get_method_death_site( Object *obj );
+
+        NodeId_t getNodeId( ObjectId_t objId, GraphBiMap_t& bmap );
 
     public:
         HeapState()
@@ -200,7 +208,7 @@ class HeapState
         DeathSitesMap::iterator begin_dsites() { return m_death_sites_map.begin(); }
         DeathSitesMap::iterator end_dsites() { return m_death_sites_map.end(); }
 
-        void add_edge(Edge* e) { m_edges.insert(e); }
+        void addEdge(Edge* e) { m_edges.insert(e); }
         EdgeSet::iterator begin_edges() { return m_edges.begin(); }
         EdgeSet::iterator end_edges() { return m_edges.end(); }
         unsigned int numberEdges() { return m_edges.size(); }
@@ -210,7 +218,9 @@ class HeapState
         void set_candidate(unsigned int objId);
         void unset_candidate(unsigned int objId);
         deque< deque<int> > scan_queue( EdgeList& edgelist );
-        deque< Graph > scan_queue2( EdgeList& edgelist, map<unsigned int, bool>& ncmap );
+        Graph_t* scan_queue2( EdgeList& edgelist,
+                              map<unsigned int, bool>& ncmap,
+                              ComponentMap_t& cmap );
         void set_reason_for_cycles( deque< deque<int> >& cycles );
 };
 

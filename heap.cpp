@@ -299,12 +299,27 @@ deque< deque<int> > HeapState::scan_queue( EdgeList& edgelist )
     return result;
 }
 
+NodeId_t HeapState::getNodeId( ObjectId_t objId, GraphBiMap_t& bmap ) {
+    GraphBiMap_t::left_map::const_iterator liter = bmap.left.find(objId);
+    if (liter == bmap.left.end()) {
+        // Haven't mapped a NodeId yet to this ObjectId
+        NodeId_t nodeId = bmap.size();
+        return nodeId;
+    } else {
+        // We have a NodeId
+        return liter->second;
+    }
+}
+
 // TODO Documentation :)
-deque< Graph > HeapState::scan_queue2( EdgeList& edgelist, map<unsigned int, bool>& not_candidate_map )
+Graph_t* HeapState::scan_queue2( EdgeList& edgelist,
+                                 map<unsigned int, bool>& not_candidate_map,
+                                 ComponentMap_t& cmap )
 {
-    deque< Graph > result;
     unsigned int hit_total;
     unsigned int miss_total;
+    GraphBiMap_t bmap;
+    std::vector<GEdge_t> edgeVec;
     cout << "Queue size: " << this->m_candidate_map.size() << endl;
     // TODO
     // 1. Convert m_candidate_map to a Boost Graph Library
@@ -318,11 +333,15 @@ deque< Graph > HeapState::scan_queue2( EdgeList& edgelist, map<unsigned int, boo
     for ( map<unsigned int, bool>::iterator i = this->m_candidate_map.begin();
           i != this->m_candidate_map.end();
           ++i ) {
-        int objId = i->first;
+        ObjectId_t objId = i->first;
+        NodeId_t srcNodeId;
         bool flag = i->second;
         if (flag) {
+            // Is a candidate
             Object *obj = this->get(objId);
             if (obj) {
+                // Object exists
+                srcNodeId = getNodeId(objId, bmap);
                 for ( EdgeMap::iterator p = obj->getEdgeMapBegin();
                       p != obj->getEdgeMapEnd();
                       ++p ) {
@@ -330,11 +349,18 @@ deque< Graph > HeapState::scan_queue2( EdgeList& edgelist, map<unsigned int, boo
                     if (target_edge) {
                         unsigned int fieldId = target_edge->getSourceField();
                         Object *tgtObj = target_edge->getTarget();
+                        if (tgtObj) {
+                            ObjectId_t tgtId = tgtObj->getId();
+                            NodeId_t tgtNodeId = getNodeId(tgtId, bmap);
+                            GEdge_t e(srcNodeId, tgtNodeId);
+                            edgeVec.push_back(e);
+                        }
                     }
                 }
             }
         }
     }
+    Graph_t *result = new Graph_t(edgeVec.begin(), edgeVec.end(), m_candidate_map.size());
     // this->set_reason_for_cycles( result );
     cout << "  MISSES: " << miss_total << "   HITS: " << hit_total << endl;
     return result;
