@@ -1,5 +1,5 @@
 
-FLAGS=-O2 -std=c++11 -g -Werror -I./boost_1_60_0
+FLAGS=-O2 -std=c++11 -g -Werror -I./boost_1_60_0 -I./TEMP/include/igraph -L./TEMP/lib -ligraph
 
 simulator: simulator.o execution.o heap.o classinfo.o tokenizer.o analyze.o
 	g++ $(FLAGS) -o simulator simulator.o execution.o heap.o classinfo.o tokenizer.o analyze.o

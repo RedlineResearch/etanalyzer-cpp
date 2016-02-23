@@ -4,207 +4,384 @@
 !_TAG_PROGRAM_NAME	Exuberant Ctags	//
 !_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
 !_TAG_PROGRAM_VERSION	5.8	//
-AllocSite	classinfo.h	/^  AllocSite(unsigned int id, Method * meth, char * name, char * descriptor, unsigned int dimensions)$/;"	f	class:AllocSite
+AllocSite	classinfo.h	/^        AllocSite( unsigned int id,$/;"	f	class:AllocSite
 AllocSite	classinfo.h	/^class AllocSite : public Entity$/;"	c
-AllocSiteMap	classinfo.h	/^typedef map<unsigned int, AllocSite *> AllocSiteMap;$/;"	t
+AllocSiteMap	classinfo.h	/^typedef map<unsigned int, AllocSite*> AllocSiteMap;$/;"	t
+BLACK	heap.h	/^    BLACK = 4,$/;"	e	enum:Color
+BLUE	heap.h	/^    BLUE = 1,$/;"	e	enum:Color
 CCMap	execution.h	/^typedef map<unsigned int, CCNode *> CCMap;$/;"	t
-CCNode	execution.h	/^  CCNode()$/;"	f	class:CCNode
-CCNode	execution.h	/^  CCNode(CCNode * parent, Method * m)$/;"	f	class:CCNode
-CCNode	execution.h	/^class CCNode$/;"	c
+CCMode	execution.h	/^    CCMode = 1,$/;"	m	class:ExecMode
+CCNode	execution.h	/^        CCNode( CCNode* parent, Method* m )$/;"	f	class:ExecMode::CCNode
+CCNode	execution.h	/^        CCNode()$/;"	f	class:ExecMode::CCNode
+CCNode	execution.h	/^class CCNode$/;"	c	class:ExecMode
 CLASSINFO_H	classinfo.h	2;"	d
-Call	execution.cpp	/^CCNode * CCNode::Call(Method * m)$/;"	f	class:CCNode
-Call	execution.cpp	/^void ExecState::Call(Method * m, unsigned int threadid)$/;"	f	class:ExecState
-Call	execution.cpp	/^void Thread::Call(Method * m)$/;"	f	class:Thread
-Class	classinfo.h	/^  Class(unsigned int id, const string& name, bool is_interface)$/;"	f	class:Class
+Call	execution.cpp	/^CCNode* CCNode::Call(Method* m)$/;"	f	class:CCNode
+Call	execution.cpp	/^void ExecState::Call(Method* m, unsigned int threadid)$/;"	f	class:ExecState
+Call	execution.cpp	/^void Thread::Call(Method* m)$/;"	f	class:Thread
+Class	classinfo.h	/^        Class(unsigned int id, const string& name, bool is_interface)$/;"	f	class:Class
 Class	classinfo.h	/^class Class : public Entity$/;"	c
 ClassInfo	classinfo.h	/^class ClassInfo$/;"	c
-ClassMap	classinfo.h	/^typedef map<unsigned int, Class *> ClassMap;$/;"	t
-DisjointSets	analyze.cpp	/^  DisjointSets() {}$/;"	f	class:DisjointSets
+ClassMap	classinfo.h	/^typedef map<unsigned int, Class*> ClassMap;$/;"	t
+Color	heap.h	/^enum Color {$/;"	g
+ComponentMap_t	heap.h	/^typedef boost::associative_property_map<std::map<int, NodeId_t>> ComponentMap_t;$/;"	t
+DeathSitesMap	heap.h	/^typedef map<Method *, set<string> *> DeathSitesMap;$/;"	t
+DisjointSets	analyze.cpp	/^        DisjointSets() {}$/;"	f	class:DisjointSets
 DisjointSets	analyze.cpp	/^class DisjointSets$/;"	c	file:
 EXECUTION_H	execution.h	2;"	d
-Edge	heap.h	/^  Edge(Object * source, unsigned int field_id, Object * target, unsigned int cur_time)$/;"	f	class:Edge
+Edge	heap.h	/^        Edge( Object* source, unsigned int field_id,$/;"	f	class:Edge
 Edge	heap.h	/^class Edge$/;"	c
-EdgeMap	heap.h	/^typedef map<unsigned int, Edge *> EdgeMap;$/;"	t
+EdgeList	heap.h	/^typedef deque< pair<int,int> > EdgeList;$/;"	t
+EdgeMap	heap.h	/^typedef map<ObjectId_t, Edge *> EdgeMap;$/;"	t
 EdgeSet	heap.h	/^typedef set<Edge *> EdgeSet;$/;"	t
-Entity	classinfo.h	/^  Entity()$/;"	f	class:Entity
-Entity	classinfo.h	/^  Entity(unsigned int id, const string& name)$/;"	f	class:Entity
+Entity	classinfo.h	/^        Entity()$/;"	f	class:Entity
+Entity	classinfo.h	/^        Entity(unsigned int id, const string& name)$/;"	f	class:Entity
 Entity	classinfo.h	/^class Entity$/;"	c
-ExecState	execution.h	/^  ExecState(unsigned int kind)$/;"	f	class:ExecState
-ExecState	execution.h	/^class ExecState$/;"	c
-FLAGS	Makefile	/^FLAGS=-O2$/;"	m
-Field	classinfo.h	/^  Field(unsigned int id, Class * cls, char * name, char * descriptor, bool isstatic)$/;"	f	class:Field
+Error	refstate.h	/^    Error = 999$/;"	m	class:RefState
+ExecMode	execution.h	/^enum class ExecMode {$/;"	c
+ExecState	execution.h	/^        ExecState(unsigned int kind)$/;"	f	class:ExecMode::ExecState
+ExecState	execution.h	/^class ExecState$/;"	c	class:ExecMode
+Field	classinfo.h	/^        Field(unsigned int id, Class* cls, char* name, char* descriptor, bool isstatic)$/;"	f	class:Field
 Field	classinfo.h	/^class Field : public Entity$/;"	c
-FieldMap	classinfo.h	/^typedef map<unsigned int, Field *> FieldMap;$/;"	t
+FieldMap	classinfo.h	/^typedef map<unsigned int, Field*> FieldMap;$/;"	t
+GEdge_t	heap.h	/^typedef std::pair<unsigned int, unsigned int> GEdge_t;$/;"	t
+GREEN	heap.h	/^    GREEN = 5,$/;"	e	enum:Color
+GraphBiMap_t	heap.h	/^typedef bimap<ObjectId_t, NodeId_t> GraphBiMap_t;$/;"	t
+Graph_t	heap.h	/^typedef adjacency_list<vecS, listS, directedS> Graph_t;$/;"	t
+HEAP	heap.h	/^    HEAP = 2,$/;"	e	enum:Reason
 HEAP_H	heap.h	2;"	d
+Heap	refstate.h	/^    Heap,$/;"	m	class:RefState
 Heap	simulator.cpp	/^HeapState Heap;$/;"	v
-HeapState	heap.h	/^  HeapState()$/;"	f	class:HeapState
+HeapOnly	refstate.h	/^    HeapOnly,$/;"	m	class:RefState
+HeapRoot	refstate.h	/^    HeapRoot,$/;"	m	class:RefState
+HeapRootFinal	refstate.h	/^    HeapRootFinal,$/;"	m	class:RefState
+HeapState	heap.h	/^        HeapState()$/;"	f	class:HeapState
 HeapState	heap.h	/^class HeapState$/;"	c
-KeyObject	simulator.cpp	/^Object * KeyObject = 0;$/;"	v
+LASTMAP_H	lastmap.h	2;"	d
 LINESIZE	tokenizer.h	14;"	d
-Method	classinfo.h	/^  Method(unsigned int id, Class * cls, char * name, char * descriptor, char * flags)$/;"	f	class:Method
+LastEvent	heap.h	/^enum LastEvent {$/;"	g
+LastMap	lastmap.h	/^        LastMap()$/;"	f	class:LastMap
+LastMap	lastmap.h	/^class LastMap {$/;"	c
+LocalVarDeque	execution.h	/^typedef deque<LocalVarSet *> LocalVarDeque;$/;"	t	class:ExecMode
+LocalVarSet	execution.h	/^typedef set<Object *> LocalVarSet;$/;"	t	class:ExecMode
+Method	classinfo.h	/^        Method(unsigned int id, Class* cls, char* name, char* descriptor, char* flags)$/;"	f	class:Method
 Method	classinfo.h	/^class Method : public Entity$/;"	c
-MethodDeque	execution.h	/^typedef deque<Method *> MethodDeque;$/;"	t
-MethodMap	classinfo.h	/^typedef map<unsigned int, Method *> MethodMap;$/;"	t
-Now	execution.h	/^  unsigned int Now() const { return m_time; }$/;"	f	class:ExecState
-Object	heap.h	/^  Object(unsigned int id, unsigned int size, char kind, char * type, AllocSite * site, $/;"	f	class:Object
+MethodDeque	execution.h	/^typedef deque<Method *> MethodDeque;$/;"	t	class:ExecMode
+MethodMap	classinfo.h	/^typedef map<unsigned int, Method*> MethodMap;$/;"	t
+MethodMode	execution.h	/^    MethodMode = 2$/;"	m	class:ExecMode
+NodeId_t	heap.h	/^typedef unsigned int  NodeId_t;$/;"	t
+Now	execution.h	/^        unsigned int Now() const { return m_time; }$/;"	f	class:ExecMode::ExecState
+Object	heap.h	/^        Object( unsigned int id, unsigned int size,$/;"	f	class:Object
 Object	heap.h	/^class Object$/;"	c
-ObjectMap	heap.h	/^typedef map<unsigned int, Object *> ObjectMap;$/;"	t
+ObjectId_t	heap.h	/^typedef unsigned int ObjectId_t;$/;"	t
+ObjectMap	heap.h	/^typedef map<ObjectId_t, Object *> ObjectMap;$/;"	t
+ObjectRefState	refstate.h	/^    ObjectRefState()$/;"	f	class:RefState::ObjectRefState
+ObjectRefState	refstate.h	/^class ObjectRefState$/;"	c	class:RefState
 ObjectSet	heap.h	/^typedef set<Object *> ObjectSet;$/;"	t
-Return	execution.cpp	/^CCNode * CCNode::Return(Method * m)$/;"	f	class:CCNode
-Return	execution.cpp	/^void ExecState::Return(Method * m, unsigned int threadid)$/;"	f	class:ExecState
-Return	execution.cpp	/^void Thread::Return(Method * m)$/;"	f	class:Thread
+PURPLE	heap.h	/^    PURPLE = 3, \/\/ UNUSED$/;"	e	enum:Color
+RED	heap.h	/^    RED = 2,$/;"	e	enum:Color
+REFSTATE_H	refstate.h	2;"	d
+ROOT	heap.h	/^    ROOT = 1,$/;"	e	enum:LastEvent
+Reason	heap.h	/^enum Reason {$/;"	g
+RefState	refstate.h	/^enum class RefState {$/;"	c
+Return	execution.cpp	/^CCNode* CCNode::Return(Method* m)$/;"	f	class:CCNode
+Return	execution.cpp	/^void ExecState::Return(Method* m, unsigned int threadid)$/;"	f	class:ExecState
+Return	execution.cpp	/^void Thread::Return(Method* m)$/;"	f	class:Thread
+Root	refstate.h	/^    Root,$/;"	m	class:RefState
+RootOnly	refstate.h	/^    RootOnly,$/;"	m	class:RefState
+STACK	heap.h	/^    STACK = 1,$/;"	e	enum:Reason
+Start	refstate.h	/^    Start,$/;"	m	class:RefState
 TOKENIZER_H	tokenizer.h	2;"	d
 TOKENSIZE	tokenizer.h	15;"	d
 TheAllocSites	classinfo.cpp	/^AllocSiteMap ClassInfo::TheAllocSites;$/;"	m	class:ClassInfo	file:
-TheAllocSites	classinfo.h	/^  static AllocSiteMap TheAllocSites;$/;"	m	class:ClassInfo
+TheAllocSites	classinfo.h	/^        static AllocSiteMap TheAllocSites;$/;"	m	class:ClassInfo
 TheClasses	classinfo.cpp	/^ClassMap ClassInfo::TheClasses;$/;"	m	class:ClassInfo	file:
-TheClasses	classinfo.h	/^  static ClassMap TheClasses;$/;"	m	class:ClassInfo
+TheClasses	classinfo.h	/^        static ClassMap TheClasses;$/;"	m	class:ClassInfo
 TheFields	classinfo.cpp	/^FieldMap ClassInfo::TheFields;$/;"	m	class:ClassInfo	file:
-TheFields	classinfo.h	/^  static FieldMap TheFields;$/;"	m	class:ClassInfo
-TheKey	simulator.cpp	/^unsigned int TheKey;$/;"	v
+TheFields	classinfo.h	/^        static FieldMap TheFields;$/;"	m	class:ClassInfo
 TheMethods	classinfo.cpp	/^MethodMap ClassInfo::TheMethods;$/;"	m	class:ClassInfo	file:
-TheMethods	classinfo.h	/^  static MethodMap TheMethods;$/;"	m	class:ClassInfo
-Thread	execution.h	/^  Thread(unsigned int id, unsigned int kind)$/;"	f	class:Thread
-Thread	execution.h	/^class Thread$/;"	c
-ThreadMap	execution.h	/^typedef map<unsigned int, Thread *> ThreadMap;$/;"	t
-Tokenizer	tokenizer.h	/^  Tokenizer(FILE * f) {$/;"	f	class:Tokenizer
+TheMethods	classinfo.h	/^        static MethodMap TheMethods;$/;"	m	class:ClassInfo
+Thread	execution.h	/^        Thread( unsigned int id, unsigned int kind )$/;"	f	class:ExecMode::Thread
+Thread	execution.h	/^class Thread$/;"	c	class:ExecMode
+ThreadMap	execution.h	/^typedef map<unsigned int, Thread *> ThreadMap;$/;"	t	class:ExecMode
+Tokenizer	tokenizer.h	/^        Tokenizer(FILE* f)$/;"	f	class:Tokenizer
 Tokenizer	tokenizer.h	/^class Tokenizer$/;"	c
-TopCC	execution.cpp	/^CCNode * ExecState::TopCC(unsigned int threadid)$/;"	f	class:ExecState
-TopCC	execution.cpp	/^CCNode * Thread::TopCC()$/;"	f	class:Thread
-TopMethod	execution.cpp	/^Method * ExecState::TopMethod(unsigned int threadid)$/;"	f	class:ExecState
-TopMethod	execution.cpp	/^Method * Thread::TopMethod()$/;"	f	class:Thread
-addAllocSite	classinfo.h	/^  void addAllocSite(AllocSite * a) { m_allocsites[a->getId()] = a; }$/;"	f	class:Method
-addField	classinfo.h	/^  void addField(Field * f) { m_fields[f->getId()] = f; }$/;"	f	class:Class
-addMethod	classinfo.h	/^  void addMethod(Method * m) { m_methods[m->getId()] = m; }$/;"	f	class:Class
-add_edge	heap.h	/^  void add_edge(Edge * e) { m_edges.insert(e); }$/;"	f	class:HeapState
-allocate	heap.cpp	/^Object * HeapState::allocate(unsigned int id, unsigned int size, char kind, char * type, AllocSite * site, $/;"	f	class:HeapState
+TopCC	execution.cpp	/^CCNode* ExecState::TopCC(unsigned int threadid)$/;"	f	class:ExecState
+TopCC	execution.cpp	/^CCNode* Thread::TopCC()$/;"	f	class:Thread
+TopLocalVarSet	execution.cpp	/^LocalVarSet * Thread::TopLocalVarSet()$/;"	f	class:Thread
+TopMethod	execution.cpp	/^Method* ExecState::TopMethod(unsigned int threadid)$/;"	f	class:ExecState
+TopMethod	execution.cpp	/^Method* Thread::TopMethod()$/;"	f	class:Thread
+UNKNOWN_EVENT	heap.h	/^    UNKNOWN_EVENT = 99,$/;"	e	enum:LastEvent
+UNKNOWN_REASON	heap.h	/^    UNKNOWN_REASON = 99,$/;"	e	enum:Reason
+UPDATE	heap.h	/^    UPDATE = 2,$/;"	e	enum:LastEvent
+_LastEventDeque	lastmap.h	/^typedef deque< pair<LastEvent, Object*> > _LastEventDeque;$/;"	t
+_LastMap_t	lastmap.h	/^typedef map<threadId_t, LastEventDeque> _LastMap_t;$/;"	t
+addAllocSite	classinfo.h	/^        void addAllocSite(AllocSite* a) { m_allocsites[a->getId()] = a; }$/;"	f	class:Method
+addEdge	heap.h	/^        void addEdge(Edge* e) { m_edges.insert(e); }$/;"	f	class:HeapState
+addField	classinfo.h	/^        void addField(Field* f) { m_fields[f->getId()] = f; }$/;"	f	class:Class
+addMethod	classinfo.h	/^        void addMethod(Method* m) { m_methods[m->getId()] = m; }$/;"	f	class:Class
+allocate	heap.cpp	/^Object* HeapState::allocate( unsigned int id, unsigned int size,$/;"	f	class:HeapState
 analyze	analyze.cpp	/^void analyze(unsigned int max_time)$/;"	f
 analyze2	analyze.cpp	/^void analyze2()$/;"	f
-begin	heap.h	/^  ObjectMap::iterator begin() { return m_objects.begin(); }$/;"	f	class:HeapState
-begin_edges	heap.h	/^  EdgeSet::iterator begin_edges() { return m_edges.begin(); }$/;"	f	class:HeapState
-closure	simulator.cpp	/^unsigned int closure(ObjectSet & roots, ObjectSet & premarked, ObjectSet & result)$/;"	f
-compute_overlap	analyze.cpp	/^double compute_overlap(unsigned int start1, unsigned int end1,$/;"	f
-compute_roots	simulator.cpp	/^int compute_roots(ObjectSet & roots)$/;"	f
-count_live	simulator.cpp	/^unsigned int count_live(ObjectSet & objects, unsigned int at_time)$/;"	f
+begin	heap.h	/^        ObjectMap::iterator begin() { return m_objects.begin(); }$/;"	f	class:HeapState
+begin_dsites	heap.h	/^        DeathSitesMap::iterator begin_dsites() { return m_death_sites_map.begin(); }$/;"	f	class:HeapState
+begin_edges	heap.h	/^        EdgeSet::iterator begin_edges() { return m_edges.begin(); }$/;"	f	class:HeapState
+closure	simulator.cpp	/^unsigned int closure( ObjectSet& roots,$/;"	f
+collect_blue	heap.cpp	/^deque<int> Object::collect_blue( EdgeList& edgelist )$/;"	f	class:Object
+compute_overlap	analyze.cpp	/^double compute_overlap( unsigned int start1, unsigned int end1,$/;"	f
+count_live	simulator.cpp	/^unsigned int count_live( ObjectSet & objects, unsigned int at_time )$/;"	f
+cycle_list	simulator.cpp	/^deque< deque<Object*> > cycle_list;$/;"	v
+deathrc_map	simulator.cpp	/^map<unsigned int, unsigned int> deathrc_map;$/;"	v
 debug	heap.cpp	/^bool HeapState::debug = false;$/;"	m	class:HeapState	file:
-debug	heap.h	/^  static bool debug;$/;"	m	class:HeapState
+debug	heap.h	/^        static bool debug;$/;"	m	class:HeapState
 debug	simulator.cpp	/^bool debug = false;$/;"	v
+debugCurrent	tokenizer.cpp	/^void Tokenizer::debugCurrent()$/;"	f	class:Tokenizer
 debug_names	classinfo.cpp	/^bool ClassInfo::debug_names = false;$/;"	m	class:ClassInfo	file:
-debug_names	classinfo.h	/^  static bool debug_names;$/;"	m	class:ClassInfo
-decrementRefCount	heap.h	/^  void decrementRefCount() { m_refCount--; }$/;"	f	class:Object
-deferred_gc	simulator.cpp	/^void deferred_gc()$/;"	f
-deferred_objects	simulator.cpp	/^ObjectSet deferred_objects;$/;"	v
+debug_names	classinfo.h	/^        static bool debug_names;$/;"	m	class:ClassInfo
+decrementRefCount	heap.h	/^        void decrementRefCount() { m_refCount--; }$/;"	f	class:Object
+decrementRefCountReal	heap.cpp	/^void Object::decrementRefCountReal( unsigned int cur_time, Method *method, Reason reason )$/;"	f	class:Object
+disableObjectDebug	heap.h	/^        void disableObjectDebug() { m_obj_debug_flag = false; }$/;"	f	class:HeapState
 do_refcounting	heap.cpp	/^bool HeapState::do_refcounting = true;$/;"	m	class:HeapState	file:
-do_refcounting	heap.h	/^  static bool do_refcounting;$/;"	m	class:HeapState
-end	heap.h	/^  ObjectMap::iterator end() { return m_objects.end(); }$/;"	f	class:HeapState
-end_edges	heap.h	/^  EdgeSet::iterator end_edges() { return m_edges.end(); }$/;"	f	class:HeapState
+do_refcounting	heap.h	/^        static bool do_refcounting;$/;"	m	class:HeapState
+enableObjectDebug	heap.h	/^        void enableObjectDebug() { m_obj_debug_flag = true; }$/;"	f	class:HeapState
+end	heap.h	/^        ObjectMap::iterator end() { return m_objects.end(); }$/;"	f	class:HeapState
+end_dsites	heap.h	/^        DeathSitesMap::iterator end_dsites() { return m_death_sites_map.end(); }$/;"	f	class:HeapState
+end_edges	heap.h	/^        EdgeSet::iterator end_edges() { return m_edges.end(); }$/;"	f	class:HeapState
 end_of_program	heap.cpp	/^void HeapState::end_of_program(unsigned int cur_time)$/;"	f	class:HeapState
-find	analyze.cpp	/^  Object * find(Object * x)$/;"	f	class:DisjointSets
-fringe	simulator.cpp	/^ObjectSet fringe;$/;"	v
-get	heap.cpp	/^Object * HeapState::get(unsigned int id)$/;"	f	class:HeapState
+filter_edgelist	simulator.cpp	/^void filter_edgelist( deque< pair<int,int> >& edgelist, deque< deque<int> >& cycle_list )$/;"	f
+find	analyze.cpp	/^        Object* find(Object* x)$/;"	f	class:DisjointSets
+g_counter	heap.cpp	/^unsigned int Object::g_counter = 0;$/;"	m	class:Object	file:
+g_counter	heap.h	/^        static unsigned int g_counter;$/;"	m	class:Object
+get	heap.cpp	/^Object* HeapState::get(unsigned int id)$/;"	f	class:HeapState
 getChar	tokenizer.cpp	/^char Tokenizer::getChar(int i)$/;"	f	class:Tokenizer
-getClass	classinfo.h	/^  Class * getClass() const { return m_class; }$/;"	f	class:Field
-getClass	classinfo.h	/^  Class * getClass() const { return m_class; }$/;"	f	class:Method
-getCreateTime	heap.h	/^  unsigned int getCreateTime() const { return m_createTime; }$/;"	f	class:Edge
-getCreateTime	heap.h	/^  unsigned int getCreateTime() const { return m_createTime; }$/;"	f	class:Object
-getDeathTime	heap.h	/^  unsigned int getDeathTime() const { return m_deathTime; }$/;"	f	class:Object
-getEndTime	heap.h	/^  unsigned int getEndTime() const { return m_endTime; }$/;"	f	class:Edge
-getFields	heap.h	/^  const EdgeMap& getFields() const { return m_fields; }$/;"	f	class:Object
-getId	classinfo.h	/^  unsigned int getId() const { return m_id; }$/;"	f	class:Entity
-getId	execution.h	/^  unsigned int getId() const { return m_id; }$/;"	f	class:Thread
-getId	heap.h	/^  unsigned int getId() const { return m_id; }$/;"	f	class:Object
+getClass	classinfo.h	/^        Class* getClass() const { return m_class; }$/;"	f	class:Field
+getClass	classinfo.h	/^        Class* getClass() const { return m_class; }$/;"	f	class:Method
+getColor	heap.h	/^        Color getColor() const { return m_color; }$/;"	f	class:Object
+getCreateTime	heap.h	/^        unsigned int getCreateTime() const { return m_createTime; }$/;"	f	class:Edge
+getCreateTime	heap.h	/^        unsigned int getCreateTime() const { return m_createTime; }$/;"	f	class:Object
+getDeathSite	heap.h	/^        Method *getDeathSite() const { return m_methodDeathSite; }$/;"	f	class:Object
+getDeathTime	heap.h	/^        unsigned int getDeathTime() const { return m_deathTime; }$/;"	f	class:Object
+getDiedByHeapFlag	heap.h	/^        bool getDiedByHeapFlag() const { return m_diedByHeap; }$/;"	f	class:Object
+getDiedByStackAfterHeap	heap.h	/^        unsigned int getDiedByStackAfterHeap() const { return m_diedByStackAfterHeap; }$/;"	f	class:HeapState
+getDiedByStackFlag	heap.h	/^        bool getDiedByStackFlag() const { return m_diedByStack; }$/;"	f	class:Object
+getDiedByStackOnly	heap.h	/^        unsigned int getDiedByStackOnly() const { return m_diedByStackOnly; }$/;"	f	class:HeapState
+getEdgeMapBegin	heap.h	/^        EdgeMap::iterator const getEdgeMapBegin() { return m_fields.begin(); }$/;"	f	class:Object::EdgeMap
+getEdgeMapEnd	heap.h	/^        EdgeMap::iterator const getEdgeMapEnd() { return m_fields.end(); }$/;"	f	class:Object::EdgeMap
+getEndTime	heap.h	/^        unsigned int getEndTime() const { return m_endTime; }$/;"	f	class:Edge
+getFields	heap.h	/^        const EdgeMap& getFields() const { return m_fields; }$/;"	f	class:Object
+getId	classinfo.h	/^        unsigned int getId() const { return m_id; }$/;"	f	class:Entity
+getId	execution.h	/^        unsigned int getId() const { return m_id; }$/;"	f	class:ExecMode::Thread
+getId	heap.h	/^        unsigned int getId() const { return m_id; }$/;"	f	class:Object
 getInt	tokenizer.cpp	/^unsigned int Tokenizer::getInt(int i)$/;"	f	class:Tokenizer
+getKind	heap.h	/^        char getKind() const { return m_kind; }$/;"	f	class:Object
+getLastActionTime	heap.h	/^        unsigned int getLastActionTime() const { return m_last_action_time; }$/;"	f	class:Object
+getLastEvent	heap.h	/^        LastEvent getLastEvent() const { return m_last_event; }$/;"	f	class:Object
+getLastEvent	lastmap.cpp	/^LastEvent LastMap::getLastEvent( threadId_t tid )$/;"	f	class:LastMap
+getLastEventAndObject	lastmap.cpp	/^pair<LastEvent, Object *> LastMap::getLastEventAndObject( threadId_t tid )$/;"	f	class:LastMap
+getLastMethodDecRC	heap.h	/^        Method *getLastMethodDecRC() const { return m_lastMethodDecRC; }$/;"	f	class:Object
+getLastObject	heap.h	/^        Object * getLastObject() const { return m_last_object; }$/;"	f	class:Object
+getLastObject	lastmap.cpp	/^Object * LastMap::getLastObject( threadId_t tid )$/;"	f	class:LastMap
 getLine	tokenizer.cpp	/^void Tokenizer::getLine()$/;"	f	class:Tokenizer
-getMethod	classinfo.h	/^  Method * getMethod() const { return m_method; }$/;"	f	class:AllocSite
-getMethod	execution.h	/^  Method * getMethod() const { return m_method; }$/;"	f	class:CCNode
-getName	classinfo.h	/^  const string& getName() const { return m_name; }$/;"	f	class:Entity
-getParent	execution.h	/^  CCNode * getParent() const { return m_parent; }$/;"	f	class:CCNode
-getRefCount	heap.h	/^  unsigned int getRefCount() const { return m_refCount; }$/;"	f	class:Object
-getSize	heap.h	/^  unsigned int getSize() const { return m_size; }$/;"	f	class:Object
-getSource	heap.h	/^  Object * getSource() const { return m_source; }$/;"	f	class:Edge
-getSourceField	heap.h	/^  unsigned int getSourceField() const { return m_sourceField; }$/;"	f	class:Edge
-getString	tokenizer.cpp	/^char * Tokenizer::getString(int i)$/;"	f	class:Tokenizer
-getTarget	heap.h	/^  Object * getTarget() const { return m_target; }$/;"	f	class:Edge
-getThread	execution.cpp	/^Thread * ExecState::getThread(unsigned int threadid)$/;"	f	class:ExecState
-getThread	heap.h	/^  Thread * getThread() const { return m_thread; }$/;"	f	class:Object
-getType	classinfo.h	/^  const string& getType() const { return m_descriptor; }$/;"	f	class:AllocSite
-getType	heap.h	/^  const string& getType() const { return m_type; }$/;"	f	class:Object
-get_sets	analyze.cpp	/^  void get_sets(map<Object *, set< Object *> > & the_sets)$/;"	f	class:DisjointSets
-incrementRefCount	heap.h	/^  void incrementRefCount() { m_refCount++; }$/;"	f	class:Object
+getMaxRefCount	heap.h	/^        unsigned int getMaxRefCount() const { return m_maxRefCount; }$/;"	f	class:Object
+getMethod	classinfo.h	/^        Method* getMethod() const { return m_method; }$/;"	f	class:AllocSite
+getMethod	execution.h	/^        Method* getMethod() const { return m_method; }$/;"	f	class:ExecMode::CCNode
+getMethodDecToZero	heap.h	/^        Method *getMethodDecToZero() const { return m_methodRCtoZero; }$/;"	f	class:Object
+getName	classinfo.cpp	/^string Method::getName()$/;"	f	class:Method
+getName	classinfo.h	/^        const string& getName() const { return m_name; }$/;"	f	class:Entity
+getNodeId	heap.cpp	/^NodeId_t HeapState::getNodeId( ObjectId_t objId, GraphBiMap_t& bmap ) {$/;"	f	class:HeapState
+getNumberNoDeathSites	heap.h	/^        unsigned int getNumberNoDeathSites() const { return m_no_dsites_count; }$/;"	f	class:HeapState
+getParent	execution.h	/^        CCNode* getParent() const { return m_parent; }$/;"	f	class:ExecMode::CCNode
+getReason	heap.h	/^        Reason getReason() const { return m_reason; }$/;"	f	class:Object
+getRefCount	heap.h	/^        unsigned int getRefCount() const { return m_refCount; }$/;"	f	class:Object
+getSize	heap.h	/^        unsigned int getSize() const { return m_size; }$/;"	f	class:Object
+getSizeDiedByHeap	heap.h	/^        unsigned int getSizeDiedByHeap() const { return m_sizeDiedByHeap; }$/;"	f	class:HeapState
+getSizeDiedByStack	heap.h	/^        unsigned int getSizeDiedByStack() const { return m_sizeDiedByStack; }$/;"	f	class:HeapState
+getSizeDiedByStackAfterHeap	heap.h	/^        unsigned int getSizeDiedByStackAfterHeap() const { return m_diedByStackAfterHeap_size; }$/;"	f	class:HeapState
+getSizeDiedByStackOnly	heap.h	/^        unsigned int getSizeDiedByStackOnly() const { return m_diedByStackOnly_size; }$/;"	f	class:HeapState
+getSizeLastUpdateNull	heap.h	/^        unsigned int getSizeLastUpdateNull() const { return m_totalUpdateNull_size; }$/;"	f	class:HeapState
+getSizeLastUpdateNullHeap	heap.h	/^        unsigned int getSizeLastUpdateNullHeap() const { return m_totalUpdateNullHeap_size; }$/;"	f	class:HeapState
+getSizeLastUpdateNullStack	heap.h	/^        unsigned int getSizeLastUpdateNullStack() const { return m_totalUpdateNullStack_size; }$/;"	f	class:HeapState
+getSource	heap.h	/^        Object* getSource() const { return m_source; }$/;"	f	class:Edge
+getSourceField	heap.h	/^        unsigned int getSourceField() const { return m_sourceField; }$/;"	f	class:Edge
+getState	refstate.h	/^    RefState getState() { return this->m_state; }$/;"	f	class:RefState::ObjectRefState
+getString	tokenizer.cpp	/^char* Tokenizer::getString(int i)$/;"	f	class:Tokenizer
+getTarget	heap.h	/^        Object* getTarget() const { return m_target; }$/;"	f	class:Edge
+getThread	execution.cpp	/^Thread* ExecState::getThread(unsigned int threadid)$/;"	f	class:ExecState
+getThread	heap.h	/^        Thread* getThread() const { return m_thread; }$/;"	f	class:Object
+getTotalDiedByHeap2	heap.h	/^        unsigned int getTotalDiedByHeap2() const { return m_totalDiedByHeap_ver2; }$/;"	f	class:HeapState
+getTotalDiedByStack2	heap.h	/^        unsigned int getTotalDiedByStack2() const { return m_totalDiedByStack_ver2; }$/;"	f	class:HeapState
+getTotalDiedUnknown	heap.h	/^        unsigned int getTotalDiedUnknown() const { return m_totalDiedUnknown_ver2; }$/;"	f	class:HeapState
+getTotalLastUpdateNull	heap.h	/^        unsigned int getTotalLastUpdateNull() const { return m_totalUpdateNull; }$/;"	f	class:HeapState
+getTotalLastUpdateNullHeap	heap.h	/^        unsigned int getTotalLastUpdateNullHeap() const { return m_totalUpdateNullHeap; }$/;"	f	class:HeapState
+getTotalLastUpdateNullStack	heap.h	/^        unsigned int getTotalLastUpdateNullStack() const { return m_totalUpdateNullStack; }$/;"	f	class:HeapState
+getType	classinfo.h	/^        const string& getType() const { return m_descriptor; }$/;"	f	class:AllocSite
+getType	heap.h	/^        const string& getType() const { return m_type; }$/;"	f	class:Object
+getVMObjectsRefCountPositive	heap.h	/^        unsigned int getVMObjectsRefCountPositive() const { return m_vm_refcount_positive; }$/;"	f	class:HeapState
+getVMObjectsRefCountZero	heap.h	/^        unsigned int getVMObjectsRefCountZero() const { return m_vm_refcount_0; }$/;"	f	class:HeapState
+get_method_death_site	heap.cpp	/^Method * HeapState::get_method_death_site( Object *obj )$/;"	f	class:HeapState
+get_sets	analyze.cpp	/^        void get_sets(map<Object*, set< Object*> > & the_sets)$/;"	f	class:DisjointSets
+incrementRefCount	heap.h	/^        void incrementRefCount() { m_refCount++; }$/;"	f	class:Object
+incrementRefCountReal	heap.cpp	/^void Object::incrementRefCountReal()$/;"	f	class:Object
 info	classinfo.cpp	/^string AllocSite::info()$/;"	f	class:AllocSite
 info	classinfo.cpp	/^string Method::info()$/;"	f	class:Method
-info	classinfo.h	/^  string info()$/;"	f	class:Class
+info	classinfo.h	/^        string info() { return m_name; }$/;"	f	class:Class
 info	execution.cpp	/^string CCNode::info()$/;"	f	class:CCNode
 info	heap.cpp	/^string Object::info() {$/;"	f	class:Object
-isDone	tokenizer.h	/^  bool isDone() const { return m_done; }$/;"	f	class:Tokenizer
-isLive	heap.h	/^  bool isLive(unsigned int tm) const { return (tm < m_deathTime); }$/;"	f	class:Object
-is_root	analyze.cpp	/^  bool is_root(Object * x)$/;"	f	class:DisjointSets
-m_allocsites	classinfo.h	/^  AllocSiteMap m_allocsites;$/;"	m	class:Method
-m_callees	execution.h	/^  CCMap m_callees;$/;"	m	class:CCNode
-m_class	classinfo.h	/^  Class * m_class;$/;"	m	class:Field
-m_class	classinfo.h	/^  Class * m_class;$/;"	m	class:Method
-m_createTime	heap.h	/^  unsigned int m_createTime;$/;"	m	class:Edge
-m_createTime	heap.h	/^  unsigned int m_createTime;$/;"	m	class:Object
-m_curcc	execution.h	/^  CCNode * m_curcc;$/;"	m	class:Thread
-m_deathTime	heap.h	/^  unsigned int m_deathTime;$/;"	m	class:Object
-m_descriptor	classinfo.h	/^  string m_descriptor;$/;"	m	class:AllocSite
-m_descriptor	classinfo.h	/^  string m_descriptor;$/;"	m	class:Field
-m_descriptor	classinfo.h	/^  string m_descriptor;$/;"	m	class:Method
-m_dimensions	classinfo.h	/^  int m_dimensions;$/;"	m	class:AllocSite
-m_done	tokenizer.h	/^  bool m_done;$/;"	m	class:Tokenizer
-m_edges	heap.h	/^  EdgeSet m_edges;$/;"	m	class:HeapState
-m_elements	heap.h	/^  unsigned int m_elements;$/;"	m	class:Object
-m_endTime	heap.h	/^  unsigned int m_endTime;$/;"	m	class:Edge
-m_fields	classinfo.h	/^  FieldMap m_fields;$/;"	m	class:Class
-m_fields	heap.h	/^  EdgeMap m_fields;$/;"	m	class:Object
-m_file	tokenizer.h	/^  FILE * m_file;$/;"	m	class:Tokenizer
-m_flags	classinfo.h	/^  string m_flags;$/;"	m	class:Method
-m_id	classinfo.h	/^  unsigned int m_id;$/;"	m	class:Entity
-m_id	execution.h	/^  unsigned int m_id;$/;"	m	class:Thread
-m_id	heap.h	/^  unsigned int m_id;$/;"	m	class:Object
-m_isStatic	classinfo.h	/^  bool m_isStatic;$/;"	m	class:Field
-m_is_interface	classinfo.h	/^  bool m_is_interface;$/;"	m	class:Class
-m_kind	execution.h	/^  unsigned int m_kind;$/;"	m	class:ExecState
-m_kind	execution.h	/^  unsigned int m_kind;$/;"	m	class:Thread
-m_kind	heap.h	/^  char m_kind;$/;"	m	class:Object
-m_line	tokenizer.h	/^  char m_line[LINESIZE];$/;"	m	class:Tokenizer
-m_method	classinfo.h	/^  Method * m_method;$/;"	m	class:AllocSite
-m_method	execution.h	/^  Method * m_method;$/;"	m	class:CCNode
-m_methods	classinfo.h	/^  MethodMap m_methods;$/;"	m	class:Class
-m_methods	execution.h	/^  MethodDeque m_methods;$/;"	m	class:Thread
-m_name	classinfo.h	/^  string m_name;$/;"	m	class:Entity
-m_num_tokens	tokenizer.h	/^  unsigned int m_num_tokens;$/;"	m	class:Tokenizer
-m_objects	heap.h	/^  ObjectMap m_objects;$/;"	m	class:HeapState
-m_parent	analyze.cpp	/^  map<Object *, Object *> m_parent;$/;"	m	class:DisjointSets	file:
-m_parent	execution.h	/^  CCNode * m_parent;$/;"	m	class:CCNode
-m_rank	analyze.cpp	/^  map<Object *, int> m_rank;$/;"	m	class:DisjointSets	file:
-m_refCount	heap.h	/^  unsigned int m_refCount;$/;"	m	class:Object
-m_set_size	analyze.cpp	/^  map<Object *, int> m_set_size;$/;"	m	class:DisjointSets	file:
-m_site	heap.h	/^  AllocSite * m_site;$/;"	m	class:Object
-m_size	heap.h	/^  unsigned int m_size;$/;"	m	class:Object
-m_source	heap.h	/^  Object * m_source;$/;"	m	class:Edge
-m_sourceField	heap.h	/^  unsigned int m_sourceField;$/;"	m	class:Edge
-m_superclassId	classinfo.h	/^  unsigned int m_superclassId;$/;"	m	class:Class
-m_target	heap.h	/^  Object * m_target;$/;"	m	class:Edge
-m_thread	heap.h	/^  Thread * m_thread;$/;"	m	class:Object
-m_threads	execution.h	/^  ThreadMap m_threads;$/;"	m	class:ExecState
-m_time	execution.h	/^  unsigned int m_time;$/;"	m	class:ExecState
-m_tokens	tokenizer.h	/^  char * m_tokens[TOKENSIZE];$/;"	m	class:Tokenizer
-m_type	heap.h	/^  string m_type;$/;"	m	class:Object
-main	simulator.cpp	/^int main(int argc, char * argv[])$/;"	f
+info2	heap.cpp	/^string Object::info2() {$/;"	f	class:Object
+isDone	tokenizer.h	/^        bool isDone() const { return m_done; }$/;"	f	class:Tokenizer
+isLive	heap.h	/^        bool isLive(unsigned int tm) const { return (tm < m_deathTime); }$/;"	f	class:Object
+isLocalVariable	execution.cpp	/^bool Thread::isLocalVariable(Object *object)$/;"	f	class:Thread
+is_root	analyze.cpp	/^        bool is_root(Object* x)$/;"	f	class:DisjointSets
+liveSize	heap.h	/^        unsigned long int liveSize() const { return m_liveSize; }$/;"	f	class:HeapState
+m_allocsites	classinfo.h	/^        AllocSiteMap m_allocsites;$/;"	m	class:Method
+m_callees	execution.h	/^        CCMap m_callees;$/;"	m	class:ExecMode::CCNode
+m_candidate_map	heap.h	/^        map<unsigned int, bool> m_candidate_map;$/;"	m	class:HeapState
+m_class	classinfo.h	/^        Class* m_class;$/;"	m	class:Field
+m_class	classinfo.h	/^        Class* m_class;$/;"	m	class:Method
+m_color	heap.h	/^        Color m_color;$/;"	m	class:Object
+m_createTime	heap.h	/^        unsigned int m_createTime;$/;"	m	class:Edge
+m_createTime	heap.h	/^        unsigned int m_createTime;$/;"	m	class:Object
+m_cur_line	tokenizer.h	/^        unsigned int m_cur_line; \/\/ 1 based line counting$/;"	m	class:Tokenizer
+m_curcc	execution.h	/^        CCNode* m_curcc;$/;"	m	class:ExecMode::Thread
+m_deadlocals	execution.h	/^        LocalVarDeque m_deadlocals;$/;"	m	class:ExecMode::Thread
+m_deathTime	heap.h	/^        unsigned int m_deathTime;$/;"	m	class:Object
+m_death_sites_map	heap.h	/^        DeathSitesMap m_death_sites_map;$/;"	m	class:HeapState
+m_decToZero	heap.h	/^        tribool m_decToZero;$/;"	m	class:Object
+m_descriptor	classinfo.h	/^        string m_descriptor;$/;"	m	class:AllocSite
+m_descriptor	classinfo.h	/^        string m_descriptor;$/;"	m	class:Field
+m_descriptor	classinfo.h	/^        string m_descriptor;$/;"	m	class:Method
+m_diedByHeap	heap.h	/^        bool m_diedByHeap;$/;"	m	class:Object
+m_diedByStack	heap.h	/^        bool m_diedByStack;$/;"	m	class:Object
+m_diedByStackAfterHeap	heap.h	/^        unsigned int m_diedByStackAfterHeap;$/;"	m	class:HeapState
+m_diedByStackAfterHeap_size	heap.h	/^        unsigned int m_diedByStackAfterHeap_size;$/;"	m	class:HeapState
+m_diedByStackOnly	heap.h	/^        unsigned int m_diedByStackOnly;$/;"	m	class:HeapState
+m_diedByStackOnly_size	heap.h	/^        unsigned int m_diedByStackOnly_size;$/;"	m	class:HeapState
+m_dimensions	classinfo.h	/^        int m_dimensions;$/;"	m	class:AllocSite
+m_done	tokenizer.h	/^        bool m_done;$/;"	m	class:Tokenizer
+m_edges	heap.h	/^        EdgeSet m_edges;$/;"	m	class:HeapState
+m_elements	heap.h	/^        unsigned int m_elements;$/;"	m	class:Object
+m_endTime	heap.h	/^        unsigned int m_endTime;$/;"	m	class:Edge
+m_fields	classinfo.h	/^        FieldMap m_fields;$/;"	m	class:Class
+m_fields	heap.h	/^        EdgeMap m_fields;$/;"	m	class:Object
+m_file	tokenizer.h	/^        FILE* m_file;$/;"	m	class:Tokenizer
+m_flags	classinfo.h	/^        string m_flags;$/;"	m	class:Method
+m_heapptr	heap.h	/^        HeapState* m_heapptr;$/;"	m	class:Object
+m_id	classinfo.h	/^        unsigned int m_id;$/;"	m	class:Entity
+m_id	execution.h	/^        unsigned int m_id;$/;"	m	class:ExecMode::Thread
+m_id	heap.h	/^        unsigned int m_id;$/;"	m	class:Object
+m_incFromZero	heap.h	/^        tribool m_incFromZero;$/;"	m	class:Object
+m_isStatic	classinfo.h	/^        bool m_isStatic;$/;"	m	class:Field
+m_is_interface	classinfo.h	/^        bool m_is_interface;$/;"	m	class:Class
+m_kind	execution.h	/^        unsigned int m_kind;$/;"	m	class:ExecMode::ExecState
+m_kind	execution.h	/^        unsigned int m_kind;$/;"	m	class:ExecMode::Thread
+m_kind	heap.h	/^        char m_kind;$/;"	m	class:Object
+m_lastMethodDecRC	heap.h	/^        Method *m_lastMethodDecRC;$/;"	m	class:Object
+m_last_action_time	heap.h	/^        unsigned int m_last_action_time;$/;"	m	class:Object
+m_last_event	heap.h	/^        LastEvent m_last_event;$/;"	m	class:Object
+m_last_object	heap.h	/^        Object *m_last_object;$/;"	m	class:Object
+m_last_update	lastmap.h	/^        pair<threadId_t, Object *> m_last_update;$/;"	m	class:LastMap
+m_last_update_null	heap.h	/^        tribool m_last_update_null; \/\/ If false, it moved to a differnet object$/;"	m	class:Object
+m_line	tokenizer.h	/^        char m_line[LINESIZE];$/;"	m	class:Tokenizer
+m_line_saved	tokenizer.h	/^        string m_line_saved;$/;"	m	class:Tokenizer
+m_liveSize	heap.h	/^        unsigned long int m_liveSize; \/\/ current live size of program in bytes$/;"	m	class:HeapState
+m_locals	execution.h	/^        LocalVarDeque m_locals;$/;"	m	class:ExecMode::Thread
+m_map	lastmap.h	/^        _LastMap_t m_map;$/;"	m	class:LastMap
+m_maxLiveSize	heap.h	/^        unsigned long int m_maxLiveSize; \/\/ max live size of program in bytes$/;"	m	class:HeapState
+m_maxRefCount	heap.h	/^        unsigned int m_maxRefCount;$/;"	m	class:Object
+m_method	classinfo.h	/^        Method* m_method;$/;"	m	class:AllocSite
+m_method	execution.h	/^        Method* m_method;$/;"	m	class:ExecMode::CCNode
+m_methodDeathSite	heap.h	/^        Method *m_methodDeathSite;$/;"	m	class:Object
+m_methodRCtoZero	heap.h	/^        Method *m_methodRCtoZero;$/;"	m	class:Object
+m_methods	classinfo.h	/^        MethodMap m_methods;$/;"	m	class:Class
+m_methods	execution.h	/^        MethodDeque m_methods;$/;"	m	class:ExecMode::Thread
+m_name	classinfo.h	/^        string m_name;$/;"	m	class:Entity
+m_no_dsites_count	heap.h	/^        unsigned int m_no_dsites_count;$/;"	m	class:HeapState
+m_num_tokens	tokenizer.h	/^        unsigned int m_num_tokens;$/;"	m	class:Tokenizer
+m_obj_debug_flag	heap.h	/^        bool m_obj_debug_flag;$/;"	m	class:HeapState
+m_objects	heap.h	/^        ObjectMap m_objects;$/;"	m	class:HeapState
+m_parent	analyze.cpp	/^        map<Object*, Object*> m_parent;$/;"	m	class:DisjointSets	file:
+m_parent	execution.h	/^        CCNode* m_parent;$/;"	m	class:ExecMode::CCNode
+m_pointed_by_heap	heap.h	/^        bool m_pointed_by_heap;$/;"	m	class:Object
+m_rank	analyze.cpp	/^        map<Object*, int> m_rank;$/;"	m	class:DisjointSets	file:
+m_reason	heap.h	/^        Reason m_reason;$/;"	m	class:Object
+m_refCount	heap.h	/^        unsigned int m_refCount;$/;"	m	class:Object
+m_refState	heap.h	/^        ObjectRefState m_refState;$/;"	m	class:Object
+m_set_size	analyze.cpp	/^        map<Object*, int> m_set_size;$/;"	m	class:DisjointSets	file:
+m_site	heap.h	/^        AllocSite* m_site;$/;"	m	class:Object
+m_size	heap.h	/^        unsigned int m_size;$/;"	m	class:Object
+m_sizeDiedByHeap	heap.h	/^        unsigned int m_sizeDiedByHeap;$/;"	m	class:HeapState
+m_sizeDiedByStack	heap.h	/^        unsigned int m_sizeDiedByStack;$/;"	m	class:HeapState
+m_source	heap.h	/^        Object* m_source;$/;"	m	class:Edge
+m_sourceField	heap.h	/^        unsigned int m_sourceField;$/;"	m	class:Edge
+m_state	refstate.h	/^    RefState m_state;$/;"	m	class:RefState::ObjectRefState
+m_superclassId	classinfo.h	/^        unsigned int m_superclassId;$/;"	m	class:Class
+m_target	heap.h	/^        Object* m_target;$/;"	m	class:Edge
+m_thread	heap.h	/^        Thread* m_thread;$/;"	m	class:Object
+m_threads	execution.h	/^        ThreadMap m_threads;$/;"	m	class:ExecMode::ExecState
+m_time	execution.h	/^        unsigned int m_time;$/;"	m	class:ExecMode::ExecState
+m_tokens	tokenizer.h	/^        char* m_tokens[TOKENSIZE];$/;"	m	class:Tokenizer
+m_totalDiedByHeap_ver2	heap.h	/^        unsigned int m_totalDiedByHeap_ver2;$/;"	m	class:HeapState
+m_totalDiedByStack_ver2	heap.h	/^        unsigned int m_totalDiedByStack_ver2;$/;"	m	class:HeapState
+m_totalDiedUnknown_ver2	heap.h	/^        unsigned int m_totalDiedUnknown_ver2;$/;"	m	class:HeapState
+m_totalUpdateNull	heap.h	/^        unsigned int m_totalUpdateNull;$/;"	m	class:HeapState
+m_totalUpdateNullHeap	heap.h	/^        unsigned int m_totalUpdateNullHeap;$/;"	m	class:HeapState
+m_totalUpdateNullHeap_size	heap.h	/^        unsigned int m_totalUpdateNullHeap_size;$/;"	m	class:HeapState
+m_totalUpdateNullStack	heap.h	/^        unsigned int m_totalUpdateNullStack;$/;"	m	class:HeapState
+m_totalUpdateNullStack_size	heap.h	/^        unsigned int m_totalUpdateNullStack_size;$/;"	m	class:HeapState
+m_totalUpdateNull_size	heap.h	/^        unsigned int m_totalUpdateNull_size;$/;"	m	class:HeapState
+m_type	heap.h	/^        string m_type;$/;"	m	class:Object
+m_update_flag	lastmap.h	/^        bool m_update_flag;$/;"	m	class:LastMap
+m_vm_refcount_0	heap.h	/^        unsigned int m_vm_refcount_0;$/;"	m	class:HeapState
+m_vm_refcount_positive	heap.h	/^        unsigned int m_vm_refcount_positive;$/;"	m	class:HeapState
+m_was_root	heap.h	/^        bool m_was_root;$/;"	m	class:Object
+main	simulator.cpp	/^int main(int argc, char* argv[])$/;"	f
+makeDead	heap.cpp	/^void HeapState::makeDead(Object * obj, unsigned int death_time)$/;"	f	class:HeapState
 makeDead	heap.cpp	/^void Object::makeDead(unsigned int death_time)$/;"	f	class:Object
-make_edge	heap.cpp	/^Edge * HeapState::make_edge(Object * source, unsigned int field_id, Object * target, unsigned int cur_time)$/;"	f	class:HeapState
-make_set	analyze.cpp	/^  void make_set(Object * x)$/;"	f	class:DisjointSets
-member	simulator.cpp	/^bool member(Object * obj, const ObjectSet & theset)$/;"	f
-numTokens	tokenizer.h	/^  unsigned numTokens() const { return m_num_tokens; }$/;"	f	class:Tokenizer
-read_names_file	classinfo.cpp	/^void ClassInfo::read_names_file(const char * filename)$/;"	f	class:ClassInfo
-read_trace_file	simulator.cpp	/^void read_trace_file(FILE * f)$/;"	f
-report	analyze.cpp	/^  void report()$/;"	f	class:DisjointSets
+make_edge	heap.cpp	/^Edge* HeapState::make_edge( Object* source, unsigned int field_id,$/;"	f	class:HeapState
+make_set	analyze.cpp	/^        void make_set(Object* x)$/;"	f	class:DisjointSets
+mark_red	heap.cpp	/^void Object::mark_red()$/;"	f	class:Object
+maxLiveSize	heap.h	/^        unsigned long int maxLiveSize() const { return m_maxLiveSize; }$/;"	f	class:HeapState
+member	simulator.cpp	/^bool member( Object* obj, const ObjectSet& theset )$/;"	f
+not_candidate_map	simulator.cpp	/^map<unsigned int, bool> not_candidate_map;$/;"	v
+numTokens	tokenizer.h	/^        unsigned numTokens() const { return m_num_tokens; }$/;"	f	class:Tokenizer
+numberEdges	heap.h	/^        unsigned int numberEdges() { return m_edges.size(); }$/;"	f	class:HeapState
+objectRoot	execution.cpp	/^void Thread::objectRoot(Object *object)$/;"	f	class:Thread
+read_names_file	classinfo.cpp	/^void ClassInfo::read_names_file(const char* filename)$/;"	f	class:ClassInfo
+read_trace_file	simulator.cpp	/^unsigned int read_trace_file(FILE* f)$/;"	f
+recolor	heap.cpp	/^void Object::recolor( Color newColor )$/;"	f	class:Object
+report	analyze.cpp	/^        void report()$/;"	f	class:DisjointSets
+root_set	simulator.cpp	/^set<unsigned int> root_set;$/;"	v
 sanity_check	simulator.cpp	/^void sanity_check()$/;"	f
-setEndTime	heap.h	/^  void setEndTime(unsigned int end) { m_endTime = end; }$/;"	f	class:Edge
-setSuperclassId	classinfo.h	/^  void setSuperclassId(unsigned int sid) { m_superclassId = sid; }$/;"	f	class:Class
-setunion	analyze.cpp	/^  void setunion(Object * A, Object * B)$/;"	f	class:DisjointSets
-size	heap.h	/^  unsigned int size() const { return m_objects.size(); }$/;"	f	class:HeapState
+scan	heap.cpp	/^void Object::scan()$/;"	f	class:Object
+scan_green	heap.cpp	/^void Object::scan_green()$/;"	f	class:Object
+scan_queue	heap.cpp	/^deque< deque<int> > HeapState::scan_queue( EdgeList& edgelist )$/;"	f	class:HeapState
+scan_queue2	heap.cpp	/^Graph_t* HeapState::scan_queue2( EdgeList& edgelist,$/;"	f	class:HeapState
+setDeathSite	heap.h	/^        void setDeathSite(Method * method) { m_methodDeathSite = method; }$/;"	f	class:Object
+setDiedByHeapFlag	heap.h	/^        void setDiedByHeapFlag() { m_diedByHeap = true; m_reason = HEAP; }$/;"	f	class:Object
+setDiedByStackFlag	heap.h	/^        void setDiedByStackFlag() { m_diedByStack = true; m_reason = STACK; }$/;"	f	class:Object
+setEndTime	heap.h	/^        void setEndTime(unsigned int end) { m_endTime = end; }$/;"	f	class:Edge
+setHeapReason	heap.h	/^        void setHeapReason( unsigned int t ) { m_reason = HEAP; m_last_action_time = t; }$/;"	f	class:Object
+setLast	lastmap.cpp	/^void LastMap::setLast( threadId_t tid, LastEvent event, Object * obj )$/;"	f	class:LastMap
+setLastEvent	heap.h	/^        void setLastEvent( LastEvent le ) { m_last_event = le; }$/;"	f	class:Object
+setLastObject	heap.h	/^        void setLastObject( Object *obj ) { m_last_object = obj; }$/;"	f	class:Object
+setLastUpdateNull	heap.h	/^        void setLastUpdateNull() { m_last_update_null = true; }$/;"	f	class:Object
+setPointedAtByHeap	heap.h	/^        void setPointedAtByHeap() { m_pointed_by_heap = true; }$/;"	f	class:Object
+setReason	heap.h	/^        Reason setReason( Reason r, unsigned int t ) { m_reason = r; m_last_action_time = t; }$/;"	f	class:Object
+setRootFlag	heap.h	/^        void setRootFlag( unsigned int t ) {$/;"	f	class:Object
+setStackReason	heap.h	/^        void setStackReason( unsigned int t ) { m_reason = STACK; m_last_action_time = t; }$/;"	f	class:Object
+setSuperclassId	classinfo.h	/^        void setSuperclassId(unsigned int sid) { m_superclassId = sid; }$/;"	f	class:Class
+set_candidate	heap.cpp	/^void HeapState::set_candidate(unsigned int objId)$/;"	f	class:HeapState
+set_reason_for_cycles	heap.cpp	/^void HeapState::set_reason_for_cycles( deque< deque<int> >& cycles )$/;"	f	class:HeapState
+setunion	analyze.cpp	/^        void setunion(Object* A, Object* B)$/;"	f	class:DisjointSets
+size	heap.h	/^        unsigned int size() const { return m_objects.size(); }$/;"	f	class:HeapState
 stacktrace	execution.cpp	/^string CCNode::stacktrace()$/;"	f	class:CCNode
 stacktrace	execution.cpp	/^string Thread::stacktrace()$/;"	f	class:Thread
-updateField	heap.cpp	/^void Object::updateField(Edge * edge, unsigned int cur_time)$/;"	f	class:Object
+threadId_t	lastmap.h	/^typedef unsigned int threadId_t;$/;"	t
+unsetLastUpdateNull	heap.h	/^        void unsetLastUpdateNull() { m_last_update_null = false; }$/;"	f	class:Object
+unset_candidate	heap.cpp	/^void HeapState::unset_candidate(unsigned int objId)$/;"	f	class:HeapState
+updateField	heap.cpp	/^void Object::updateField( Edge* edge,$/;"	f	class:Object
+update_death_counters	heap.cpp	/^void HeapState::update_death_counters( Object *obj )$/;"	f	class:HeapState
+wasDecrementedToZero	heap.h	/^        tribool wasDecrementedToZero() { return m_decToZero; }$/;"	f	class:Object
+wasIncrementedFromZero	heap.h	/^        tribool wasIncrementedFromZero() const { return m_incFromZero; }$/;"	f	class:Object
+wasLastUpdateNull	heap.h	/^        tribool wasLastUpdateNull() const { return m_last_update_null; }$/;"	f	class:Object
+wasPointedAtByHeap	heap.h	/^        bool wasPointedAtByHeap() const { return m_pointed_by_heap; }$/;"	f	class:Object
+wasRoot	heap.h	/^        bool wasRoot() const { return m_was_root; }$/;"	f	class:Object

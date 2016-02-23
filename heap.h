@@ -11,9 +11,9 @@
 #include <limits.h>
 #include <assert.h>
 #include <boost/logic/tribool.hpp>
-#include <boost/graph/adjacency_list.hpp>
 #include <boost/bimap.hpp>
-#include <boost/property_map/property_map.hpp>
+
+#include <igraph.h>
 
 #include "classinfo.h"
 #include "refstate.h"
@@ -39,7 +39,7 @@ typedef map<ObjectId_t, Object *> ObjectMap;
 typedef map<ObjectId_t, Edge *> EdgeMap;
 typedef set<Object *> ObjectSet;
 typedef set<Edge *> EdgeSet;
-typedef deque< pair<int,int> > EdgeList;
+typedef deque< pair<int, int> > EdgeList;
 
 typedef map<Method *, set<string> *> DeathSitesMap;
 // Where we save the method death sites. This has to be method pointer
@@ -49,13 +49,11 @@ typedef map<Method *, set<string> *> DeathSitesMap;
 // 2 seems better.
 using namespace boost;
 using namespace boost::logic;
-using namespace boost::graph;
 
-typedef adjacency_list<vecS, listS, directedS> Graph_t;
-typedef std::pair<unsigned int, unsigned int> GEdge_t;
+typedef std::pair<int, int> GEdge_t;
 typedef unsigned int  NodeId_t;
 typedef bimap<ObjectId_t, NodeId_t> GraphBiMap_t;
-typedef boost::associative_property_map<std::map<int, NodeId_t>> ComponentMap_t;
+typedef std::map<int, int> Graph_t ;
 
 class HeapState
 {
@@ -170,7 +168,7 @@ class HeapState
                           Thread* thread,
                           unsigned int create_time );
 
-        Object* get(unsigned int id);
+        Object* getObject(unsigned int id);
 
         Edge* make_edge( Object* source, unsigned int field_id, Object* target, unsigned int cur_time);
 
@@ -218,9 +216,13 @@ class HeapState
         void set_candidate(unsigned int objId);
         void unset_candidate(unsigned int objId);
         deque< deque<int> > scan_queue( EdgeList& edgelist );
-        Graph_t* scan_queue2( EdgeList& edgelist,
-                              map<unsigned int, bool>& ncmap,
-                              ComponentMap_t& cmap );
+        void scan_queue2( EdgeList& edgelist,
+                          map<unsigned int, bool>& ncmap,
+                          igraph_t& graph,
+                          GraphBiMap_t& bmap,
+                          igraph_vector_t& membership,
+                          igraph_vector_t& comp_size,
+                          igraph_integer_t& num_clusters );
         void set_reason_for_cycles( deque< deque<int> >& cycles );
 };
 

@@ -29,7 +29,7 @@ Object* HeapState::allocate( unsigned int id, unsigned int size,
 }
 
 // -- Manage heap
-Object* HeapState::get(unsigned int id)
+Object* HeapState::getObject(unsigned int id)
 {
     ObjectMap::iterator p = m_objects.find(id);
     if (p != m_objects.end()) {
@@ -255,7 +255,7 @@ void HeapState::set_reason_for_cycles( deque< deque<int> >& cycles )
         for ( deque<int>::iterator objit = it->begin();
               objit != it->end();
               ++objit ) {
-            Object* object = this->get(*objit);
+            Object* object = this->getObject(*objit);
             unsigned int objtime = object->getLastActionTime();
             if (objtime > last_action_time) {
                 reason = object->getReason();
@@ -265,7 +265,7 @@ void HeapState::set_reason_for_cycles( deque< deque<int> >& cycles )
         for ( deque<int>::iterator objit = it->begin();
               objit != it->end();
               ++objit ) {
-            Object* object = this->get(*objit);
+            Object* object = this->getObject(*objit);
             object->setReason( reason, last_action_time );
         }
     }
@@ -282,7 +282,7 @@ deque< deque<int> > HeapState::scan_queue( EdgeList& edgelist )
         int objId = i->first;
         bool flag = i->second;
         if (flag) {
-            Object* object = this->get(objId);
+            Object* object = this->getObject(objId);
             if (object) {
                 if (object->getColor() == BLACK) {
                     object->mark_red();
@@ -312,14 +312,17 @@ NodeId_t HeapState::getNodeId( ObjectId_t objId, GraphBiMap_t& bmap ) {
 }
 
 // TODO Documentation :)
-Graph_t* HeapState::scan_queue2( EdgeList& edgelist,
-                                 map<unsigned int, bool>& not_candidate_map,
-                                 ComponentMap_t& cmap )
+void HeapState::scan_queue2( EdgeList& edgelist,
+                             map<unsigned int, bool>& not_candidate_map,
+                             igraph_t& graph,
+                             GraphBiMap_t& bmap,
+                             igraph_vector_t& membership,
+                             igraph_vector_t& comp_size,
+                             igraph_integer_t& num_clusters )
 {
+    using namespace boost;
     unsigned int hit_total;
     unsigned int miss_total;
-    GraphBiMap_t bmap;
-    std::vector<GEdge_t> edgeVec;
     cout << "Queue size: " << this->m_candidate_map.size() << endl;
     // TODO
     // 1. Convert m_candidate_map to a Boost Graph Library
@@ -338,7 +341,7 @@ Graph_t* HeapState::scan_queue2( EdgeList& edgelist,
         bool flag = i->second;
         if (flag) {
             // Is a candidate
-            Object *obj = this->get(objId);
+            Object *obj = this->getObject(objId);
             if (obj) {
                 // Object exists
                 srcNodeId = getNodeId(objId, bmap);
@@ -353,17 +356,31 @@ Graph_t* HeapState::scan_queue2( EdgeList& edgelist,
                             ObjectId_t tgtId = tgtObj->getId();
                             NodeId_t tgtNodeId = getNodeId(tgtId, bmap);
                             GEdge_t e(srcNodeId, tgtNodeId);
-                            edgeVec.push_back(e);
+                            edgelist.push_back(e);
                         }
                     }
                 }
             }
         }
     }
-    Graph_t *result = new Graph_t(edgeVec.begin(), edgeVec.end(), m_candidate_map.size());
-    // this->set_reason_for_cycles( result );
+    igraph_vector_t ivec;
+    cout << "bmap size: " << bmap.size() << endl;
+    igraph_vector_init(&ivec, bmap.size());
+    int cur = 0;
+    for ( EdgeList::iterator it = edgelist.begin();
+          it != edgelist.end();
+          ++it ) {
+        VECTOR(ivec)[cur] = it->first;
+        VECTOR(ivec)[++cur] = it->second;
+    }
+    cout << "Igraph: " << igraph_vector_size( &ivec ) << "    edgelist: " <<  edgelist.size() << endl;
+    igraph_add_vertices( &graph, igraph_vector_size( &ivec ), 0 );
+    int result = igraph_clusters( &graph,
+                                  &membership,
+                                  &comp_size,
+                                  &num_clusters,
+                                  IGRAPH_WEAK );
     cout << "  MISSES: " << miss_total << "   HITS: " << hit_total << endl;
-    return result;
 }
 
 // -- Return a string with some information

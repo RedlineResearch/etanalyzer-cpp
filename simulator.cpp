@@ -195,9 +195,9 @@ unsigned int read_trace_file(FILE* f)
                     unsigned int oldTgtId = tokenizer.getInt(1);
                     unsigned int threadId = tokenizer.getInt(5);
                     Thread *thread = Exec.getThread(threadId);
-                    Object *oldObj = Heap.get(oldTgtId);
-                    obj = Heap.get(objId);
-                    target = Heap.get(tgtId);
+                    Object *oldObj = Heap.getObject(oldTgtId);
+                    obj = Heap.getObject(objId);
+                    target = Heap.getObject(tgtId);
                     // TODO last_map.setLast( threadId, LastEvent::UPDATE, obj );
                     if (obj) {
                         obj->setPointedAtByHeap();
@@ -237,7 +237,7 @@ unsigned int read_trace_file(FILE* f)
                     // D <object> <thread-id>
                     // 0    1
                     unsigned int objId = tokenizer.getInt(1);
-                    obj = Heap.get(objId);
+                    obj = Heap.getObject(objId);
                     if (obj) {
                         unsigned int threadId = tokenizer.getInt(2);
                         Thread *thread = Exec.getThread(threadId);
@@ -324,7 +324,7 @@ unsigned int read_trace_file(FILE* f)
                 // 0    1        2
                 {
                     unsigned int objId = tokenizer.getInt(1);
-                    Object *object = Heap.get(objId);
+                    Object *object = Heap.getObject(objId);
                     unsigned int threadId = tokenizer.getInt(2);
                     // cout << "objId: " << objId << "     threadId: " << threadId << endl;
                     if (object) {
@@ -422,11 +422,22 @@ int main(int argc, char* argv[])
     // if (true) {
     // TODO Maybe use a finer grained selection of options here.
     //      But for now, doing it this way.
-    ComponentMap_t cmap;
     if (cycle_flag) {
         deque< pair<int,int> > edgelist;
         // deque< deque<int> > cycle_list = Heap.scan_queue( edgelist );
-        Graph_t* result = Heap.scan_queue2( edgelist, not_candidate_map, cmap );
+        GraphBiMap_t vert_bmap;
+        igraph_t graph;
+        igraph_vector_t membership;
+        igraph_vector_t comp_size;
+        igraph_integer_t num_clusters;
+        igraph_empty( &graph, 0, IGRAPH_DIRECTED );
+        Heap.scan_queue2( edgelist,
+                          not_candidate_map,
+                          graph,
+                          vert_bmap,
+                          membership,
+                          comp_size,
+                          num_clusters );
         deque< deque<int> > cycle_list;
         filter_edgelist( edgelist, cycle_list );
         // TODO Heap.analyze();
@@ -465,7 +476,7 @@ int main(int argc, char* argv[])
             for ( deque<int>::iterator tmp = it->begin();
                   tmp != it->end();
                   ++tmp ) {
-                Object* object = Heap.get(*tmp);
+                Object* object = Heap.getObject(*tmp);
                 object_info_file << *tmp << "," << object->getCreateTime()
                     << "," << object->getDeathTime()
                     << "," << object->getSize()
@@ -540,7 +551,7 @@ int main(int argc, char* argv[])
             for ( deque<int>::iterator tmp = it->begin();
                   tmp != it->end();
                   ++tmp ) {
-                Object* object = Heap.get(*tmp);
+                Object* object = Heap.getObject(*tmp);
                 object_info_file << *tmp << "," << object->getCreateTime()
                     << "," << object->getDeathTime()
                     << "," << object->getSize()
