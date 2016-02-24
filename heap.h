@@ -40,6 +40,7 @@ typedef map<ObjectId_t, Edge *> EdgeMap;
 typedef set<Object *> ObjectSet;
 typedef set<Edge *> EdgeSet;
 typedef deque< pair<int, int> > EdgeList;
+typedef std::map< Object *, std::set< Object * > * > KeySet_t;
 
 typedef map<Method *, set<string> *> DeathSitesMap;
 // Where we save the method death sites. This has to be method pointer
@@ -52,8 +53,29 @@ using namespace boost::logic;
 
 typedef std::pair<int, int> GEdge_t;
 typedef unsigned int  NodeId_t;
+typedef std::map<int, int> Graph_t;
 typedef bimap<ObjectId_t, NodeId_t> GraphBiMap_t;
-typedef std::map<int, int> Graph_t ;
+// TODO do we need to distinguish between FOUND and LOOKING?
+// BiMap_t is used to map:
+//     key object <-> some object
+// where:
+//     key objects map to themselves
+//     non key objects to their root key objects
+typedef bimap<ObjectId_t, ObjectId_t> BiMap_t;
+
+// enum KeyStatus {
+//     LOOKING = 1,
+//     FOUND = 2,
+//     UNKNOWN_STATUS = 99,
+// };
+// typedef map<ObjectId_t, std::pair<KeyStatus, ObjectId_t>> LookupMap;
+
+struct compclass {
+    bool operator() ( const std::pair<unsigned int, unsigned int>& lhs,
+                      const std::pair<unsigned int, unsigned int>& rhs ) const {
+        return lhs.second > rhs.second;
+    }
+};
 
 class HeapState
 {
@@ -77,6 +99,9 @@ class HeapState
 
         // Map from IDs to bool if possible cyle root
         map<unsigned int, bool> m_candidate_map;
+
+        // First is objectId. Second is last update time.
+        set<std::pair< unsigned int, unsigned int >, compclass> m_candidate_set;
 
         unsigned long int m_liveSize; // current live size of program in bytes
         unsigned long int m_maxLiveSize; // max live size of program in bytes
@@ -134,6 +159,7 @@ class HeapState
         HeapState()
             : m_objects()
             , m_candidate_map()
+            , m_candidate_set()
             , m_death_sites_map()
             , m_maxLiveSize(0)
             , m_liveSize(0)
@@ -218,11 +244,8 @@ class HeapState
         deque< deque<int> > scan_queue( EdgeList& edgelist );
         void scan_queue2( EdgeList& edgelist,
                           map<unsigned int, bool>& ncmap,
-                          igraph_t& graph,
                           GraphBiMap_t& bmap,
-                          igraph_vector_t& membership,
-                          igraph_vector_t& comp_size,
-                          igraph_integer_t& num_clusters );
+                          KeySet_t& keyset );
         void set_reason_for_cycles( deque< deque<int> >& cycles );
 };
 
@@ -296,6 +319,9 @@ class Object
         LastEvent m_last_event;
         Object *m_last_object;
 
+        // Who's my key object? 0 means unassigned.
+        ObjectId_t m_death_root;
+
     public:
         Object( unsigned int id, unsigned int size,
                 char kind, char* type,
@@ -328,6 +354,7 @@ class Object
             , m_decToZero(indeterminate)
             , m_incFromZero(indeterminate)
             , m_last_event(LastEvent::UNKNOWN_EVENT)
+            , m_death_root(0)
             , m_last_object(NULL) {
         }
 
@@ -394,7 +421,10 @@ class Object
         void incrementRefCount() { m_refCount++; }
         void decrementRefCount() { m_refCount--; }
         void incrementRefCountReal();
-        void decrementRefCountReal(unsigned int cur_time, Method *method, Reason r);
+        void decrementRefCountReal( unsigned int cur_time,
+                                    Method *method,
+                                    Reason r,
+                                    ObjectId_t death_root );
         // -- Access the fields
         const EdgeMap& getFields() const { return m_fields; }
         // -- Get a string representation
@@ -408,7 +438,8 @@ class Object
                           unsigned int fieldId,
                           unsigned int cur_time,
                           Method *method,
-                          Reason reason );
+                          Reason reason,
+                          ObjectId_t death_root );
         // -- Record death time
         void makeDead(unsigned int death_time);
         // -- Set the color

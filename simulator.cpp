@@ -144,6 +144,9 @@ unsigned int read_trace_file(FILE* f)
     Method* method;
     unsigned int total_objects;
 
+    // DEBUG
+    unsigned int debug_stack_edges = 0;
+    // END DEBUG
     // -- Allocation time
     unsigned int AllocationTime = 0;
     while ( ! tokenizer.isDone()) {
@@ -197,7 +200,7 @@ unsigned int read_trace_file(FILE* f)
                     Thread *thread = Exec.getThread(threadId);
                     Object *oldObj = Heap.getObject(oldTgtId);
                     obj = Heap.getObject(objId);
-                    target = Heap.getObject(tgtId);
+                    target = ((tgtId > 0) ? Heap.getObject(tgtId) : NULL);
                     // TODO last_map.setLast( threadId, LastEvent::UPDATE, obj );
                     if (obj) {
                         obj->setPointedAtByHeap();
@@ -219,7 +222,12 @@ unsigned int read_trace_file(FILE* f)
                             if (topMethod) {
                                 topMethod->getName();
                             }
-                            obj->updateField( new_edge, field_id, Exec.Now(), topMethod, HEAP );
+                            obj->updateField( new_edge,
+                                              field_id,
+                                              Exec.Now(),
+                                              topMethod, // for death site info
+                                              HEAP, // reason
+                                              0 ); // death root 0
                             // NOTE: topMethod COULD be NULL here.
                         }
                         // DEBUG ONLY IF NEEDED
@@ -269,9 +277,19 @@ unsigned int read_trace_file(FILE* f)
                                 Edge* target_edge = p->second;
                                 if (target_edge) {
                                     unsigned int fieldId = target_edge->getSourceField();
-                                    obj->updateField( NULL, fieldId, Exec.Now(), topMethod, STACK );
+                                    obj->updateField( NULL,
+                                                      fieldId,
+                                                      Exec.Now(),
+                                                      topMethod,
+                                                      STACK,
+                                                      objId );
                                     // NOTE: STACK is used because the object that died,
                                     // died by STACK.
+                                    debug_stack_edges++;
+                                    cout << "X";
+                                    if (debug_stack_edges % 200 == 100) {
+                                        cout << "Debug_STACK_EDGES: " << debug_stack_edges << endl;
+                                    }
                                 }
                             }
                         }
@@ -344,6 +362,7 @@ unsigned int read_trace_file(FILE* f)
                 break;
         }
     }
+    cout << "DEBUG_STACK_EDGES: " << debug_stack_edges << endl;
     return total_objects;
 }
 
@@ -426,91 +445,41 @@ int main(int argc, char* argv[])
         deque< pair<int,int> > edgelist;
         // deque< deque<int> > cycle_list = Heap.scan_queue( edgelist );
         GraphBiMap_t vert_bmap;
-        igraph_t graph;
-        igraph_vector_t membership;
-        igraph_vector_t comp_size;
-        igraph_integer_t num_clusters;
-        igraph_empty( &graph, 0, IGRAPH_DIRECTED );
+        KeySet_t keyset;
         Heap.scan_queue2( edgelist,
                           not_candidate_map,
-                          graph,
                           vert_bmap,
-                          membership,
-                          comp_size,
-                          num_clusters );
-        deque< deque<int> > cycle_list;
-        filter_edgelist( edgelist, cycle_list );
+                          keyset );
+        for ( KeySet_t::iterator it = keyset.begin();
+              it != keyset.end();
+              ++it ) {
+            Object *key = it->first;
+            std::set< Object * > *tgtSet = it->second;
+            cout << "[ " << key->getType() << " ]: " << tgtSet->size() << endl;
+        }
+        // filter_edgelist( edgelist, cycle_list );
         // TODO Heap.analyze();
-        cout << "DONE. Getting cycles." << endl;
-        set<int> node_set;
-        ofstream cycle_file(cycle_filename);
-        cycle_file << "---------------[ CYCLES ]-------------------------------------------------------" << endl;
-        for ( deque< deque<int> >::iterator it = cycle_list.begin();
-              it != cycle_list.end();
-              ++it ) {
-            for ( deque<int>::iterator tmp = it->begin();
-                  tmp != it->end();
-                  ++tmp ) {
-                cycle_file << *tmp << ",";
-                node_set.insert(*tmp);
-            }
-            cycle_file << endl;
-        }
-        cycle_file << "---------------[ CYCLES END ]---------------------------------------------------" << endl;
-        cycle_file.close();
-        ofstream edge_file(edge_filename);
-        edge_file << "===============[ EDGES ]========================================================" << endl;
-        for ( EdgeList::iterator it = edgelist.begin();
-              it != edgelist.end();
-              ++it ) {
-            edge_file << it->first << " -> " << it->second
-                 << endl;
-        }
-        edge_file << "===============[ EDGES END ]====================================================" << endl;
-        edge_file.close();
-        ofstream object_info_file(objectinfo_filename);
-        object_info_file << "---------------[ OBJECT INFO ]--------------------------------------------------" << endl;
-        for ( deque< deque<int> >::iterator it = cycle_list.begin();
-              it != cycle_list.end();
-              ++it ) {
-            for ( deque<int>::iterator tmp = it->begin();
-                  tmp != it->end();
-                  ++tmp ) {
-                Object* object = Heap.getObject(*tmp);
-                object_info_file << *tmp << "," << object->getCreateTime()
-                    << "," << object->getDeathTime()
-                    << "," << object->getSize()
-                    << "," << object->getType()
-                    << "," << (object->getDiedByStackFlag() ? "S" : "H")
-                    << "," << (object->wasLastUpdateNull() ? "NULL" : "VAL")
-                    << "," << (object->getDiedByStackFlag() && object->wasPointedAtByHeap() ? "SHEAP" : "SONLY" )
-                    << endl;
-            }
-        }
-        object_info_file << "---------------[ OBJECT INFO END ]----------------------------------------------" << endl;
-        object_info_file.close();
-        ofstream edge_info_file(edgeinfo_filename);
-        edge_info_file << "---------------[ EDGE INFO ]----------------------------------------------------" << endl;
-        // srcId, tgtId, allocTime, deathTime
-        unsigned int total_edges;
-        for ( EdgeSet::iterator it = Heap.begin_edges();
-              it != Heap.end_edges();
-              ++it ) {
-            Edge* eptr = *it;
-            Object* source = eptr->getSource();
-            Object* target = eptr->getTarget();
-            unsigned int srcId = source->getId();
-            unsigned int tgtId = target->getId();
-            set<int>::iterator srcit = node_set.find(srcId);
-            set<int>::iterator tgtit = node_set.find(tgtId);
-            if ( (srcit != node_set.end()) || (srcit != node_set.end()) ) {
-                edge_info_file << srcId << "," << tgtId << "," << eptr->getCreateTime() << ","
-                               << eptr->getEndTime() << endl;
-            }
-            total_edges++;
-        }
-        edge_info_file << "---------------[ EDGE INFO END ]------------------------------------------------" << endl;
-        edge_info_file.close();
+        // TODO ofstream object_info_file(objectinfo_filename);
+        // TODO object_info_file << "---------------[ OBJECT INFO ]--------------------------------------------------" << endl;
+        // TODO for ( deque< deque<int> >::iterator it = cycle_list.begin();
+        // TODO       it != cycle_list.end();
+        // TODO       ++it ) {
+        // TODO     for ( deque<int>::iterator tmp = it->begin();
+        // TODO           tmp != it->end();
+        // TODO           ++tmp ) {
+        // TODO         Object* object = Heap.getObject(*tmp);
+        // TODO         object_info_file << *tmp << "," << object->getCreateTime()
+        // TODO             << "," << object->getDeathTime()
+        // TODO             << "," << object->getSize()
+        // TODO             << "," << object->getType()
+        // TODO             << "," << (object->getDiedByStackFlag() ? "S" : "H")
+        // TODO             << "," << (object->wasLastUpdateNull() ? "NULL" : "VAL")
+        // TODO             << "," << (object->getDiedByStackFlag() && object->wasPointedAtByHeap() ? "SHEAP" : "SONLY" )
+        // TODO             << endl;
+        // TODO     }
+        // TODO }
+        // TODO object_info_file << "---------------[ OBJECT INFO END ]----------------------------------------------" << endl;
+        // TODO object_info_file.close();
     } else if (false) {
         deque< pair<int,int> > edgelist;
         deque< deque<int> > cycle_list = Heap.scan_queue( edgelist );

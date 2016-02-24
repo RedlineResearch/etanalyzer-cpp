@@ -304,6 +304,7 @@ NodeId_t HeapState::getNodeId( ObjectId_t objId, GraphBiMap_t& bmap ) {
     if (liter == bmap.left.end()) {
         // Haven't mapped a NodeId yet to this ObjectId
         NodeId_t nodeId = bmap.size();
+        bmap.insert( GraphBiMap_t::value_type( objId, nodeId ) );
         return nodeId;
     } else {
         // We have a NodeId
@@ -313,16 +314,15 @@ NodeId_t HeapState::getNodeId( ObjectId_t objId, GraphBiMap_t& bmap ) {
 
 // TODO Documentation :)
 void HeapState::scan_queue2( EdgeList& edgelist,
-                             map<unsigned int, bool>& not_candidate_map,
-                             igraph_t& graph,
-                             GraphBiMap_t& bmap,
-                             igraph_vector_t& membership,
-                             igraph_vector_t& comp_size,
-                             igraph_integer_t& num_clusters )
+                                  map<unsigned int, bool>& not_candidate_map,
+                                  GraphBiMap_t& bmap,
+                                  KeySet_t& keyset )
 {
-    using namespace boost;
     unsigned int hit_total;
     unsigned int miss_total;
+    // keyset contains:
+    //   key object objects as keys
+    //   sets of objects that depend on key objects
     cout << "Queue size: " << this->m_candidate_map.size() << endl;
     // TODO
     // 1. Convert m_candidate_map to a Boost Graph Library
@@ -342,9 +342,11 @@ void HeapState::scan_queue2( EdgeList& edgelist,
         if (flag) {
             // Is a candidate
             Object *obj = this->getObject(objId);
-            if (obj) {
+            if ( obj && (obj->getRefCount() > 0) ) {
                 // Object exists
+                unsigned int dtime = obj->getDeathTime();
                 srcNodeId = getNodeId(objId, bmap);
+                this->m_candidate_set.insert( std::make_pair( objId, dtime ) );
                 for ( EdgeMap::iterator p = obj->getEdgeMapBegin();
                       p != obj->getEdgeMapEnd();
                       ++p ) {
@@ -355,31 +357,55 @@ void HeapState::scan_queue2( EdgeList& edgelist,
                         if (tgtObj) {
                             ObjectId_t tgtId = tgtObj->getId();
                             NodeId_t tgtNodeId = getNodeId(tgtId, bmap);
-                            GEdge_t e(srcNodeId, tgtNodeId);
+                            // TODO GEdge_t e(srcNodeId, tgtNodeId);
+                            GEdge_t e(objId, tgtId);
                             edgelist.push_back(e);
+                        }
+                    }
+                }
+            }
+        } // if (flag)
+    }
+    cout << "bmap size: " << bmap.size() << endl;
+    while (!(this->m_candidate_set.empty())) {
+        std::set<pair< unsigned int, unsigned int >>::iterator it = this->m_candidate_set.begin();
+        if (it != this->m_candidate_set.end()) {
+            unsigned int rootId = it->first;
+            unsigned int last_update_time = it->second;
+            Object *root = this->getObject(rootId);
+            // DFS work stack - can't use 'stack' as a variable name
+            std::deque< Object * > work;
+            // The discovered set of objects.
+            std::set< Object * > discovered;
+            // Root goes in first.
+            work.push_back(root);
+            keyset[root] = new std::set< Object * >();
+            keyset[root]->insert( root );
+            // Remove from candidate set.
+            this->m_candidate_set.erase(it);
+            // Depth First Search
+            while (!work.empty()) {
+                Object *src = work.back();
+                work.pop_back();
+                std::set< Object * >::iterator it = discovered.find(src);
+                if (it == discovered.end()) {
+                    // Not yet seen.
+                    discovered.insert(src);
+                    keyset[root]->insert(src);
+                    for ( EdgeMap::iterator p = src->getEdgeMapBegin();
+                          p != src->getEdgeMapEnd();
+                          ++p ) {
+                        Edge* target_edge = p->second;
+                        if (target_edge) {
+                            Object *tgtObj = target_edge->getTarget();
+                            work.push_back(tgtObj);
                         }
                     }
                 }
             }
         }
     }
-    igraph_vector_t ivec;
-    cout << "bmap size: " << bmap.size() << endl;
-    igraph_vector_init(&ivec, bmap.size());
-    int cur = 0;
-    for ( EdgeList::iterator it = edgelist.begin();
-          it != edgelist.end();
-          ++it ) {
-        VECTOR(ivec)[cur] = it->first;
-        VECTOR(ivec)[++cur] = it->second;
-    }
-    cout << "Igraph: " << igraph_vector_size( &ivec ) << "    edgelist: " <<  edgelist.size() << endl;
-    igraph_add_vertices( &graph, igraph_vector_size( &ivec ), 0 );
-    int result = igraph_clusters( &graph,
-                                  &membership,
-                                  &comp_size,
-                                  &num_clusters,
-                                  IGRAPH_WEAK );
+    cout << endl;
     cout << "  MISSES: " << miss_total << "   HITS: " << hit_total << endl;
 }
 
@@ -419,7 +445,8 @@ void Object::updateField( Edge* edge,
                           unsigned int fieldId,
                           unsigned int cur_time,
                           Method *method,
-                          Reason reason )
+                          Reason reason,
+                          ObjectId_t death_root )
 {
     EdgeMap::iterator p = this->m_fields.find(fieldId);
     if (p != this->m_fields.end()) {
@@ -434,7 +461,7 @@ void Object::updateField( Edge* edge,
                 } else if (reason == STACK) {
                     old_target->setStackReason( cur_time );
                 }
-                old_target->decrementRefCountReal(cur_time, method, reason);
+                old_target->decrementRefCountReal(cur_time, method, reason, death_root);
             } 
             old_edge->setEndTime(cur_time);
         }
@@ -600,7 +627,10 @@ void Object::recolor( Color newColor )
     this->m_color = newColor;
 }
 
-void Object::decrementRefCountReal( unsigned int cur_time, Method *method, Reason reason )
+void Object::decrementRefCountReal( unsigned int cur_time,
+                                    Method *method,
+                                    Reason reason,
+                                    ObjectId_t death_root )
 {
     this->decrementRefCount();
     this->m_lastMethodDecRC = method;
@@ -624,13 +654,20 @@ void Object::decrementRefCountReal( unsigned int cur_time, Method *method, Reaso
         }
         // -- Visit all edges
         this->recolor(GREEN);
+        // -- Who's my key object?
+        this->m_death_root = death_root;
         for ( EdgeMap::iterator p = this->m_fields.begin();
               p != this->m_fields.end();
               ++p ) {
             Edge* target_edge = p->second;
             if (target_edge) {
                 unsigned int fieldId = target_edge->getSourceField();
-                this->updateField( NULL, fieldId, cur_time, method, reason );
+                this->updateField( NULL,
+                                   fieldId,
+                                   cur_time,
+                                   method,
+                                   reason,
+                                   death_root );
             }
         }
         // DEBUG
