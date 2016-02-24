@@ -26,8 +26,13 @@ class CCNode;
 // ----------------------------------------------------------------------
 //   Globals
 
+// -- Key object map to set of objects
+KeySet_t keyset;
+// -- Object to key object map
+ObjectPtrMap_t whereis;
+
 // -- The heap
-HeapState Heap;
+HeapState Heap( whereis, keyset );
 
 // -- Execution state
 ExecState Exec(2); // Method-only context
@@ -227,7 +232,7 @@ unsigned int read_trace_file(FILE* f)
                                               Exec.Now(),
                                               topMethod, // for death site info
                                               HEAP, // reason
-                                              0 ); // death root 0
+                                              NULL ); // death root 0 because may not be a root
                             // NOTE: topMethod COULD be NULL here.
                         }
                         // DEBUG ONLY IF NEEDED
@@ -270,29 +275,29 @@ unsigned int read_trace_file(FILE* f)
                                 obj->setDeathSite(topMethod);
                             } 
                         }
-                        if (obj->getDiedByStackFlag()) {
-                            for ( EdgeMap::iterator p = obj->getEdgeMapBegin();
-                                  p != obj->getEdgeMapEnd();
-                                  ++p ) {
-                                Edge* target_edge = p->second;
-                                if (target_edge) {
-                                    unsigned int fieldId = target_edge->getSourceField();
-                                    obj->updateField( NULL,
-                                                      fieldId,
-                                                      Exec.Now(),
-                                                      topMethod,
-                                                      STACK,
-                                                      objId );
-                                    // NOTE: STACK is used because the object that died,
-                                    // died by STACK.
-                                    debug_stack_edges++;
-                                    cout << "X";
-                                    if (debug_stack_edges % 200 == 100) {
-                                        cout << "Debug_STACK_EDGES: " << debug_stack_edges << endl;
-                                    }
-                                }
-                            }
-                        }
+                        // TODO if (obj->getDiedByStackFlag()) {
+                        // TODO     for ( EdgeMap::iterator p = obj->getEdgeMapBegin();
+                        // TODO           p != obj->getEdgeMapEnd();
+                        // TODO           ++p ) {
+                        // TODO         Edge* target_edge = p->second;
+                        // TODO         if (target_edge) {
+                        // TODO             unsigned int fieldId = target_edge->getSourceField();
+                        // TODO             obj->updateField( NULL,
+                        // TODO                               fieldId,
+                        // TODO                               Exec.Now(),
+                        // TODO                               topMethod,
+                        // TODO                               STACK,
+                        // TODO                               objId );
+                        // TODO             // NOTE: STACK is used because the object that died,
+                        // TODO             // died by STACK.
+                        // TODO             debug_stack_edges++;
+                        // TODO             cout << "X";
+                        // TODO             if (debug_stack_edges % 200 == 100) {
+                        // TODO                 cout << "Debug_STACK_EDGES: " << debug_stack_edges << endl;
+                        // TODO             }
+                        // TODO         }
+                        // TODO     }
+                        // TODO }
                         unsigned int rc = obj->getRefCount();
                         deathrc_map[objId] = rc;
                         not_candidate_map[objId] = (rc == 0);
@@ -444,12 +449,8 @@ int main(int argc, char* argv[])
     if (cycle_flag) {
         deque< pair<int,int> > edgelist;
         // deque< deque<int> > cycle_list = Heap.scan_queue( edgelist );
-        GraphBiMap_t vert_bmap;
-        KeySet_t keyset;
         Heap.scan_queue2( edgelist,
-                          not_candidate_map,
-                          vert_bmap,
-                          keyset );
+                          not_candidate_map );
         for ( KeySet_t::iterator it = keyset.begin();
               it != keyset.end();
               ++it ) {

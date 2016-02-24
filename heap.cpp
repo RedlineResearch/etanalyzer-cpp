@@ -119,7 +119,9 @@ void HeapState::update_death_counters( Object *obj )
             this->m_totalUpdateNullHeap_size += obj_size;
             if (m_obj_debug_flag) {
                 cout << " NL>" << endl;
-            } else {
+            }
+        } else {
+            if (m_obj_debug_flag) {
                 cout << " VA>" << endl;
             }
         }
@@ -299,12 +301,12 @@ deque< deque<int> > HeapState::scan_queue( EdgeList& edgelist )
     return result;
 }
 
-NodeId_t HeapState::getNodeId( ObjectId_t objId, GraphBiMap_t& bmap ) {
-    GraphBiMap_t::left_map::const_iterator liter = bmap.left.find(objId);
+NodeId_t HeapState::getNodeId( ObjectId_t objId, bimap< ObjectId_t, NodeId_t >& bmap ) {
+    bimap< ObjectId_t, NodeId_t >::left_map::const_iterator liter = bmap.left.find(objId);
     if (liter == bmap.left.end()) {
         // Haven't mapped a NodeId yet to this ObjectId
         NodeId_t nodeId = bmap.size();
-        bmap.insert( GraphBiMap_t::value_type( objId, nodeId ) );
+        bmap.insert( bimap< ObjectId_t, NodeId_t >::value_type( objId, nodeId ) );
         return nodeId;
     } else {
         // We have a NodeId
@@ -314,12 +316,12 @@ NodeId_t HeapState::getNodeId( ObjectId_t objId, GraphBiMap_t& bmap ) {
 
 // TODO Documentation :)
 void HeapState::scan_queue2( EdgeList& edgelist,
-                                  map<unsigned int, bool>& not_candidate_map,
-                                  GraphBiMap_t& bmap,
-                                  KeySet_t& keyset )
+                             map<unsigned int, bool>& not_candidate_map )
 {
     unsigned int hit_total;
     unsigned int miss_total;
+    ObjectPtrMap_t& whereis = this->m_whereis;
+    KeySet_t& keyset = this->m_keyset;
     // keyset contains:
     //   key object objects as keys
     //   sets of objects that depend on key objects
@@ -333,6 +335,7 @@ void HeapState::scan_queue2( EdgeList& edgelist,
     // TODO: Add bimap
     //    objId <-> graph ID
     //
+    // Get all the candidate objects and sort according to last update time.
     for ( map<unsigned int, bool>::iterator i = this->m_candidate_map.begin();
           i != this->m_candidate_map.end();
           ++i ) {
@@ -345,7 +348,6 @@ void HeapState::scan_queue2( EdgeList& edgelist,
             if ( obj && (obj->getRefCount() > 0) ) {
                 // Object exists
                 unsigned int dtime = obj->getDeathTime();
-                srcNodeId = getNodeId(objId, bmap);
                 this->m_candidate_set.insert( std::make_pair( objId, dtime ) );
                 for ( EdgeMap::iterator p = obj->getEdgeMapBegin();
                       p != obj->getEdgeMapEnd();
@@ -356,8 +358,6 @@ void HeapState::scan_queue2( EdgeList& edgelist,
                         Object *tgtObj = target_edge->getTarget();
                         if (tgtObj) {
                             ObjectId_t tgtId = tgtObj->getId();
-                            NodeId_t tgtNodeId = getNodeId(tgtId, bmap);
-                            // TODO GEdge_t e(srcNodeId, tgtNodeId);
                             GEdge_t e(objId, tgtId);
                             edgelist.push_back(e);
                         }
@@ -366,7 +366,7 @@ void HeapState::scan_queue2( EdgeList& edgelist,
             }
         } // if (flag)
     }
-    cout << "bmap size: " << bmap.size() << endl;
+    cout << "Before whereis size: " << whereis.size() << endl;
     while (!(this->m_candidate_set.empty())) {
         std::set<pair< unsigned int, unsigned int >>::iterator it = this->m_candidate_set.begin();
         if (it != this->m_candidate_set.end()) {
@@ -379,8 +379,17 @@ void HeapState::scan_queue2( EdgeList& edgelist,
             std::set< Object * > discovered;
             // Root goes in first.
             work.push_back(root);
-            keyset[root] = new std::set< Object * >();
-            keyset[root]->insert( root );
+            // Check to see if the root is already in there?
+            ObjectPtrMap_t::iterator itmap = whereis.find(root);
+            if (itmap == whereis.end()) {
+                keyset[root] = new std::set< Object * >();
+                keyset[root]->insert( root );
+                whereis[root] = root;
+            } else {
+                // So-called root isn't one
+                root = whereis[root];
+            }
+            assert( root != NULL );
             // Remove from candidate set.
             this->m_candidate_set.erase(it);
             // Depth First Search
@@ -389,9 +398,10 @@ void HeapState::scan_queue2( EdgeList& edgelist,
                 work.pop_back();
                 std::set< Object * >::iterator it = discovered.find(src);
                 if (it == discovered.end()) {
-                    // Not yet seen.
+                    // Not yet seen by DFS.
                     discovered.insert(src);
                     keyset[root]->insert(src);
+                    whereis[src] = root;
                     for ( EdgeMap::iterator p = src->getEdgeMapBegin();
                           p != src->getEdgeMapEnd();
                           ++p ) {
@@ -401,12 +411,13 @@ void HeapState::scan_queue2( EdgeList& edgelist,
                             work.push_back(tgtObj);
                         }
                     }
-                }
-            }
-        }
+                } // if (it == discovered.end())
+            } // while (!work.empty())
+        } // if (it != this->m_candidate_set.end())
     }
+    cout << "After  whereis size: " << whereis.size() << endl;
     cout << endl;
-    cout << "  MISSES: " << miss_total << "   HITS: " << hit_total << endl;
+    // cout << "  MISSES: " << miss_total << "   HITS: " << hit_total << endl;
 }
 
 // -- Return a string with some information
@@ -446,7 +457,7 @@ void Object::updateField( Edge* edge,
                           unsigned int cur_time,
                           Method *method,
                           Reason reason,
-                          ObjectId_t death_root )
+                          Object *death_root )
 {
     EdgeMap::iterator p = this->m_fields.find(fieldId);
     if (p != this->m_fields.end()) {
@@ -630,7 +641,7 @@ void Object::recolor( Color newColor )
 void Object::decrementRefCountReal( unsigned int cur_time,
                                     Method *method,
                                     Reason reason,
-                                    ObjectId_t death_root )
+                                    Object *death_root )
 {
     this->decrementRefCount();
     this->m_lastMethodDecRC = method;
@@ -640,6 +651,8 @@ void Object::decrementRefCountReal( unsigned int cur_time,
         this->setLastEvent( LastEvent::UPDATE);
     }
     if (this->m_refCount == 0) {
+        ObjectPtrMap_t& whereis = this->m_heapptr->get_whereis();
+        KeySet_t& keyset = this->m_heapptr->get_keyset();
         // TODO Should we even bother with this check?
         //      Maybe just set it to true.
         if (!m_decToZero) {
@@ -654,8 +667,23 @@ void Object::decrementRefCountReal( unsigned int cur_time,
         }
         // -- Visit all edges
         this->recolor(GREEN);
+
         // -- Who's my key object?
-        this->m_death_root = death_root;
+        if (death_root != NULL) {
+            this->setDeathRoot( death_root );
+        } else {
+            this->setDeathRoot( this );
+        }
+        Object *my_death_root = this->getDeathRoot();
+        whereis[this] = my_death_root;
+        KeySet_t::iterator itset = keyset.find(my_death_root);
+        if (itset == keyset.end()) {
+            keyset[my_death_root] = new std::set< Object * >();
+            keyset[my_death_root]->insert( my_death_root );
+        }
+        keyset[my_death_root]->insert( this );
+
+        // Edges are now dead.
         for ( EdgeMap::iterator p = this->m_fields.begin();
               p != this->m_fields.end();
               ++p ) {
@@ -667,7 +695,7 @@ void Object::decrementRefCountReal( unsigned int cur_time,
                                    cur_time,
                                    method,
                                    reason,
-                                   death_root );
+                                   this->getDeathRoot() );
             }
         }
         // DEBUG

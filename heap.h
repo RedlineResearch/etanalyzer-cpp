@@ -54,7 +54,7 @@ using namespace boost::logic;
 typedef std::pair<int, int> GEdge_t;
 typedef unsigned int  NodeId_t;
 typedef std::map<int, int> Graph_t;
-typedef bimap<ObjectId_t, NodeId_t> GraphBiMap_t;
+typedef std::map<Object *, Object *> ObjectPtrMap_t;
 // TODO do we need to distinguish between FOUND and LOOKING?
 // BiMap_t is used to map:
 //     key object <-> some object
@@ -149,18 +149,26 @@ class HeapState
 
         // Map of Method * to set of object type names
         DeathSitesMap m_death_sites_map;
+        
+        // Map of object to key object (in pointers)
+        ObjectPtrMap_t& m_whereis;
+
+        // Map of key object to set of objects
+        KeySet_t& m_keyset;
 
         void update_death_counters( Object *obj );
         Method * get_method_death_site( Object *obj );
 
-        NodeId_t getNodeId( ObjectId_t objId, GraphBiMap_t& bmap );
+        NodeId_t getNodeId( ObjectId_t objId, bimap< ObjectId_t, NodeId_t >& bmap );
 
     public:
-        HeapState()
+        HeapState( ObjectPtrMap_t& whereis, KeySet_t& keyset )
             : m_objects()
             , m_candidate_map()
             , m_candidate_set()
             , m_death_sites_map()
+            , m_whereis( whereis )
+            , m_keyset( keyset )
             , m_maxLiveSize(0)
             , m_liveSize(0)
             , m_totalDiedByHeap_ver2(0)
@@ -243,10 +251,11 @@ class HeapState
         void unset_candidate(unsigned int objId);
         deque< deque<int> > scan_queue( EdgeList& edgelist );
         void scan_queue2( EdgeList& edgelist,
-                          map<unsigned int, bool>& ncmap,
-                          GraphBiMap_t& bmap,
-                          KeySet_t& keyset );
+                          map<unsigned int, bool>& ncmap );
         void set_reason_for_cycles( deque< deque<int> >& cycles );
+
+        ObjectPtrMap_t& get_whereis() { return m_whereis; }
+        KeySet_t& get_keyset() { return m_keyset; }
 };
 
 enum Color {
@@ -320,7 +329,7 @@ class Object
         Object *m_last_object;
 
         // Who's my key object? 0 means unassigned.
-        ObjectId_t m_death_root;
+        Object *m_death_root;
 
     public:
         Object( unsigned int id, unsigned int size,
@@ -354,7 +363,7 @@ class Object
             , m_decToZero(indeterminate)
             , m_incFromZero(indeterminate)
             , m_last_event(LastEvent::UNKNOWN_EVENT)
-            , m_death_root(0)
+            , m_death_root(NULL)
             , m_last_object(NULL) {
         }
 
@@ -414,6 +423,9 @@ class Object
         // Set and get last Object 
         void setLastObject( Object *obj ) { m_last_object = obj; }
         Object * getLastObject() const { return m_last_object; }
+        // Set and get death root
+        void setDeathRoot( Object *newroot ) { this->m_death_root = newroot; }
+        Object * getDeathRoot() const { return this->m_death_root; }
 
         // -- Ref counting
         unsigned int getRefCount() const { return m_refCount; }
@@ -424,7 +436,7 @@ class Object
         void decrementRefCountReal( unsigned int cur_time,
                                     Method *method,
                                     Reason r,
-                                    ObjectId_t death_root );
+                                    Object *death_root );
         // -- Access the fields
         const EdgeMap& getFields() const { return m_fields; }
         // -- Get a string representation
@@ -439,7 +451,7 @@ class Object
                           unsigned int cur_time,
                           Method *method,
                           Reason reason,
-                          ObjectId_t death_root );
+                          Object *death_root );
         // -- Record death time
         void makeDead(unsigned int death_time);
         // -- Set the color
