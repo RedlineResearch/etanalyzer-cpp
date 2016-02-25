@@ -16,12 +16,17 @@ using namespace std;
 #include "execution.h"
 #include "heap.h"
 #include "refstate.h"
+#include "summary.hpp"
 // #include "lastmap.h"
 
 // ----------------------------------------------------------------------
 // Types
 class Object;
 class CCNode;
+
+typedef std::map< string, std::vector< Summary * > > GroupSum_t;
+typedef std::map< string, Summary * > TypeTotalSum_t;
+typedef std::map< unsigned int, Summary * > SizeSum_t;
 
 // ----------------------------------------------------------------------
 //   Globals
@@ -404,6 +409,55 @@ void filter_edgelist( deque< pair<int,int> >& edgelist, deque< deque<int> >& cyc
     edgelist = newlist;
 }
 
+unsigned int sumSize( std::set< Object * >& s )
+{
+    unsigned int total = 0;
+    for ( std::set<Object *>::iterator it = s.begin();
+          it != s.end();
+          ++it ) {
+        total += (*it)->getSize();
+    }
+    return total;
+}
+
+void update_summaries( Object *key,
+                       std::set< Object * > *tgtSet,
+                       GroupSum_t& pgs,
+                       TypeTotalSum_t& tts,
+                       SizeSum_t& ssum )
+{
+    string mytype = key->getType();
+    unsigned gsize = tgtSet->size();
+    // per group summary
+    GroupSum_t::iterator git = pgs.find(mytype);
+    if (git == pgs.end()) {
+        pgs[mytype] = std::vector< Summary * >();
+    }
+    unsigned int total_size = sumSize( *tgtSet );
+    Summary *s = new Summary( gsize, total_size, 1 );
+    // -- third parameter is number of groups which is simply 1 here.
+    pgs[mytype].push_back(s);
+    // type total summary
+    TypeTotalSum_t::iterator titer = tts.find(mytype);
+    if (titer == tts.end()) {
+        Summary *t = new Summary( gsize, total_size, 1 );
+        tts[mytype] = t;
+    } else {
+        tts[mytype]->size += total_size;
+        tts[mytype]->num_objects += tgtSet->size();
+        tts[mytype]->num_groups++;
+    }
+    // size summary
+    SizeSum_t::iterator sit = ssum.find(gsize);
+    if (sit == ssum.end()) {
+        Summary *u = new Summary( gsize, total_size, 1 );
+        ssum[gsize] = u;
+    } else {
+        ssum[gsize]->size += total_size;
+        ssum[gsize]->num_groups++;
+        // Doesn't make sense to make use of the num_objects field.
+    }
+}
 // ----------------------------------------------------------------------
 
 int main(int argc, char* argv[])
@@ -420,6 +474,8 @@ int main(int argc, char* argv[])
     string edgeinfo_filename( basename + "-EDGEINFO.txt" );
     string summary_filename( basename + "-SUMMARY.csv" );
     string dsite_filename( basename + "-DSITES.csv" );
+
+    string dgroups_filename( basename + "-DGROUPS.csv" );
 
     string cycle_switch(argv[3]);
     bool cycle_flag = ((cycle_switch == "NOCYCLE") ? false : true);
@@ -439,7 +495,8 @@ int main(int argc, char* argv[])
     unsigned int final_time = Exec.Now();
     cout << "Done at time " << Exec.Now() << endl;
     cout << "Total objects: " << total_objects << endl;
-    assert( total_objects == Heap.size() );
+    cout << "Heap.size:     " << Heap.size() << endl;
+    // assert( total_objects == Heap.size() );
     Heap.end_of_program(Exec.Now());
 
     // TODO analyze(Exec.Now());
@@ -447,8 +504,17 @@ int main(int argc, char* argv[])
     // TODO Maybe use a finer grained selection of options here.
     //      But for now, doing it this way.
     if (cycle_flag) {
-        deque< pair<int,int> > edgelist;
-        // deque< deque<int> > cycle_list = Heap.scan_queue( edgelist );
+        std::deque< pair<int,int> > edgelist; // TODO Do we need the edgelist?
+        // per_group_summary: type -> vector of group summary
+        GroupSum_t per_group_summary;
+        // type_total_summary: summarize the stats per type
+        TypeTotalSum_t type_total_summary;
+        // size_summary: per group size summary. That is, for each group of size X,
+        //               add up the sizes.
+        SizeSum_t size_summary;
+        // TODO per : type -> vector of group summary
+        // TODO std::map< string, std::vector< Summary > > per_group_summary;
+        // TODO TODO deque< deque<int> > cycle_list = Heap.scan_queue( edgelist );
         Heap.scan_queue2( edgelist,
                           not_candidate_map );
         for ( KeySet_t::iterator it = keyset.begin();
@@ -457,7 +523,23 @@ int main(int argc, char* argv[])
             Object *key = it->first;
             std::set< Object * > *tgtSet = it->second;
             cout << "[ " << key->getType() << " ]: " << tgtSet->size() << endl;
+            update_summaries( key,
+                              tgtSet,
+                              per_group_summary,
+                              type_total_summary,
+                              size_summary );
         }
+        ofstream dgroups_file(dgroups_filename);
+        for ( SizeSum_t::iterator it = size_summary.begin();
+              it != size_summary.end();
+              ++it ) {
+            unsigned int gsize = it->first;
+            Summary *s = it->second;
+            dgroups_file << s->num_objects << ","
+                         << s->size << ","
+                         << s->num_groups << endl;
+        }
+        dgroups_file.close();
         // filter_edgelist( edgelist, cycle_list );
         // TODO Heap.analyze();
         // TODO ofstream object_info_file(objectinfo_filename);

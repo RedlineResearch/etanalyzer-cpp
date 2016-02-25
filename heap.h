@@ -13,8 +13,6 @@
 #include <boost/logic/tribool.hpp>
 #include <boost/bimap.hpp>
 
-#include <igraph.h>
-
 #include "classinfo.h"
 #include "refstate.h"
 
