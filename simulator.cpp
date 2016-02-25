@@ -421,19 +421,19 @@ unsigned int sumSize( std::set< Object * >& s )
 }
 
 void update_summaries( Object *key,
-                       std::set< Object * > *tgtSet,
+                       std::set< Object * >& tgtSet,
                        GroupSum_t& pgs,
                        TypeTotalSum_t& tts,
                        SizeSum_t& ssum )
 {
     string mytype = key->getType();
-    unsigned gsize = tgtSet->size();
+    unsigned gsize = tgtSet.size();
     // per group summary
     GroupSum_t::iterator git = pgs.find(mytype);
     if (git == pgs.end()) {
         pgs[mytype] = std::vector< Summary * >();
     }
-    unsigned int total_size = sumSize( *tgtSet );
+    unsigned int total_size = sumSize( tgtSet );
     Summary *s = new Summary( gsize, total_size, 1 );
     // -- third parameter is number of groups which is simply 1 here.
     pgs[mytype].push_back(s);
@@ -444,7 +444,7 @@ void update_summaries( Object *key,
         tts[mytype] = t;
     } else {
         tts[mytype]->size += total_size;
-        tts[mytype]->num_objects += tgtSet->size();
+        tts[mytype]->num_objects += tgtSet.size();
         tts[mytype]->num_groups++;
     }
     // size summary
@@ -524,7 +524,7 @@ int main(int argc, char* argv[])
             std::set< Object * > *tgtSet = it->second;
             cout << "[ " << key->getType() << " ]: " << tgtSet->size() << endl;
             update_summaries( key,
-                              tgtSet,
+                              *tgtSet,
                               per_group_summary,
                               type_total_summary,
                               size_summary );
