@@ -8,8 +8,9 @@
 //      into a class with all the OO insanity. Note that structs are classes
 //      in C++ with everything public by default.
 
-struct Summary
+class Summary
 {
+public:
     unsigned int num_objects;
     unsigned int size;
     unsigned int num_groups;

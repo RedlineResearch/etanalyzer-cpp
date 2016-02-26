@@ -279,30 +279,29 @@ unsigned int read_trace_file(FILE* f)
                             if (topMethod) {
                                 obj->setDeathSite(topMethod);
                             } 
+                            if (thread->isLocalVariable(obj)) {
+                                for ( EdgeMap::iterator p = obj->getEdgeMapBegin();
+                                      p != obj->getEdgeMapEnd();
+                                      ++p ) {
+                                    Edge* target_edge = p->second;
+                                    if (target_edge) {
+                                        unsigned int fieldId = target_edge->getSourceField();
+                                        obj->updateField( NULL,
+                                                          fieldId,
+                                                          Exec.Now(),
+                                                          topMethod,
+                                                          STACK,
+                                                          obj );
+                                        // NOTE: STACK is used because the object that died,
+                                        // died by STACK.
+                                        debug_stack_edges++;
+                                        if (debug_stack_edges % 200 == 100) {
+                                            cout << "Debug_STACK_EDGES: " << debug_stack_edges << endl;
+                                        }
+                                    }
+                                }
+                            }
                         }
-                        // TODO if (obj->getDiedByStackFlag()) {
-                        // TODO     for ( EdgeMap::iterator p = obj->getEdgeMapBegin();
-                        // TODO           p != obj->getEdgeMapEnd();
-                        // TODO           ++p ) {
-                        // TODO         Edge* target_edge = p->second;
-                        // TODO         if (target_edge) {
-                        // TODO             unsigned int fieldId = target_edge->getSourceField();
-                        // TODO             obj->updateField( NULL,
-                        // TODO                               fieldId,
-                        // TODO                               Exec.Now(),
-                        // TODO                               topMethod,
-                        // TODO                               STACK,
-                        // TODO                               objId );
-                        // TODO             // NOTE: STACK is used because the object that died,
-                        // TODO             // died by STACK.
-                        // TODO             debug_stack_edges++;
-                        // TODO             cout << "X";
-                        // TODO             if (debug_stack_edges % 200 == 100) {
-                        // TODO                 cout << "Debug_STACK_EDGES: " << debug_stack_edges << endl;
-                        // TODO             }
-                        // TODO         }
-                        // TODO     }
-                        // TODO }
                         unsigned int rc = obj->getRefCount();
                         deathrc_map[objId] = rc;
                         not_candidate_map[objId] = (rc == 0);
@@ -522,7 +521,7 @@ int main(int argc, char* argv[])
               ++it ) {
             Object *key = it->first;
             std::set< Object * > *tgtSet = it->second;
-            cout << "[ " << key->getType() << " ]: " << tgtSet->size() << endl;
+            // cout << "[ " << key->getType() << " ]: " << tgtSet->size() << endl;
             update_summaries( key,
                               *tgtSet,
                               per_group_summary,

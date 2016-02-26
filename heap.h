@@ -33,7 +33,8 @@ enum LastEvent {
 };
 
 typedef unsigned int ObjectId_t;
-typedef map<ObjectId_t, Object *> ObjectMap;
+typedef unsigned int FieldId_t;
+typedef map<FieldId_t, Object *> ObjectMap;
 typedef map<ObjectId_t, Edge *> EdgeMap;
 typedef set<Object *> ObjectSet;
 typedef set<Edge *> EdgeSet;
@@ -69,8 +70,8 @@ typedef bimap<ObjectId_t, ObjectId_t> BiMap_t;
 // typedef map<ObjectId_t, std::pair<KeyStatus, ObjectId_t>> LookupMap;
 
 struct compclass {
-    bool operator() ( const std::pair<unsigned int, unsigned int>& lhs,
-                      const std::pair<unsigned int, unsigned int>& rhs ) const {
+    bool operator() ( const std::pair< ObjectId_t, unsigned int >& lhs,
+                      const std::pair< ObjectId_t, unsigned int >& rhs ) const {
         return lhs.second > rhs.second;
     }
 };
@@ -97,9 +98,6 @@ class HeapState
 
         // Map from IDs to bool if possible cyle root
         map<unsigned int, bool> m_candidate_map;
-
-        // First is objectId. Second is last update time.
-        set<std::pair< unsigned int, unsigned int >, compclass> m_candidate_set;
 
         unsigned long int m_liveSize; // current live size of program in bytes
         unsigned long int m_maxLiveSize; // max live size of program in bytes
@@ -163,7 +161,6 @@ class HeapState
         HeapState( ObjectPtrMap_t& whereis, KeySet_t& keyset )
             : m_objects()
             , m_candidate_map()
-            , m_candidate_set()
             , m_death_sites_map()
             , m_whereis( whereis )
             , m_keyset( keyset )
@@ -445,7 +442,7 @@ class Object
         bool isLive(unsigned int tm) const { return (tm < m_deathTime); }
         // -- Update a field
         void updateField( Edge* edge,
-                          unsigned int fieldId,
+                          FieldId_t fieldId,
                           unsigned int cur_time,
                           Method *method,
                           Reason reason,

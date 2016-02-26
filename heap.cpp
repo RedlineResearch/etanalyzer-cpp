@@ -40,8 +40,10 @@ Object* HeapState::getObject(unsigned int id)
     }
 }
 
-Edge* HeapState::make_edge( Object* source, unsigned int field_id,
-                            Object* target, unsigned int cur_time )
+Edge* HeapState::make_edge( Object* source,
+                            FieldId_t field_id,
+                            Object* target,
+                            unsigned int cur_time )
 {
     Edge* new_edge = new Edge( source, field_id,
                                target, cur_time );
@@ -318,6 +320,11 @@ NodeId_t HeapState::getNodeId( ObjectId_t objId, bimap< ObjectId_t, NodeId_t >& 
 void HeapState::scan_queue2( EdgeList& edgelist,
                              map<unsigned int, bool>& not_candidate_map )
 {
+    typedef std::set< std::pair< ObjectId_t, unsigned int >, compclass > CandidateSet_t;
+    typedef std::map< ObjectId_t, unsigned int > Object2Utime_t;
+    CandidateSet_t candSet;
+    Object2Utime_t utimeMap;
+
     unsigned int hit_total;
     unsigned int miss_total;
     ObjectPtrMap_t& whereis = this->m_whereis;
@@ -340,15 +347,16 @@ void HeapState::scan_queue2( EdgeList& edgelist,
           i != this->m_candidate_map.end();
           ++i ) {
         ObjectId_t objId = i->first;
-        NodeId_t srcNodeId;
         bool flag = i->second;
         if (flag) {
             // Is a candidate
             Object *obj = this->getObject(objId);
             if ( obj && (obj->getRefCount() > 0) ) {
                 // Object exists
-                unsigned int dtime = obj->getDeathTime();
-                this->m_candidate_set.insert( std::make_pair( objId, dtime ) );
+                unsigned int uptime = obj->getLastActionTime();
+                // DEBUG: Compare to getDeathTime
+                candSet.insert( std::make_pair( objId, uptime ) );
+                utimeMap[objId] = uptime;
                 for ( EdgeMap::iterator p = obj->getEdgeMapBegin();
                       p != obj->getEdgeMapEnd();
                       ++p ) {
@@ -363,15 +371,18 @@ void HeapState::scan_queue2( EdgeList& edgelist,
                         }
                     }
                 }
+            } else {
+                // Refcount is 0. Check to see that it is in whereis. TODO
             }
         } // if (flag)
     }
     cout << "Before whereis size: " << whereis.size() << endl;
-    while (!(this->m_candidate_set.empty())) {
-        std::set<pair< unsigned int, unsigned int >>::iterator it = this->m_candidate_set.begin();
-        if (it != this->m_candidate_set.end()) {
-            unsigned int rootId = it->first;
-            unsigned int last_update_time = it->second;
+    // Anything seen in this loop has a reference count (RefCount) greater than zero.
+    while (!(candSet.empty())) {
+        CandidateSet_t::iterator it = candSet.begin();
+        if (it != candSet.end()) {
+            ObjectId_t rootId = it->first;
+            unsigned int uptime = it->second;
             Object *root = this->getObject(rootId);
             // DFS work stack - can't use 'stack' as a variable name
             std::deque< Object * > work;
@@ -383,27 +394,44 @@ void HeapState::scan_queue2( EdgeList& edgelist,
             ObjectPtrMap_t::iterator itmap = whereis.find(root);
             if (itmap == whereis.end()) {
                 keyset[root] = new std::set< Object * >();
-                keyset[root]->insert( root );
-                whereis[root] = root;
             } else {
                 // So-called root isn't one
                 root = whereis[root];
             }
             assert( root != NULL );
-            // Remove from candidate set.
-            this->m_candidate_set.erase(it);
             // Depth First Search
             while (!work.empty()) {
-                Object *src = work.back();
+                Object *cur = work.back();
+                ObjectId_t curId = cur->getId();
                 work.pop_back();
-                std::set< Object * >::iterator it = discovered.find(src);
-                if (it == discovered.end()) {
+                // Look in whereis
+                ObjectPtrMap_t::iterator itwhere = whereis.find(cur);
+                // Look in discovered
+                std::set< Object * >::iterator itdisc = discovered.find(cur);
+                // Look in candidate
+                unsigned int uptime = utimeMap[curId];
+                CandidateSet_t::iterator itcand = candSet.find( std::make_pair( curId, uptime ) );
+                if (itcand != candSet.end()) {
+                    candSet.erase(itcand);
+                }
+                if (itdisc == discovered.end()) {
                     // Not yet seen by DFS.
-                    discovered.insert(src);
-                    keyset[root]->insert(src);
-                    whereis[src] = root;
-                    for ( EdgeMap::iterator p = src->getEdgeMapBegin();
-                          p != src->getEdgeMapEnd();
+                    discovered.insert(cur);
+                    // Remove from candidate set.
+                    // TODO candSet.erase(it);
+                    if (itwhere != whereis.end()) {
+                        // So we visit 'cur' but it has been put into whereis.
+                        // We will be overwriting the old root.
+                        Object *other_root = whereis[cur];
+                        if (other_root != root) {
+                            cout << "WARNING: Multiple keys[ " << other_root->getType()
+                                 << " - " << root->getType() << " ]" << endl;
+                        }
+                    }
+                    keyset[root]->insert(cur);
+                    whereis[cur] = root;
+                    for ( EdgeMap::iterator p = cur->getEdgeMapBegin();
+                          p != cur->getEdgeMapEnd();
                           ++p ) {
                         Edge* target_edge = p->second;
                         if (target_edge) {
@@ -411,9 +439,9 @@ void HeapState::scan_queue2( EdgeList& edgelist,
                             work.push_back(tgtObj);
                         }
                     }
-                } // if (it == discovered.end())
+                } // if (itdisc == discovered.end())
             } // while (!work.empty())
-        } // if (it != this->m_candidate_set.end())
+        } // if (it != candSet.end())
     }
     cout << "After  whereis size: " << whereis.size() << endl;
     cout << endl;
@@ -453,7 +481,7 @@ string Object::info2() {
 }
 
 void Object::updateField( Edge* edge,
-                          unsigned int fieldId,
+                          FieldId_t fieldId,
                           unsigned int cur_time,
                           Method *method,
                           Reason reason,
