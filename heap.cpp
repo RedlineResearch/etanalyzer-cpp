@@ -419,17 +419,45 @@ void HeapState::scan_queue2( EdgeList& edgelist,
                     discovered.insert(cur);
                     // Remove from candidate set.
                     // TODO candSet.erase(it);
+                    Object *other_root = whereis[cur];
+                    unsigned int other_time = other_root->getDeathTime();
+                    unsigned int curtime = cur->getDeathTime();
+                    unsigned int root_time =  root->getDeathTime();
                     if (itwhere != whereis.end()) {
                         // So we visit 'cur' but it has been put into whereis.
-                        // We will be overwriting the old root.
-                        Object *other_root = whereis[cur];
+                        // We will be using the root that died LATER.
                         if (other_root != root) {
-                            cout << "WARNING: Multiple keys[ " << other_root->getType()
-                                 << " - " << root->getType() << " ]" << endl;
-                        }
+                            // DEBUG cout << "WARNING: Multiple keys[ " << other_root->getType()
+                            //            << " - " << root->getType() << " ]" << endl;
+                            Object *older_ptr, *newer_ptr;
+                            unsigned int older_time, newer_time;
+                            if (root_time < other_time) {
+                                older_ptr = root;
+                                older_time = root_time;
+                                newer_ptr = other_root;
+                                newer_time = other_time;
+                            } else {
+                                older_ptr = other_root;
+                                older_time = other_time;
+                                newer_ptr = root;
+                                newer_time = root_time;
+                            }
+                            // Current object belongs to older if died earlier
+                            if (curtime <= older_time) {
+                                keyset[older_ptr]->insert(cur);
+                                whereis[cur] = older_ptr;
+                            } else {
+                                // Else it belongs to the root that died later.
+                                keyset[newer_ptr]->insert(cur);
+                                whereis[cur] = newer_ptr;
+                            }
+                        } // else {
+                            // No need to do anything since other_root is the SAME as root
+                        // }
+                    } else {
+                        keyset[root]->insert(cur);
+                        whereis[cur] = root;
                     }
-                    keyset[root]->insert(cur);
-                    whereis[cur] = root;
                     for ( EdgeMap::iterator p = cur->getEdgeMapBegin();
                           p != cur->getEdgeMapEnd();
                           ++p ) {

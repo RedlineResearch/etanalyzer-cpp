@@ -521,7 +521,7 @@ int main(int argc, char* argv[])
               ++it ) {
             Object *key = it->first;
             std::set< Object * > *tgtSet = it->second;
-            // cout << "[ " << key->getType() << " ]: " << tgtSet->size() << endl;
+            cout << "[ " << key->getType() << " ]: " << tgtSet->size() << endl;
             update_summaries( key,
                               *tgtSet,
                               per_group_summary,
