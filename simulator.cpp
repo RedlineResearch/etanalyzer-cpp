@@ -475,6 +475,7 @@ int main(int argc, char* argv[])
     string dsite_filename( basename + "-DSITES.csv" );
 
     string dgroups_filename( basename + "-DGROUPS.csv" );
+    string dgroups_by_type_filename( basename + "-DGROUPS-BY-TYPE.csv" );
 
     string cycle_switch(argv[3]);
     bool cycle_flag = ((cycle_switch == "NOCYCLE") ? false : true);
@@ -528,6 +529,7 @@ int main(int argc, char* argv[])
                               type_total_summary,
                               size_summary );
         }
+        // By size summary of death groups
         ofstream dgroups_file(dgroups_filename);
         for ( SizeSum_t::iterator it = size_summary.begin();
               it != size_summary.end();
@@ -539,6 +541,19 @@ int main(int argc, char* argv[])
                          << s->num_groups << endl;
         }
         dgroups_file.close();
+        // Type total summary output
+        ofstream dgroups_by_type_file(dgroups_by_type_filename);
+        for ( TypeTotalSum_t::iterator it = type_total_summary.begin();
+              it != type_total_summary.end();
+              ++it ) {
+            string myType = it->first;
+            Summary *s = it->second;
+            dgroups_by_type_file << myType << "," 
+                                 << s->size << ","
+                                 << s->num_groups  << ","
+                                 << s->num_objects << endl;
+        }
+        dgroups_by_type_file.close();
         // filter_edgelist( edgelist, cycle_list );
         // TODO Heap.analyze();
         // TODO ofstream object_info_file(objectinfo_filename);
