@@ -531,6 +531,7 @@ int main(int argc, char* argv[])
         }
         // By size summary of death groups
         ofstream dgroups_file(dgroups_filename);
+        dgroups_file << "\"num_objects\",\"size_bytes\",\"num_groups\"" << endl;
         for ( SizeSum_t::iterator it = size_summary.begin();
               it != size_summary.end();
               ++it ) {
