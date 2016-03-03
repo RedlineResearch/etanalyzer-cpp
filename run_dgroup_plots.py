@@ -72,7 +72,6 @@ def run_Rscript( data = None,
                                    stdin = subprocess.PIPE,
                                    stderr = subprocess.PIPE )
     result = renderproc.communicate()
-    result = None
     return result
 
 #
@@ -102,12 +101,12 @@ def main_process( output = None,
     for bmark in benchmarks_config.iterkeys():
         tgtfile = os.path.join( srcdir, dgroups_config[bmark] )
         print bmark, "->", dgroups_config[bmark], "=", os.path.isfile( tgtfile )
-        run_Rscript( data = tgtfile,
-                     bmark = bmark,
-                     outdir = outdir,
-                     Rscript = Rscript,
-                     plot_script = plot_script )
-    # HERE: TODO
+        result = run_Rscript( data = tgtfile,
+                              bmark = bmark,
+                              outdir = outdir,
+                              Rscript = Rscript,
+                              plot_script = plot_script )
+        # TODO: (Maybe check on result to see if it actually worked? :)
     print "===========[ DONE ]==================================================="
     exit(0)
 
