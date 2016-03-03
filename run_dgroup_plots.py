@@ -10,7 +10,7 @@ import re
 import ConfigParser
 from operator import itemgetter
 
-# import subprocess
+import subprocess
 # TODO: Use twisted
 import datetime
 
@@ -60,296 +60,56 @@ def get_trace_fp( tracefile = None,
         fp = open( tracefile, "r")
     return fp
 
+def run_Rscript( data = None,
+                 bmark = None,
+                 outdir = None,
+                 Rscript = None,
+                 plot_script = None ):
+    cmd = [ Rscript, plot_script, data, bmark, outdir ]
+    print "%s" % str(cmd)
+    renderproc = subprocess.Popen( cmd,
+                                   stdout = subprocess.PIPE,
+                                   stdin = subprocess.PIPE,
+                                   stderr = subprocess.PIPE )
+    result = renderproc.communicate()
+    result = None
+    return result
+
 #
 # Main processing
 #
 
 def main_process( output = None,
-                  main_config = None,
-                  benchmark = None,
-                  lastedgeflag = False,
-                  etanalyze_config = None,
+                  benchmarks_config = None,
+                  dgroups_config = None,
                   global_config = None,
-                  edge_config = None,
-                  edgeinfo_config = None,
-                  objectinfo_config = None,
-                  summary_config = None,
-                  debugflag = False,
-                  logger = None ):
+                  logger = None,
+                  debugflag = False ):
     global pp
-    # HERE: TODO
-    # 1. Cyclic garbage vs ref count reclaimed:
-    #      * Number of objects
-    #      * size of objects
-    # 2. Number of cycles
-    # 3. Size of cycles
     print "GLOBAL:"
     pp.pprint(global_config)
-    cycle_cpp_dir = global_config["cycle_cpp_dir"]
-    work_dir = main_config["directory"]
-    results = {}
-    summary = {}
-    typedict = {} # Type dictionary is ACROSS all benchmarks
-    rev_typedict = {} # Type dictionary is ACROSS all benchmarks
-    count = 0
-    today = create_work_directory( work_dir, logger = logger )
-    olddir = os.getcwd()
-    os.chdir( today )
-    for bmark, filename in etanalyze_config.iteritems():
-        # if skip_benchmark(bmark):
-        if ( (benchmark != "_ALL_") and (bmark != benchmark) ):
-            print "SKIP:", bmark
-            continue
-        print "=======[ %s ]=========================================================" \
-            % bmark
-        logger.critical( "=======[ %s ]=========================================================" 
-                         % bmark )
-        abspath = os.path.join(cycle_cpp_dir, filename)
-        if not os.path.isfile(abspath):
-            logger.critical("Not such file: %s" % str(abspath))
-        else:
-            group = 1
-            graphs = []
-            # Counters TODO: do we need this?
-            cycle_total_counter = Counter()
-            actual_cycle_counter = Counter()
-            cycle_type_counter = Counter()
-            logger.critical( "Opening %s." % abspath )
-            # Get cycles
-            cycles = get_cycles( abspath )
-            # TODO What is this? 
-            # TODO get_cycles_result = {}
-            # Get edges
-            edgepath = os.path.join(cycle_cpp_dir, edge_config[bmark])
-            edges = get_edges( edgepath )
-            # Get edge information
-            edgeinfo_path = os.path.join(cycle_cpp_dir, edgeinfo_config[bmark])
-            edge_info_dict = get_edge_info( edgeinfo_path)
-            # Get object dictionary information that has types and sizes
-            objectinfo_path = os.path.join(cycle_cpp_dir, objectinfo_config[bmark])
-            object_info_dict = get_object_info( objectinfo_path, typedict, rev_typedict )
-            # Get summary
-            summary_path = os.path.join(cycle_cpp_dir, summary_config[bmark])
-            summary_sim = get_summary( summary_path )
-            #     get summary by size
-            number_of_objects = summary_sim["number_of_objects"]
-            number_of_edges = summary_sim["number_of_edges"]
-            died_by_stack = summary_sim["died_by_stack"]
-            died_by_heap = summary_sim["died_by_heap"]
-            died_by_stack_after_heap = summary_sim["died_by_stack_after_heap"]
-            died_by_stack_only = summary_sim["died_by_stack_only"]
-            died_by_stack_after_heap_size = summary_sim["died_by_stack_after_heap_size"]
-            died_by_stack_only_size = summary_sim["died_by_stack_only_size"]
-            size_died_by_stack = summary_sim["size_died_by_stack"]
-            size_died_by_heap = summary_sim["size_died_by_heap"]
-            last_update_null = summary_sim["last_update_null"]
-            last_update_null_heap = summary_sim["last_update_null_heap"]
-            last_update_null_stack = summary_sim["last_update_null_stack"]
-            last_update_null_size = summary_sim["last_update_null_size"]
-            last_update_null_heap_size = summary_sim["last_update_null_heap_size"]
-            last_update_null_stack_size = summary_sim["last_update_null_stack_size"]
-            max_live_size = summary_sim["max_live_size"]
-            final_time = summary_sim["final_time"]
-            selfloops = set()
-            edgedict = create_edge_dictionary( edges, selfloops )
-            results[bmark] = { "totals" : [],
-                               "graph" : [],
-                               "largest_cycle" : [],
-                               "largest_cycle_types_set" : [],
-                               "lifetimes" : [],
-                               "lifetime_mean" : [],
-                               "lifetime_sd" : [],
-                               "lifetime_max" : [],
-                               "lifetime_min" : [],
-                               "sizes_largest_scc" : [],
-                               "sizes_all" : [], }
-            summary[bmark] = { "by_size" : { 1 : [], 2 : [], 3 : [], 4 : [] },
-                               # by_size contains apriori sizes 1 to 4 and the
-                               # cycles with these sizes. The cycle is encoded
-                               # as a list of object IDs (objId). by_size here means by cycle size
-                               "died_by_heap" : died_by_heap, # total of
-                               "died_by_stack" : died_by_stack, # total of
-                               "died_by_stack_after_heap" : died_by_stack_after_heap, # subset of died_by_stack
-                               "died_by_stack_only" : died_by_stack_only, # subset of died_by_stack
-                               "died_by_stack_after_heap_size" : died_by_stack_after_heap_size, # size of
-                               "died_by_stack_only_size" : died_by_stack_only_size, # size of
-                               "last_update_null" : last_update_null, # subset of died_by_heap
-                               "last_update_null_heap" : last_update_null_heap, # subset of died_by_heap
-                               "last_update_null_stack" : last_update_null_stack, # subset of died_by_heap
-                               "last_update_null_size" : last_update_null_size, # size of
-                               "last_update_null_heap_size" : last_update_null_heap_size, # size of
-                               "last_update_null_stack_size" : last_update_null_stack_size, # size of
-                               "max_live_size" : max_live_size,
-                               "number_of_objects" : number_of_objects,
-                               "number_of_edges" : number_of_edges,
-                               "number_of_selfloops" : 0,
-                               "types" : Counter(), # counts of types using type IDs
-                               "size_died_by_stack" : size_died_by_stack, # size, not object count
-                               "size_died_by_heap" : size_died_by_heap, # size, not object count
-                               }
-            for index in xrange(len(cycles)):
-                cycle = cycles[index]
-                cycle_info_list = get_cycle_info_list( cycle = cycle,
-                                                       objinfo_dict = object_info_dict,
-                                                       # objdb,
-                                                       logger = logger )
-                if len(cycle_info_list) == 0:
-                    continue
-                # GRAPH
-                G = create_graph( cycle_info_list = cycle_info_list,
-                                  edgedict = edgedict,
-                                  logger = logger )
-                # Get the actual cycle - LARGEST
-                # Sanity check 1: Is it a DAG?
-                if nx.is_directed_acyclic_graph(G):
-                    logger.error( "Not a cycle." )
-                    logger.error( "Nodes: %s" % str(G.nodes()) )
-                    logger.error( "Edges: %s" % str(G.edges()) )
-                    continue
-                ctmplist = list( nx.simple_cycles(G) )
-                # Sanity check 2: Check to see it's not empty.
-                if len(ctmplist) == 0:
-                    # No cycles!!!
-                    logger.error( "Not a cycle." )
-                    logger.error( "Nodes: %s" % str(G.nodes()) )
-                    logger.error( "Edges: %s" % str(G.edges()) )
-                    continue
-                # TODO TODO TODO
-                # Interesting cases are:
-                # - largest is size 1 (self-loops)
-                # - multiple largest cycles?
-                #     * Option 1: choose only one?
-                #     * Option 2: ????
-                # 
-                # Get Strongly Connected Components
-                scclist = list(nx.strongly_connected_components(G))
-                # Strong connected-ness is a better indication of what we want
-                # Unless the cycle is a single node with a self pointer.
-                # TOTALS - size of the whole component including leaves
-                results[bmark]["totals"].append( len(cycle) )
-                cycle_total_counter.update( [ len(cycle) ] )
-                # Append graph too
-                results[bmark]["graph"].append(G)
-                largest_scc = append_largest_SCC( ldict = results[bmark]["largest_cycle"],
-                                                  scclist = scclist,
-                                                  selfloops = selfloops,
-                                                  logger = logger )
-                if len(largest_scc) == 1:
-                    summary[bmark]["number_of_selfloops"] += 1
-                # Cycle length counter
-                actual_cycle_counter.update( [ len(largest_scc) ] )
-                # Get the types and type statistics
-                largest_by_types_with_index = get_types_and_save_index( G, largest_scc )
-                largest_by_types = [ x[1] for x in largest_by_types_with_index ]
-                summary[bmark]["types"].update( largest_by_types )
-                largest_by_types_set = set(largest_by_types)
-                # Save small cycles 
-                save_interesting_small_cycles( largest_by_types_with_index, summary[bmark] )
-                # TYPE SET
-                results[bmark]["largest_cycle_types_set"].append(largest_by_types_set)
-                cycle_type_counter.update( [ len(largest_by_types_set) ] )
-                group += 1
-                # LIFETIME
-                lifetimes = get_lifetimes( G, largest_scc )
-                if lastedgeflag:
-                    # GET LAST EDGE
-                    last_edge = get_last_edge( largest_scc, edge_info_db )
-                else:
-                    last_edge = None
-                debug_lifetimes( G = G,
-                                 cycle = cycle,
-                                 bmark = bmark, 
-                                 logger = logger )
-                if len(lifetimes) >= 2:
-                    ltimes_mean = mean( lifetimes )
-                    ltimes_sd = stdev( lifetimes, ltimes_mean )
-                elif len(lifetimes) == 1:
-                    ltimes_mean = lifetimes[0]
-                    ltimes_sd = 0
-                else:
-                    raise ValueError("No lifetime == no node found?")
-                results[bmark]["lifetimes"].append(lifetimes)
-                results[bmark]["lifetime_mean"].append(ltimes_mean)
-                results[bmark]["lifetime_sd"].append(ltimes_sd)
-                results[bmark]["lifetime_max"].append( max(lifetimes) )
-                results[bmark]["lifetime_min"].append( min(lifetimes) )
-                # End LIFETIME
-                # SIZE PER TYPE COUNT
-                # Per bencmark:
-                #   count of types -> size in bytes
-                #   then group accoring to count of types:
-                #         count -> [ size1, s2, s3, ... sn ]
-                #   * graph (option 1)
-                #   * stats (option 2)
-                #   * option3? ? ?
-                cycle_sizes = get_sizes( G, largest_scc )
-                total_sizes = get_sizes( G, cycle )
-                results[bmark]["sizes_largest_scc"].append(cycle_sizes)
-                results[bmark]["sizes_all"].append(total_sizes)
-                # End SIZE PER TYPE COUNT
-            largelist = save_largest_cycles( results[bmark]["graph"], num = 5 )
-            # Make directory and Cd into directory
-            if not os.path.isdir(bmark):
-                os.mkdir(bmark)
-            for_olddir = os.getcwd()
-            os.chdir( bmark )
-            # Create the CSV files for the data
-            small_result = extract_small_cycles( small_summary = summary[bmark]["by_size"], 
-                                                 bmark = bmark,
-                                                 objinfo_dict = object_info_dict,
-                                                 rev_typedict = rev_typedict,
-                                                 logger = logger ) 
-            print "================================================================================"
-            total_small_cycles = small_result["total_cycles"]
-            inner_classes_count = small_result["inner_classes_count"]
-            # Cd back into parent directory
-            os.chdir( for_olddir )
-            print "--------------------------------------------------------------------------------"
-            print "num_cycles: %d" % len(cycles)
-            print "number of types:", len(summary[bmark]["types"])
-            print "cycle_total_counter:", str(cycle_total_counter)
-            print "actual_cycle_counter:", str(actual_cycle_counter)
-            print "cycle_type_counter:", str(cycle_type_counter)
-            print "total small cycles:", total_small_cycles
-            print "inner_classes_count:", str(inner_classes_count)
-            print "--------------------------------------------------------------------------------"
-        count += 1
-        # if count >= 1:
-        #     break
-    # benchmark:
-    # size, 1, 4, 5, 2, etc
-    # largest_cycle, 1, 2, 5, 1, etc
-    # number_types, 1, 1, 2, 1, etc
-    # TODO - fix this documentation
-    print "======================================================================"
-    print "===========[ RESULTS ]================================================"
-    output_results_transpose( output_path = output,
-                              results = results )
-    output_summary( output_path = output,
-                    summary = summary )
-    os.chdir( olddir )
-    # Print out results in this format:
-    print "===========[ SUMMARY ]================================================"
-    print_summary( summary )
-    # TODO: Save the largest X cycles.
-    #       This should be done in the loop so to cut down on duplicate work.
-    print "===========[ TYPES ]=================================================="
-    benchmarks = summary.keys()
-    pp.pprint(benchmarks)
-    # TODO
-    print "---------------[ Common to ALL ]--------------------------------------"
-    # common_all = set.intersection( *[ set(summary[b]["types"].keys()) for b in benchmarks ] )
-    # common_all = [ rev_typedict[x] for x in common_all ]
-    # pp.pprint( common_all )
-    # print "---------------[ Counter over all benchmarks ]------------------------"
-    # g_types = Counter()
-    # for bmark, bdict in summary.iteritems():
-    #     g_types.update( bdict["types"] )
-    # for key, value in g_types.iteritems():
-    #     print "%s: %d" % (rev_typedict[key], value)
-    # print "Number of types - global: %d" % len(g_types)
+    today = datetime.date.today()
+    today = today.strftime("%Y-%m%d")
+    srcdir = global_config["dgroup_dir"]
+    print "srcdir:", srcdir
+    outdir = global_config["dgroup_outdir"]
+    Rscript = global_config["rscript"]
+    plot_script = global_config["plot_script"]
+    assert(os.path.isdir(outdir))
+    assert(os.path.isdir(srcdir))
+    assert(os.path.isfile(Rscript))
+    assert(os.path.isfile(plot_script))
+    for bmark in benchmarks_config.iterkeys():
+        tgtfile = os.path.join( srcdir, dgroups_config[bmark] )
+        print bmark, "->", dgroups_config[bmark], "=", os.path.isfile( tgtfile )
+        run_Rscript( data = tgtfile,
+                     bmark = bmark,
+                     outdir = outdir,
+                     Rscript = Rscript,
+                     plot_script = plot_script )
+    # HERE: TODO
     print "===========[ DONE ]==================================================="
-    exit(1000)
+    exit(0)
 
 def create_parser():
     # set up arg parser
@@ -390,22 +150,16 @@ def process_config( args ):
     config_parser = ConfigParser.ConfigParser()
     config_parser.read( args.config )
     global_config = config_section_map( "global", config_parser )
-    etanalyze_config = config_section_map( "etanalyze-output", config_parser )
-    main_config = config_section_map( "cycle-analyze", config_parser )
-    edge_config = config_section_map( "edges", config_parser )
-    edgeinfo_config = config_section_map( "edgeinfo", config_parser )
-    objectinfo_config = config_section_map( "objectinfo", config_parser )
-    summary_config = config_section_map( "summary_cpp", config_parser )
-    return ( global_config, etanalyze_config, main_config, edge_config,
-             edgeinfo_config, objectinfo_config, summary_config )
+    benchmarks_config = config_section_map( "benchmarks", config_parser )
+    dgroups_config = config_section_map( "dgroups", config_parser )
+    return ( global_config, benchmarks_config, dgroups_config, )
 
 def main():
     parser = create_parser()
     args = parser.parse_args()
     assert( args.config != None )
     configparser = ConfigParser.ConfigParser()
-    global_config, etanalyze_config, main_config, edge_config, \
-        edgeinfo_config, objectinfo_config, summary_config  = process_config( args )
+    global_config, benchmarks_config, dgroups_config = process_config( args )
     # logging
     logger = setup_logger( filename = args.logfile,
                            debugflag = global_config["debug"] )
@@ -414,14 +168,8 @@ def main():
     #
     return main_process( debugflag = global_config["debug"],
                          output = args.output,
-                         benchmark = args.benchmark,
-                         lastedgeflag = args.lastedgeflag,
-                         main_config = main_config,
-                         etanalyze_config = etanalyze_config,
-                         edge_config = edge_config,
-                         edgeinfo_config = edgeinfo_config,
-                         objectinfo_config = objectinfo_config,
-                         summary_config = summary_config,
+                         benchmarks_config = benchmarks_config,
+                         dgroups_config = dgroups_config,
                          global_config = global_config,
                          logger = logger )
 
