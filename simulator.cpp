@@ -457,6 +457,84 @@ void update_summaries( Object *key,
         // Doesn't make sense to make use of the num_objects field.
     }
 }
+
+void update_summary_from_keyset( KeySet_t &keyset,
+                                 GroupSum_t &per_group_summary,
+                                 TypeTotalSum_t &type_total_summary,
+                                 SizeSum_t &size_summary )
+{
+    for ( KeySet_t::iterator it = keyset.begin();
+          it != keyset.end();
+          ++it ) {
+        Object *key = it->first;
+        std::set< Object * > *tgtSet = it->second;
+        // TODO TODO 7 March 2016 - Put into CSV file.
+        cout << "[ " << key->getType() << " ]: " << tgtSet->size() << endl;
+        update_summaries( key,
+                          *tgtSet,
+                          per_group_summary,
+                          type_total_summary,
+                          size_summary );
+    }
+}
+
+void output_size_summary( string &dgroups_filename,
+                          SizeSum_t &size_summary )
+{
+    ofstream dgroups_file(dgroups_filename);
+    dgroups_file << "\"num_objects\",\"size_bytes\",\"num_groups\"" << endl;
+    for ( SizeSum_t::iterator it = size_summary.begin();
+          it != size_summary.end();
+          ++it ) {
+        unsigned int gsize = it->first;
+        Summary *s = it->second;
+        dgroups_file << s->num_objects << ","
+            << s->size << ","
+            << s->num_groups << endl;
+    }
+    dgroups_file.close();
+}
+
+void output_type_summary( string &dgroups_by_type_filename,
+                          TypeTotalSum_t &type_total_summary )
+{
+    ofstream dgroups_by_type_file(dgroups_by_type_filename);
+    for ( TypeTotalSum_t::iterator it = type_total_summary.begin();
+          it != type_total_summary.end();
+          ++it ) {
+        string myType = it->first;
+        Summary *s = it->second;
+        dgroups_by_type_file << myType << "," 
+            << s->size << ","
+            << s->num_groups  << ","
+            << s->num_objects << endl;
+    }
+    dgroups_by_type_file.close();
+}
+
+void output_all_objects( string &objectinfo_filename,
+                         HeapState &myheap )
+{
+    ofstream object_info_file(objectinfo_filename);
+    object_info_file << "---------------[ OBJECT INFO ]--------------------------------------------------" << endl;
+    for ( ObjectMap::iterator it = myheap.begin();
+          it != myheap.end();
+          ++it ) {
+        Object *object = it->second;
+        object_info_file << object->getId()
+            << "," << object->getCreateTime()
+            << "," << object->getDeathTime()
+            << "," << object->getSize()
+            << "," << object->getType()
+            << "," << (object->getDiedByStackFlag() ? "S" : "H")
+            << "," << (object->wasLastUpdateNull() ? "NULL" : "VAL")
+            << "," << (object->getDiedByStackFlag() && object->wasPointedAtByHeap() ? "SHEAP" : "SONLY" )
+            << endl;
+    }
+    object_info_file << "---------------[ OBJECT INFO END ]----------------------------------------------" << endl;
+    object_info_file.close();
+}
+
 // ----------------------------------------------------------------------
 
 int main(int argc, char* argv[])
@@ -499,10 +577,6 @@ int main(int argc, char* argv[])
     // assert( total_objects == Heap.size() );
     Heap.end_of_program(Exec.Now());
 
-    // TODO analyze(Exec.Now());
-    // if (true) {
-    // TODO Maybe use a finer grained selection of options here.
-    //      But for now, doing it this way.
     if (cycle_flag) {
         std::deque< pair<int,int> > edgelist; // TODO Do we need the edgelist?
         // per_group_summary: type -> vector of group summary
@@ -517,67 +591,22 @@ int main(int argc, char* argv[])
         // TODO TODO deque< deque<int> > cycle_list = Heap.scan_queue( edgelist );
         Heap.scan_queue2( edgelist,
                           not_candidate_map );
-        for ( KeySet_t::iterator it = keyset.begin();
-              it != keyset.end();
-              ++it ) {
-            Object *key = it->first;
-            std::set< Object * > *tgtSet = it->second;
-            cout << "[ " << key->getType() << " ]: " << tgtSet->size() << endl;
-            update_summaries( key,
-                              *tgtSet,
-                              per_group_summary,
-                              type_total_summary,
-                              size_summary );
-        }
+        update_summary_from_keyset( keyset,
+                                    per_group_summary,
+                                    type_total_summary,
+                                    size_summary );
         // By size summary of death groups
-        ofstream dgroups_file(dgroups_filename);
-        dgroups_file << "\"num_objects\",\"size_bytes\",\"num_groups\"" << endl;
-        for ( SizeSum_t::iterator it = size_summary.begin();
-              it != size_summary.end();
-              ++it ) {
-            unsigned int gsize = it->first;
-            Summary *s = it->second;
-            dgroups_file << s->num_objects << ","
-                         << s->size << ","
-                         << s->num_groups << endl;
-        }
-        dgroups_file.close();
+        output_size_summary( dgroups_filename,
+                             size_summary );
         // Type total summary output
-        ofstream dgroups_by_type_file(dgroups_by_type_filename);
-        for ( TypeTotalSum_t::iterator it = type_total_summary.begin();
-              it != type_total_summary.end();
-              ++it ) {
-            string myType = it->first;
-            Summary *s = it->second;
-            dgroups_by_type_file << myType << "," 
-                                 << s->size << ","
-                                 << s->num_groups  << ","
-                                 << s->num_objects << endl;
-        }
-        dgroups_by_type_file.close();
-        // filter_edgelist( edgelist, cycle_list );
-        // TODO Heap.analyze();
-        // TODO ofstream object_info_file(objectinfo_filename);
-        // TODO object_info_file << "---------------[ OBJECT INFO ]--------------------------------------------------" << endl;
-        // TODO for ( deque< deque<int> >::iterator it = cycle_list.begin();
-        // TODO       it != cycle_list.end();
-        // TODO       ++it ) {
-        // TODO     for ( deque<int>::iterator tmp = it->begin();
-        // TODO           tmp != it->end();
-        // TODO           ++tmp ) {
-        // TODO         Object* object = Heap.getObject(*tmp);
-        // TODO         object_info_file << *tmp << "," << object->getCreateTime()
-        // TODO             << "," << object->getDeathTime()
-        // TODO             << "," << object->getSize()
-        // TODO             << "," << object->getType()
-        // TODO             << "," << (object->getDiedByStackFlag() ? "S" : "H")
-        // TODO             << "," << (object->wasLastUpdateNull() ? "NULL" : "VAL")
-        // TODO             << "," << (object->getDiedByStackFlag() && object->wasPointedAtByHeap() ? "SHEAP" : "SONLY" )
-        // TODO             << endl;
-        // TODO     }
-        // TODO }
-        // TODO object_info_file << "---------------[ OBJECT INFO END ]----------------------------------------------" << endl;
-        // TODO object_info_file.close();
+        output_type_summary( dgroups_by_type_filename,
+                             type_total_summary );
+        // Output all objects info
+        output_all_objects( objectinfo_filename,
+                            Heap );
+        // TODO: What next? 
+        // - Cycles
+        // - Edges
     } else if (false) {
         deque< pair<int,int> > edgelist;
         deque< deque<int> > cycle_list = Heap.scan_queue( edgelist );

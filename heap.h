@@ -34,7 +34,7 @@ enum LastEvent {
 
 typedef unsigned int ObjectId_t;
 typedef unsigned int FieldId_t;
-typedef map<FieldId_t, Object *> ObjectMap;
+typedef map<ObjectId_t, Object *> ObjectMap;
 typedef map<ObjectId_t, Edge *> EdgeMap;
 typedef set<Object *> ObjectSet;
 typedef set<Edge *> EdgeSet;
