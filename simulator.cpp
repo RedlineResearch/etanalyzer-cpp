@@ -535,6 +535,29 @@ void output_all_objects( string &objectinfo_filename,
     object_info_file.close();
 }
 
+void output_cycles( KeySet_t &keyset,
+                    string &cycle_filename,
+                    std::set<int> &node_set )
+{
+    ofstream cycle_file(cycle_filename);
+    cycle_file << "---------------[ CYCLES ]-------------------------------------------------------" << endl;
+    for ( KeySet_t::iterator it = keyset.begin();
+          it != keyset.end();
+          ++it ) {
+        Object *obj = it->first;
+        set< Object * > *sptr = it->second;
+        for ( set<Object *>::iterator tmp = sptr->begin();
+              tmp != sptr->end();
+              ++tmp ) {
+            cycle_file << (*tmp)->getId() << ",";
+            node_set.insert((*tmp)->getId());
+        }
+        cycle_file << endl;
+    }
+    cycle_file << "---------------[ CYCLES END ]---------------------------------------------------" << endl;
+    cycle_file.close();
+}
+
 // ----------------------------------------------------------------------
 
 int main(int argc, char* argv[])
@@ -606,29 +629,19 @@ int main(int argc, char* argv[])
                             Heap );
         // TODO: What next? 
         // - Cycles
+        KeySet_t& keyset = Heap.get_keyset();
+        set<int> node_set;
+        output_cycles( keyset,
+                       cycle_filename,
+                       node_set );
         // - Edges
     } else if (false) {
+#if 0
         deque< pair<int,int> > edgelist;
         deque< deque<int> > cycle_list = Heap.scan_queue( edgelist );
         filter_edgelist( edgelist, cycle_list );
         // TODO Heap.analyze();
         cout << "DONE. Getting cycles." << endl;
-        set<int> node_set;
-        ofstream cycle_file(cycle_filename);
-        cycle_file << "---------------[ CYCLES ]-------------------------------------------------------" << endl;
-        for ( deque< deque<int> >::iterator it = cycle_list.begin();
-              it != cycle_list.end();
-              ++it ) {
-            for ( deque<int>::iterator tmp = it->begin();
-                  tmp != it->end();
-                  ++tmp ) {
-                cycle_file << *tmp << ",";
-                node_set.insert(*tmp);
-            }
-            cycle_file << endl;
-        }
-        cycle_file << "---------------[ CYCLES END ]---------------------------------------------------" << endl;
-        cycle_file.close();
         ofstream edge_file(edge_filename);
         edge_file << "===============[ EDGES ]========================================================" << endl;
         for ( EdgeList::iterator it = edgelist.begin();
@@ -682,14 +695,11 @@ int main(int argc, char* argv[])
         }
         edge_info_file << "---------------[ EDGE INFO END ]------------------------------------------------" << endl;
         edge_info_file.close();
+#endif // 0
     } else {
         cout << "NOCYCLE chosen. Skipping cycle detection." << endl;
     }
-    //     unsigned int getSizeLastUpdateNull() const { return m_totalUpdateNull_size; }
-    //     unsigned int getSizeLastUpdateNullHeap() const { return m_totalUpdateNullHeap_size; }
-    //     unsigned int getSizeLastUpdateNullStack() const { return m_totalUpdateNullStack_size; }
-    //     unsigned int getSizeDiedByStackAfterHeap() const { return m_diedByStackAfterHeap_size; }
-    //     unsigned int getSizeDiedByStackOnly() const { return m_diedByStackOnly_size; }
+
     ofstream summary_file(summary_filename);
     summary_file << "---------------[ SUMMARY INFO ]----------------------------------------------------" << endl;
     summary_file << "number_of_objects," << Heap.size() << endl

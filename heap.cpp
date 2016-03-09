@@ -372,8 +372,8 @@ void HeapState::scan_queue2( EdgeList& edgelist,
                     }
                 }
             } else {
-                // Refcount is 0. Check to see that it is in whereis. TODO
                 assert(obj);
+                // Refcount is 0. Check to see that it is in whereis. TODO
             }
         } // if (flag)
     }
