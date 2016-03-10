@@ -558,6 +558,42 @@ void output_cycles( KeySet_t &keyset,
     cycle_file.close();
 }
 
+unsigned int output_edges( HeapState &myheap,
+                           string &edgeinfo_filename )
+{
+    unsigned int total_edges;
+    ofstream edge_info_file(edgeinfo_filename);
+    edge_info_file << "---------------[ EDGE INFO ]----------------------------------------------------" << endl;
+    // srcId, tgtId, allocTime, deathTime
+    for ( EdgeSet::iterator it = myheap.begin_edges();
+          it != myheap.end_edges();
+          ++it ) {
+        Edge* eptr = *it;
+        Object* source = eptr->getSource();
+        Object* target = eptr->getTarget();
+        assert(source);
+        assert(target);
+        unsigned int srcId = source->getId();
+        unsigned int tgtId = target->getId();
+        // TODO: This code was meant to filter out edges not belonging to cycles.
+        //       But since we're also interested in the non-cycle nodes now, this is
+        //       probably dead code and won't be used again. TODO
+        // set<int>::iterator srcit = node_set.find(srcId);
+        // set<int>::iterator tgtit = node_set.find(tgtId);
+        // if ( (srcit != node_set.end()) || (srcit != node_set.end()) ) {
+        // TODO: Header?
+        edge_info_file << srcId << ","
+            << tgtId << ","
+            << eptr->getCreateTime() << ","
+            << eptr->getEndTime() << endl;
+        // }
+        total_edges++;
+    }
+    edge_info_file << "---------------[ EDGE INFO END ]------------------------------------------------" << endl;
+    edge_info_file.close();
+    return total_edges;
+}
+
 // ----------------------------------------------------------------------
 
 int main(int argc, char* argv[])
@@ -628,73 +664,17 @@ int main(int argc, char* argv[])
         output_all_objects( objectinfo_filename,
                             Heap );
         // TODO: What next? 
-        // - Cycles
+        // Output cycles
         KeySet_t& keyset = Heap.get_keyset();
         set<int> node_set;
         output_cycles( keyset,
                        cycle_filename,
                        node_set );
-        // - Edges
-    } else if (false) {
+        // Output all edges
+        unsigned int total_edges = output_edges( Heap,
+                                                 edgeinfo_filename );
 #if 0
-        deque< pair<int,int> > edgelist;
-        deque< deque<int> > cycle_list = Heap.scan_queue( edgelist );
-        filter_edgelist( edgelist, cycle_list );
-        // TODO Heap.analyze();
-        cout << "DONE. Getting cycles." << endl;
-        ofstream edge_file(edge_filename);
-        edge_file << "===============[ EDGES ]========================================================" << endl;
-        for ( EdgeList::iterator it = edgelist.begin();
-              it != edgelist.end();
-              ++it ) {
-            edge_file << it->first << " -> " << it->second
-                 << endl;
-        }
-        edge_file << "===============[ EDGES END ]====================================================" << endl;
-        edge_file.close();
-        ofstream object_info_file(objectinfo_filename);
-        object_info_file << "---------------[ OBJECT INFO ]--------------------------------------------------" << endl;
-        for ( deque< deque<int> >::iterator it = cycle_list.begin();
-              it != cycle_list.end();
-              ++it ) {
-            for ( deque<int>::iterator tmp = it->begin();
-                  tmp != it->end();
-                  ++tmp ) {
-                Object* object = Heap.getObject(*tmp);
-                object_info_file << *tmp << "," << object->getCreateTime()
-                    << "," << object->getDeathTime()
-                    << "," << object->getSize()
-                    << "," << object->getType()
-                    << "," << (object->getDiedByStackFlag() ? "S" : "H")
-                    << "," << (object->wasLastUpdateNull() ? "NULL" : "VAL")
-                    << "," << (object->getDiedByStackFlag() && object->wasPointedAtByHeap() ? "SHEAP" : "SONLY" )
-                    << endl;
-            }
-        }
-        object_info_file << "---------------[ OBJECT INFO END ]----------------------------------------------" << endl;
-        object_info_file.close();
-        ofstream edge_info_file(edgeinfo_filename);
-        edge_info_file << "---------------[ EDGE INFO ]----------------------------------------------------" << endl;
-        // srcId, tgtId, allocTime, deathTime
-        unsigned int total_edges;
-        for ( EdgeSet::iterator it = Heap.begin_edges();
-              it != Heap.end_edges();
-              ++it ) {
-            Edge* eptr = *it;
-            Object* source = eptr->getSource();
-            Object* target = eptr->getTarget();
-            unsigned int srcId = source->getId();
-            unsigned int tgtId = target->getId();
-            set<int>::iterator srcit = node_set.find(srcId);
-            set<int>::iterator tgtit = node_set.find(tgtId);
-            if ( (srcit != node_set.end()) || (srcit != node_set.end()) ) {
-                edge_info_file << srcId << "," << tgtId << "," << eptr->getCreateTime() << ","
-                               << eptr->getEndTime() << endl;
-            }
-            total_edges++;
-        }
-        edge_info_file << "---------------[ EDGE INFO END ]------------------------------------------------" << endl;
-        edge_info_file.close();
+        // TODO DELETE
 #endif // 0
     } else {
         cout << "NOCYCLE chosen. Skipping cycle detection." << endl;
