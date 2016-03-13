@@ -3,6 +3,7 @@
 *.log
 *.o
 simulator
+simulator-GC
 cscope.*
 MYWORK
 *.pyc

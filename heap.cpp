@@ -21,7 +21,7 @@ Object* HeapState::allocate( unsigned int id, unsigned int size,
         cout << "OBJECTS: " << m_objects.size() << endl;
     }
     unsigned long int temp = this->m_liveSize + obj->getSize();
-    this->m_liveSize = ( (temp < this->m_liveSize) ? ULONG_MAX : temp);
+    this->m_liveSize = ( (temp < this->m_liveSize) ? ULONG_MAX : temp );
     if (this->m_maxLiveSize < this->m_liveSize) {
         this->m_maxLiveSize = this->m_liveSize;
     }

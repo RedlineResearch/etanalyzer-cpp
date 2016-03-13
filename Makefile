@@ -2,16 +2,19 @@
 # FLAGS=-O2 -std=c++11 -g -Werror -I./boost_1_60_0 -I./TEMP/include/igraph -L./TEMP/lib -ligraph
 FLAGS=-O2 -std=c++11 -g -Werror -I./boost_1_60_0
 
-simulator: simulator.o execution.o heap.o classinfo.o tokenizer.o analyze.o
+all: simulator
+
+simulator: simulator.o execution.o heap.o classinfo.o tokenizer.o analyze.o \
+			summary.hpp
 	g++ $(FLAGS) -o simulator simulator.o execution.o heap.o classinfo.o tokenizer.o analyze.o
 
 simulator.o: simulator.cpp classinfo.h tokenizer.h heap.h refstate.h
 	g++ $(FLAGS)  -c simulator.cpp
 
-analyze.o: analyze.cpp classinfo.h tokenizer.h
+analyze.o: analyze.cpp classinfo.h tokenizer.h execution.h
 	g++ $(FLAGS)  -c analyze.cpp
 
-execution.o: execution.cpp classinfo.h tokenizer.h
+execution.o: execution.cpp execution.h classinfo.h tokenizer.h
 	g++ $(FLAGS) -c execution.cpp
 
 heap.o: heap.cpp classinfo.h tokenizer.h heap.h
