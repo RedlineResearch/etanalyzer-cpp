@@ -155,12 +155,11 @@ unsigned int read_trace_file(FILE* f)
 
     // -- Allocation time
     unsigned int AllocationTime = 0;
-    while ( ! tokenizer.isDone()) {
+    while ( !tokenizer.isDone() ) {
         tokenizer.getLine();
         if (tokenizer.isDone()) {
             break;
         }
-
         if (Exec.Now() % 1000000 == 1) {
             cout << "  Method time: " << Exec.Now() << "   Alloc time: " << AllocationTime << endl;
         }
@@ -412,7 +411,6 @@ int main(int argc, char* argv[])
                  << "died_by_stack_after_heap," << Heap.getDiedByStackAfterHeap() << endl
                  << "died_by_stack_only_size," << Heap.getSizeDiedByStackOnly() << endl
                  << "died_by_stack_after_heap_size," << Heap.getSizeDiedByStackAfterHeap() << endl
-                 << "no_death_sites," << Heap.getNumberNoDeathSites() << endl
                  << "size_died_by_stack," << Heap.getSizeDiedByStack() << endl
                  << "size_died_by_heap," << Heap.getSizeDiedByHeap() << endl
                  << "vm_RC_zero," << Heap.getVMObjectsRefCountZero() << endl

@@ -48,20 +48,12 @@ typedef std::pair<int, int> GEdge_t;
 typedef unsigned int  NodeId_t;
 typedef std::map<int, int> Graph_t;
 typedef std::map<Object *, Object *> ObjectPtrMap_t;
-// TODO do we need to distinguish between FOUND and LOOKING?
 // BiMap_t is used to map:
 //     key object <-> some object
 // where:
 //     key objects map to themselves
 //     non key objects to their root key objects
 typedef bimap<ObjectId_t, ObjectId_t> BiMap_t;
-
-// enum KeyStatus {
-//     LOOKING = 1,
-//     FOUND = 2,
-//     UNKNOWN_STATUS = 99,
-// };
-// typedef map<ObjectId_t, std::pair<KeyStatus, ObjectId_t>> LookupMap;
 
 struct compclass {
     bool operator() ( const std::pair< ObjectId_t, unsigned int >& lhs,
@@ -73,25 +65,18 @@ struct compclass {
 class HeapState
 {
     public:
-
         // -- Do ref counting?
         static bool do_refcounting;
-
         // -- Turn on debugging
         static bool debug;
-
         // -- Turn on output of objects to stdout
         bool m_obj_debug_flag;
 
     private:
         // -- Map from IDs to objects
         ObjectMap m_objects;
-
         // -- Set of edges (all pointers)
         EdgeSet m_edges;
-
-        // Map from IDs to bool if possible cyle root
-        map<unsigned int, bool> m_candidate_map;
 
         unsigned long int m_liveSize; // current live size of program in bytes
         unsigned long int m_maxLiveSize; // max live size of program in bytes
@@ -149,7 +134,6 @@ class HeapState
     public:
         HeapState( ObjectPtrMap_t& whereis, KeySet_t& keyset )
             : m_objects()
-            , m_candidate_map()
             , m_whereis( whereis )
             , m_keyset( keyset )
             , m_maxLiveSize(0)
@@ -224,11 +208,6 @@ class HeapState
 
         void end_of_program(unsigned int cur_time);
 
-        void set_candidate(unsigned int objId);
-        void unset_candidate(unsigned int objId);
-        deque< deque<int> > scan_queue( EdgeList& edgelist );
-        void scan_queue2( EdgeList& edgelist,
-                          map<unsigned int, bool>& ncmap );
         void set_reason_for_cycles( deque< deque<int> >& cycles );
 
         ObjectPtrMap_t& get_whereis() { return m_whereis; }
