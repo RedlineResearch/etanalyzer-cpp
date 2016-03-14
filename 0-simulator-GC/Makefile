@@ -27,7 +27,7 @@ classinfo.o: classinfo.cpp classinfo.h tokenizer.h
 tokenizer.o: tokenizer.cpp classinfo.h tokenizer.h
 	g++ $(FLAGS) -c tokenizer.cpp
 
-memorymgr.o: memorymgr.cpp heap.h
+memorymgr.o: memorymgr.h memorymgr.cpp heap.h
 	g++ $(FLAGS) -c memorymgr.cpp
 
 clean:

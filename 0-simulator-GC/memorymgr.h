@@ -18,18 +18,30 @@
 
 using namespace boost;
 
+class Region;
+
+typedef map<string, Region *> RegionMap;
+
+
 class Region
 {
 public:
     // Debug flag 
     static bool debug;
 
+    // Constructor
+    Region( string &name,
+            unsigned int size )
+        : m_name(name)
+        , m_size(size) {
+    }
     // Returns true if allocation was successful.
     //         false otherwise.
     bool allocate( Object *object,
                    unsigned int create_time );
 
 private:
+    string m_name;
     unsigned int m_size;
 };
 
@@ -44,11 +56,18 @@ public:
     bool allocate( Object *object,
                    unsigned int create_time );
 
-    MemoryMgr() {
+    // Create new region with the given name.
+    // Returns a reference to the region.
+    Region &new_region( string &region_name,
+                        unsigned int size );
+
+    MemoryMgr()
+        : m_region_map() {
     }
 
 
 private:
+    RegionMap m_region_map;
 };
 
 #endif
