@@ -10,9 +10,13 @@ bool HeapState::initialize_memory( std::vector<int> sizes )
     return this->m_memmgr.initialize_memory( sizes );
 }
 
-Object* HeapState::allocate( unsigned int id, unsigned int size,
-                             char kind, char* type, AllocSite* site, 
-                             unsigned int els, Thread* thread,
+Object* HeapState::allocate( unsigned int id,
+                             unsigned int size,
+                             char kind,
+                             char* type,
+                             AllocSite* site, 
+                             unsigned int els,
+                             Thread* thread,
                              unsigned int create_time )
 {
     Object* obj = new Object( id, size,
@@ -26,10 +30,13 @@ Object* HeapState::allocate( unsigned int id, unsigned int size,
         cout << "OBJECTS: " << m_objects.size() << endl;
     }
     unsigned long int temp = this->m_liveSize + obj->getSize();
+    // Max live size calculation
     this->m_liveSize = ( (temp < this->m_liveSize) ? ULONG_MAX : temp );
     if (this->m_maxLiveSize < this->m_liveSize) {
         this->m_maxLiveSize = this->m_liveSize;
     }
+    // Call the Memory Manager allocate
+    this->m_memmgr.allocate( obj, create_time );
     return obj;
 }
 

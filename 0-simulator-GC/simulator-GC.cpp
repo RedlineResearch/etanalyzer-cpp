@@ -54,7 +54,6 @@ deque< deque<Object*> > cycle_list;
 set<unsigned int> root_set;
 
 map<unsigned int, unsigned int> deathrc_map;
-map<unsigned int, bool> not_candidate_map;
 
 void sanity_check()
 {
@@ -206,7 +205,6 @@ unsigned int read_trace_file(FILE* f)
                     Object *oldObj = Heap.getObject(oldTgtId);
                     obj = Heap.getObject(objId);
                     target = ((tgtId > 0) ? Heap.getObject(tgtId) : NULL);
-                    // TODO last_map.setLast( threadId, LastEvent::UPDATE, obj );
                     if (obj) {
                         obj->setPointedAtByHeap();
                     }
@@ -254,18 +252,6 @@ unsigned int read_trace_file(FILE* f)
                     if (obj) {
                         unsigned int threadId = tokenizer.getInt(2);
                         Thread *thread = Exec.getThread(threadId);
-                        // TODO // Get last event and object from last_map
-                        // TODO pair<LastEvent, Object *> last_pair = last_map.getLastEventAndObject( threadId );
-                        // TODO LastEvent last_event = last_pair.first;
-                        // TODO Object *last_object = last_pair.second;
-                        // TODO // Set the object fields
-                        // TODO obj->setLastEvent( last_event );
-                        // TODO obj->setLastObject( last_object );
-                        // TODO if (last_event == LastEvent::ROOT) {
-                        // TODO     obj->setDiedByStackFlag();
-                        // TODO } else if (last_event == LastEvent::UPDATE) {
-                        // TODO     obj->setDiedByHeapFlag();
-                        // TODO }
                         Heap.makeDead(obj, Exec.Now());
                         // Get the current method
                         Method *topMethod = NULL;
@@ -295,7 +281,6 @@ unsigned int read_trace_file(FILE* f)
                         }
                         unsigned int rc = obj->getRefCount();
                         deathrc_map[objId] = rc;
-                        not_candidate_map[objId] = (rc == 0);
                     } else {
                         assert(false);
                     }

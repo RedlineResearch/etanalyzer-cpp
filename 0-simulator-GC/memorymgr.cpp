@@ -1,6 +1,8 @@
 #include "memorymgr.h"
 #include "heap.h"
 
+#include <utility>
+
 // -- Global flags
 bool MemoryMgr::debug = false;
 string MemoryMgr::ALLOC = "ALLOC";
@@ -19,20 +21,15 @@ bool Region:: allocate( Object *object,
     // Check to see if there's space
     unsigned int objSize = object->getSize();
     if (objSize > this->m_free) {
-        // Not enough free space.
-        int collected = this->collect( create_time );
-        // Try again.
-        if (objSize > this->m_free) {
-            return false;
-        }
+        return false;
     }
     // TODO If object is already in the set, log a warning message.
     this->m_live_set.insert( object );
     this->m_free -= objSize; // Free goes down.
     this->m_used += objSize; // Used goes up.
     assert(this->m_used <= this->m_size); // Invariant check.
-    return true; // TODO Do we want to do something else different?
-    // Maybe false if object is already in the set?
+    return true; // TODO Do we want to do something else different
+    // if object is already in the set?
     // TODO: do i need create_time? And if yes, how do I save it?
 }
 
@@ -77,6 +74,8 @@ bool Region::makeDead( Object *object )
     // Found object.
     // Remove from m_live_set and put into m_garbage_waiting
     bool flag = this->add_to_garbage( object );
+    // TODO: Anything else I need to do here?
+    return flag;
 }
 
 int Region::collect( unsigned int timestamp )
@@ -87,7 +86,8 @@ int Region::collect( unsigned int timestamp )
     this->m_garbage_waiting.clear();
     this->m_garbage = 0;
     this->m_free += collected;
-    this->m_gc_history.push_back( collected );
+    GCRecord_t rec = make_pair( timestamp, collected );
+    this->m_gc_history.push_back( rec );
     return collected;
 }
 
@@ -120,13 +120,29 @@ bool MemoryMgr::initialize_memory( vector<int> sizes )
     return true;
 }
 
+// Do a garbage collection
+// Returns number of bytes collected
+int MemoryMgr::do_collection()
+{
+    return 0;
+}
+
+
 // Returns true if allocation caused garbage collection.
 //         false otherwise.
 bool MemoryMgr::allocate( Object *object,
                           unsigned int create_time )
 {
     assert(this->m_alloc_region);
-    return this->m_alloc_region->allocate( object, create_time );
+    // Decisions for collection should be done here at the MemoryMgr level.
+    bool done = this->m_alloc_region->allocate( object, create_time );
+    if (!done) {
+        // Not enough free space.
+        int collected = this->m_alloc_region->collect( create_time );
+        // Try again.
+        done = this->m_alloc_region->allocate( object, create_time );
+    }
+    return done;
 }
 
 // Create new region with the given name.
@@ -143,4 +159,9 @@ Region *MemoryMgr::new_region( string &region_name,
     assert(regptr); // TODO make this more informative
     this->m_region_map[region_name] = regptr;
     return regptr;
+}
+
+bool MemoryMgr::makeDead( Object *object, unsigned int death_time )
+{
+    return true;
 }

@@ -12,6 +12,7 @@
 #include <vector>
 #include <set>
 #include <string>
+#include <utility>
 #include <limits.h>
 #include <assert.h>
 
@@ -26,7 +27,8 @@ class Object;
 
 typedef map<string, Region *> RegionMap_t;
 typedef set< Object * > ObjectSet_t;
-
+typedef pair<int, int> GCRecord_t;
+//      - first is timestamp, second is bytes
 
 class Region
 {
@@ -87,7 +89,7 @@ private:
     ObjectSet_t m_garbage_waiting;
 
     // Collection history
-    deque<int> m_gc_history;
+    deque<GCRecord_t> m_gc_history;
 };
 
 class MemoryMgr
@@ -119,6 +121,12 @@ public:
 
     // Get number of regions
     int numberRegions() const { return this->m_region_map.size(); }
+
+    // Do a garbage collection
+    int do_collection();
+
+    // On a D(eath) event
+    bool makeDead( Object *object, unsigned int death_time );
 
 private:
     // Create new region with the given name.
