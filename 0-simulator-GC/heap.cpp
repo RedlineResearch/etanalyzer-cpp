@@ -5,6 +5,11 @@ bool HeapState::do_refcounting = true;
 bool HeapState::debug = false;
 unsigned int Object::g_counter = 0;
 
+bool HeapState::initialize_memory( std::vector<int> sizes )
+{
+    return this->m_memmgr.initialize_memory( sizes );
+}
+
 Object* HeapState::allocate( unsigned int id, unsigned int size,
                              char kind, char* type, AllocSite* site, 
                              unsigned int els, Thread* thread,
