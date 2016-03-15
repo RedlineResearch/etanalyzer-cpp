@@ -102,11 +102,11 @@ bool MemoryMgr::initialize_memory( vector<int> sizes )
     int level = 0;
     // This needs fixing: TODO
     // Do I send in a vector of NAMES for the regions?
-    assert(sizes.size() == 0); // This is a single region collector.
+    assert(sizes.size() == 1); // This is a single region collector.
     vector<int>::iterator iter = sizes.begin();
-    new_region( MemoryMgr::ALLOC,
-                *iter,
-                level ); // Level 0 is required.
+    this->m_alloc_region = new_region( MemoryMgr::ALLOC,
+                                       *iter,
+                                       level ); // Level 0 is required.
     ++iter;
     ++level;
     string myname("OTHER");
@@ -125,15 +125,15 @@ bool MemoryMgr::initialize_memory( vector<int> sizes )
 bool MemoryMgr::allocate( Object *object,
                           unsigned int create_time )
 {
-    assert(m_alloc_region);
-    return false;
+    assert(this->m_alloc_region);
+    return this->m_alloc_region->allocate( object, create_time );
 }
 
 // Create new region with the given name.
 // Returns a reference to the region.
-Region & MemoryMgr::new_region( string &region_name,
-                                unsigned int region_size,
-                                int level )
+Region *MemoryMgr::new_region( string &region_name,
+                               unsigned int region_size,
+                               int level )
 {
     RegionMap_t::iterator iter = this->m_region_map.find(region_name);
     // Blow up if we create a new region with the same name.
@@ -142,5 +142,5 @@ Region & MemoryMgr::new_region( string &region_name,
     Region *regptr = new Region( region_name, region_size, level );
     assert(regptr); // TODO make this more informative
     this->m_region_map[region_name] = regptr;
-    return *regptr;
+    return regptr;
 }

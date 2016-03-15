@@ -123,7 +123,7 @@ public:
 private:
     // Create new region with the given name.
     // Returns a reference to the region.
-    Region &new_region( string &region_name,
+    Region *new_region( string &region_name,
                         unsigned int size,
                         int level );
 
