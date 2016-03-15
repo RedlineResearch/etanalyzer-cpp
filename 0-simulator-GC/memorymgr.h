@@ -10,6 +10,7 @@
 #include <map>
 #include <deque>
 #include <vector>
+#include <set>
 #include <string>
 #include <limits.h>
 #include <assert.h>
@@ -23,7 +24,8 @@ using namespace std;
 class Region;
 class Object;
 
-typedef map<string, Region *> RegionMap;
+typedef map<string, Region *> RegionMap_t;
+typedef set< Object * > ObjectSet_t;
 
 
 class Region
@@ -38,18 +40,42 @@ public:
             int level )
         : m_name(name)
         , m_size(size)
-        , m_level(level) {
+        , m_level(level)
+        , m_live_set()
+        , m_garbage_waiting()
+        , m_gc_history() {
     }
-    // Returns true if allocation was successful.
+
+    // Returns true if there was space and thus successful.
     //         false otherwise.
     bool allocate( Object *object,
                    unsigned int create_time );
+    // The following three functions:
+    // return true if allocation was successful.
+    //        false otherwise.
+    bool remove( Object *object );
+    bool makeDead( Object *object );
+    bool add_to_garbage( Object *object );
 
     int getLevel() const  { return this->m_level; }
 
+    int getSize() const { return m_size; }
+    int getUsed() const { return m_used; }
+    int getFree() const { return m_free; }
+    int getLive() const { return m_live; }
+    int getGarbage() const { return m_garbage; }
+
+    int collect( unsigned int timestamp );
+
 private:
     string m_name;
-    unsigned int m_size;
+
+    // The following 4 fields are in bytes.
+    const unsigned int m_size; // Total capacity
+    int m_used; // Currently in use = live + garbage
+    int m_free; // free space = size - used
+    int m_live; // live space (reachable, not garbage)
+    int m_garbage; // garbage = in use - live
 
     int m_level;
     // Signifies the level in the hierarchy of regional generations.
@@ -57,6 +83,11 @@ private:
     // Level 1 - promotions from Level 0 go here.
     // ...
     // Level n - promotions from Level n-1 go here.
+    ObjectSet_t m_live_set;
+    ObjectSet_t m_garbage_waiting;
+
+    // Collection history
+    deque<int> m_gc_history;
 };
 
 class MemoryMgr
@@ -97,7 +128,7 @@ private:
                         int level );
 
     // Maps from region name to Region pointer
-    RegionMap m_region_map;
+    RegionMap_t m_region_map;
     // Maps from level to region pointer
     map< int, Region * > m_level_map;
     // Maps from level to region name
