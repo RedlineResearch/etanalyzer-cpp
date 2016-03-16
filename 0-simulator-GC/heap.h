@@ -220,6 +220,8 @@ class HeapState
 
         ObjectPtrMap_t& get_whereis() { return m_whereis; }
         KeySet_t& get_keyset() { return m_keyset; }
+
+        deque<GCRecord_t> get_GC_history() { return this->m_memmgr.get_GC_history(); }
 };
 
 enum Color {

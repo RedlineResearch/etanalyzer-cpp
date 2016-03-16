@@ -104,16 +104,16 @@ bool MemoryMgr::initialize_memory( vector<int> sizes )
     // Do I send in a vector of NAMES for the regions?
     assert(sizes.size() == 1); // This is a single region collector.
     vector<int>::iterator iter = sizes.begin();
-    this->m_alloc_region = new_region( MemoryMgr::ALLOC,
-                                       *iter,
-                                       level ); // Level 0 is required.
+    this->m_alloc_region = this->new_region( MemoryMgr::ALLOC,
+                                             *iter,
+                                             level ); // Level 0 is required.
     ++iter;
     ++level;
     string myname("OTHER");
     while (iter != sizes.end()) {
-        new_region( myname,
-                    *iter,
-                    level );
+        this->new_region( myname,
+                          *iter,
+                          level );
         ++iter;
         ++level;
     }
@@ -164,4 +164,17 @@ Region *MemoryMgr::new_region( string &region_name,
 bool MemoryMgr::makeDead( Object *object, unsigned int death_time )
 {
     return true;
+}
+
+deque<GCRecord_t> MemoryMgr::get_GC_history()
+{
+    deque<GCRecord_t> result;
+    for ( RegionMap_t::iterator iter = this->m_region_map.begin();
+          iter != this->m_region_map.end();
+          ++iter ) {
+        Region *ptr = iter->second;
+        deque<GCRecord_t> myhist = ptr->get_GC_history();
+        result.insert( result.end(), myhist.begin(), myhist.end() );
+    }
+    return result;
 }

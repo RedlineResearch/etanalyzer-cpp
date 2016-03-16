@@ -67,6 +67,8 @@ public:
     int getLive() const { return m_live; }
     int getGarbage() const { return m_garbage; }
 
+    deque<GCRecord_t> get_GC_history() const { return m_gc_history; }
+
     int collect( unsigned int timestamp );
 
 private:
@@ -127,6 +129,9 @@ public:
 
     // On a D(eath) event
     bool makeDead( Object *object, unsigned int death_time );
+
+    // Get the GC history
+    deque<GCRecord_t> get_GC_history();
 
 private:
     // Create new region with the given name.

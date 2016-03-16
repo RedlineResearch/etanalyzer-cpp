@@ -363,16 +363,15 @@ int main(int argc, char* argv[])
     string basename(argv[3]);
     string summary_filename( basename + "-SUMMARY.csv" );
 
+    std::vector<int> mem_sizes;
+    mem_sizes.push_back( 1024 * 1024 *1024 );
+    Heap.initialize_memory( mem_sizes );
     cout << "Read names file..." << endl;
     ClassInfo::read_names_file(argv[1]);
 
     cout << "Start trace..." << endl;
     FILE* f = fdopen(0, "r");
     unsigned int total_objects = read_trace_file(f);
-    // TODO HERE TODO HERE TODO HERE TODO HERE TODO
-    // HERE TODO HERE TODO HERE TODO HERE TODO HERE
-    // TODO HERE TODO HERE TODO HERE TODO HERE TODO
-    // HERE TODO HERE TODO HERE TODO HERE TODO HERE
     unsigned int final_time = Exec.Now();
     cout << "Done at time " << Exec.Now() << endl;
     cout << "Total objects: " << total_objects << endl;
