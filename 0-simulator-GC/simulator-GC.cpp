@@ -350,6 +350,15 @@ unsigned int read_trace_file(FILE* f)
     return total_objects;
 }
 
+void debug_GC_history( deque< GCRecord_t > &GC_history )
+{
+    for ( deque< GCRecord_t >::iterator iter = GC_history.begin();
+          iter != GC_history.end();
+          ++iter ) {
+        cout << "[" << iter->first << "] - " << iter->second << " bytes" << endl;
+    }
+}
+
 // ----------------------------------------------------------------------
 
 int main(int argc, char* argv[])
@@ -377,6 +386,10 @@ int main(int argc, char* argv[])
     cout << "Total objects: " << total_objects << endl;
     cout << "Heap.size:     " << Heap.size() << endl;
     // assert( total_objects == Heap.size() );
+
+    deque<GCRecord_t> GC_history = Heap.get_GC_history();
+    debug_GC_history( GC_history );
+
     Heap.end_of_program(Exec.Now());
 
     ofstream summary_file(summary_filename);

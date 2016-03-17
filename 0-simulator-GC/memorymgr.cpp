@@ -163,6 +163,8 @@ Region *MemoryMgr::new_region( string &region_name,
 
 bool MemoryMgr::makeDead( Object *object, unsigned int death_time )
 {
+    // Which region? Since we only have one region in this basic MemmoryMgr:
+    this->m_alloc_region->makeDead( object );
     return true;
 }
 
