@@ -83,6 +83,7 @@ void HeapState::makeDead(Object * obj, unsigned int death_time)
         this->m_liveSize = temp;
     }
     obj->makeDead(death_time);
+    this->m_memmgr.makeDead( obj, death_time );
 }
 
 // TODO Documentation :)
@@ -441,6 +442,11 @@ void Object::makeDead(unsigned int death_time)
 {
     // -- Record the death time
     this->m_deathTime = death_time;
+    if (this->m_deadFlag) {
+        cerr << "Object[ " << this->getId() << " ] : double Death event." << endl;
+    } else {
+        this->m_deadFlag = true;
+    }
 
     // -- Visit all edges
     for ( EdgeMap::iterator p = this->m_fields.begin();

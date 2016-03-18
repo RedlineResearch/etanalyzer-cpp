@@ -42,6 +42,7 @@ public:
             int level )
         : m_name(name)
         , m_size(size)
+        , m_free(size)
         , m_level(level)
         , m_live_set()
         , m_garbage_waiting()
@@ -108,12 +109,12 @@ public:
     bool allocate( Object *object,
                    unsigned int create_time );
 
-    MemoryMgr( float gc_threshold )
+    MemoryMgr( float GC_threshold )
         : m_region_map()
         , m_level_map()
         , m_level2name_map()
         , m_alloc_region(NULL)
-        , m_gc_threshold(gc_threshold) {
+        , m_GC_threshold(GC_threshold) {
     }
 
     // Initializes all the regions. This should contain all knowledge
@@ -155,7 +156,7 @@ private:
     // If more complex generational/region types of memory management is
     // needed, then 'initialize_memory' needs to be overridden in the 
     // inheriting class.
-    float m_gc_threshold;
+    float m_GC_threshold;
 };
 
 #endif

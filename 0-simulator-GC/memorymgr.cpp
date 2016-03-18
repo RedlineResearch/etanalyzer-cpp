@@ -15,8 +15,8 @@ bool Region::debug = false;
 
 // Returns true if allocation was successful.
 //         false otherwise.
-bool Region:: allocate( Object *object,
-                        unsigned int create_time )
+bool Region::allocate( Object *object,
+                       unsigned int create_time )
 {
     // Check to see if there's space
     unsigned int objSize = object->getSize();
@@ -54,6 +54,7 @@ bool Region::add_to_garbage( Object *object )
     ObjectSet_t::iterator iter = this->m_live_set.find(object);
     if (iter == this->m_live_set.end()) {
         // Not in live set.
+        cerr << "X";
         return false;
     }
     unsigned int objSize = object->getSize();
@@ -61,11 +62,13 @@ bool Region::add_to_garbage( Object *object )
     this->m_live_set.erase(iter);
     // Add to garbage waiting set
     this->m_garbage_waiting.insert(object);
-    // Adjust the status variables.
-    this->m_live -= objSize; // Live goes down.
-    this->m_garbage += objSize; // Garbage goes up.
-    assert(this->m_live >= 0);
-    assert(this->m_garbage <= this->m_size);
+    if (!object->isDead()) {
+        // Adjust the status variables.
+        this->m_live -= objSize; // Live goes down.
+        this->m_garbage += objSize; // Garbage goes up.
+        assert(this->m_live >= 0);
+        assert(this->m_garbage <= this->m_size);
+    }
     return true;
 }
 

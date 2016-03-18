@@ -363,17 +363,19 @@ void debug_GC_history( deque< GCRecord_t > &GC_history )
 
 int main(int argc, char* argv[])
 {
-    if (argc != 4) {
+    if (argc != 5) {
         cout << argc << endl;
-        cout << "Usage: " << argv[0] << " <namesfile> <dgroups-csv-file> <output base name>" << endl;
+        cout << "Usage: " << argv[0] << " <namesfile> <dgroups-csv-file> <output base name> <memsize>" << endl;
         exit(1);
     }
     string dgroups_csvfile(argv[2]);
     string basename(argv[3]);
     string summary_filename( basename + "-SUMMARY.csv" );
+    int memsize = std::stoi(argv[4]);
+    cout << "Memory size: " << memsize << " bytes." << endl;
 
     std::vector<int> mem_sizes;
-    mem_sizes.push_back( 1024 * 1024 *1024 );
+    mem_sizes.push_back( memsize );
     Heap.initialize_memory( mem_sizes );
     cout << "Read names file..." << endl;
     ClassInfo::read_names_file(argv[1]);

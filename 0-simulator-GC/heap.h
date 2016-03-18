@@ -254,6 +254,7 @@ class Object
         EdgeMap m_fields;
 
         HeapState* m_heapptr;
+        bool m_deadFlag;
 
         // Was this object ever a target of a heap pointer?
         bool m_pointed_by_heap;
@@ -298,11 +299,15 @@ class Object
         Object *m_death_root;
 
     public:
-        Object( unsigned int id, unsigned int size,
-                char kind, char* type,
-                AllocSite* site, unsigned int els,
-                Thread* thread, unsigned int create_time,
-                HeapState* heap)
+        Object( unsigned int id,
+                unsigned int size,
+                char kind,
+                char* type,
+                AllocSite* site,
+                unsigned int els,
+                Thread* thread,
+                unsigned int create_time,
+                HeapState* heap )
             : m_id(id)
             , m_size(size)
             , m_kind(kind)
@@ -310,6 +315,7 @@ class Object
             , m_site(site)
             , m_elements(els)
             , m_thread(thread)
+            , m_deadFlag(false)
             , m_createTime(create_time)
             , m_deathTime(UINT_MAX)
             , m_refCount(0)
@@ -344,6 +350,7 @@ class Object
         Color getColor() const { return m_color; }
         EdgeMap::iterator const getEdgeMapBegin() { return m_fields.begin(); }
         EdgeMap::iterator const getEdgeMapEnd() { return m_fields.end(); }
+        bool isDead() const { return m_deadFlag; }
 
         bool wasPointedAtByHeap() const { return m_pointed_by_heap; }
         void setPointedAtByHeap() { m_pointed_by_heap = true; }

@@ -5,9 +5,13 @@ bool HeapState::do_refcounting = true;
 bool HeapState::debug = false;
 unsigned int Object::g_counter = 0;
 
-Object* HeapState::allocate( unsigned int id, unsigned int size,
-                             char kind, char* type, AllocSite* site, 
-                             unsigned int els, Thread* thread,
+Object* HeapState::allocate( unsigned int id,
+                             unsigned int size,
+                             char kind,
+                             char* type,
+                             AllocSite* site, 
+                             unsigned int els,
+                             Thread* thread,
                              unsigned int create_time )
 {
     Object* obj = new Object( id, size,
@@ -21,6 +25,7 @@ Object* HeapState::allocate( unsigned int id, unsigned int size,
         cout << "OBJECTS: " << m_objects.size() << endl;
     }
     unsigned long int temp = this->m_liveSize + obj->getSize();
+    // Max live size calculation
     this->m_liveSize = ( (temp < this->m_liveSize) ? ULONG_MAX : temp );
     if (this->m_maxLiveSize < this->m_liveSize) {
         this->m_maxLiveSize = this->m_liveSize;
@@ -60,17 +65,19 @@ Edge* HeapState::make_edge( Object* source,
 
 void HeapState::makeDead(Object * obj, unsigned int death_time)
 {
-    unsigned long int temp = this->m_liveSize - obj->getSize();
-    if (temp > this->m_liveSize) {
-        // OVERFLOW, underflow?
-        this->m_liveSize = 0;
-        cerr << "UNDERFLOW of substraction." << endl;
-        // TODO If this happens, maybe we should think about why it happens.
-    } else {
-        // All good. Fight on.
-        this->m_liveSize = temp;
+    if (!obj->isDead()) {
+        unsigned long int temp = this->m_liveSize - obj->getSize();
+        if (temp > this->m_liveSize) {
+            // OVERFLOW, underflow?
+            this->m_liveSize = 0;
+            cerr << "UNDERFLOW of substraction." << endl;
+            // TODO If this happens, maybe we should think about why it happens.
+        } else {
+            // All good. Fight on.
+            this->m_liveSize = temp;
+        }
+        obj->makeDead(death_time);
     }
-    obj->makeDead(death_time);
 }
 
 // TODO Documentation :)
@@ -657,6 +664,11 @@ void Object::makeDead(unsigned int death_time)
 {
     // -- Record the death time
     this->m_deathTime = death_time;
+    if (this->m_deadFlag) {
+        cerr << "Object[ " << this->getId() << " ] : double Death event." << endl;
+    } else {
+        this->m_deadFlag = true;
+    }
 
     // -- Visit all edges
     for ( EdgeMap::iterator p = this->m_fields.begin();
