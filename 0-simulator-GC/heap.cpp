@@ -82,8 +82,8 @@ void HeapState::makeDead(Object * obj, unsigned int death_time)
         // All good. Fight on.
         this->m_liveSize = temp;
     }
-    obj->makeDead(death_time);
     this->m_memmgr.makeDead( obj, death_time );
+    // obj->makeDead(death_time);
 }
 
 // TODO Documentation :)

@@ -255,6 +255,7 @@ class Object
 
         HeapState* m_heapptr;
         bool m_deadFlag;
+        bool m_garbageFlag;
 
         // Was this object ever a target of a heap pointer?
         bool m_pointed_by_heap;
@@ -316,6 +317,7 @@ class Object
             , m_elements(els)
             , m_thread(thread)
             , m_deadFlag(false)
+            , m_garbageFlag(false)
             , m_createTime(create_time)
             , m_deathTime(UINT_MAX)
             , m_refCount(0)
@@ -351,6 +353,9 @@ class Object
         EdgeMap::iterator const getEdgeMapBegin() { return m_fields.begin(); }
         EdgeMap::iterator const getEdgeMapEnd() { return m_fields.end(); }
         bool isDead() const { return m_deadFlag; }
+        bool isGarbage() const { return m_garbageFlag; }
+        void setGarbageFlag() { this->m_garbageFlag = true; }
+        void unSetGarbageFlag() { this->m_garbageFlag = false; }
 
         bool wasPointedAtByHeap() const { return m_pointed_by_heap; }
         void setPointedAtByHeap() { m_pointed_by_heap = true; }

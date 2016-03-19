@@ -58,7 +58,7 @@ public:
     //        false otherwise.
     bool remove( Object *object );
     bool makeDead( Object *object );
-    bool add_to_garbage( Object *object );
+    bool add_to_garbage_set( Object *object );
 
     int getLevel() const  { return this->m_level; }
 
@@ -93,6 +93,9 @@ private:
 
     // Collection history
     deque<GCRecord_t> m_gc_history;
+
+    void addToGarbage( int add );
+    int setGarbage( int newval );
 };
 
 class MemoryMgr

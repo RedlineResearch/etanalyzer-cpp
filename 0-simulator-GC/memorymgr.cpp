@@ -27,7 +27,7 @@ bool Region::allocate( Object *object,
     this->m_live_set.insert( object );
     this->m_free -= objSize; // Free goes down.
     this->m_used += objSize; // Used goes up.
-    assert(this->m_used <= this->m_size); // Invariant check.
+
     return true; // TODO Do we want to do something else different
     // if object is already in the set?
     // TODO: do i need create_time? And if yes, how do I save it?
@@ -49,9 +49,10 @@ bool Region::remove( Object *object )
     return true;
 }
 
-bool Region::add_to_garbage( Object *object )
+bool Region::add_to_garbage_set( Object *object )
 {
     ObjectSet_t::iterator iter = this->m_live_set.find(object);
+    object->setGarbageFlag();
     if (iter == this->m_live_set.end()) {
         // Not in live set.
         cerr << "X";
@@ -60,15 +61,10 @@ bool Region::add_to_garbage( Object *object )
     unsigned int objSize = object->getSize();
     // Remove from live_set
     this->m_live_set.erase(iter);
+    this->m_live -= objSize; // Live goes down.
     // Add to garbage waiting set
     this->m_garbage_waiting.insert(object);
-    if (!object->isDead()) {
-        // Adjust the status variables.
-        this->m_live -= objSize; // Live goes down.
-        this->m_garbage += objSize; // Garbage goes up.
-        assert(this->m_live >= 0);
-        assert(this->m_garbage <= this->m_size);
-    }
+    this->addToGarbage( objSize );
     return true;
 }
 
@@ -76,8 +72,11 @@ bool Region::makeDead( Object *object )
 {
     // Found object.
     // Remove from m_live_set and put into m_garbage_waiting
-    bool flag = this->add_to_garbage( object );
-    // TODO: Anything else I need to do here?
+    bool flag = false;
+    if (!object->isGarbage()) {
+        flag = this->add_to_garbage_set( object );
+        // TODO: Anything else I need to do here?
+    }
     return flag;
 }
 
@@ -87,11 +86,26 @@ int Region::collect( unsigned int timestamp )
     int collected = this->m_garbage;
 
     this->m_garbage_waiting.clear();
-    this->m_garbage = 0;
+    // this->m_garbage = 0;
+    this->setGarbage(0);
+    cout << "GC[ " << timestamp << ", " << collected << "]" << endl;
     this->m_free += collected;
     GCRecord_t rec = make_pair( timestamp, collected );
     this->m_gc_history.push_back( rec );
     return collected;
+}
+
+inline void Region::addToGarbage( int add )
+{
+    this->m_garbage += add;
+    cout << "ADD: " << this->m_garbage << endl;
+}
+
+int Region::setGarbage( int newval )
+{
+    this->m_garbage = newval;
+    cout << "SET: " << this->m_garbage << endl;
+    return newval;
 }
 
 //---------------------------------------------------------------------------------
@@ -168,6 +182,7 @@ bool MemoryMgr::makeDead( Object *object, unsigned int death_time )
 {
     // Which region? Since we only have one region in this basic MemmoryMgr:
     this->m_alloc_region->makeDead( object );
+    object->makeDead( death_time );
     return true;
 }
 
