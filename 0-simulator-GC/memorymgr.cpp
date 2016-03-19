@@ -98,13 +98,13 @@ int Region::collect( unsigned int timestamp )
 inline void Region::addToGarbage( int add )
 {
     this->m_garbage += add;
-    cout << "ADD: " << this->m_garbage << endl;
+    // DEBUG cout << "ADD: " << this->m_garbage << endl;
 }
 
 int Region::setGarbage( int newval )
 {
     this->m_garbage = newval;
-    cout << "SET: " << this->m_garbage << endl;
+    // DEBUG cout << "SET: " << this->m_garbage << endl;
     return newval;
 }
 
