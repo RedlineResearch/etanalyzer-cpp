@@ -5,8 +5,6 @@ import os
 import sys
 import time
 import logging
-import sqorm
-import cPickle
 import pprint
 import re
 import ConfigParser
@@ -121,7 +119,7 @@ def is_specjvm( bmark ):
             bmark == "_227_mtrt" or
             bmark == "_228_jack" )
 
-class SimProcessProtocol(protocol.ProcessProtocol):
+class SimProcessProtocol(  protocol.ProcessProtocol ):
     def __init__(self, text):
         self.text = text
         # Replace text with the things to be sent to the simulator
@@ -150,7 +148,7 @@ def main_process( output = None,
     t = datetime.date.today()
     datestr = "%d-%02d%02d" % (t.year, t.month, t.day)
     print "TODAY:", datestr
-    work_dir = global_config["work_dir"]
+    work_dir = global_config["sim_work_dir"]
     work_today = create_work_directory( work_dir, logger = logger )
     olddir = os.getcwd()
     os.chdir( work_today )
