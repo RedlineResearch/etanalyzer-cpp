@@ -94,7 +94,7 @@ def create_work_directory( work_dir, logger = None, interactive = False ):
     os.chdir( work_dir )
     today = datetime.date.today()
     today = today.strftime("%Y-%m%d")
-    work_today = "summary-" + today
+    work_today = "simGC-" + today
     if os.path.isfile(work_today):
         print "Can not create %s as directory." % work_today
         exit(11)
@@ -126,21 +126,21 @@ class SimProcessProtocol(  protocol.ProcessProtocol ):
 
 def main_process( output = None,
                   benchmarks = None,
+                  category_bmarks = None,
                   bmark_config = None,
                   names_config = None,
                   global_config = None,
+                  run_global_config = None,
                   debugflag = None,
                   logger = None ):
-    global pp
     # Directories
     specdir = global_config["specjvm_dir"]
     capodir = global_config["dacapo_dir"]
     # Flags
-    cycle_flag = global_config["cycle_flag"]
-    objdebug_flag = global_config["objdebug_flag"]
-    # TODO Objdebug flag
+    cycle_flag = run_global_config["cycle_flag"]
+    objdebug_flag = run_global_config["objdebug_flag"]
     # Executable
-    simulator = global_config["simulator"]
+    simulator = global_config["simulatorgc"]
     # Create a directory
     # TODO Option: have a scratch test directory vs a date today directory
     # Currently have the date today
@@ -148,22 +148,30 @@ def main_process( output = None,
     t = datetime.date.today()
     datestr = "%d-%02d%02d" % (t.year, t.month, t.day)
     print "TODAY:", datestr
-    work_dir = global_config["sim_work_dir"]
+    work_dir = run_global_config["simgc_work_dir"]
     work_today = create_work_directory( work_dir, logger = logger )
     olddir = os.getcwd()
     os.chdir( work_today )
     # Get the benchmark directories
     specjvm_dir = global_config["specjvm_dir"]
     dacapo_dir = global_config["dacapo_dir"]
+    print "DONE."
     procdict = {}
+    pp.pprint(benchmarks)
     for bmark in benchmarks:
         tracefile = (specdir + bmark_config[bmark]) if is_specjvm(bmark) else \
+            (dacapo_dir + bmark_config[bmark])
+        namesfile = (specjvm_dir + names_config[bmark]) if is_specjvm(bmark) else \
             (dacapo_dir + names_config[bmark])
-        namesfile = (specjvm_dir + names_config[bmark])
-        basename = bmark + "-cpp-" + str(datestr)
-        print basename
+        print "NAME:", namesfile, "=", os.path.isfile( namesfile )
+        continue
+        # TODO TODO TODO TODO
+        # Running the 'simulator-GC' needs the following args:
+        #    _201_compress.names 0-CURRENT/_201_compress-DGROUPS.csv _201_compress 7918525
+        dgroupsname = "TODO_dgroups_name"
+        print dgroupsname
         # ./simulator xalan.names xalan-cpp-2016-0129 CYCLE OBJDEBUG
-        cmd = [ simulator, namesfile, basename, cycle_flag, objdebug_flag ]
+        cmd = [ simulator, namesfile, dgroupsname, bmark, 1024 * 1024 ]
         print cmd
         fp = get_trace_fp( tracefile, logger )
         # sproc = subprocess.Popen( cmd,
@@ -447,7 +455,7 @@ def main():
     benchmark = args.benchmark
     assert( args.config != None )
     assert( args.runconfig != None )
-    global_config, benchmarks, dacapo_config, dacapo_names, \
+    global_config, category_benchmarks, dacapo_config, dacapo_names, \
         specjvm_config, specjvm_names = process_global_config( args.config )
     run_global_config, run_benchmarks = process_runsim_config( args.runconfig )
     debugflag = run_global_config["debug"]
@@ -459,10 +467,12 @@ def main():
     #
     return main_process( debugflag = debugflag,
                          output = args.output,
-                         benchmarks = benchmarks,
+                         benchmarks = run_benchmarks,
+                         category_bmarks = category_benchmarks,
                          bmark_config = dict(specjvm_config, **dacapo_config),
                          names_config = dict(specjvm_names, **dacapo_names),
                          global_config = global_config,
+                         run_global_config = run_global_config,
                          logger = logger )
 
 if __name__ == "__main__":
