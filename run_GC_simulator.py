@@ -164,15 +164,14 @@ def main_process( output = None,
         namesfile = (specjvm_dir + names_config[bmark]) if is_specjvm(bmark) else \
             (dacapo_dir + names_config[bmark])
         print "NAME:", namesfile, "=", os.path.isfile( namesfile )
-        continue
         # TODO TODO TODO TODO
         # Running the 'simulator-GC' needs the following args:
-        #    _201_compress.names 0-CURRENT/_201_compress-DGROUPS.csv _201_compress 7918525
+        #  simulator-GC _201_compress.names 0-CURRENT/_201_compress-DGROUPS.csv _201_compress 7918525
         dgroupsname = "TODO_dgroups_name"
         print dgroupsname
-        # ./simulator xalan.names xalan-cpp-2016-0129 CYCLE OBJDEBUG
         cmd = [ simulator, namesfile, dgroupsname, bmark, 1024 * 1024 ]
         print cmd
+        continue
         fp = get_trace_fp( tracefile, logger )
         # sproc = subprocess.Popen( cmd,
         #                           stdout = subprocess.PIPE,
