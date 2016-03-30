@@ -23,12 +23,14 @@ class Edge;
 enum Reason {
     STACK = 1,
     HEAP = 2,
+    END_OF_PROGRAM_REASON = 8,
     UNKNOWN_REASON = 99,
 };
 
 enum LastEvent {
     ROOT = 1,
     UPDATE = 2,
+    END_OF_PROGRAM_EVENT = 11,
     UNKNOWN_EVENT = 99,
 };
 
@@ -106,12 +108,16 @@ class HeapState
         unsigned int m_totalDiedByHeap_ver2;
         // Total number of objects that died by stack frame going out of scope version 2
         unsigned int m_totalDiedByStack_ver2;
+        // Total number of objects that live till the end of the program
+        unsigned int m_totalDiedAtEnd;
         // Total number of objects unknown using version 2 method
         unsigned int m_totalDiedUnknown_ver2;
         // Size of objects that died by loss of heap reference
         unsigned int m_sizeDiedByHeap;
         // Size of objects that died by stack frame going out of scope
         unsigned int m_sizeDiedByStack;
+        // Size of objects that live till the end of the program
+        unsigned int m_sizeDiedAtEnd;
 
         // Total number of objects whose last update away from the object
         // was null
@@ -168,8 +174,10 @@ class HeapState
             , m_liveSize(0)
             , m_totalDiedByHeap_ver2(0)
             , m_totalDiedByStack_ver2(0)
+            , m_totalDiedAtEnd(0)
             , m_sizeDiedByHeap(0)
             , m_sizeDiedByStack(0)
+            , m_sizeDiedAtEnd(0)
             , m_totalDiedUnknown_ver2(0)
             , m_totalUpdateNull(0)
             , m_totalUpdateNullHeap(0)
@@ -211,9 +219,11 @@ class HeapState
 
         unsigned int getTotalDiedByStack2() const { return m_totalDiedByStack_ver2; }
         unsigned int getTotalDiedByHeap2() const { return m_totalDiedByHeap_ver2; }
+        unsigned int getTotalDiedAtEnd() const { return m_totalDiedAtEnd; }
         unsigned int getTotalDiedUnknown() const { return m_totalDiedUnknown_ver2; }
         unsigned int getSizeDiedByHeap() const { return m_sizeDiedByHeap; }
         unsigned int getSizeDiedByStack() const { return m_sizeDiedByStack; }
+        unsigned int getSizeDiedAtEnd() const { return m_sizeDiedAtEnd; }
 
         unsigned int getTotalLastUpdateNull() const { return m_totalUpdateNull; }
         unsigned int getTotalLastUpdateNullHeap() const { return m_totalUpdateNullHeap; }

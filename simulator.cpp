@@ -605,7 +605,7 @@ int main(int argc, char* argv[])
     }
     string basename(argv[2]);
     string cycle_filename( basename + "-CYCLES.csv" );
-    string edge_filename( basename + "-EDGES.txt" );
+    // string edge_filename( basename + "-EDGES.txt" );
     string objectinfo_filename( basename + "-OBJECTINFO.txt" );
     string edgeinfo_filename( basename + "-EDGEINFO.txt" );
     string summary_filename( basename + "-SUMMARY.csv" );
@@ -686,6 +686,7 @@ int main(int argc, char* argv[])
                  << "number_of_edges," << Heap.numberEdges() << endl
                  << "died_by_stack," << Heap.getTotalDiedByStack2() << endl
                  << "died_by_heap," << Heap.getTotalDiedByHeap2() << endl
+                 << "died_at_end," << Heap.getTotalDiedAtEnd() << endl
                  << "last_update_null," << Heap.getTotalLastUpdateNull() << endl
                  << "last_update_null_heap," << Heap.getTotalLastUpdateNullHeap() << endl
                  << "last_update_null_stack," << Heap.getTotalLastUpdateNullStack() << endl
@@ -699,6 +700,7 @@ int main(int argc, char* argv[])
                  << "no_death_sites," << Heap.getNumberNoDeathSites() << endl
                  << "size_died_by_stack," << Heap.getSizeDiedByStack() << endl
                  << "size_died_by_heap," << Heap.getSizeDiedByHeap() << endl
+                 << "size_died_at_end," << Heap.getSizeDiedAtEnd() << endl
                  << "vm_RC_zero," << Heap.getVMObjectsRefCountZero() << endl
                  << "vm_RC_positive," << Heap.getVMObjectsRefCountPositive() << endl
                  << "max_live_size," << Heap.maxLiveSize() << endl

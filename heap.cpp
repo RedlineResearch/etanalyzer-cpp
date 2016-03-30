@@ -86,8 +86,13 @@ void HeapState::update_death_counters( Object *obj )
     unsigned int obj_size = obj->getSize();
     // VERSION 1
     // TODO: This could use some refactoring.
-    if ( obj->getDiedByStackFlag() ||
-         ( ((obj->getReason() == STACK) ||
+    //
+    // Check for end of program kind first.
+    if ( obj->getReason() ==  Reason::END_OF_PROGRAM_REASON ) {
+        // TODO
+    }
+    else if ( obj->getDiedByStackFlag() ||
+         ( ((obj->getReason() == Reason::STACK) ||
             (obj->getLastEvent() == LastEvent::ROOT)) &&
             !obj->getDiedByHeapFlag() )
          ) {
@@ -114,7 +119,7 @@ void HeapState::update_death_counters( Object *obj )
             this->m_totalUpdateNullStack_size += obj_size;
         }
     } else if ( obj->getDiedByHeapFlag() ||
-                (obj->getReason() == HEAP) ||
+                (obj->getReason() == Reason::HEAP) ||
                 (obj->getLastEvent() == LastEvent::UPDATE) ||
                 obj->wasPointedAtByHeap() ) {
         if (m_obj_debug_flag) {
@@ -210,12 +215,13 @@ void HeapState::end_of_program(unsigned int cur_time)
             // Go ahead and ignore the call to HeapState::makeDead
             // as we won't need to update maxLiveSize here anymore.
             obj->makeDead(cur_time);
-            if (obj->getReason() == HEAP) {
-                obj->setDiedByHeapFlag();
-            } else {
-                obj->setDiedByStackFlag();
-            }
-            obj->setLastEvent( LastEvent::ROOT );
+            // if (obj->getReason() == HEAP) {
+            //     obj->setDiedByHeapFlag();
+            // } else {
+            //     obj->setDiedByStackFlag();
+            // }
+            obj->setReason( Reason::END_OF_PROGRAM_REASON, cur_time );
+            obj->setLastEvent( LastEvent::END_OF_PROGRAM_EVENT );
         }
         // Do the count of heap vs stack loss here.
         this->update_death_counters(obj);
@@ -541,6 +547,9 @@ void Object::updateField( Edge* edge,
                     old_target->setHeapReason( cur_time );
                 } else if (reason == STACK) {
                     old_target->setStackReason( cur_time );
+                } else {
+                    cerr << "Invalid reason." << endl;
+                    assert( false );
                 }
                 old_target->decrementRefCountReal(cur_time, method, reason, death_root);
             } 
