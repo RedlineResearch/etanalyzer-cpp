@@ -89,7 +89,8 @@ void HeapState::update_death_counters( Object *obj )
     //
     // Check for end of program kind first.
     if ( obj->getReason() ==  Reason::END_OF_PROGRAM_REASON ) {
-        // TODO
+        this->m_totalDiedAtEnd++;
+        this->m_sizeDiedAtEnd += obj_size;
     }
     else if ( obj->getDiedByStackFlag() ||
          ( ((obj->getReason() == Reason::STACK) ||
