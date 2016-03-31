@@ -35,15 +35,41 @@ class GarbologyConfig:
 
     def process_config( self, config_file ):
         cp = self.config_parser
+        self.configdict = {}
+        cdict = self.configdict
         self.global_cfg = self.config_section_map( "global", cp )
+        cdict["global"] = self.global_cfg
         self.etanalyze_cfg = self.config_section_map( "etanalyze-output", cp )
+        cdict["etanalyze"] = self.etanalyze_cfg
         self.cycle_analyze_cfg = self.config_section_map( "cycle-analyze", cp )
-        self.edges_cfg = self.config_section_map( "edges", cp )
+        cdict["cycle_analyze"] = self.cycle_analyze_cfg
         self.edgeinfo_cfg = self.config_section_map( "edgeinfo", cp )
+        cdict["edgeinfo"] = self.edgeinfo_cfg
         self.objectinfo_cfg = self.config_section_map( "objectinfo", cp )
+        cdict["objectinfo"] = self.objectinfo_cfg
         self.summary_cfg = self.config_section_map( "summary_cpp", cp )
+        cdict["summary"] = self.summary_cfg
         self.dsites_cfg = self.config_section_map( "dsites", cp )
+        cdict["dsites"] = self.dsites_cfg
 
+    def verify_all_exist( self, printflag = False ):
+        cdict = self.configdict
+        basepath = cdict["global"]["cycle_cpp_dir"]
+        print "PATH:", basepath
+        for key, cfg in self.configdict.iteritems():
+            if key == "global" or key == "cycle-analyze":
+                continue
+            for bmark, relpath in cfg.iteritems():
+                tgtpath = basepath + relpath
+                if not os.path.isfile(tgtpath):
+                    print "ERROR: %s" % str(tgtpath)
+
+    def print_all_config( self, mypp ):
+        print "-------------------------------------------------------------------------------"
+        for key, cfg in self.configdict.iteritems():
+            print "[%s]" % str(key)
+            mypp.pprint( cfg )
+            print "-------------------------------------------------------------------------------"
 #
 #  PRIVATE FUNCTIONS
 #
@@ -114,8 +140,11 @@ def create_work_directory( work_dir, logger = None, interactive = False ):
     return today
 
 def main_process( logger = None,
+                  gconfig = None,
                   debugflag = False ):
     global pp
+    gconfig.print_all_config( pp )
+    gconfig.verify_all_exist()
     print "===========[ DONE ]==================================================="
 
 def create_parser():
@@ -153,9 +182,10 @@ def main():
     # Main processing
     #
     return main_process( logger = logger,
+                         gconfig = gconfig,
                          debugflag = debugflag )
 
-__all__ = []
+__all__ = [ "GarbologyConfig" ]
 
 if __name__ == "__main__":
     main()
