@@ -129,6 +129,7 @@ def main_process( output = None,
                   bmark_config = None,
                   names_config = None,
                   global_config = None,
+                  run_global_config = None,
                   debugflag = None,
                   logger = None ):
     global pp
@@ -136,8 +137,9 @@ def main_process( output = None,
     specdir = global_config["specjvm_dir"]
     capodir = global_config["dacapo_dir"]
     # Flags
-    cycle_flag = global_config["cycle_flag"]
-    objdebug_flag = global_config["objdebug_flag"]
+    cycle_flag = run_global_config["cycle_flag"]
+    objdebug_flag = run_global_config["objdebug_flag"]
+    exit(10000)
     # TODO Objdebug flag
     # Executable
     simulator = global_config["simulator"]
@@ -450,6 +452,8 @@ def main():
     global_config, benchmarks, dacapo_config, dacapo_names, \
         specjvm_config, specjvm_names = process_global_config( args.config )
     run_global_config, run_benchmarks = process_runsim_config( args.runconfig )
+    print "RUN_GLOBAL_CONFIG:"
+    pp.pprint(run_global_config)
     debugflag = run_global_config["debug"]
     # logging
     logger = setup_logger( filename = args.logfile,
@@ -463,6 +467,7 @@ def main():
                          bmark_config = dict(specjvm_config, **dacapo_config),
                          names_config = dict(specjvm_names, **dacapo_names),
                          global_config = global_config,
+                         run_global_config = run_global_config,
                          logger = logger )
 
 if __name__ == "__main__":
