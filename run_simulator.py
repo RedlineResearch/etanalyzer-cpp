@@ -91,14 +91,16 @@ def render_histogram( histfile = None,
     print "--------------------------------------------------------------------------------"
 
 def create_work_directory( work_dir, logger = None, interactive = False ):
-    os.chdir( work_dir )
+    print "X:", work_dir
     today = datetime.date.today()
     today = today.strftime("%Y-%m%d")
-    work_today = "summary-" + today
+    work_today = "run-" + today
+    print " :", work_today
     if os.path.isfile(work_today):
         print "Can not create %s as directory." % work_today
         exit(11)
     if not os.path.isdir( work_today ):
+        print "Making:", work_today
         os.mkdir( work_today )
     else:
         print "WARNING: %s directory exists." % work_today
@@ -120,9 +122,13 @@ def is_specjvm( bmark ):
             bmark == "_228_jack" )
 
 class SimProcessProtocol(  protocol.ProcessProtocol ):
-    def __init__(self, text):
-        self.text = text
+    def __init__( self, tracefp ):
         # Replace text with the things to be sent to the simulator
+        self.tracefp = tracefp
+
+    def connectionMade( self ):
+        for line in self.tracefp:
+            self.transport.write( line )
 
 def main_process( output = None,
                   benchmarks = None,
@@ -139,10 +145,9 @@ def main_process( output = None,
     # Flags
     cycle_flag = run_global_config["cycle_flag"]
     objdebug_flag = run_global_config["objdebug_flag"]
-    exit(10000)
     # TODO Objdebug flag
     # Executable
-    simulator = global_config["simulator"]
+    simulator = run_global_config["simulator"]
     # Create a directory
     # TODO Option: have a scratch test directory vs a date today directory
     # Currently have the date today
@@ -150,9 +155,10 @@ def main_process( output = None,
     t = datetime.date.today()
     datestr = "%d-%02d%02d" % (t.year, t.month, t.day)
     print "TODAY:", datestr
-    work_dir = global_config["sim_work_dir"]
-    work_today = create_work_directory( work_dir, logger = logger )
+    work_dir = run_global_config["sim_work_dir"]
     olddir = os.getcwd()
+    os.chdir( work_dir )
+    work_today = create_work_directory( work_dir, logger = logger )
     os.chdir( work_today )
     # Get the benchmark directories
     specjvm_dir = global_config["specjvm_dir"]
@@ -160,14 +166,22 @@ def main_process( output = None,
     procdict = {}
     for bmark in benchmarks:
         tracefile = (specdir + bmark_config[bmark]) if is_specjvm(bmark) else \
+            (dacapo_dir + bmark_config[bmark])
+        namesfile = (specdir + names_config[bmark]) if is_specjvm(bmark) else \
             (dacapo_dir + names_config[bmark])
-        namesfile = (specjvm_dir + names_config[bmark])
         basename = bmark + "-cpp-" + str(datestr)
         print basename
         # ./simulator xalan.names xalan-cpp-2016-0129 CYCLE OBJDEBUG
-        cmd = [ simulator, namesfile, basename, cycle_flag, objdebug_flag ]
-        print cmd
+        myargs = [ namesfile, basename, cycle_flag, objdebug_flag ]
+        print os.path.isfile( simulator ), os.path.isfile( namesfile )
+        print myargs 
         fp = get_trace_fp( tracefile, logger )
+        procprot = SimProcessProtocol( fp )
+        reactor.spawnProcess( procprot,
+                              simulator,
+                              args = myargs )
+        reactor.run()
+        break
         # sproc = subprocess.Popen( cmd,
         #                           stdout = subprocess.PIPE,
         #                           stdin = fp,
@@ -176,7 +190,8 @@ def main_process( output = None,
         # result = sproc.communicate()
         # for x in result:
         #     print x
-    exit(3333)
+    print "DONE."
+    exit(10000)
     # HERE: TODO
     # 1. Cyclic garbage vs ref count reclaimed:
     #      * Number of objects
@@ -452,8 +467,6 @@ def main():
     global_config, benchmarks, dacapo_config, dacapo_names, \
         specjvm_config, specjvm_names = process_global_config( args.config )
     run_global_config, run_benchmarks = process_runsim_config( args.runconfig )
-    print "RUN_GLOBAL_CONFIG:"
-    pp.pprint(run_global_config)
     debugflag = run_global_config["debug"]
     # logging
     logger = setup_logger( filename = args.logfile,
@@ -463,7 +476,7 @@ def main():
     #
     return main_process( debugflag = debugflag,
                          output = args.output,
-                         benchmarks = benchmarks,
+                         benchmarks = run_benchmarks,
                          bmark_config = dict(specjvm_config, **dacapo_config),
                          names_config = dict(specjvm_names, **dacapo_names),
                          global_config = global_config,
