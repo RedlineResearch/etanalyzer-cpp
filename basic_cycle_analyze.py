@@ -322,14 +322,16 @@ def get_edges( edgepath ):
     start = False
     done = False
     edges = set([])
-    with open(edgepath) as fp:
+    with get_trace_fp(edgepath) as fp:
         for line in fp:
             line = line.rstrip()
-            if line.find("===============[ EDGES") == 0:
+            if line.find("---------------[ EDGE INFO") == 0:
                 start = True if not start else False
                 if start:
+                    print "START--"
                     continue
                 else:
+                    print "--DONE"
                     done = True
                     break
             if start:
@@ -1175,7 +1177,8 @@ def process_config( args ):
     global_config = config_section_map( "global", config_parser )
     etanalyze_config = config_section_map( "etanalyze-output", config_parser )
     main_config = config_section_map( "cycle-analyze", config_parser )
-    edge_config = config_section_map( "edges", config_parser )
+    # TODO edge_config = config_section_map( "edges", config_parser )
+    edge_config = config_section_map( "edgeinfo", config_parser )
     edgeinfo_config = config_section_map( "edgeinfo", config_parser )
     objectinfo_config = config_section_map( "objectinfo", config_parser )
     summary_config = config_section_map( "summary_cpp", config_parser )
