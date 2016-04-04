@@ -57,7 +57,7 @@ class GarbologyConfig:
         basepath = cdict["global"]["cycle_cpp_dir"]
         print "PATH:", basepath
         for key, cfg in self.configdict.iteritems():
-            if key == "global" or key == "cycle-analyze":
+            if key == "global" or key == "cycle_analyze":
                 continue
             for bmark, relpath in cfg.iteritems():
                 tgtpath = basepath + relpath
