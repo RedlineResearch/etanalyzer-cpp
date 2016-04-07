@@ -875,9 +875,10 @@ def main_process( output = None,
         logger.critical( "=======[ %s ]=========================================================" 
                          % bmark )
         abspath = os.path.join(cycle_cpp_dir, filename)
-        if not os.path.isfile(abspath):
-            logger.critical("Not such file: %s" % str(abspath))
-        else:
+        if os.path.isfile(abspath):
+            #----------------------------------------------------------------------
+            #      SETUP
+            #----------------------------------------------------------------------
             group = 1
             graphs = []
             # Counters TODO: do we need this?
@@ -885,19 +886,9 @@ def main_process( output = None,
             actual_cycle_counter = Counter()
             cycle_type_counter = Counter()
             logger.critical( "Opening %s." % abspath )
-            # Get cycles
-            cycles = get_cycles( abspath )
-            # TODO What is this? 
-            # TODO get_cycles_result = {}
-            # Get edges
-            edgepath = os.path.join(cycle_cpp_dir, edge_config[bmark])
-            edges = get_edges( edgepath )
-            # Get edge information
-            edgeinfo_path = os.path.join(cycle_cpp_dir, edgeinfo_config[bmark])
-            edge_info_dict = get_edge_info( edgeinfo_path)
-            # Get object dictionary information that has types and sizes
-            objectinfo_path = os.path.join(cycle_cpp_dir, objectinfo_config[bmark])
-            object_info_dict = get_object_info( objectinfo_path, typedict, rev_typedict )
+            #----------------------------------------------------------------------
+            #      SUMMARY
+            #----------------------------------------------------------------------
             # Get summary
             summary_path = os.path.join(cycle_cpp_dir, summary_config[bmark])
             summary_sim = get_summary( summary_path )
@@ -921,7 +912,6 @@ def main_process( output = None,
             max_live_size = summary_sim["max_live_size"]
             final_time = summary_sim["final_time"]
             selfloops = set()
-            edgedict = create_edge_dictionary( edges, selfloops )
             results[bmark] = { "totals" : [],
                                "graph" : [],
                                "largest_cycle" : [],
@@ -957,6 +947,23 @@ def main_process( output = None,
                                "size_died_by_stack" : size_died_by_stack, # size, not object count
                                "size_died_by_heap" : size_died_by_heap, # size, not object count
                                }
+            #----------------------------------------------------------------------
+            #      CYCLES
+            #----------------------------------------------------------------------
+            # Get cycles
+            cycles = get_cycles( abspath )
+            # TODO What is this? 
+            # TODO get_cycles_result = {}
+            # Get edges
+            edgepath = os.path.join(cycle_cpp_dir, edge_config[bmark])
+            edges = get_edges( edgepath )
+            edgedict = create_edge_dictionary( edges, selfloops )
+            # Get edge information
+            edgeinfo_path = os.path.join(cycle_cpp_dir, edgeinfo_config[bmark])
+            edge_info_dict = get_edge_info( edgeinfo_path)
+            # Get object dictionary information that has types and sizes
+            objectinfo_path = os.path.join(cycle_cpp_dir, objectinfo_config[bmark])
+            object_info_dict = get_object_info( objectinfo_path, typedict, rev_typedict )
             for index in xrange(len(cycles)):
                 cycle = cycles[index]
                 cycle_info_list = get_cycle_info_list( cycle = cycle,
@@ -1083,6 +1090,8 @@ def main_process( output = None,
             print "total small cycles:", total_small_cycles
             print "inner_classes_count:", str(inner_classes_count)
             print "--------------------------------------------------------------------------------"
+        else:
+            logger.critical("Not such file: %s" % str(abspath))
         count += 1
         # if count >= 1:
         #     break
