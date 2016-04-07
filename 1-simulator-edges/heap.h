@@ -197,8 +197,6 @@ class Object
         bool m_deadFlag;
         bool m_garbageFlag;
 
-        // Did last update move to NULL?
-        tribool m_last_update_null; // If false, it moved to a differnet object
         // Did this object die by loss of heap reference?
         bool m_diedByHeap;
         // Reason for death
@@ -258,7 +256,6 @@ class Object
             , m_diedByHeap(false)
             , m_reason(UNKNOWN_REASON)
             , m_last_action_time(0)
-            , m_last_update_null(indeterminate)
             , m_methodDeathSite(0)
             , m_methodRCtoZero(NULL)
             , m_lastMethodDecRC(NULL)
@@ -290,13 +287,6 @@ class Object
         Reason setReason( Reason r, unsigned int t ) { m_reason = r; m_last_action_time = t; }
         Reason getReason() const { return m_reason; }
         unsigned int getLastActionTime() const { return m_last_action_time; }
-        // Returns whether last update to this object was NULL.
-        // If indeterminate, then there have been no updates
-        tribool wasLastUpdateNull() const { return m_last_update_null; }
-        // Set the last update null flag to true
-        void setLastUpdateNull() { m_last_update_null = true; }
-        // Set the last update null flag to false
-        void unsetLastUpdateNull() { m_last_update_null = false; }
         // Get the death site according the the Death event
         Method *getDeathSite() const { return m_methodDeathSite; }
         // Set the death site because of a Death event
