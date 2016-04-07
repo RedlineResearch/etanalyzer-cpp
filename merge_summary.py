@@ -18,7 +18,10 @@ import csv
 import subprocess
 import datetime
 import heapq
+from tempfile import mkdtemp
 from itertools import combinations
+from shutil import move
+
 
 from mypytools import mean, stdev, variance
 
@@ -476,6 +479,30 @@ def summary_by_size( objinfo = None,
                 "size" : total_size, }
     return sbysize
 
+def skip_file( fname = None ):
+    return ( (fname == "docopy.sh") or
+             (fname == "README.txt") )
+
+def backup_old_graphs( graph_dir_path = None,
+                       backup_graph_dir_path = None,
+                       base_temp_dir = None,
+                       today = None ):
+    assert( os.path.isdir( backup_graph_dir_path ) )
+    assert( os.path.isdir( graph_dir_path ) )
+    temp_dir = mkdtemp( dir = base_temp_dir )
+    print "Creating temporary directory: %s" % temp_dir
+    # Move all files to TEMP_DIR
+    print "Moving to: %s" % temp_dir
+    for fname in os.listdir( graph_dir_path ):
+        if skip_file( fname ):
+            continue
+        print "  moving %s..." % fname
+        absfname = os.path.join( graph_dir_path, fname )
+        move( absfname, temp_dir )
+    # tar and bzip2 -9 all old files to today.tar
+    # run object_barplot.R
+    exit(2)
+
 def main_process( output = None,
                   main_config = None,
                   benchmark = None,
@@ -498,6 +525,9 @@ def main_process( output = None,
     print "GLOBAL:"
     pp.pprint(global_config)
     cycle_cpp_dir = global_config["cycle_cpp_dir"]
+    graph_dir_path = global_config["graph_dir"]
+    backup_graph_dir_path = global_config["backup_graph_dir"]
+    temp_dir = global_config["temp_dir"]
     work_dir = main_config["directory"]
     results = {}
     summary = {}
@@ -588,9 +618,12 @@ def main_process( output = None,
     print "===========[ SUMMARY ]================================================"
     output_summary( output_path = output,
                     summary = summary )
+    backup_old_graphs( graph_dir_path = graph_dir_path,
+                       backup_graph_dir_path = backup_graph_dir_path,
+                       base_temp_dir = temp_dir,
+                       today = today )
     os.chdir( olddir )
     # Print out results in this format:
-    print "===========[ SUMMARY ]================================================"
     print_summary( summary )
     # TODO: Save the largest X cycles.
     #       This should be done in the loop so to cut down on duplicate work.
@@ -598,7 +631,7 @@ def main_process( output = None,
     benchmarks = summary.keys()
     pp.pprint(benchmarks)
     # TODO
-    print "---------------[ Common to ALL ]--------------------------------------"
+    # print "---------------[ Common to ALL ]--------------------------------------"
     # common_all = set.intersection( *[ set(summary[b]["types"].keys()) for b in benchmarks ] )
     # common_all = [ rev_typedict[x] for x in common_all ]
     # pp.pprint( common_all )
