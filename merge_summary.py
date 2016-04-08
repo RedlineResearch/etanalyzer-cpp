@@ -18,10 +18,11 @@ import csv
 import subprocess
 import datetime
 import heapq
+import tarfile
 from tempfile import mkdtemp
 from itertools import combinations
-from shutil import move
-
+from shutil import move, rmtree
+from glob import glob
 
 from mypytools import mean, stdev, variance
 
@@ -490,18 +491,53 @@ def backup_old_graphs( graph_dir_path = None,
     assert( os.path.isdir( backup_graph_dir_path ) )
     assert( os.path.isdir( graph_dir_path ) )
     temp_dir = mkdtemp( dir = base_temp_dir )
-    print "Creating temporary directory: %s" % temp_dir
+    print "Using temporary directory: %s" % temp_dir
+    # tar and bzip2 -9 all old files to today.tar
     # Move all files to TEMP_DIR
-    print "Moving to: %s" % temp_dir
+    tfilename_base = os.path.join( backup_graph_dir_path, "object_barplots-" + today + "*" )
+    flist = glob( tfilename_base )
+    i = len(flist) + 1
+    tempbase = "object_barplots-%s-%s.tar" % (today, str(i))
+    tfilename = os.path.join( temp_dir, tempbase )
+    assert( not os.path.exists( tfilename ) )
+    tarfp = tarfile.open( tfilename, mode = 'a' )
+    print "Taring to: %s" % tfilename
+    old_dir = os.getcwd()
+    os.chdir( graph_dir_path )
+    flist = []
     for fname in os.listdir( graph_dir_path ):
         if skip_file( fname ):
             continue
-        print "  moving %s..." % fname
-        absfname = os.path.join( graph_dir_path, fname )
-        move( absfname, temp_dir )
-    # tar and bzip2 -9 all old files to today.tar
-    # run object_barplot.R
-    exit(2)
+        flist.append( fname )
+    if len(flist) == 0:
+        print "Empty source graph directory: %s" % graph_dir_path
+        print " - attempting to remove %s" % temp_dir
+        rmtree( temp_dir )
+        return
+    for fname in flist:
+        tarfp.add( fname )
+        print "  adding %s..." % fname
+    tarfp.close()
+    for fname in flist:
+        os.remove( fname )
+        print "  deleting %s." % fname
+    cmd = [ "bzip2", "-9", tfilename ]
+    print "Bzipping...",
+    proc = subprocess.Popen( cmd,
+                             stdout = subprocess.PIPE,
+                             stderr = subprocess.PIPE )
+    result = proc.communicate()
+    # TODO Check result?
+    print "DONE."
+    bz2filename = tfilename + ".bz2"
+    assert( os.path.isfile(bz2filename) )
+    # Check to see if the target exists already.
+    tgtfile = os.path.join( backup_graph_dir_path, bz2filename )
+    print "Moving: %s --> %s" % (bz2filename, backup_graph_dir_path)
+    move( bz2filename, backup_graph_dir_path )
+    print "Attempting to remove %s" % temp_dir
+    rmtree( temp_dir )
+    os.chdir( old_dir )
 
 def main_process( output = None,
                   main_config = None,
@@ -622,6 +658,7 @@ def main_process( output = None,
                        backup_graph_dir_path = backup_graph_dir_path,
                        base_temp_dir = temp_dir,
                        today = today )
+    # run object_barplot.R
     os.chdir( olddir )
     # Print out results in this format:
     print_summary( summary )
