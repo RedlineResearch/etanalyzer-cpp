@@ -314,8 +314,9 @@ def output_summary( output_path = None,
     # TODO: This documentation seems wrong. TODO
     with open(output_path, "wb") as fp:
         csvwriter = csv.writer(fp)
-        header = [ "benchmark", "total_objects", "total_edges", "died_by_heap",
-                   "died_by_stack", "died_by_stack_after_heap", "died_by_stack_only",
+        header = [ "benchmark", "total_objects", "total_edges",
+                   "died_by_heap", "died_by_stack", "died_at_end",
+                   "died_by_stack_after_heap", "died_by_stack_only",
                    "last_update_null",
                    "died_by_stack_size", "died_by_heap_size",
                    "last_update_null_heap", "last_update_null_stack", "max_live_size",
@@ -324,8 +325,10 @@ def output_summary( output_path = None,
                    ]
         csvwriter.writerow( header )
         for bmark, d in summary.iteritems():
-            row = [ bmark, d["number_of_objects"], d["number_of_edges"], d["died_by_heap"],
-                    d["died_by_stack"], d["died_by_stack_after_heap"], d["died_by_stack_only"],
+            print "X:", bmark
+            row = [ bmark, d["number_of_objects"], d["number_of_edges"],
+                    d["died_by_heap"], d["died_by_stack"], d["died_at_end"],
+                    d["died_by_stack_after_heap"], d["died_by_stack_only"],
                     d["last_update_null"],
                     d["size_died_by_stack"], d["size_died_by_heap"],
                     d["last_update_null_heap"], d["last_update_null_stack"], d["max_live_size"],
@@ -606,12 +609,14 @@ def main_process( output = None,
             number_of_edges = summary_sim["number_of_edges"]
             died_by_stack = summary_sim["died_by_stack"]
             died_by_heap = summary_sim["died_by_heap"]
+            died_at_end = summary_sim["died_at_end"]
             died_by_stack_after_heap = summary_sim["died_by_stack_after_heap"]
             died_by_stack_only = summary_sim["died_by_stack_only"]
             died_by_stack_after_heap_size = summary_sim["died_by_stack_after_heap_size"]
             died_by_stack_only_size = summary_sim["died_by_stack_only_size"]
             size_died_by_stack = summary_sim["size_died_by_stack"]
             size_died_by_heap = summary_sim["size_died_by_heap"]
+            size_died_at_end = summary_sim["size_died_at_end"]
             last_update_null = summary_sim["last_update_null"]
             last_update_null_heap = summary_sim["last_update_null_heap"]
             last_update_null_stack = summary_sim["last_update_null_stack"]
@@ -622,6 +627,7 @@ def main_process( output = None,
             final_time = summary_sim["final_time"]
             summary[bmark] = { "died_by_heap" : died_by_heap, # total of
                                "died_by_stack" : died_by_stack, # total of
+                               "died_at_end" : died_at_end, # total of
                                "died_by_stack_after_heap" : died_by_stack_after_heap, # subset of died_by_stack
                                "died_by_stack_only" : died_by_stack_only, # subset of died_by_stack
                                "died_by_stack_after_heap_size" : died_by_stack_after_heap_size, # size of
@@ -638,6 +644,7 @@ def main_process( output = None,
                                "types" : Counter(), # counts of types using type IDs
                                "size_died_by_stack" : size_died_by_stack, # size, not object count
                                "size_died_by_heap" : size_died_by_heap, # size, not object count
+                               "size_died_at_end" : size_died_at_end, # size, not object count
                                }
             #----------------------------------------------------------------------
             #      CYCLES
