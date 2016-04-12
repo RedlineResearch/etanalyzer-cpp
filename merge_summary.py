@@ -535,6 +535,7 @@ def backup_old_graphs( graph_dir_path = None,
     tgtfile = os.path.join( backup_graph_dir_path, bz2filename )
     print "Moving: %s --> %s" % (bz2filename, backup_graph_dir_path)
     move( bz2filename, backup_graph_dir_path )
+    assert( os.path.isfile( os.path.join( backup_graph_dir, bz2filename ) ) )
     print "Attempting to remove %s" % temp_dir
     rmtree( temp_dir )
     os.chdir( old_dir )
