@@ -490,6 +490,7 @@ def skip_file( fname = None ):
 def backup_old_graphs( graph_dir_path = None,
                        backup_graph_dir_path = None,
                        base_temp_dir = None,
+                       pdfs_config = None,
                        today = None ):
     assert( os.path.isdir( backup_graph_dir_path ) )
     assert( os.path.isdir( graph_dir_path ) )
@@ -553,6 +554,7 @@ def main_process( output = None,
                   edgeinfo_config = None,
                   objectinfo_config = None,
                   summary_config = None,
+                  pdfs_config = None,
                   debugflag = False,
                   logger = None ):
     global pp
@@ -563,7 +565,6 @@ def main_process( output = None,
     # 2. Number of cycles
     # 3. Size of cycles
     print "GLOBAL:"
-    pp.pprint(global_config)
     cycle_cpp_dir = global_config["cycle_cpp_dir"]
     graph_dir_path = global_config["graph_dir"]
     backup_graph_dir_path = global_config["backup_graph_dir"]
@@ -663,6 +664,7 @@ def main_process( output = None,
     output_summary( output_path = output,
                     summary = summary )
     backup_old_graphs( graph_dir_path = graph_dir_path,
+                       pdfs_config = pdfs_config,
                        backup_graph_dir_path = backup_graph_dir_path,
                        base_temp_dir = temp_dir,
                        today = today )
@@ -674,7 +676,6 @@ def main_process( output = None,
     #       This should be done in the loop so to cut down on duplicate work.
     print "===========[ TYPES ]=================================================="
     benchmarks = summary.keys()
-    pp.pprint(benchmarks)
     # TODO
     # print "---------------[ Common to ALL ]--------------------------------------"
     # common_all = set.intersection( *[ set(summary[b]["types"].keys()) for b in benchmarks ] )
@@ -751,8 +752,9 @@ def process_config( args ):
     edgeinfo_config = config_section_map( "edgeinfo", config_parser )
     objectinfo_config = config_section_map( "objectinfo", config_parser )
     summary_config = config_section_map( "summary_cpp", config_parser )
+    pdfs_config = config_section_map( "pdfs", config_parser )
     return ( global_config, etanalyze_config, main_config, edge_config,
-             edgeinfo_config, objectinfo_config, summary_config )
+             edgeinfo_config, objectinfo_config, summary_config, pdfs_config )
 
 def main():
     parser = create_parser()
@@ -761,7 +763,7 @@ def main():
     benchmark = args.benchmark
     assert( args.config != None )
     global_config, etanalyze_config, main_config, edge_config, \
-        edgeinfo_config, objectinfo_config, summary_config  = process_config( args )
+        edgeinfo_config, objectinfo_config, summary_config, pdfs_config  = process_config( args )
     # logging
     logger = setup_logger( filename = args.logfile,
                            debugflag = global_config["debug"] )
@@ -779,6 +781,7 @@ def main():
                          objectinfo_config = objectinfo_config,
                          summary_config = summary_config,
                          global_config = global_config,
+                         pdfs_config = pdfs_config,
                          logger = logger )
 
 if __name__ == "__main__":
