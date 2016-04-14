@@ -247,8 +247,6 @@ def render_graphs( rscript_path = None,
             csvfile_abs, # The csv file that contains the data
             graph_dir, ] # Where to place the PDF output files
     print "Running R barplot script  on %s -> directory %s" % (csvfile, graph_dir)
-    print cmd
-    exit(1212)
     logger.debug( "[ %s ]" % str(cmd) )
     renderproc = subprocess.Popen( cmd,
                                    stdout = subprocess.PIPE,
@@ -260,6 +258,7 @@ def render_graphs( rscript_path = None,
         for x in result:
             logger.debug(str(x))
         logger.debug("--------------------------------------------------------------------------------")
+    # TODO: Parse the result to figure out if it went wrong.
 
 def output_R( benchmark = None ):
     pass
@@ -281,7 +280,7 @@ def output_summary( output_path = None,
                    "died_by_heap", "died_by_stack", "died_at_end",
                    "died_by_stack_after_heap", "died_by_stack_only",
                    "last_update_null",
-                   "died_by_stack_size", "died_by_heap_size",
+                   "died_by_stack_size", "died_by_heap_size", "died_at_end_size",
                    "last_update_null_heap", "last_update_null_stack", "max_live_size",
                    "last_update_null_size", "last_update_null_heap_size", "last_update_null_stack_size",
                    "died_by_stack_after_heap_size", "died_by_stack_only_size",
@@ -292,7 +291,7 @@ def output_summary( output_path = None,
                     d["died_by_heap"], d["died_by_stack"], d["died_at_end"],
                     d["died_by_stack_after_heap"], d["died_by_stack_only"],
                     d["last_update_null"],
-                    d["size_died_by_stack"], d["size_died_by_heap"],
+                    d["size_died_by_stack"], d["size_died_by_heap"], d["size_died_at_end"],
                     d["last_update_null_heap"], d["last_update_null_stack"], d["max_live_size"],
                     d["last_update_null_size"], d["last_update_null_heap_size"], d["last_update_null_stack_size"],
                     d["died_by_stack_after_heap_size"], d["died_by_stack_only_size"],
@@ -447,6 +446,7 @@ def summary_by_size( objinfo = None,
 
 def skip_file( fname = None ):
     return ( (fname == "docopy.sh") or
+             (fname == "email.sh") or
              (fname == "README.txt") )
 
 def backup_old_graphs( graph_dir_path = None,
@@ -500,9 +500,9 @@ def backup_old_graphs( graph_dir_path = None,
     tgtfile = os.path.join( backup_graph_dir_path, bz2filename )
     print "Moving: %s --> %s" % (bz2filename, backup_graph_dir_path)
     move( bz2filename, backup_graph_dir_path )
-    print "BGD:", backup_graph_dir
+    print "BGD:", backup_graph_dir_path
     print "bz2filename:", bz2filename
-    assert( os.path.isfile( os.path.join( backup_graph_dir, bz2filename ) ) )
+    assert( os.path.isfile( os.path.join( backup_graph_dir_path, bz2filename ) ) )
     print "Attempting to remove %s" % temp_dir
     rmtree( temp_dir )
 
@@ -645,9 +645,9 @@ def main_process( output = None,
     print_summary( summary )
     # TODO: Save the largest X cycles.
     #       This should be done in the loop so to cut down on duplicate work.
-    print "===========[ TYPES ]=================================================="
-    benchmarks = summary.keys()
     # TODO
+    # print "===========[ TYPES ]=================================================="
+    # benchmarks = summary.keys()
     # print "---------------[ Common to ALL ]--------------------------------------"
     # common_all = set.intersection( *[ set(summary[b]["types"].keys()) for b in benchmarks ] )
     # common_all = [ rev_typedict[x] for x in common_all ]
