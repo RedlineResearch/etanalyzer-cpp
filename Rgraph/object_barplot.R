@@ -252,7 +252,7 @@ d$byHeapAfterValid_percent <- round( ((d$died_by_heap - d$last_update_null_heap)
 d$byHeapAfterNull_percent <- round( (d$last_update_null_heap / d$total_objects) * 100, digits = 2 )
 d$benchmark <- factor( d$benchmark, levels = d[ order( d$max_live_size), "benchmark" ] )
 xcsv.heap.melt <- melt(d[,c( "benchmark", "byHeapAfterNull_percent", "byHeapAfterValid_percent", "byStack_percent" )])
-xcsv.stack.melt <- melt(d[,c( "benchmark", "byHeap_percent", "byStackAfterHeap_percent", "byStackOnly_percent" )])
+xcsv.stack.melt <- melt(d[,c( "benchmark", "byHeap_percent", "byStackAfterHeap_percent", "byStackOnly_percent", "atEnd_percent" )])
 
 xlabel <- "Benchmark"
 ylabel <- "Objects"
@@ -264,11 +264,12 @@ result = tryCatch( {
                           y = value,
                           fill = variable ) )
         p <- p + geom_bar( stat = "identity" ) + coord_flip()
-        p <- p + scale_fill_manual( values = c("#4292C6", "#CCECE6", "#33A02C"),
+        p <- p + scale_fill_manual( values = c("#E41A1C", "#C994C7", "#A6CEE3", "#4DAF4A"),
                                     name = "Objects died",
                                     labels = c("By heap",
                                                "By stack after heap",
-                                               "By stack only") )
+                                               "By stack only",
+                                               "Program end") )
         p <- p + labs( x = xlabel, y = ylabel )
         ggsave(filename = deathreason.out, plot = p)
     }, warning = function(w) {
@@ -412,7 +413,7 @@ result = tryCatch( {
                           y = value,
                           fill = variable ) )
         p <- p + geom_bar( stat = "identity" ) + coord_flip()
-        p <- p + scale_fill_manual( values = c("#A6CEE3", "#4292C6"),
+        p <- p + scale_fill_manual( values = c("#FDD49E", "#D7301F"),
                                     labels = c("After null",
                                                "To valid target") )
         p <- p + labs( x = xlabel, y = ylabel )
@@ -443,7 +444,7 @@ result = tryCatch( {
                           y = value,
                           fill = variable ) )
         p <- p + geom_bar( stat = "identity" ) + coord_flip()
-        p <- p + scale_fill_manual( values = c("#CCECE6", "#33A02C"),
+        p <- p + scale_fill_manual( values = c("#FDD49E", "#08519C"),
                                     name = "% of objects died",
                                     labels = c("By stack after heap", "By stack only") )
         p <- p + labs( x = xlabel, y = ylabel )
