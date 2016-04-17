@@ -228,75 +228,37 @@ def row_to_string( row ):
     strout.close()
     return result.replace("\r", "")
 
-def render_histogram( histfile = None,
-                      title = None ):
-    outpng = histfile + ".png"
-    cmd = [ "/data/rveroy/bin/Rscript",
-            "/data/rveroy/pulsrc/etanalyzer/Rgraph/histogram.R", # TODO Hard coded for now.
-            # Put into config. TODO TODO TODO
-            histfile, outpng,
-            "800", "800",
-            title, ]
-    print "Running histogram.R on %s -> %s" % (histfile, outpng)
-    print "[ %s ]" % cmd
+def render_graphs( rscript_path = None,
+                   barplot_script = None,
+                   csvfile = None,
+                   graph_dir = None,
+                   logger = None,
+                   debugflag = False ):
+    curdir = os.getcwd()
+    csvfile_abs = os.path.join( curdir, csvfile )
+    assert( os.path.isfile( rscript_path ) )
+    assert( os.path.isfile( barplot_script ) )
+    print csvfile
+    print csvfile_abs
+    assert( os.path.isfile( csvfile_abs ) )
+    assert( os.path.isdir( graph_dir ) )
+    cmd = [ rscript_path, # The Rscript executable
+            barplot_script, # Our R script that generates the plots/graphs
+            csvfile_abs, # The csv file that contains the data
+            graph_dir, ] # Where to place the PDF output files
+    print "Running R barplot script  on %s -> directory %s" % (csvfile, graph_dir)
+    logger.debug( "[ %s ]" % str(cmd) )
     renderproc = subprocess.Popen( cmd,
                                    stdout = subprocess.PIPE,
                                    stdin = subprocess.PIPE,
                                    stderr = subprocess.PIPE )
     result = renderproc.communicate()
-    print "--------------------------------------------------------------------------------"
-    for x in result:
-        print x
-    print "--------------------------------------------------------------------------------"
-
-def write_histogram( results = None,
-                     tgtbase  = None,
-                     title = None ):
-    # TODO Use a list and a for loop to refactor.
-    tgtpath_totals = tgtbase + "-totals.csv"
-    tgtpath_cycles = tgtbase + "-cycles.csv"
-    tgtpath_types = tgtbase + "-types.csv"
-    with open(tgtpath_totals, 'wb') as fp_totals, \
-         open(tgtpath_cycles, 'wb') as fp_cycles, \
-         open(tgtpath_types, 'wb') as fp_types:
-        # TODO REFACTOR into a loop
-        # TODO 2015-1103 - RLV TODO
-        header = [ "benchmark", "total" ]
-        csvw = {}
-        csvw["totals"] = csv.writer( fp_totals,
-                                     quotechar = '"',
-                                     quoting = csv.QUOTE_NONNUMERIC )
-        csvw["largest_cycle"] = csv.writer( fp_cycles,
-                                            quotechar = '"',
-                                            quoting = csv.QUOTE_NONNUMERIC )
-        csvw["largest_cycle_types_set"] = csv.writer( fp_types,
-                                                      quotechar = '"',
-                                                      quoting = csv.QUOTE_NONNUMERIC )
-        keys = csvw.keys()
-        dframe = {}
-        for key in keys:
-            csvw[key].writerow( header )
-            dframe[key] = []
-        for benchmark, infodict in results.iteritems():
-            for key in keys:
-                assert( key in infodict )
-                for item in infodict[key]:
-                    row = [ benchmark, item ] if key == "totals" \
-                          else [ benchmark, len(item) ]
-                    dframe[key].append(row)
-        sorted_result = [ (key, sorted( dframe[key], key = itemgetter(0) )) for key in keys ]
-        for key, result in sorted_result:
-            for csvrow in result:
-                csvw[key].writerow( csvrow )
-    # TODO TODO TODO TODO
-    # TODO TODO TODO: SPAWN OFF THREAD
-    # TODO TODO TODO TODO
-    render_histogram( histfile = tgtpath_totals,
-                      title = title )
-    render_histogram( histfile = tgtpath_cycles,
-                      title = title )
-    render_histogram( histfile = tgtpath_types,
-                      title = title )
+    if debugflag:
+        logger.debug("--------------------------------------------------------------------------------")
+        for x in result:
+            logger.debug(str(x))
+        logger.debug("--------------------------------------------------------------------------------")
+    # TODO: Parse the result to figure out if it went wrong.
 
 def output_R( benchmark = None ):
     pass
@@ -318,19 +280,18 @@ def output_summary( output_path = None,
                    "died_by_heap", "died_by_stack", "died_at_end",
                    "died_by_stack_after_heap", "died_by_stack_only",
                    "last_update_null",
-                   "died_by_stack_size", "died_by_heap_size",
+                   "died_by_stack_size", "died_by_heap_size", "died_at_end_size",
                    "last_update_null_heap", "last_update_null_stack", "max_live_size",
                    "last_update_null_size", "last_update_null_heap_size", "last_update_null_stack_size",
                    "died_by_stack_after_heap_size", "died_by_stack_only_size",
                    ]
         csvwriter.writerow( header )
         for bmark, d in summary.iteritems():
-            print "X:", bmark
             row = [ bmark, d["number_of_objects"], d["number_of_edges"],
                     d["died_by_heap"], d["died_by_stack"], d["died_at_end"],
                     d["died_by_stack_after_heap"], d["died_by_stack_only"],
                     d["last_update_null"],
-                    d["size_died_by_stack"], d["size_died_by_heap"],
+                    d["size_died_by_stack"], d["size_died_by_heap"], d["size_died_at_end"],
                     d["last_update_null_heap"], d["last_update_null_stack"], d["max_live_size"],
                     d["last_update_null_size"], d["last_update_null_heap_size"], d["last_update_null_stack_size"],
                     d["died_by_stack_after_heap_size"], d["died_by_stack_only_size"],
@@ -485,6 +446,7 @@ def summary_by_size( objinfo = None,
 
 def skip_file( fname = None ):
     return ( (fname == "docopy.sh") or
+             (fname == "email.sh") or
              (fname == "README.txt") )
 
 def backup_old_graphs( graph_dir_path = None,
@@ -506,7 +468,6 @@ def backup_old_graphs( graph_dir_path = None,
     assert( not os.path.exists( tfilename ) )
     tarfp = tarfile.open( tfilename, mode = 'a' )
     print "Taring to: %s" % tfilename
-    old_dir = os.getcwd()
     os.chdir( graph_dir_path )
     flist = []
     for fname in os.listdir( graph_dir_path ):
@@ -539,10 +500,11 @@ def backup_old_graphs( graph_dir_path = None,
     tgtfile = os.path.join( backup_graph_dir_path, bz2filename )
     print "Moving: %s --> %s" % (bz2filename, backup_graph_dir_path)
     move( bz2filename, backup_graph_dir_path )
-    assert( os.path.isfile( os.path.join( backup_graph_dir, bz2filename ) ) )
+    print "BGD:", backup_graph_dir_path
+    print "bz2filename:", bz2filename
+    assert( os.path.isfile( os.path.join( backup_graph_dir_path, bz2filename ) ) )
     print "Attempting to remove %s" % temp_dir
     rmtree( temp_dir )
-    os.chdir( old_dir )
 
 def main_process( output = None,
                   main_config = None,
@@ -663,20 +625,29 @@ def main_process( output = None,
     print "===========[ SUMMARY ]================================================"
     output_summary( output_path = output,
                     summary = summary )
+    old_dir = os.getcwd()
     backup_old_graphs( graph_dir_path = graph_dir_path,
                        pdfs_config = pdfs_config,
                        backup_graph_dir_path = backup_graph_dir_path,
                        base_temp_dir = temp_dir,
                        today = today )
+    os.chdir( old_dir )
     # run object_barplot.R
+    render_graphs( rscript_path = global_config["rscript_path"],
+                   barplot_script = global_config["barplot_script"],
+                   csvfile = output, # csvfile is the input from the output_summary earlier 
+                   graph_dir = global_config["graph_dir"],
+                   logger = logger,
+                   debugflag = debugflag )
+    #=====[ DONE ]=============================================================
     os.chdir( olddir )
     # Print out results in this format:
     print_summary( summary )
     # TODO: Save the largest X cycles.
     #       This should be done in the loop so to cut down on duplicate work.
-    print "===========[ TYPES ]=================================================="
-    benchmarks = summary.keys()
     # TODO
+    # print "===========[ TYPES ]=================================================="
+    # benchmarks = summary.keys()
     # print "---------------[ Common to ALL ]--------------------------------------"
     # common_all = set.intersection( *[ set(summary[b]["types"].keys()) for b in benchmarks ] )
     # common_all = [ rev_typedict[x] for x in common_all ]

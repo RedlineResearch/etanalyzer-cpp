@@ -109,7 +109,7 @@ ylabel <- "Percentage of objects"
 d <- xcsv
 # Sort the benchmarks
 d$benchmark <- factor(d$benchmark, levels = d[ order(d$max_live_size), "benchmark"])
-xcsv.melt <- melt(d[,c("benchmark", "byHeap_percent", "byStack_percent")])
+xcsv.melt <- melt(d[,c("benchmark", "byHeap_percent", "byStack_percent", "atEnd_percent")])
 result = tryCatch( {
         p <- ggplot( xcsv.melt,
                      aes( x = benchmark,
@@ -117,9 +117,13 @@ result = tryCatch( {
                           fill = variable ) )
         p <- p + labs( x = xlabel, y = ylabel )
         p <- p + geom_bar( stat = "identity" ) + coord_flip()
-        p <- p + scale_fill_manual( values = c("#4292C6", "#33A02C"),
+        # Use colors:
+        #     ByHeap  = "#E41A1C"
+        #     ByStack = "#A6CEE3"
+        #     AtEnd   = "#7FC97F"
+        p <- p + scale_fill_manual( values = c("#E41A1C", "#A6CEE3", "#4DAF4A"),
                                     name = "% of objects died",
-                                    labels = c("By heap", "By stack") )
+                                    labels = c("By heap", "By stack", "Program end") )
         ggsave(filename = deathreason.out, plot = p)
     }, warning = function(w) {
         print(paste("WARNING: failed on death reason stack vs heap."))
@@ -137,7 +141,7 @@ ylabel <- "Objects"
 d <- xcsv
 # Sort the benchmarks
 d$benchmark <- factor(d$benchmark, levels = d[ order(d$max_live_size), "benchmark"])
-xcsv.melt <- melt(d[,c("benchmark", "died_by_heap", "died_by_stack")])
+xcsv.melt <- melt(d[,c("benchmark", "died_by_heap", "died_by_stack", "died_at_end")])
 # DEBUG:
 result = tryCatch( {
         p <- ggplot( xcsv.melt,
@@ -145,9 +149,13 @@ result = tryCatch( {
                           y = value,
                           fill = variable ) )
         p <- p +  geom_bar( stat = "identity" ) + coord_flip()
-        p <- p + scale_fill_manual( values = c("#4292C6", "#33A02C"),
+        # Use colors:
+        #     ByHeap  = "#E41A1C"
+        #     ByStack = "#A6CEE3"
+        #     AtEnd   = "#7FC97F"
+        p <- p + scale_fill_manual( values = c("#E41A1C", "#A6CEE3", "#4DAF4A"),
                                     name = "Objects died",
-                                    labels = c("By heap", "By stack") )
+                                    labels = c("By heap", "By stack", "Program end") )
         p <- p + labs( x = xlabel, y = ylabel )
         ggsave(filename = deathreason.out, plot = p)
     }, warning = function(w) {
@@ -169,11 +177,12 @@ xlabel <- "Benchmark"
 ylabel <- "Percentage by size"
 d <- xcsv
 # Sort the benchmarks
-d$byHeapSize_percent <- round( (d$died_by_heap_size / (d$died_by_heap_size + d$died_by_stack_size)) * 100, digits = 2 )
-d$byStackSize_percent <- round( (d$died_by_stack_size / (d$died_by_heap_size + d$died_by_stack_size)) * 100, digits = 2 )
+d$byHeapSize_percent <- round( (d$died_by_heap_size / (d$died_by_heap_size + d$died_by_stack_size + d$died_at_end_size)) * 100, digits = 2 )
+d$byStackSize_percent <- round( (d$died_by_stack_size / (d$died_by_heap_size + d$died_by_stack_size + d$died_at_end_size)) * 100, digits = 2 )
+d$atEndSize_percent <- round( (d$died_at_end_size / (d$died_by_heap_size + d$died_by_stack_size + d$died_at_end_size)) * 100, digits = 2 )
 d$benchmark <- factor(d$benchmark, levels = d[ order(d$max_live_size), "benchmark"])
-xcsv.melt <- melt(d[,c("benchmark", "byHeapSize_percent", "byStackSize_percent")])
-d.actual.size.melt <- melt(d[,c("benchmark", "died_by_heap_size", "died_by_stack_size")])
+xcsv.melt <- melt(d[,c("benchmark", "byHeapSize_percent", "byStackSize_percent", "atEndSize_percent")])
+d.actual.size.melt <- melt(d[,c("benchmark", "died_by_heap_size", "died_by_stack_size", "died_at_end_size")])
 # DEBUG:
 # Plot percentage breakdown heap vs stack - size
 result = tryCatch( {
@@ -182,9 +191,9 @@ result = tryCatch( {
                           y = value,
                           fill = variable ) )
         p <- p + geom_bar( stat = "identity" ) + coord_flip()
-        p <- p + scale_fill_manual( values = c("#4292C6", "#33A02C"),
+        p <- p + scale_fill_manual( values = c("#E41A1C", "#A6CEE3", "#4DAF4A"),
                                     name = "Size % died",
-                                    labels = c("By heap", "By stack") )
+                                    labels = c("By heap", "By stack", "Program end") )
         p <- p + labs( x = xlabel, y = ylabel )
         ggsave(filename = deathreason.out, plot = p)
     }, warning = function(w) {
@@ -207,9 +216,9 @@ result = tryCatch( {
                           y = value,
                           fill = variable ) )
         p <- p + geom_bar( stat = "identity" ) + coord_flip()
-        p <- p + scale_fill_manual( values = c("#4292C6", "#33A02C"),
+        p <- p + scale_fill_manual( values = c("#E41A1C", "#A6CEE3", "#4DAF4A"),
                                      name = "Died",
-                                     labels = c("By heap", "By stack") )
+                                     labels = c("By heap", "By stack", "Program end") )
         p <- p + labs( x = xlabel, y = ylabel )
         ggsave(filename = deathreason.out, plot = p)
     }, warning = function(w) {
@@ -243,7 +252,7 @@ d$byHeapAfterValid_percent <- round( ((d$died_by_heap - d$last_update_null_heap)
 d$byHeapAfterNull_percent <- round( (d$last_update_null_heap / d$total_objects) * 100, digits = 2 )
 d$benchmark <- factor( d$benchmark, levels = d[ order( d$max_live_size), "benchmark" ] )
 xcsv.heap.melt <- melt(d[,c( "benchmark", "byHeapAfterNull_percent", "byHeapAfterValid_percent", "byStack_percent" )])
-xcsv.stack.melt <- melt(d[,c( "benchmark", "byHeap_percent", "byStackAfterHeap_percent", "byStackOnly_percent" )])
+xcsv.stack.melt <- melt(d[,c( "benchmark", "byHeap_percent", "byStackAfterHeap_percent", "byStackOnly_percent", "atEnd_percent" )])
 
 xlabel <- "Benchmark"
 ylabel <- "Objects"
@@ -255,11 +264,12 @@ result = tryCatch( {
                           y = value,
                           fill = variable ) )
         p <- p + geom_bar( stat = "identity" ) + coord_flip()
-        p <- p + scale_fill_manual( values = c("#4292C6", "#CCECE6", "#33A02C"),
+        p <- p + scale_fill_manual( values = c("#E41A1C", "#C994C7", "#A6CEE3", "#4DAF4A"),
                                     name = "Objects died",
                                     labels = c("By heap",
                                                "By stack after heap",
-                                               "By stack only") )
+                                               "By stack only",
+                                               "Program end") )
         p <- p + labs( x = xlabel, y = ylabel )
         ggsave(filename = deathreason.out, plot = p)
     }, warning = function(w) {
@@ -403,7 +413,7 @@ result = tryCatch( {
                           y = value,
                           fill = variable ) )
         p <- p + geom_bar( stat = "identity" ) + coord_flip()
-        p <- p + scale_fill_manual( values = c("#A6CEE3", "#4292C6"),
+        p <- p + scale_fill_manual( values = c("#FDD49E", "#D7301F"),
                                     labels = c("After null",
                                                "To valid target") )
         p <- p + labs( x = xlabel, y = ylabel )
@@ -434,7 +444,7 @@ result = tryCatch( {
                           y = value,
                           fill = variable ) )
         p <- p + geom_bar( stat = "identity" ) + coord_flip()
-        p <- p + scale_fill_manual( values = c("#CCECE6", "#33A02C"),
+        p <- p + scale_fill_manual( values = c("#FDD49E", "#08519C"),
                                     name = "% of objects died",
                                     labels = c("By stack after heap", "By stack only") )
         p <- p + labs( x = xlabel, y = ylabel )
