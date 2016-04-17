@@ -5,8 +5,8 @@
 #include "execution.h"
 
 CCMap g_callees;
-CCMap CCNode::m_callees = g_callees;
-CCMap ExecState::m_callees = g_callees;
+CCMap &CCNode::m_callees = g_callees;
+CCMap &ExecState::m_callees = g_callees;
 
 // ----------------------------------------------------------------------
 //   Calling context tree

@@ -379,6 +379,8 @@ int main(int argc, char* argv[])
 
     Heap.end_of_program(Exec.Now());
 
+    CCMap::iterator citer = Exec.begin_callees();
+
     ofstream summary_file(summary_filename);
     summary_file << "---------------[ SUMMARY INFO ]----------------------------------------------------" << endl;
     summary_file << "number_of_objects," << Heap.size() << endl
