@@ -31,7 +31,7 @@ class CCNode
         Method* m_method;
         CCNode* m_parent;
         // -- Map from method IDs to callee contexts
-        CCMap m_callees;
+        static CCMap &m_callees;
 
     public:
         CCNode()
@@ -140,6 +140,8 @@ class ExecState
         ThreadMap m_threads;
         // -- Time
         unsigned int m_time;
+        // -- Map from method IDs to callee contexts
+        static CCMap &m_callees;
     public:
         ExecState(unsigned int kind)
             : m_kind(kind)
@@ -164,6 +166,10 @@ class ExecState
 
         // -- Get the top calling context in thread t
         CCNode* TopCC(unsigned int threadid);
+
+        // Get the iterator for the CCMap
+        CCMap::iterator begin_callees() { return m_callees.begin(); }
+        CCMap::iterator end_callees() { return m_callees.end(); }
 };
 
 #endif
