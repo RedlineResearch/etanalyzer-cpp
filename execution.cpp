@@ -56,8 +56,38 @@ string CCNode::stacktrace()
     return ss.str();
 }
 
+// TODO
+// simple_stacktrace
+// A version that returns a list/vector of ???
+// - method ids
+// - method pointers
+// - ?????
+// string CCNode::stacktrace()
+// {
+//     stringstream ss;
+//     CCNode* cur = this;
+//     while (cur) {
+//         ss << cur->info() << endl;
+//         cur = cur->getParent();
+//     }
+//     return ss.str();
+// }
+
 bool CCNode::simple_cc_equal( CCNode &other )
 {
+    // Relies on the fact that Method * are unique even
+    // if the CCNodes are different as long as they refer
+    // to the same method. A different CCNode will mean
+    // a different invocation.
+    if (this->getMethod() != other.getMethod()) {
+        return false;
+    }
+    CCNode *self_ptr = this->getParent();
+    CCNode *other_ptr = other.getParent();
+    if ((self_ptr == NULL || other_ptr == NULL)) {
+        return (self_ptr == other_ptr);
+    }
+    return (self_ptr->simple_cc_equal(*other_ptr));
 }
 
 // ----------------------------------------------------------------------
