@@ -37,7 +37,7 @@ ObjectPtrMap_t whereis;
 HeapState Heap;
 
 // -- Execution state
-ExecState Exec(2); // Method-only context
+ExecState Exec(1); // Full CC tree
 
 // -- Turn on debugging
 bool debug = false;
@@ -348,20 +348,15 @@ void debug_GC_history( deque< GCRecord_t > &GC_history )
 
 int main(int argc, char* argv[])
 {
-    if (argc != 5) {
+    if (argc != 4) {
         cout << argc << endl;
-        cout << "Usage: " << argv[0] << " <namesfile> <dgroups-csv-file> <output base name> <memsize>" << endl;
+        cout << "Usage: " << argv[0] << " <namesfile> <output base name>" << endl;
         exit(1);
     }
-    string dgroups_csvfile(argv[2]);
-    string basename(argv[3]);
+    // TODO string dgroups_csvfile(argv[2]);
+    string basename(argv[2]);
     string summary_filename( basename + "-SUMMARY.csv" );
-    int memsize = std::stoi(argv[4]);
-    cout << "Memory size: " << memsize << " bytes." << endl;
 
-    std::vector<int> mem_sizes;
-    mem_sizes.push_back( memsize );
-    Heap.initialize_memory( mem_sizes );
     cout << "Read names file..." << endl;
     ClassInfo::read_names_file(argv[1]);
 
@@ -379,7 +374,10 @@ int main(int argc, char* argv[])
 
     Heap.end_of_program(Exec.Now());
 
-    CCMap::iterator citer = Exec.begin_callees();
+    for ( CCMap::iterator citer = Exec.begin_callees();
+          citer != Exec.end_callees();
+          citer++ ) {
+    }
 
     ofstream summary_file(summary_filename);
     summary_file << "---------------[ SUMMARY INFO ]----------------------------------------------------" << endl;

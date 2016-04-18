@@ -61,6 +61,9 @@ class CCNode
 
         // -- Generate a stack trace
         string stacktrace();
+
+        // Method name equality
+        bool simple_cc_equal( CCNode &other );
 };
 
 // ----------------------------------------------------------------------
@@ -167,7 +170,7 @@ class ExecState
         // -- Get the top calling context in thread t
         CCNode* TopCC(unsigned int threadid);
 
-        // Get the iterator for the CCMap
+        // Get the iterator begin and and for the CCMap
         CCMap::iterator begin_callees() { return m_callees.begin(); }
         CCMap::iterator end_callees() { return m_callees.end(); }
 };

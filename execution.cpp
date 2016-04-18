@@ -56,6 +56,10 @@ string CCNode::stacktrace()
     return ss.str();
 }
 
+bool CCNode::simple_cc_equal( CCNode &other )
+{
+}
+
 // ----------------------------------------------------------------------
 //   Thread representation
 //   (Essentially, the stack)
