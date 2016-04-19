@@ -339,7 +339,7 @@ unsigned int read_trace_file(FILE* f)
 
 int main(int argc, char* argv[])
 {
-    if (argc != 4) {
+    if (argc != 3) {
         cout << argc << endl;
         cout << "Usage: " << argv[0] << " <namesfile> <output base name>" << endl;
         exit(1);
