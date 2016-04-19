@@ -5,9 +5,6 @@
 #include "execution.h"
 
 CCMap g_callees;
-//TODO CCMap &CCNode::m_callees = g_callees;
-//TODO CCMap &ExecState::m_callees = g_callees;
-
 // ----------------------------------------------------------------------
 //   Calling context tree
 
@@ -96,6 +93,32 @@ bool CCNode::simple_cc_equal( CCNode &other )
     }
     return (self_ptr->simple_cc_equal(*other_ptr));
 }
+
+// ----------------------------------------------------------------------
+//    Calling tree node
+
+CTreeNode *CTreeNode::Call(Method *m)
+{
+    CTreeNode* result = 0;
+    CCMap::iterator p = m_callees.find(m->getId());
+    if (p == m_callees.end()) {
+        result = new CTreeNode(this, m);
+        m_callees[m->getId()] = result;
+    } else {
+        result = (*p).second;
+    }
+    return result;
+}
+
+CTreeNode *CTreeNode::Return(Method *m)
+{
+    if (m_method != m) {
+        cout << "WEIRD: Returning from the wrong method " << m->info() << endl;
+        cout << "WEIRD:    should be " << m_method->info() << endl;
+    }
+    return m_parent;
+}
+
 
 // ----------------------------------------------------------------------
 //   Thread representation

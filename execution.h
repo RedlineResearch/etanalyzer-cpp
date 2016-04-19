@@ -18,7 +18,9 @@ using namespace std;
 //   Calling context tree
 
 class CCNode;
+class CTreeNode;
 typedef map<unsigned int, CCNode *> CCMap;
+typedef map<unsigned int, CTreeNode *> CTreeMap;
 
 enum class ExecMode {
     CCMode = 1,
@@ -31,7 +33,6 @@ class CCNode
         Method* m_method;
         CCNode* m_parent;
         // -- Map from method IDs to callee contexts
-        // TODO static CCMap &m_callees;
         CCMap m_callees;
         // Flag indicating whether simple method trace has been saved
         bool m_simple_done;
@@ -77,6 +78,31 @@ class CCNode
         // Has simple trace been saved for this CCNode?
         bool isSimpleDone() { return this->m_simple_done; }
         bool setSimpleDone() { this->m_simple_done = true; }
+};
+
+class CTreeNode
+{
+    private:
+        Method* m_method;
+        CTreeNode* m_parent;
+        CTreeMap m_callees;
+    public:
+        CTreeNode( CTreeNode* parent, Method* m )
+            : m_method(m)
+            , m_parent(parent) {
+        }
+        // -- Get method
+        Method *getMethod() const { return m_method; }
+        // -- Get parent context (if there is one)
+        CTreeNode *getParent() const { return m_parent; }
+        // -- Call a method, making a new child context if necessary
+        CTreeNode *Call(Method *m);
+        // -- Return from a method, returning the parent context
+        CTreeNode *Return(Method *m);
+        // Method name equality
+        bool simple_cc_equal( CTreeNode &other );
+        // TODO
+        deque<Method *> simple_stacktrace();
 };
 
 // ----------------------------------------------------------------------
@@ -156,8 +182,6 @@ class ExecState
         ThreadMap m_threads;
         // -- Time
         unsigned int m_time;
-        // -- Map from method IDs to callee contexts
-        // TODO static CCMap &m_callees;
     public:
         ExecState(unsigned int kind)
             : m_kind(kind)
@@ -183,9 +207,6 @@ class ExecState
         // -- Get the top calling context in thread t
         CCNode* TopCC(unsigned int threadid);
 
-        // Get the iterator begin and and for the CCMap
-        // TODO CCMap::iterator begin_callees() { return m_callees.begin(); }
-        // TODO CCMap::iterator end_callees() { return m_callees.end(); }
 };
 
 #endif
