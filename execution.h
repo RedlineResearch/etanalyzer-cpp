@@ -31,7 +31,8 @@ class CCNode
         Method* m_method;
         CCNode* m_parent;
         // -- Map from method IDs to callee contexts
-        static CCMap &m_callees;
+        // TODO static CCMap &m_callees;
+        CCMap m_callees;
         // Flag indicating whether simple method trace has been saved
         bool m_simple_done;
         // Caching the simple_stacktrace
@@ -156,7 +157,7 @@ class ExecState
         // -- Time
         unsigned int m_time;
         // -- Map from method IDs to callee contexts
-        static CCMap &m_callees;
+        // TODO static CCMap &m_callees;
     public:
         ExecState(unsigned int kind)
             : m_kind(kind)
@@ -183,8 +184,8 @@ class ExecState
         CCNode* TopCC(unsigned int threadid);
 
         // Get the iterator begin and and for the CCMap
-        CCMap::iterator begin_callees() { return m_callees.begin(); }
-        CCMap::iterator end_callees() { return m_callees.end(); }
+        // TODO CCMap::iterator begin_callees() { return m_callees.begin(); }
+        // TODO CCMap::iterator end_callees() { return m_callees.end(); }
 };
 
 #endif

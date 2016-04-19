@@ -362,10 +362,10 @@ int main(int argc, char* argv[])
 
     Heap.end_of_program(Exec.Now());
 
-    for ( CCMap::iterator citer = Exec.begin_callees();
-          citer != Exec.end_callees();
-          citer++ ) {
-    }
+    // TODO for ( CCMap::iterator citer = Exec.begin_callees();
+    // TODO       citer != Exec.end_callees();
+    // TODO       citer++ ) {
+    // TODO }
 
     ofstream summary_file(summary_filename);
     summary_file << "---------------[ SUMMARY INFO ]----------------------------------------------------" << endl;
