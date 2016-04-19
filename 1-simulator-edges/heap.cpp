@@ -5,11 +5,6 @@ bool HeapState::do_refcounting = true;
 bool HeapState::debug = false;
 unsigned int Object::g_counter = 0;
 
-bool HeapState::initialize_memory( std::vector<int> sizes )
-{
-    return this->m_memmgr.initialize_memory( sizes );
-}
-
 Object* HeapState::allocate( unsigned int id,
                              unsigned int size,
                              char kind,
@@ -35,8 +30,6 @@ Object* HeapState::allocate( unsigned int id,
     if (this->m_maxLiveSize < this->m_liveSize) {
         this->m_maxLiveSize = this->m_liveSize;
     }
-    // Call the Memory Manager allocate
-    this->m_memmgr.allocate( obj, create_time );
     return obj;
 }
 
@@ -81,8 +74,7 @@ void HeapState::makeDead(Object * obj, unsigned int death_time)
         // All good. Fight on.
         this->m_liveSize = temp;
     }
-    this->m_memmgr.makeDead( obj, death_time );
-    // obj->makeDead(death_time);
+    obj->makeDead(death_time);
 }
 
 // TODO Documentation :)

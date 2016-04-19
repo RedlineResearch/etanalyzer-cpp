@@ -32,11 +32,16 @@ class CCNode
         CCNode* m_parent;
         // -- Map from method IDs to callee contexts
         static CCMap &m_callees;
+        // Flag indicating whether simple method trace has been saved
+        bool m_simple_done;
+        // Caching the simple_stacktrace
+        deque<Method *> m_simptrace;
 
     public:
         CCNode()
             : m_method(0)
-            , m_parent(0) {
+            , m_parent(0)
+            , m_simple_done(false) {
         }
 
         CCNode( CCNode* parent, Method* m )
@@ -64,6 +69,13 @@ class CCNode
 
         // Method name equality
         bool simple_cc_equal( CCNode &other );
+
+        // TODO
+        deque<Method *> simple_stacktrace();
+
+        // Has simple trace been saved for this CCNode?
+        bool isSimpleDone() { return this->m_simple_done; }
+        bool setSimpleDone() { this->m_simple_done = true; }
 };
 
 // ----------------------------------------------------------------------

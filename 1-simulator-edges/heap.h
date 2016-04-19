@@ -15,7 +15,6 @@
 
 #include "classinfo.h"
 #include "refstate.h"
-#include "memorymgr.h"
 
 class Object;
 class Thread;
@@ -77,8 +76,6 @@ class HeapState
         ObjectMap m_objects;
         // -- Set of edges (all pointers)
         EdgeSet m_edges;
-        // Memory manager
-        MemoryMgr m_memmgr;
 
         unsigned long int m_liveSize; // current live size of program in bytes
         unsigned long int m_maxLiveSize; // max live size of program in bytes
@@ -104,7 +101,6 @@ class HeapState
     public:
         HeapState()
             : m_objects()
-            , m_memmgr(0.80) // default GC threshold of 80 percent
             , m_maxLiveSize(0)
             , m_liveSize(0)
             , m_totalDiedByHeap_ver2(0)
@@ -118,8 +114,6 @@ class HeapState
 
         // Initializes all the regions. Vector contains size of regions
         // corresponding to levels of regions according to index.
-        virtual bool initialize_memory( std::vector<int> sizes );
-
         void enableObjectDebug() { m_obj_debug_flag = true; }
         void disableObjectDebug() { m_obj_debug_flag = false; }
 
@@ -161,7 +155,6 @@ class HeapState
 
         void set_reason_for_cycles( deque< deque<int> >& cycles );
 
-        deque<GCRecord_t> get_GC_history() { return this->m_memmgr.get_GC_history(); }
 };
 
 enum Color {
