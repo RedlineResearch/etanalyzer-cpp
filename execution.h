@@ -134,8 +134,6 @@ class Thread
         unsigned int m_kind;
         // -- CC tree representation
         CCNode *m_curcc;
-        // Root CCNode
-        CCNode m_rootcc;
         // -- Stack of methods
         MethodDeque m_methods;
         // -- Local stack variables that have root events in this scope
@@ -172,6 +170,8 @@ class Thread
         void objectRoot(Object * object);
         // -- Check dead object
         bool isLocalVariable(Object *object);
+        // Root CCNode
+        CCNode m_rootcc;
         // Get root node CC
         CCNode &getRootCCNode() { return m_rootcc; }
 };
