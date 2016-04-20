@@ -18,9 +18,9 @@ using namespace std;
 //   Calling context tree
 
 class CCNode;
-class CTreeNode;
+// TODO class CTreeNode;
 typedef map<unsigned int, CCNode *> CCMap;
-typedef map<unsigned int, CTreeNode *> CTreeMap;
+// TODO typedef map<unsigned int, CTreeNode *> CTreeMap;
 
 enum class ExecMode {
     CCMode = 1,
@@ -80,30 +80,30 @@ class CCNode
         bool setSimpleDone() { this->m_simple_done = true; }
 };
 
-class CTreeNode
-{
-    private:
-        Method* m_method;
-        CTreeNode* m_parent;
-        CTreeMap m_callees;
-    public:
-        CTreeNode( CTreeNode* parent, Method* m )
-            : m_method(m)
-            , m_parent(parent) {
-        }
-        // -- Get method
-        Method *getMethod() const { return m_method; }
-        // -- Get parent context (if there is one)
-        CTreeNode *getParent() const { return m_parent; }
-        // -- Call a method, making a new child context if necessary
-        CTreeNode *Call(Method *m);
-        // -- Return from a method, returning the parent context
-        CTreeNode *Return(Method *m);
-        // Method name equality
-        bool simple_cc_equal( CTreeNode &other );
-        // TODO
-        deque<Method *> simple_stacktrace();
-};
+// TODO class CTreeNode
+// TODO {
+// TODO     private:
+// TODO         Method* m_method;
+// TODO         CTreeNode* m_parent;
+// TODO         CTreeMap m_callees;
+// TODO     public:
+// TODO         CTreeNode( CTreeNode* parent, Method* m )
+// TODO             : m_method(m)
+// TODO             , m_parent(parent) {
+// TODO         }
+// TODO         // -- Get method
+// TODO         Method *getMethod() const { return m_method; }
+// TODO         // -- Get parent context (if there is one)
+// TODO         CTreeNode *getParent() const { return m_parent; }
+// TODO         // -- Call a method, making a new child context if necessary
+// TODO         CTreeNode *Call(Method *m);
+// TODO         // -- Return from a method, returning the parent context
+// TODO         CTreeNode *Return(Method *m);
+// TODO         // Method name equality
+// TODO         bool simple_cc_equal( CTreeNode &other );
+// TODO         // TODO
+// TODO         deque<Method *> simple_stacktrace();
+// TODO };
 
 // ----------------------------------------------------------------------
 //   Thread representation
@@ -130,7 +130,9 @@ class Thread
         // -- Kind of stack
         unsigned int m_kind;
         // -- CC tree representation
-        CCNode* m_curcc;
+        CCNode *m_curcc;
+        // Root CCNode
+        CCNode m_rootcc;
         // -- Stack of methods
         MethodDeque m_methods;
         // -- Local stack variables that have root events in this scope
@@ -139,11 +141,17 @@ class Thread
         LocalVarDeque m_deadlocals;
         // -- LastEvent
 
+        // TODO // Simple call tree
+        // TODO CTreeNode &m_ctroot;
+        // TODO // Current CTreeNode
+        // TODO CTreeNode *m_curctnode;
+
     public:
         Thread( unsigned int id, unsigned int kind )
             : m_id(id)
             , m_kind(kind)
-            , m_curcc(0) {
+            , m_rootcc()
+            , m_curcc(&m_rootcc) {
             m_locals.push_back(new LocalVarSet());
             m_deadlocals.push_back(new LocalVarSet());
         }

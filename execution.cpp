@@ -4,7 +4,6 @@
 
 #include "execution.h"
 
-CCMap g_callees;
 // ----------------------------------------------------------------------
 //   Calling context tree
 
@@ -94,30 +93,30 @@ bool CCNode::simple_cc_equal( CCNode &other )
     return (self_ptr->simple_cc_equal(*other_ptr));
 }
 
-// ----------------------------------------------------------------------
-//    Calling tree node
-
-CTreeNode *CTreeNode::Call(Method *m)
-{
-    CTreeNode* result = 0;
-    CCMap::iterator p = m_callees.find(m->getId());
-    if (p == m_callees.end()) {
-        result = new CTreeNode(this, m);
-        m_callees[m->getId()] = result;
-    } else {
-        result = (*p).second;
-    }
-    return result;
-}
-
-CTreeNode *CTreeNode::Return(Method *m)
-{
-    if (m_method != m) {
-        cout << "WEIRD: Returning from the wrong method " << m->info() << endl;
-        cout << "WEIRD:    should be " << m_method->info() << endl;
-    }
-    return m_parent;
-}
+// TODO // ----------------------------------------------------------------------
+// TODO //    Calling tree node
+// TODO 
+// TODO CTreeNode *CTreeNode::Call(Method *m)
+// TODO {
+// TODO     CTreeNode* result = 0;
+// TODO     CTreeMap::iterator p = (this->m_callees).find(m->getId());
+// TODO     if (p == m_callees.end()) {
+// TODO         result = new CTreeNode(this, m);
+// TODO         m_callees[m->getId()] = result;
+// TODO     } else {
+// TODO         result = (*p).second;
+// TODO     }
+// TODO     return result;
+// TODO }
+// TODO 
+// TODO CTreeNode *CTreeNode::Return(Method *m)
+// TODO {
+// TODO     if (m_method != m) {
+// TODO         cout << "WEIRD: Returning from the wrong method " << m->info() << endl;
+// TODO         cout << "WEIRD:    should be " << m_method->info() << endl;
+// TODO     }
+// TODO     return m_parent;
+// TODO }
 
 
 // ----------------------------------------------------------------------
@@ -128,7 +127,7 @@ CTreeNode *CTreeNode::Return(Method *m)
 void Thread::Call(Method* m)
 {
     if (m_kind == 1) {
-        CCNode* cur = TopCC();
+        CCNode* cur = this->TopCC();
         m_curcc = cur->Call(m);
     }
 
@@ -147,11 +146,11 @@ void Thread::Call(Method* m)
 void Thread::Return(Method* m)
 {
     if (m_kind == 1) {
-        CCNode* cur = TopCC();
+        CCNode* cur = this->TopCC();
         if (cur->getMethod())
             m_curcc = cur->Return(m);
         else {
-            // cout << "WARNING: Return from " << m->info() << " at top context" << endl;
+            cout << "WARNING: Return from " << m->info() << " at top context" << endl;
             m_curcc = cur;
         }
     }
@@ -181,9 +180,10 @@ CCNode* Thread::TopCC()
 {
     if (m_kind == 1) {
         // -- Create a root context if necessary
-        if (m_curcc == 0) {
-            m_curcc = new CCNode();
-        }
+        assert(m_curcc);
+        // TODO if (m_curcc == 0) {
+        // TODO     m_curcc = new CCNode();
+        // TODO }
         return m_curcc;
     }
 
@@ -287,7 +287,8 @@ Thread* ExecState::getThread(unsigned int threadid)
     ThreadMap::iterator p = m_threads.find(threadid);
     if (p == m_threads.end()) {
         // -- Not there, make a new one
-        result = new Thread(threadid, m_kind);
+        result = new Thread( threadid,
+                             this->m_kind );
         m_threads[threadid] = result;
     } else {
         result = (*p).second;
@@ -300,7 +301,10 @@ Thread* ExecState::getThread(unsigned int threadid)
 void ExecState::Call(Method* m, unsigned int threadid)
 {
     m_time++;
-    getThread(threadid)->Call(m);
+    Thread *t = getThread(threadid);
+    if (t) {
+        t->Call(m);
+    }
 }
 
 // -- Return from method m in thread t
