@@ -335,6 +335,26 @@ unsigned int read_trace_file(FILE* f)
     return total_objects;
 }
 
+unsigned int print_cc_tree( CCNode &node, ofstream &fst )
+{
+    unsigned int src = node.getMethod()->getId();
+    unsigned int total = 0;
+    for ( CCMap::iterator citer = node.begin_callees();
+          citer != node.end_callees();
+          citer++ ) {
+        CCNode *sec = citer->second;
+        fst << src << "," << sec->getMethod()->getId() << endl;
+        ++total;
+    }
+    for ( CCMap::iterator citer = node.begin_callees();
+          citer != node.end_callees();
+          citer++ ) {
+        CCNode *sec = citer->second;
+        total += print_cc_tree( *sec, fst );
+    }
+    return total;
+}
+
 // ----------------------------------------------------------------------
 
 int main(int argc, char* argv[])
@@ -347,6 +367,7 @@ int main(int argc, char* argv[])
     // TODO string dgroups_csvfile(argv[2]);
     string basename(argv[2]);
     string summary_filename( basename + "-SUMMARY.csv" );
+    string cctree_filename( basename + "-CCTREE.csv" );
 
     cout << "Read names file..." << endl;
     ClassInfo::read_names_file(argv[1]);
@@ -362,10 +383,16 @@ int main(int argc, char* argv[])
 
     Heap.end_of_program(Exec.Now());
 
-    // TODO for ( CCMap::iterator citer = Exec.begin_callees();
-    // TODO       citer != Exec.end_callees();
-    // TODO       citer++ ) {
-    // TODO }
+    ofstream cctree_file(cctree_filename);
+    unsigned int total = 0;
+    for ( ThreadMap::iterator titer = Exec.begin_threadmap();
+          titer != Exec.end_threadmap();
+          titer++ ) {
+        // Get root node
+        Thread *t = titer->second;
+        CCNode &root_node = t->getRootCCNode();
+        total += print_cc_tree( root_node, cctree_file );
+    }
 
     ofstream summary_file(summary_filename);
     summary_file << "---------------[ SUMMARY INFO ]----------------------------------------------------" << endl;

@@ -35,7 +35,7 @@ class CCNode
         // -- Map from method IDs to callee contexts
         CCMap m_callees;
         // Flag indicating whether simple method trace has been saved
-        bool m_simple_done;
+        bool m_done;
         // Caching the simple_stacktrace
         deque<Method *> m_simptrace;
 
@@ -43,7 +43,7 @@ class CCNode
         CCNode()
             : m_method(0)
             , m_parent(0)
-            , m_simple_done(false) {
+            , m_done(false) {
         }
 
         CCNode( CCNode* parent, Method* m )
@@ -75,9 +75,12 @@ class CCNode
         // TODO
         deque<Method *> simple_stacktrace();
 
+        CCMap::iterator begin_callees() { return this->m_callees.begin(); }
+        CCMap::iterator end_callees() { return this->m_callees.end(); }
+
         // Has simple trace been saved for this CCNode?
-        bool isSimpleDone() { return this->m_simple_done; }
-        bool setSimpleDone() { this->m_simple_done = true; }
+        bool isDone() { return this->m_done; }
+        bool setDone() { this->m_done = true; }
 };
 
 // TODO class CTreeNode
@@ -141,11 +144,6 @@ class Thread
         LocalVarDeque m_deadlocals;
         // -- LastEvent
 
-        // TODO // Simple call tree
-        // TODO CTreeNode &m_ctroot;
-        // TODO // Current CTreeNode
-        // TODO CTreeNode *m_curctnode;
-
     public:
         Thread( unsigned int id, unsigned int kind )
             : m_id(id)
@@ -174,6 +172,8 @@ class Thread
         void objectRoot(Object * object);
         // -- Check dead object
         bool isLocalVariable(Object *object);
+        // Get root node CC
+        CCNode &getRootCCNode() { return m_rootcc; }
 };
 
 // ----------------------------------------------------------------------
@@ -215,6 +215,9 @@ class ExecState
         // -- Get the top calling context in thread t
         CCNode* TopCC(unsigned int threadid);
 
+        // Get begin iterator of thread map
+        ThreadMap::iterator begin_threadmap() { return this->m_threads.begin(); }
+        ThreadMap::iterator end_threadmap() { return this->m_threads.end(); }
 };
 
 #endif

@@ -12,7 +12,8 @@ CCNode* CCNode::Call(Method* m)
     CCNode* result = 0;
     CCMap::iterator p = m_callees.find(m->getId());
     if (p == m_callees.end()) {
-        result = new CCNode(this, m);
+        result = new CCNode( this, // parent
+                             m );  // method
         m_callees[m->getId()] = result;
     } else {
         result = (*p).second;
@@ -56,7 +57,7 @@ string CCNode::stacktrace()
 // - method pointers
 deque<Method *> CCNode::simple_stacktrace()
 {
-    if (this->isSimpleDone()) {
+    if (this->isDone()) {
         return this->m_simptrace;
     }
     deque<Method *> result;
@@ -71,7 +72,7 @@ deque<Method *> CCNode::simple_stacktrace()
         result = parent_ptr->simple_stacktrace();
     }
     result.push_front(mptr);
-    this->setSimpleDone();
+    this->setDone();
     this->m_simptrace = result;
     return result;
 }
@@ -179,8 +180,8 @@ void Thread::Return(Method* m)
 CCNode* Thread::TopCC()
 {
     if (m_kind == 1) {
-        // -- Create a root context if necessary
         assert(m_curcc);
+        // TODO // -- Create a root context if necessary
         // TODO if (m_curcc == 0) {
         // TODO     m_curcc = new CCNode();
         // TODO }
