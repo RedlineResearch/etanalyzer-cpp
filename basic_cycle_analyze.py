@@ -853,8 +853,6 @@ def main_process( output = None,
     #      * size of objects
     # 2. Number of cycles
     # 3. Size of cycles
-    print "GLOBAL:"
-    pp.pprint(global_config)
     cycle_cpp_dir = global_config["cycle_cpp_dir"]
     work_dir = main_config["directory"]
     results = {}
@@ -1239,6 +1237,10 @@ def main():
     assert( args.config != None )
     global_config, etanalyze_config, main_config, edge_config, \
         edgeinfo_config, objectinfo_config, summary_config  = process_config( args )
+    print "GLOBAL:"
+    pp.pprint( global_config )
+    print "OBJECTINFO:"
+    pp.pprint( objectinfo_config )
     # logging
     logger = setup_logger( filename = args.logfile,
                            debugflag = global_config["debug"] )
