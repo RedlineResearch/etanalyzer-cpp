@@ -337,7 +337,8 @@ unsigned int read_trace_file(FILE* f)
 
 unsigned int print_cc_tree( CCNode &node, ofstream &fst )
 {
-    unsigned int src = node.getMethod()->getId();
+    Method *mptr = node.getMethod();
+    unsigned int src = (mptr ? mptr->getId() : 0); 
     unsigned int total = 0;
     for ( CCMap::iterator citer = node.begin_callees();
           citer != node.end_callees();
