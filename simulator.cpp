@@ -514,7 +514,9 @@ void output_type_summary( string &dgroups_by_type_filename,
 
 void output_all_objects( string &objectinfo_filename,
                          HeapState &myheap,
-                         std::set<ObjectId_t> dag_keys )
+                         std::set<ObjectId_t> dag_keys,
+                         std::set<ObjectId_t> dag_all_set,
+                         std::set<ObjectId_t> all_keys )
 {
     ofstream object_info_file(objectinfo_filename);
     object_info_file << "---------------[ OBJECT INFO ]--------------------------------------------------" << endl;
@@ -523,7 +525,17 @@ void output_all_objects( string &objectinfo_filename,
           ++it ) {
         Object *object = it->second;
         ObjectId_t objId = object->getId();
-        set<ObjectId_t>::iterator diter = dag_keys.find(objId);
+        set<ObjectId_t>::iterator diter = dag_all_set.find(objId);
+        string dgroup_kind;
+        if (diter == dag_all_set.end()) {
+            // Not a DAG object, therefore CYCle
+            set<ObjectId_t>::iterator itmp = all_keys.find(objId);
+            dgroup_kind = ((itmp == all_keys.end()) ? "CYC" : "CYCKEY" );
+        } else {
+            // A DAG object
+            set<ObjectId_t>::iterator itmp = dag_keys.find(objId);
+            dgroup_kind = ((itmp == dag_keys.end()) ? "DAG" : "DAGKEY" );
+        }
         object_info_file << objId
             << "," << object->getCreateTime()
             << "," << object->getDeathTime()
@@ -533,7 +545,7 @@ void output_all_objects( string &objectinfo_filename,
             << "," << (object->wasLastUpdateNull() ? "NULL" : "VAL")
             << "," << (object->getDiedByStackFlag() ? (object->wasPointedAtByHeap() ? "SHEAP" : "SONLY")
                                                     : "H")
-            << "," << ((diter == dag_keys.end()) ? "CYC" : "DAG")
+            << "," << dgroup_kind
             << endl;
         // TODO Fix the SHEAP/SONLY for heap objects. - 4/21/2016 - RLV
         // TODO Add the deathgroup number
@@ -660,20 +672,44 @@ int main(int argc, char* argv[])
         SizeSum_t size_summary;
         // Remember the key objects for non-cyclic death groups.
         set<ObjectId_t> dag_keys;
+        deque<ObjectId_t> dag_all;
+        auto lfn = [](Object *ptr) -> unsigned int { return ptr->getId(); };
         for ( KeySet_t::iterator kiter = keyset.begin();
               kiter != keyset.end();
               kiter++ ) {
             Object *optr = kiter->first;
+            set< Object * > *sptr = kiter->second;
             ObjectId_t objId = (optr ? optr->getId() : 0); 
             dag_keys.insert(objId);
+            dag_all.push_back(objId);
+            std::transform( sptr->cbegin(),
+                            sptr->cend(),
+                            dag_all.begin(),
+                            lfn );
         }
+        set<ObjectId_t> dag_all_set( dag_all.cbegin(), dag_all.cend() );
 
+        // scan_queue2 determines all the death groups that are cyclic
+        // The '2' is a historical version of the function that won't be
+        // removed.
         Heap.scan_queue2( edgelist,
                           not_candidate_map );
         update_summary_from_keyset( keyset,
                                     per_group_summary,
                                     type_total_summary,
                                     size_summary );
+        // Save key object IDs for _all_ death groups.
+        set<ObjectId_t> all_keys;
+        for ( KeySet_t::iterator kiter = keyset.begin();
+              kiter != keyset.end();
+              kiter++ ) {
+            Object *optr = kiter->first;
+            ObjectId_t objId = (optr ? optr->getId() : 0); 
+            all_keys.insert(objId);
+            // NOTE: We don't really need to add ALL objects here since
+            // we can simply test against dag_all_set to see if it's a DAG
+            // object. If not in dag_all_set, then it's a CYC object.
+        }
         // By size summary of death groups
         output_size_summary( dgroups_filename,
                              size_summary );
@@ -683,10 +719,11 @@ int main(int argc, char* argv[])
         // Output all objects info
         output_all_objects( objectinfo_filename,
                             Heap,
-                            dag_keys );
+                            dag_keys,
+                            dag_all_set,
+                            all_keys );
         // TODO: What next? 
         // Output cycles
-        KeySet_t& keyset = Heap.get_keyset();
         set<int> node_set;
         output_cycles( keyset,
                        cycle_filename,
