@@ -513,7 +513,8 @@ void output_type_summary( string &dgroups_by_type_filename,
 }
 
 void output_all_objects( string &objectinfo_filename,
-                         HeapState &myheap )
+                         HeapState &myheap,
+                         std::set<ObjectId_t> dag_keys )
 {
     ofstream object_info_file(objectinfo_filename);
     object_info_file << "---------------[ OBJECT INFO ]--------------------------------------------------" << endl;
@@ -521,15 +522,27 @@ void output_all_objects( string &objectinfo_filename,
           it != myheap.end();
           ++it ) {
         Object *object = it->second;
-        object_info_file << object->getId()
+        ObjectId_t objId = object->getId();
+        set<ObjectId_t>::iterator diter = dag_keys.find(objId);
+        object_info_file << objId
             << "," << object->getCreateTime()
             << "," << object->getDeathTime()
             << "," << object->getSize()
             << "," << object->getType()
             << "," << (object->getDiedByStackFlag() ? "S" : "H")
             << "," << (object->wasLastUpdateNull() ? "NULL" : "VAL")
-            << "," << (object->getDiedByStackFlag() && object->wasPointedAtByHeap() ? "SHEAP" : "SONLY" )
+            << "," << (object->getDiedByStackFlag() ? (object->wasPointedAtByHeap() ? "SHEAP" : "SONLY")
+                                                    : "H")
+            << "," << ((diter == dag_keys.end()) ? "CYC" : "DAG")
             << endl;
+        // TODO Fix the SHEAP/SONLY for heap objects. - 4/21/2016 - RLV
+        // TODO Add the deathgroup number
+        // TODO Decide on the deathgroup file output.
+        //         - group number?
+        //         - key object
+        //         - total ojects
+        //         - total size
+        //         - by stack only size
     }
     object_info_file << "---------------[ OBJECT INFO END ]----------------------------------------------" << endl;
     object_info_file.close();
@@ -645,9 +658,16 @@ int main(int argc, char* argv[])
         // size_summary: per group size summary. That is, for each group of size X,
         //               add up the sizes.
         SizeSum_t size_summary;
-        // TODO per : type -> vector of group summary
-        // TODO std::map< string, std::vector< Summary > > per_group_summary;
-        // TODO TODO deque< deque<int> > cycle_list = Heap.scan_queue( edgelist );
+        // Remember the key objects for non-cyclic death groups.
+        set<ObjectId_t> dag_keys;
+        for ( KeySet_t::iterator kiter = keyset.begin();
+              kiter != keyset.end();
+              kiter++ ) {
+            Object *optr = kiter->first;
+            ObjectId_t objId = (optr ? optr->getId() : 0); 
+            dag_keys.insert(objId);
+        }
+
         Heap.scan_queue2( edgelist,
                           not_candidate_map );
         update_summary_from_keyset( keyset,
@@ -662,7 +682,8 @@ int main(int argc, char* argv[])
                              type_total_summary );
         // Output all objects info
         output_all_objects( objectinfo_filename,
-                            Heap );
+                            Heap,
+                            dag_keys );
         // TODO: What next? 
         // Output cycles
         KeySet_t& keyset = Heap.get_keyset();
