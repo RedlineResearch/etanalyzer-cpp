@@ -1,12 +1,18 @@
 
 # FLAGS=-O2 -std=c++11 -g -Werror -I./boost_1_60_0 -I./TEMP/include/igraph -L./TEMP/lib -ligraph
+GIT=git
 FLAGS=-O2 -std=c++11 -g -Werror -I./boost_1_60_0
+.PHONY: clean gitversion
 
-all: simulator-edges
+all: gitversion simulator-edges
 
-simulator-edges: simulator-edges.o execution.o heap.o classinfo.o tokenizer.o  \
+gitversion:
+	$(GIT) rev-parse HEAD | awk ' BEGIN {print "#include \"version.h\""} {print "const char *build_git_sha = \"" $$0"\";"} END {}' > version.cpp
+	date | awk 'BEGIN {} {print "const char *build_git_time = \""$$0"\";"} END {} ' >> version.cpp
+
+simulator-edges: simulator-edges.o execution.o heap.o classinfo.o tokenizer.o version.o \
 				summary.hpp
-	g++ $(FLAGS) -o simulator-edges simulator-edges.o execution.o heap.o classinfo.o \
+	g++ $(FLAGS) -o simulator-edges simulator-edges.o execution.o heap.o classinfo.o version.o \
 			tokenizer.o
 
 simulator-edges.o: simulator-edges.cpp classinfo.h tokenizer.h heap.h refstate.h
@@ -23,6 +29,9 @@ classinfo.o: classinfo.cpp classinfo.h tokenizer.h
 
 tokenizer.o: tokenizer.cpp classinfo.h tokenizer.h
 	g++ $(FLAGS) -c tokenizer.cpp
+
+version.o: version.cpp version.h
+	g++ $(FLAGS) -c version.cpp
 
 clean:
 	rm -f *.o simulator-edges

@@ -17,6 +17,7 @@ using namespace std;
 #include "heap.h"
 #include "refstate.h"
 #include "summary.hpp"
+#include "version.h"
 
 // ----------------------------------------------------------------------
 // Types
@@ -364,8 +365,9 @@ void debug_GC_history( deque< GCRecord_t > &GC_history )
 int main(int argc, char* argv[])
 {
     if (argc != 5) {
-        cout << argc << endl;
         cout << "Usage: " << argv[0] << " <namesfile> <dgroups-csv-file> <output base name> <memsize>" << endl;
+        cout << "      git version: " <<  build_git_sha << endl;
+        cout << "      build date : " <<  build_git_time << endl;
         exit(1);
     }
     string dgroups_csvfile(argv[2]);

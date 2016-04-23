@@ -17,6 +17,7 @@ using namespace std;
 #include "heap.h"
 #include "refstate.h"
 #include "summary.hpp"
+#include "version.h"
 
 // ----------------------------------------------------------------------
 // Types
@@ -363,6 +364,8 @@ int main(int argc, char* argv[])
     if (argc != 3) {
         cout << argc << endl;
         cout << "Usage: " << argv[0] << " <namesfile> <output base name>" << endl;
+        cout << "      git version: " <<  build_git_sha << endl;
+        cout << "      build date : " <<  build_git_time << endl;
         exit(1);
     }
     // TODO string dgroups_csvfile(argv[2]);

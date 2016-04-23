@@ -18,6 +18,7 @@ using namespace std;
 #include "refstate.h"
 #include "summary.hpp"
 // #include "lastmap.h"
+#include "version.h"
 
 // ----------------------------------------------------------------------
 // Types
@@ -626,6 +627,8 @@ int main(int argc, char* argv[])
     if (argc != 5) {
         cout << argc << endl;
         cout << "Usage: " << argv[0] << " <namesfile> <output base name> <CYCLE/NOCYCLE> <OBJDEBUG/NOOBJDEBUG>" << endl;
+        cout << "      git version: " <<  build_git_sha << endl;
+        cout << "      build date : " <<  build_git_time << endl;
         exit(1);
     }
     string basename(argv[2]);

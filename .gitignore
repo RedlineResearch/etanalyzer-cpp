@@ -15,3 +15,4 @@ STASH
 libsqlite4java-linux-amd64.so
 sqlite4java.jar
 simulator-edges
+version.cpp

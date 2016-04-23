@@ -1,12 +1,18 @@
 
 # FLAGS=-O2 -std=c++11 -g -Werror -I./boost_1_60_0 -I./TEMP/include/igraph -L./TEMP/lib -ligraph
-FLAGS=-O2 -std=c++11 -g -Werror -I./boost_1_60_0
+GIT=git
+FLAGS=-O2 -std=c++11 -g -Werror -I./boost_1_60_0 -static
+.PHONY: clean gitversion
 
-all: simulator
+all: gitversion simulator
 
-simulator: simulator.o execution.o heap.o classinfo.o tokenizer.o analyze.o \
+gitversion:
+	$(GIT) rev-parse HEAD | awk ' BEGIN {print "#include \"version.h\""} {print "const char *build_git_sha = \"" $$0"\";"} END {}' > version.cpp
+	date | awk 'BEGIN {} {print "const char *build_git_time = \""$$0"\";"} END {} ' >> version.cpp
+
+simulator: simulator.o execution.o heap.o classinfo.o tokenizer.o analyze.o version.o \
 			summary.hpp
-	g++ $(FLAGS) -o simulator simulator.o execution.o heap.o classinfo.o tokenizer.o analyze.o
+	g++ $(FLAGS) -o simulator simulator.o execution.o heap.o classinfo.o tokenizer.o analyze.o version.o
 
 simulator.o: simulator.cpp classinfo.h tokenizer.h heap.h refstate.h
 	g++ $(FLAGS)  -c simulator.cpp
@@ -28,6 +34,9 @@ tokenizer.o: tokenizer.cpp classinfo.h tokenizer.h
 
 # lastmap.o: lastmap.cpp lastmap.h heap.cpp heap.h \
 	g++ $(FLAGS) -c lastmap.cpp
+
+version.o: version.cpp version.h
+	g++ $(FLAGS) -c version.cpp
 
 clean:
 	rm -f *.o simulator
