@@ -537,12 +537,20 @@ void output_all_objects( string &objectinfo_filename,
             set<ObjectId_t>::iterator itmp = dag_keys.find(objId);
             dgroup_kind = ((itmp == dag_keys.end()) ? "DAG" : "DAGKEY" );
         }
+        string dtype;
+        if (object->getDiedByStackFlag()) {
+            dtype = "S"; // by stack
+        } else if (object->getDiedByHeapFlag()) {
+            dtype = "H"; // by heap
+        } else {
+            dtype = "E"; // program end
+        }
         object_info_file << objId
             << "," << object->getCreateTime()
             << "," << object->getDeathTime()
             << "," << object->getSize()
             << "," << object->getType()
-            << "," << (object->getDiedByStackFlag() ? "S" : "H")
+            << "," << dtype
             << "," << (object->wasLastUpdateNull() ? "NULL" : "VAL")
             << "," << (object->getDiedByStackFlag() ? (object->wasPointedAtByHeap() ? "SHEAP" : "SONLY")
                                                     : "H")
@@ -625,7 +633,6 @@ unsigned int output_edges( HeapState &myheap,
 int main(int argc, char* argv[])
 {
     if (argc != 5) {
-        cout << argc << endl;
         cout << "Usage: " << argv[0] << " <namesfile> <output base name> <CYCLE/NOCYCLE> <OBJDEBUG/NOOBJDEBUG>" << endl;
         cout << "      git version: " <<  build_git_sha << endl;
         cout << "      build date : " <<  build_git_time << endl;
@@ -788,5 +795,8 @@ int main(int argc, char* argv[])
     }
     dsite_file << "---------------[ DEATH SITES INFO END ]--------------------------------------------" << endl;
     dsite_file.close();
+    dsite_file << "---------------[ DONE ]------------------------------------------------------------" << endl;
+    cout << "#     git version: " <<  build_git_sha << endl;
+    cout << "#     build date : " <<  build_git_time << endl;
 }
 

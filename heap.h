@@ -305,6 +305,8 @@ class Object
         bool m_diedByHeap;
         // Did this object die by loss of stack reference?
         bool m_diedByStack;
+        // Did this object die because the program ended?
+        bool m_diedAtEnd;
         // Reason for death
         Reason m_reason;
         // Time that m_reason happened
@@ -365,6 +367,7 @@ class Object
             , m_was_root(false)
             , m_diedByHeap(false)
             , m_diedByStack(false)
+            , m_diedAtEnd(false)
             , m_reason(UNKNOWN_REASON)
             , m_last_action_time(0)
             , m_last_update_null(indeterminate)
@@ -401,9 +404,14 @@ class Object
         }
         bool getDiedByStackFlag() const { return m_diedByStack; }
         void setDiedByStackFlag() { m_diedByStack = true; m_reason = STACK; }
+        void unsetDiedByStackFlag() { m_diedByStack = false; }
         void setStackReason( unsigned int t ) { m_reason = STACK; m_last_action_time = t; }
         bool getDiedByHeapFlag() const { return m_diedByHeap; }
         void setDiedByHeapFlag() { m_diedByHeap = true; m_reason = HEAP; }
+        void unsetDiedByHeapFlag() { m_diedByHeap = false; }
+        bool getDiedAtEndFlag() const { return m_diedAtEnd; }
+        void setDiedAtEndFlag() { m_diedAtEnd = true; m_reason = END_OF_PROGRAM_REASON; }
+        void unsetDiedAtEndFlag() { m_diedAtEnd = false; }
         void setHeapReason( unsigned int t ) { m_reason = HEAP; m_last_action_time = t; }
         Reason setReason( Reason r, unsigned int t ) { m_reason = r; m_last_action_time = t; }
         Reason getReason() const { return m_reason; }
