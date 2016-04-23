@@ -18,7 +18,7 @@ using namespace std;
 #include "refstate.h"
 #include "summary.hpp"
 // #include "lastmap.h"
-#include "version.h"
+#include "version.hpp"
 
 // ----------------------------------------------------------------------
 // Types

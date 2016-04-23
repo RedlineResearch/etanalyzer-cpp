@@ -17,7 +17,7 @@ using namespace std;
 #include "heap.h"
 #include "refstate.h"
 #include "summary.hpp"
-#include "version.h"
+#include "version.hpp"
 
 // ----------------------------------------------------------------------
 // Types

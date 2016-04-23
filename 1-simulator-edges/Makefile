@@ -7,7 +7,7 @@ FLAGS=-O2 -std=c++11 -g -Werror -I./boost_1_60_0
 all: gitversion simulator-edges
 
 gitversion:
-	$(GIT) rev-parse HEAD | awk ' BEGIN {print "#include \"version.h\""} {print "const char *build_git_sha = \"" $$0"\";"} END {}' > version.cpp
+	$(GIT) rev-parse HEAD | awk ' BEGIN {print "#include \"version.hpp\""} {print "const char *build_git_sha = \"" $$0"\";"} END {}' > version.cpp
 	date | awk 'BEGIN {} {print "const char *build_git_time = \""$$0"\";"} END {} ' >> version.cpp
 
 simulator-edges: simulator-edges.o execution.o heap.o classinfo.o tokenizer.o version.o \
@@ -30,7 +30,7 @@ classinfo.o: classinfo.cpp classinfo.h tokenizer.h
 tokenizer.o: tokenizer.cpp classinfo.h tokenizer.h
 	g++ $(FLAGS) -c tokenizer.cpp
 
-version.o: version.cpp version.h
+version.o: version.cpp version.hpp
 	g++ $(FLAGS) -c version.cpp
 
 clean:

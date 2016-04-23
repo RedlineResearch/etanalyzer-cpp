@@ -7,7 +7,7 @@ FLAGS=-O2 -std=c++11 -g -Werror -I./boost_1_60_0
 all: gitversion simulator-GC
 
 gitversion:
-	$(GIT) rev-parse HEAD | awk ' BEGIN {print "#include \"version.h\""} {print "const char *build_git_sha = \"" $$0"\";"} END {}' > version.cpp
+	$(GIT) rev-parse HEAD | awk ' BEGIN {print "#include \"version.hpp\""} {print "const char *build_git_sha = \"" $$0"\";"} END {}' > version.cpp
 	date | awk 'BEGIN {} {print "const char *build_git_time = \""$$0"\";"} END {} ' >> version.cpp
 
 simulator-GC: simulator-GC.o execution.o heap.o classinfo.o tokenizer.o version.o\
@@ -33,7 +33,7 @@ tokenizer.o: tokenizer.cpp classinfo.h tokenizer.h
 memorymgr.o: memorymgr.h memorymgr.cpp heap.h
 	g++ $(FLAGS) -c memorymgr.cpp
 
-version.o: version.cpp version.h
+version.o: version.cpp version.hpp
 	g++ $(FLAGS) -c version.cpp
 
 clean:
