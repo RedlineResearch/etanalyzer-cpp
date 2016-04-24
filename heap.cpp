@@ -215,13 +215,19 @@ void HeapState::end_of_program(unsigned int cur_time)
         if (obj->isLive(cur_time)) {
             // Go ahead and ignore the call to HeapState::makeDead
             // as we won't need to update maxLiveSize here anymore.
-            obj->makeDead(cur_time);
             obj->unsetDiedByStackFlag();
             obj->unsetDiedByHeapFlag();
             obj->setDiedAtEndFlag();
             obj->setReason( Reason::END_OF_PROGRAM_REASON, cur_time );
             obj->setLastEvent( LastEvent::END_OF_PROGRAM_EVENT );
+        } else {
+            if (obj->getReason() == HEAP) {
+                obj->setDiedByHeapFlag();
+            } else {
+                obj->setDiedByStackFlag();
+            }
         }
+        obj->makeDead(cur_time);
         // Do the count of heap vs stack loss here.
         this->update_death_counters(obj);
 

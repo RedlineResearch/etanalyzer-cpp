@@ -638,6 +638,9 @@ int main(int argc, char* argv[])
         cout << "      build date : " <<  build_git_time << endl;
         exit(1);
     }
+    cout << "#     git version: " <<  build_git_sha << endl;
+    cout << "#     build date : " <<  build_git_time << endl;
+    cout << "---------------[ START ]-----------------------------------------------------------" << endl;
     string basename(argv[2]);
     string cycle_filename( basename + "-CYCLES.csv" );
     // string edge_filename( basename + "-EDGES.txt" );
@@ -796,6 +799,7 @@ int main(int argc, char* argv[])
     dsite_file << "---------------[ DEATH SITES INFO END ]--------------------------------------------" << endl;
     dsite_file.close();
     dsite_file << "---------------[ DONE ]------------------------------------------------------------" << endl;
+    cout << "---------------[ DONE ]------------------------------------------------------------" << endl;
     cout << "#     git version: " <<  build_git_sha << endl;
     cout << "#     build date : " <<  build_git_time << endl;
 }
