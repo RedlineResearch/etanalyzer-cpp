@@ -59,10 +59,14 @@ class GarbologyConfig:
         for key, cfg in self.configdict.iteritems():
             if key == "global" or key == "cycle_analyze":
                 continue
+            if printflag:
+                print "[%s]" % key
             for bmark, relpath in cfg.iteritems():
                 tgtpath = basepath + relpath
                 if not os.path.isfile(tgtpath):
                     print "ERROR: %s" % str(tgtpath)
+                elif printflag:
+                    print "%s - OK." % str(tgtpath)
 
     def print_all_config( self, mypp ):
         print "-------------------------------------------------------------------------------"
@@ -141,10 +145,11 @@ def create_work_directory( work_dir, logger = None, interactive = False ):
 
 def main_process( logger = None,
                   gconfig = None,
-                  debugflag = False ):
+                  debugflag = False,
+                  verbose = False ):
     global pp
     gconfig.print_all_config( pp )
-    gconfig.verify_all_exist()
+    gconfig.verify_all_exist( printflag = verbose )
     print "===========[ DONE ]==================================================="
 
 def create_parser():
@@ -152,19 +157,15 @@ def create_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument( "config",
                          help = "Specify configuration filename." )
-    parser.add_argument( "--debug",
-                         dest = "debugflag",
-                         help = "Enable debug output.",
+    parser.add_argument( "--verbose",
+                         dest = "verbose",
+                         help = "Enable verbose output.",
                          action = "store_true" )
-    parser.add_argument( "--no-debug",
-                         dest = "debugflag",
-                         help = "Disable debug output.",
-                         action = "store_false" )
     parser.add_argument( "--logfile",
                          help = "Specify logfile name.",
                          action = "store" )
     parser.set_defaults( logfile = "garbology.log",
-                         debugflag = False,
+                         verbose = False,
                          config = None )
     return parser
 
@@ -183,7 +184,8 @@ def main():
     #
     return main_process( logger = logger,
                          gconfig = gconfig,
-                         debugflag = debugflag )
+                         debugflag = debugflag,
+                         verbose = args.verbose )
 
 __all__ = [ "GarbologyConfig" ]
 
