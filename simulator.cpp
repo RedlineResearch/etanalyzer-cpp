@@ -580,10 +580,15 @@ void output_cycles( KeySet_t &keyset,
           ++it ) {
         Object *obj = it->first;
         set< Object * > *sptr = it->second;
+        unsigned int keyObjId = obj->getId();
+        cycle_file << keyObjId;
         for ( set<Object *>::iterator tmp = sptr->begin();
               tmp != sptr->end();
               ++tmp ) {
-            cycle_file << (*tmp)->getId() << ",";
+            unsigned int tmpId = (*tmp)->getId();
+            if (tmpId != keyObjId) {
+                cycle_file  << "," << tmpId;
+            }
             node_set.insert((*tmp)->getId());
         }
         cycle_file << endl;

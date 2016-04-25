@@ -215,7 +215,11 @@ void HeapState::end_of_program(unsigned int cur_time)
         if (obj->isLive(cur_time)) {
             // Go ahead and ignore the call to HeapState::makeDead
             // as we won't need to update maxLiveSize here anymore.
-            obj->makeDead(cur_time);
+            if (!obj->isDead()) {
+                // A hack: not sure why this check may be needed.
+                // TODO: Debug this.
+                obj->makeDead(cur_time);
+            }
             obj->unsetDiedByStackFlag();
             obj->unsetDiedByHeapFlag();
             obj->setDiedAtEndFlag();
