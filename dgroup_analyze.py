@@ -18,6 +18,7 @@ import datetime
 # TODO from itertools import combinations
 
 from mypytools import mean, stdev, variance
+from garbology import ObjectInfoReader, DeathGroupsReader
 
 pp = pprint.PrettyPrinter( indent = 4 )
 
@@ -372,7 +373,7 @@ def get_object_info( objectinfo_path, typedict, rev_typedict ):
     start = False
     done = False
     object_info = {}
-    with open(objectinfo_path) as fp:
+    with get_trace_fp(objectinfo_path) as fp:
         for line in fp:
             line = line.rstrip()
             if line.find("---------------[ OBJECT INFO") == 0:
@@ -388,7 +389,11 @@ def get_object_info( objectinfo_path, typedict, rev_typedict ):
                 mytype = rowtmp[-2]
                 row.append( get_typeId( mytype, typedict, rev_typedict ) )
                 row.append( rowtmp[-1] )
-                object_info[int(rowtmp[0])] = tuple(row)
+                objId = int(rowtmp[0])
+                if objId not in object_info:
+                    object_info[objId] = tuple(row)
+                else:
+                    print "DUPE:", objId
     assert(done)
     return object_info
 
@@ -696,7 +701,8 @@ def create_work_directory( work_dir, logger = None, interactive = False ):
             raw_input("Press ENTER to continue:")
         else:
             print "....continuing!!!"
-    return today
+    os.chdir( today )
+    return str(os.getcwd())
 
 def save_interesting_small_cycles( largest_scc, summary ):
     # Interesting is defined to be 4 or smaller
@@ -845,16 +851,21 @@ def main_process( output = None,
     pp.pprint(global_config)
     cycle_cpp_dir = global_config["cycle_cpp_dir"]
     work_dir = main_config["directory"]
+    # In my config this is: '/data/rveroy/pulsrc/etanalyzer/MYWORK/z-SUMMARY/DGROUPS'
+    # Change in basic_merge_summary.ini, under the [dgroups-analyze] section.
 
     # TODO What is key -> value in the following dictionaries?
     results = {}
-    summary = {}
-    typedict = {} # Type dictionary is ACROSS all benchmarks
-    rev_typedict = {} # Type dictionary is ACROSS all benchmarks
+    # TODO What is the results structure?
+    # benchark key -> TODO
 
-    count = 0
-    today = create_work_directory( work_dir, logger = logger )
+    # TODO probably need a summary
+    # summary = {}
+
     olddir = os.getcwd()
+    count = 0
+    today = create_work_directory( work_dir,
+                                   logger = logger )
     os.chdir( today )
     # Take benchmarks to process from etanalyze_config
     for bmark, filename in etanalyze_config.iteritems():
@@ -864,6 +875,19 @@ def main_process( output = None,
             continue
         print "=======[ %s ]=========================================================" \
             % bmark
+        abs_filename = os.path.join(cycle_cpp_dir, filename)
+        print "Open: %s" % abs_filename
+        # dg_reader = DeathGroupsReader( abs_filename )
+        # dg_reader.read_dgroup_file()
+        # objinfo_reader = ObjectInfoReader( )
+        # Get object dictionary information that has types and sizes
+        # TODO Put this code into garbology.py
+        typedict = {}
+        rev_typedict = {}
+        objectinfo_path = os.path.join(cycle_cpp_dir, objectinfo_config[bmark])
+        object_info_dict = get_object_info( objectinfo_path, typedict, rev_typedict )
+        pp.pprint(object_info_dict)
+        continue
         logger.critical( "=======[ %s ]=========================================================" 
                          % bmark )
         abspath = os.path.join(cycle_cpp_dir, filename)
@@ -956,9 +980,6 @@ def main_process( output = None,
             # Get edge information
             edgeinfo_path = os.path.join(cycle_cpp_dir, edgeinfo_config[bmark])
             edge_info_dict = get_edge_info( edgeinfo_path)
-            # Get object dictionary information that has types and sizes
-            objectinfo_path = os.path.join(cycle_cpp_dir, objectinfo_config[bmark])
-            object_info_dict = get_object_info( objectinfo_path, typedict, rev_typedict )
             for index in xrange(len(cycles)):
                 cycle = cycles[index]
                 cycle_info_list = get_cycle_info_list( cycle = cycle,
@@ -1090,6 +1111,8 @@ def main_process( output = None,
         count += 1
         # if count >= 1:
         #     break
+    print "DONE."
+    exit(3333)
     # benchmark:
     # size, 1, 4, 5, 2, etc
     # largest_cycle, 1, 2, 5, 1, etc
@@ -1180,7 +1203,7 @@ def process_config( args ):
     config_parser.read( args.config )
     global_config = config_section_map( "global", config_parser )
     etanalyze_config = config_section_map( "etanalyze-output", config_parser )
-    main_config = config_section_map( "cycle-analyze", config_parser )
+    main_config = config_section_map( "dgroups-analyze", config_parser )
     # TODO edge_config = config_section_map( "edges", config_parser )
     edge_config = config_section_map( "edgeinfo", config_parser )
     edgeinfo_config = config_section_map( "edgeinfo", config_parser )

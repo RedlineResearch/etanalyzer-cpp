@@ -74,6 +74,113 @@ class GarbologyConfig:
             print "[%s]" % str(key)
             mypp.pprint( cfg )
             print "-------------------------------------------------------------------------------"
+
+class ObjectInfoReader:
+    def __init__( self,
+                  objinfo_file = None,
+                  logger = None ):
+        self.objinfo_file_name = objinfo_file
+        # TODO create logger
+        self.objdict = {}
+        
+    def read_objinfo_file( self ):
+        with get_trace_fp(self.objinfo_file_name) as fptr:
+            for line in fptr:
+                count = 0
+                dupeset = set([])
+                start = False
+                done = False
+                debugflag = self.debugflag
+                seenset = set([])
+                for line in fptr:
+                    if line.find("---------------[ OBJECT INFO") == 0:
+                        start = True if not start else False
+                        if start:
+                            continue
+                        else:
+                            done = True
+                            break
+                    if start:
+                        line = line.rstrip()
+                        line = line.rstrip(",")
+                        # TODO This shouldn't be necessary anymore with new change
+                        #      but will still work even if there's no more terminating
+                        #      comma.
+                        objtmp = line.split(",")
+                        objtmp[0] = int(objtmp[0])
+                        objId = objtmp[0]
+                        assert( objId not in self.objdict )
+                        self.objdict[objId] = objtmp
+                        if objId in seenset:
+                            # print "DUP[%s]" % str(x)
+                            dupeset.update( [ objId ] )
+                        else:
+                            seenset.update( [ objId ] )
+                        count += 1
+        sys.stdout.write("\n")
+        sys.stdout.flush()
+        print "DUPES:", len(dupeset)
+        print "TOTAL:", len(seenset)
+
+class DeathGroupsReader:
+    def __init__( self,
+                  dgroup_file = None,
+                  debugflag = False ):
+        self.dgroup_file_name = dgroup_file
+        self.dgroups = {}
+        self.dgroups_list = []
+        self.debugflag = debugflag
+        
+    def read_dgroup_file( self ):
+        with open(self.dgroup_file_name, "rb") as fptr:
+            count = 0
+            dupeset = set([])
+            start = False
+            done = False
+            debugflag = self.debugflag
+            seenset = set([])
+            for line in fptr:
+                if line.find("---------------[ CYCLES") == 0:
+                    start = True if not start else False
+                    if start:
+                        continue
+                    else:
+                        done = True
+                        break
+                if start:
+                    line = line.rstrip()
+                    line = line.rstrip(",")
+                    # TODO This shouldn't be necessary anymore with new change
+                    #      but will still work even if there's no more terminating
+                    #      comma.
+                    dg = [ int(x) for x in line.split(",") ]
+                    # TODO keyobj = dg[0]
+                    # TODO try:
+                    # TODO     assert( keyobj not in self.dgroups )
+                    # TODO except:
+                    # TODO     print "New keyobjId: %s" % str(keyobj)
+                    # TODO     pp.pprint(dg)
+                    # TODO     exit(100)
+                    # TODO self.dgroups[keyobj] = dg[1:]
+                    gset = set(dg)
+                    self.dgroups_list.append(gset)
+                    for x in gset:
+                        if x in seenset:
+                            # print "DUP[%s]" % str(x)
+                            dupeset.update( [ x ] )
+                        else:
+                            seenset.update( [ x ] )
+                    count += 1
+                    if debugflag:
+                        if count % 1000 == 99:
+                            sys.stdout.write("#")
+                            sys.stdout.flush()
+                            sys.stdout.write(str(len(line)) + " | ")
+        sys.stdout.write("\n")
+        sys.stdout.flush()
+        print "DUPES:", len(dupeset)
+        print "TOTAL:", len(seenset)
+
 #
 #  PRIVATE FUNCTIONS
 #
@@ -187,7 +294,7 @@ def main():
                          debugflag = debugflag,
                          verbose = args.verbose )
 
-__all__ = [ "GarbologyConfig" ]
+__all__ = [ "GarbologyConfig", "ObjectInfoReader" ]
 
 if __name__ == "__main__":
     main()

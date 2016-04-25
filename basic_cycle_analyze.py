@@ -304,6 +304,7 @@ def get_summary( summary_path ):
     with open(summary_path) as fp:
         for line in fp:
             line = line.rstrip()
+            line = line.rstrip(",")
             if line.find("---------------[ SUMMARY INFO") == 0:
                 start = True if not start else False
                 if start:
