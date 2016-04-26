@@ -385,10 +385,13 @@ def get_object_info( objectinfo_path, typedict, rev_typedict ):
                     break
             if start:
                 rowtmp = line.split(",")
+                # 0 - allocation time
+                # 1 - death time
+                # 2 - size
                 row = [ int(x) for x in rowtmp[1:4] ]
                 mytype = rowtmp[-2]
                 row.append( get_typeId( mytype, typedict, rev_typedict ) )
-                row.append( rowtmp[-1] )
+                row.extend( rowtmp[5:] )
                 objId = int(rowtmp[0])
                 if objId not in object_info:
                     object_info[objId] = tuple(row)
@@ -877,17 +880,22 @@ def main_process( output = None,
             % bmark
         abs_filename = os.path.join(cycle_cpp_dir, filename)
         print "Open: %s" % abs_filename
-        # dg_reader = DeathGroupsReader( abs_filename )
-        # dg_reader.read_dgroup_file()
-        # objinfo_reader = ObjectInfoReader( )
         # Get object dictionary information that has types and sizes
         # TODO Put this code into garbology.py
         typedict = {}
         rev_typedict = {}
         objectinfo_path = os.path.join(cycle_cpp_dir, objectinfo_config[bmark])
-        object_info_dict = get_object_info( objectinfo_path, typedict, rev_typedict )
-        pp.pprint(object_info_dict)
+        # TODO object_info_dict = get_object_info( objectinfo_path, typedict, rev_typedict )
+        objinfo = ObjectInfoReader( objectinfo_path )
+        objinfo.read_objinfo_file()
+        objinfo.print_out( numlines = 40 )
+        # TODO TODO TODO
+        # HERE HERE HERE
+        # TODO TODO TODO
         continue
+        # dg_reader = DeathGroupsReader( abs_filename )
+        # dg_reader.read_dgroup_file( object_info_dict )
+        # objinfo_reader = ObjectInfoReader( )
         logger.critical( "=======[ %s ]=========================================================" 
                          % bmark )
         abspath = os.path.join(cycle_cpp_dir, filename)

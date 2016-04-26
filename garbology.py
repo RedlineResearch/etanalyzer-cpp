@@ -9,6 +9,7 @@ import re
 import ConfigParser
 import csv
 import datetime
+import subprocess
 
 pp = pprint.PrettyPrinter( indent = 4 )
 
@@ -82,45 +83,57 @@ class ObjectInfoReader:
         self.objinfo_file_name = objinfo_file
         # TODO create logger
         self.objdict = {}
+        self.typedict = {}
+        self.rev_typedict = {}
         
     def read_objinfo_file( self ):
-        with get_trace_fp(self.objinfo_file_name) as fptr:
-            for line in fptr:
-                count = 0
-                dupeset = set([])
-                start = False
-                done = False
-                debugflag = self.debugflag
-                seenset = set([])
-                for line in fptr:
-                    if line.find("---------------[ OBJECT INFO") == 0:
-                        start = True if not start else False
-                        if start:
-                            continue
-                        else:
-                            done = True
-                            break
+        start = False
+        done = False
+        object_info = self.objdict
+        with get_trace_fp(self.objinfo_file_name) as fp:
+            for line in fp:
+                line = line.rstrip()
+                if line.find("---------------[ OBJECT INFO") == 0:
+                    start = True if not start else False
                     if start:
-                        line = line.rstrip()
-                        line = line.rstrip(",")
-                        # TODO This shouldn't be necessary anymore with new change
-                        #      but will still work even if there's no more terminating
-                        #      comma.
-                        objtmp = line.split(",")
-                        objtmp[0] = int(objtmp[0])
-                        objId = objtmp[0]
-                        assert( objId not in self.objdict )
-                        self.objdict[objId] = objtmp
-                        if objId in seenset:
-                            # print "DUP[%s]" % str(x)
-                            dupeset.update( [ objId ] )
-                        else:
-                            seenset.update( [ objId ] )
-                        count += 1
-        sys.stdout.write("\n")
-        sys.stdout.flush()
-        print "DUPES:", len(dupeset)
-        print "TOTAL:", len(seenset)
+                        continue
+                    else:
+                        done = True
+                        break
+                if start:
+                    rowtmp = line.split(",")
+                    # 0 - allocation time
+                    # 1 - death time
+                    # 2 - size
+                    row = [ int(x) for x in rowtmp[1:4] ]
+                    mytype = rowtmp[-2]
+                    row.append( self.get_typeId( mytype ) )
+                    row.extend( rowtmp[5:] )
+                    objId = int(rowtmp[0])
+                    if objId not in object_info:
+                        object_info[objId] = tuple(row)
+                    else:
+                        print "DUPE:", objId
+        assert(done)
+
+    def get_typeId( self, mytype ):
+        typedict = self.typedict
+        rev_typedict = self.rev_typedict
+        if mytype in typedict:
+            return typedict[mytype]
+        else:
+            lastkey = len(typedict.keys())
+            typedict[mytype] = lastkey + 1
+            rev_typedict[lastkey + 1] = mytype
+            return lastkey + 1
+
+    def print_out( self, numlines = 30 ):
+        count = 0
+        for objId, rec in self.objdict.iteritems():
+            print "%d -> %s" % (objId, str(rec))
+            count += 1
+            if count >= numlines:
+                break
 
 class DeathGroupsReader:
     def __init__( self,
@@ -131,7 +144,8 @@ class DeathGroupsReader:
         self.dgroups_list = []
         self.debugflag = debugflag
         
-    def read_dgroup_file( self ):
+    def read_dgroup_file( self, object_info_dict = None ):
+        assert( type(object_info_dic) == type({}) )
         with open(self.dgroup_file_name, "rb") as fptr:
             count = 0
             dupeset = set([])
