@@ -76,6 +76,25 @@ class GarbologyConfig:
             mypp.pprint( cfg )
             print "-------------------------------------------------------------------------------"
 
+def index( field = None ):
+    try:
+        return { "ATIME" : 0,
+                 "DTIME" : 1,
+                 "SIZE"  : 2,
+                 "TYPE"  : 3,
+                 "DIEDBY" : 4,
+                 "LASTUP" : 5,
+                 "STATTR" : 6,
+                 "GARBTYPE" : 7,
+        }[field]
+    except:
+        return None
+
+def is_key_object( rec = None ):
+    return ( rec[index("GARBTYPE")] == "CYCKEY" or
+             rec[index("GARBTYPE")] == "DAGKEY" )
+
+
 class ObjectInfoReader:
     def __init__( self,
                   objinfo_file = None,
@@ -85,7 +104,9 @@ class ObjectInfoReader:
         self.objdict = {}
         self.typedict = {}
         self.rev_typedict = {}
-        
+        self.keyset = set([])
+        self.logger = logger
+
     def read_objinfo_file( self ):
         start = False
         done = False
@@ -112,8 +133,10 @@ class ObjectInfoReader:
                     objId = int(rowtmp[0])
                     if objId not in object_info:
                         object_info[objId] = tuple(row)
+                        if is_key_object( object_info[objId] ):
+                            self.keyset.add( objId )
                     else:
-                        print "DUPE:", objId
+                        self.logger.error( "DUPE: %s" % str(objId) )
         assert(done)
 
     def get_typeId( self, mytype ):
@@ -127,25 +150,45 @@ class ObjectInfoReader:
             rev_typedict[lastkey + 1] = mytype
             return lastkey + 1
 
+    def iteritems( self ):
+        return self.objdict.iteritems()
+
+    # If numlines == 0, print out all.
     def print_out( self, numlines = 30 ):
         count = 0
         for objId, rec in self.objdict.iteritems():
             print "%d -> %s" % (objId, str(rec))
             count += 1
-            if count >= numlines:
+            if numlines != 0 and count >= numlines:
                 break
+
+    def get_record( self, objId = 0 ):
+        return self.objdict[objId] if (objId in self.objdict) else None
+
+def get_key_objects( idlist = [],
+                     object_info_reader = None ):
+    oir = object_info_reader
+    result = []
+    for objId in idlist:
+        rec = oir.get_record( objId )
+        assert( rec != None )
+        if is_key_object(rec):
+            result.append(rec)
+    return result
 
 class DeathGroupsReader:
     def __init__( self,
                   dgroup_file = None,
-                  debugflag = False ):
+                  debugflag = False,
+                  logger = None ):
         self.dgroup_file_name = dgroup_file
         self.dgroups = {}
-        self.dgroups_list = []
         self.debugflag = debugflag
+        self.logger = logger
         
-    def read_dgroup_file( self, object_info_dict = None ):
-        assert( type(object_info_dic) == type({}) )
+    def read_dgroup_file( self,
+                          object_info_reader = None ):
+        # We don't know which are the key objects. TODO TODO TODO
         with open(self.dgroup_file_name, "rb") as fptr:
             count = 0
             dupeset = set([])
@@ -153,6 +196,8 @@ class DeathGroupsReader:
             done = False
             debugflag = self.debugflag
             seenset = set([])
+            withkey = 0
+            withoutkey = 0
             for line in fptr:
                 if line.find("---------------[ CYCLES") == 0:
                     start = True if not start else False
@@ -168,32 +213,35 @@ class DeathGroupsReader:
                     #      but will still work even if there's no more terminating
                     #      comma.
                     dg = [ int(x) for x in line.split(",") ]
-                    # TODO keyobj = dg[0]
-                    # TODO try:
-                    # TODO     assert( keyobj not in self.dgroups )
-                    # TODO except:
-                    # TODO     print "New keyobjId: %s" % str(keyobj)
-                    # TODO     pp.pprint(dg)
-                    # TODO     exit(100)
-                    # TODO self.dgroups[keyobj] = dg[1:]
+                    keylist = get_key_objects( dg, object_info_reader )
                     gset = set(dg)
-                    self.dgroups_list.append(gset)
-                    for x in gset:
-                        if x in seenset:
-                            # print "DUP[%s]" % str(x)
-                            dupeset.update( [ x ] )
-                        else:
-                            seenset.update( [ x ] )
-                    count += 1
+                    if len(keylist) > 1:
+                        print "X:", str(dg)
+                        withkey += 1
+                    elif len(keylist) == 0:
+                        print "Z:", str(dg)
+                        withoutkey += 1
+                    # TODO for x in gset:
+                    # TODO     if x in seenset:
+                    # TODO         # print "DUP[%s]" % str(x)
+                    # TODO         dupeset.update( [ x ] )
+                    # TODO     else:
+                    # TODO         seenset.update( [ x ] )
+                    # TODO count += 1
                     if debugflag:
                         if count % 1000 == 99:
                             sys.stdout.write("#")
                             sys.stdout.flush()
                             sys.stdout.write(str(len(line)) + " | ")
-        sys.stdout.write("\n")
-        sys.stdout.flush()
-        print "DUPES:", len(dupeset)
-        print "TOTAL:", len(seenset)
+        #sys.stdout.write("\n")
+        #sys.stdout.flush()
+        #print "DUPES:", len(dupeset)
+        #print "TOTAL:", len(seenset)
+        print "With key: %d" % withkey
+        print "Without key: %d" % withoutkey
+
+    def iteritems( self ):
+        return self.dgroups.iteritems()
 
 #
 #  PRIVATE FUNCTIONS
@@ -308,7 +356,7 @@ def main():
                          debugflag = debugflag,
                          verbose = args.verbose )
 
-__all__ = [ "GarbologyConfig", "ObjectInfoReader" ]
+__all__ = [ "GarbologyConfig", "ObjectInfoReader", "is_key_object", "index", ]
 
 if __name__ == "__main__":
     main()

@@ -116,113 +116,6 @@ def create_graph( cycle_info_list = None,
                 g.add_edge( node, tgt )
     return g
 
-class ObjDB:
-    def __init__( self,
-                  objdb1 = None,
-                  objdb2 = None,
-                  objdb_all = None,
-                  debugflag = False,
-                  logger = None ):
-        self.objdb1 = objdb1
-        self.objdb2 = objdb2
-        self.objdb_all = objdb_all
-        self.sqodb_all = None
-        self.alldb = False
-        self.sqObj1 = None
-        self.sqObj2 = None
-        self.logger = logger
-        assert( os.path.isfile( objdb_all ) or
-                (os.path.isfile( objdb1 ) and os.path.isfile( objdb2 )) )
-        if os.path.isfile( objdb_all ):
-            try:
-                self.sqodb_all = sqorm.Sqorm( tgtpath = objdb_all,
-                                              table = "objects",
-                                              keyfield = "objId" )
-                print "ALL:", objdb_all
-                self.alldb = True
-                return
-            except:
-                logger.error( "Unable to load DB ALL file %s" % str(objdb) )
-                print "Unable to load DB ALL file %s" % str(objdb)
-        if os.path.isfile( objdb1 ):
-            try:
-                self.sqObj1 = sqorm.Sqorm( tgtpath = objdb1,
-                                            table = "objects",
-                                            keyfield = "objId" )
-            except:
-                logger.error( "Unable to load DB 1 file %s" % str(objdb) )
-                print "Unable to load DB 1 file %s" % str(objdb)
-                assert( False )
-        assert(self.sqObj1 != None)
-        if os.path.isfile( objdb2 ):
-            try:
-                self.sqObj2 = sqorm.Sqorm( tgtpath = objdb2,
-                                           table = "objects",
-                                           keyfield = "objId" )
-            except:
-                logger.error( "Unable to load DB 2 file %s" % str(objdb) )
-                print "Unable to load DB 2 file %s" % str(objdb)
-                assert( False )
-
-    def get_record( self, objId ):
-        if self.alldb:
-            try:
-                obj = self.sqodb_all[objId]
-                db_objId, db_oType, db_oSize, db_oLen, db_oAtime, db_oDtime, db_oSite = obj
-            except:
-                # self.logger.error( "Objid [ %s ] not found." % str(objId) )
-                return None
-        else:
-            if objId in self.sqObj1:
-                try:
-                    obj = self.sqObj1[objId]
-                    db_objId, db_oType, db_oSize, db_oLen, db_oAtime, db_oDtime, db_oSite = obj
-                except:
-                    self.logger.error( "Objid [ %s ] not found in DB1." % str(objId) )
-            if objId in self.sqObj2:
-                try:
-                    obj = self.sqObj1[objId]
-                    db_objId, db_oType, db_oSize, db_oLen, db_oAtime, db_oDtime, db_oSite = obj
-                except:
-                    self.logger.error( "Objid [ %s ] not found in DB2." % str(objId) )
-                    # print "Objid [ %s ] not found in DB2." % str(objId)
-                    return None
-        
-        rec = { "objId" : db_objId,
-                "type" : db_oType,
-                "size" : db_oSize,
-                "len" : db_oLen,
-                "atime" : db_oAtime,
-                "dtime" : db_oDtime,
-                "site" : db_oSite }
-        return rec
-
-    def get_type( self, objId ):
-        db_oType = None
-        if self.alldb:
-            try:
-                obj = self.sqodb_all[objId]
-                db_objId, db_oType, db_oSize, db_oLen, db_oAtime, db_oDtime, db_oSite = obj
-            except:
-                # self.logger.error( "Objid [ %s ] not found." % str(objId) )
-                return None
-        else:
-            if objId in self.sqObj1:
-                try:
-                    obj = self.sqObj1[objId]
-                    db_objId, db_oType, db_oSize, db_oLen, db_oAtime, db_oDtime, db_oSite = obj
-                except:
-                    self.logger.error( "Objid [ %s ] not found in DB1." % str(objId) )
-            if objId in self.sqObj2:
-                try:
-                    obj = self.sqObj1[objId]
-                    db_objId, db_oType, db_oSize, db_oLen, db_oAtime, db_oDtime, db_oSite = obj
-                except:
-                    self.logger.error( "Objid [ %s ] not found in DB2." % str(objId) )
-                    print "Objid [ %s ] not found in DB2." % str(objId)
-                    return None
-        return db_oType
-
 def get_types( G, cycle ):
     return [ G.node[x]["type"] for x in cycle ]
 
@@ -836,6 +729,36 @@ def summary_by_size( objinfo = None,
                 "size" : total_size, }
     return sbysize
 
+def find_dupes( dgroups = None):
+    count = 0
+    dash = 0
+    revdict = {}
+    dupes = {}
+    for objId, group in dgroups.iteritems():
+        if count % 1000 == 99:
+            sys.stdout.write("-")
+            dash += 1
+            if dash % 81 == 80:
+                sys.stdout.write('\n')
+        count += 1
+        for mem in group:
+            if mem in revdict:
+                if mem not in dupes:
+                    dupes[mem] = [ revdict[mem], objId ]
+                else:
+                    dupes[mem].append( objId )
+            else:
+                revdict[mem] = objId
+    sys.stdout.write("\n")
+    print "DUPES:"
+    for objId, key_list in dupes.iteritems():
+        try:
+            print "%d -> %d" % (objId, len(key_list))
+        except:
+            print "ERROR: %s -> %d" % (objId, len(key_list))
+    print " -- DUPES DONE."
+    return dupes
+
 def main_process( output = None,
                   main_config = None,
                   benchmark = None,
@@ -878,22 +801,28 @@ def main_process( output = None,
             continue
         print "=======[ %s ]=========================================================" \
             % bmark
-        abs_filename = os.path.join(cycle_cpp_dir, filename)
-        print "Open: %s" % abs_filename
         # Get object dictionary information that has types and sizes
         # TODO Put this code into garbology.py
         typedict = {}
         rev_typedict = {}
         objectinfo_path = os.path.join(cycle_cpp_dir, objectinfo_config[bmark])
         # TODO object_info_dict = get_object_info( objectinfo_path, typedict, rev_typedict )
-        objinfo = ObjectInfoReader( objectinfo_path )
+        objinfo = ObjectInfoReader( objectinfo_path, logger = logger )
+        print "Reading OBJECTINFO file:",
         objinfo.read_objinfo_file()
-        objinfo.print_out( numlines = 40 )
+        objinfo.print_out( numlines = 20 )
+        print " - DONE."
         # TODO TODO TODO
         # HERE HERE HERE
         # TODO TODO TODO
+        # TODO shouldn't this be something else?
+        print "Reading DGROUPS:",
+        abs_filename = os.path.join(cycle_cpp_dir, filename)
+        print "Open: %s" % abs_filename
+        dgroups = DeathGroupsReader( abs_filename, logger = logger )
+        dgroups.read_dgroup_file( objinfo )
+        dupes = find_dupes( dgroups )
         continue
-        # dg_reader = DeathGroupsReader( abs_filename )
         # dg_reader.read_dgroup_file( object_info_dict )
         # objinfo_reader = ObjectInfoReader( )
         logger.critical( "=======[ %s ]=========================================================" 
