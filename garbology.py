@@ -183,9 +183,33 @@ class DeathGroupsReader:
                   logger = None ):
         self.dgroup_file_name = dgroup_file
         self.dgroups = {}
+        self.obj2group = {}
+        self.key2group = {}
         self.debugflag = debugflag
         self.logger = logger
         
+    def map_key2group( self,
+                       groupnum = 0,
+                       keylist = [] ):
+        assert( groupnum > 0 )
+        k2g = self.key2group
+        for k in keylist:
+            if k in k2g:
+                k2g[k].append( groupnum )
+            else:
+                k2g[k] = [ groupnum ]
+
+    def map_obj2group( self,
+                       groupnum = 0,
+                       groupset = set([]) ):
+        assert( groupnum > 0 )
+        ogroup = self.obj2group
+        for obj in groupset:
+            if obj in ogroup:
+                ogroup[obj].append( groupnum )
+            else:
+                ogroup[obj] = [ groupnum ]
+
     def read_dgroup_file( self,
                           object_info_reader = None ):
         # We don't know which are the key objects. TODO TODO TODO
@@ -196,8 +220,10 @@ class DeathGroupsReader:
             done = False
             debugflag = self.debugflag
             seenset = set([])
-            withkey = 0
+            multkey = 0
+            # withkey = 0
             withoutkey = 0
+            groupnum = 1
             for line in fptr:
                 if line.find("---------------[ CYCLES") == 0:
                     start = True if not start else False
@@ -215,11 +241,15 @@ class DeathGroupsReader:
                     dg = [ int(x) for x in line.split(",") ]
                     keylist = get_key_objects( dg, object_info_reader )
                     gset = set(dg)
+                    self.map_key2group( groupnum = groupnum, keylist = keylist )
+                    self.map_obj2group( groupnum = groupnum, groupset = gset )
+                    groupnum += 1
                     if len(keylist) > 1:
-                        print "X:", str(dg)
-                        withkey += 1
+                        logger.error( "multiple key objects: %s" % str(keylist) )
+                        multkey += 1
                     elif len(keylist) == 0:
                         print "Z:", str(dg)
+                        logger.critical( "NO key object in group: %s" % str(dg) )
                         withoutkey += 1
                     # TODO for x in gset:
                     # TODO     if x in seenset:
@@ -239,6 +269,11 @@ class DeathGroupsReader:
         #print "TOTAL:", len(seenset)
         print "With key: %d" % withkey
         print "Without key: %d" % withoutkey
+        print "----------------------------------------------------------------------"
+        for k, v in self.obj2group:
+            if len(v) > 1:
+                print "%d -> %s" % (k, str(v))
+        print "----------------------------------------------------------------------"
 
     def iteritems( self ):
         return self.dgroups.iteritems()
