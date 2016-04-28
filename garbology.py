@@ -76,7 +76,7 @@ class GarbologyConfig:
             mypp.pprint( cfg )
             print "-------------------------------------------------------------------------------"
 
-def index( field = None ):
+def get_index( field = None ):
     try:
         return { "ATIME" : 0,
                  "DTIME" : 1,
@@ -91,8 +91,8 @@ def index( field = None ):
         return None
 
 def is_key_object( rec = None ):
-    return ( rec[index("GARBTYPE")] == "CYCKEY" or
-             rec[index("GARBTYPE")] == "DAGKEY" )
+    return ( rec[get_index("GARBTYPE")] == "CYCKEY" or
+             rec[get_index("GARBTYPE")] == "DAGKEY" )
 
 
 class ObjectInfoReader:
@@ -106,6 +106,15 @@ class ObjectInfoReader:
         self.rev_typedict = {}
         self.keyset = set([])
         self.logger = logger
+
+    def is_key_object( self, objId = None ):
+        assert(type(objId) == type(1))
+        if objId in self.objdict:
+            od = self.objdict
+            return ( od[objId][get_index("GARBTYPE")] == "CYCKEY" or
+                     od[objId][get_index("GARBTYPE")] == "DAGKEY" )
+        else:
+            return False
 
     def read_objinfo_file( self ):
         start = False
@@ -133,7 +142,7 @@ class ObjectInfoReader:
                     objId = int(rowtmp[0])
                     if objId not in object_info:
                         object_info[objId] = tuple(row)
-                        if is_key_object( object_info[objId] ):
+                        if self.is_key_object( objId ):
                             self.keyset.add( objId )
                     else:
                         self.logger.error( "DUPE: %s" % str(objId) )
@@ -149,6 +158,10 @@ class ObjectInfoReader:
             typedict[mytype] = lastkey + 1
             rev_typedict[lastkey + 1] = mytype
             return lastkey + 1
+
+    def died_at_end( self, objId ):
+        return (self.objdict[objId][get_index("DIEDBY")] == "E") if (objId in self.objdict) \
+            else False
 
     def iteritems( self ):
         return self.objdict.iteritems()
@@ -185,6 +198,8 @@ class DeathGroupsReader:
         self.dgroups = {}
         self.obj2group = {}
         self.key2group = {}
+        self.group2dtime = {}
+        self.group2list= {}
         self.debugflag = debugflag
         self.logger = logger
         
@@ -210,6 +225,15 @@ class DeathGroupsReader:
             else:
                 ogroup[obj] = [ groupnum ]
 
+    def map_group2dtime( self,
+                         groupnum = 0,
+                         dtime = 0 ):
+        assert( groupnum > 0 )
+        self.group2dtime[groupnum] = dtime
+        # NOTE: This is made into a function because there may be
+        # other things we wish to do with saving the sets of death
+        # times.
+
     def read_dgroup_file( self,
                           object_info_reader = None ):
         # We don't know which are the key objects. TODO TODO TODO
@@ -224,6 +248,9 @@ class DeathGroupsReader:
             # withkey = 0
             withoutkey = 0
             groupnum = 1
+            logger = self.logger
+            oir = object_info_reader
+            dtind = get_index("DTIME")
             for line in fptr:
                 if line.find("---------------[ CYCLES") == 0:
                     start = True if not start else False
@@ -235,29 +262,36 @@ class DeathGroupsReader:
                 if start:
                     line = line.rstrip()
                     line = line.rstrip(",")
-                    # TODO This shouldn't be necessary anymore with new change
-                    #      but will still work even if there's no more terminating
-                    #      comma.
-                    dg = [ int(x) for x in line.split(",") ]
-                    keylist = get_key_objects( dg, object_info_reader )
-                    gset = set(dg)
-                    self.map_key2group( groupnum = groupnum, keylist = keylist )
-                    self.map_obj2group( groupnum = groupnum, groupset = gset )
-                    groupnum += 1
-                    if len(keylist) > 1:
-                        logger.error( "multiple key objects: %s" % str(keylist) )
-                        multkey += 1
-                    elif len(keylist) == 0:
-                        print "Z:", str(dg)
-                        logger.critical( "NO key object in group: %s" % str(dg) )
-                        withoutkey += 1
-                    # TODO for x in gset:
-                    # TODO     if x in seenset:
-                    # TODO         # print "DUP[%s]" % str(x)
-                    # TODO         dupeset.update( [ x ] )
-                    # TODO     else:
-                    # TODO         seenset.update( [ x ] )
-                    # TODO count += 1
+                    # Remove all objects that died at program end.
+                    dg = [ int(x) for x in line.split(",") if not oir.died_at_end(int(x))  ]
+                    if len(dg) == 0:
+                        continue
+                    dtimes = list( set( [ oir.get_record(x)[dtind] for x in dg ] ) )
+                    if (len(dtimes) > 1):
+                        # split into groups according to death times
+                        logger.debug( "Multiple death times: %s" % str(dtimes) )
+                    dglist = []
+                    for ind in xrange(len(dtimes)):
+                        dtime = dtimes[ind]
+                        mydg = [ x for x in dg if oir.get_record(x)[dtind] == dtime ]
+                        dglist.append( mydg )
+                    assert(len(dglist) == len(dtimes))
+                    for ind in xrange(len(dglist)):
+                        dg = list( set( dglist[ind] ) )
+                        dtime = dtimes[ind]
+                        keylist = get_key_objects( dg, oir )
+                        self.map_key2group( groupnum = groupnum, keylist = keylist )
+                        self.map_obj2group( groupnum = groupnum, groupset = dg )
+                        self.map_group2dtime( groupnum = groupnum, dtime = dtime )
+                        self.group2list[groupnum] = dg
+                        groupnum += 1
+                        # Debug key objects. NOTE: This may not be used for now.
+                        if len(keylist) > 1:
+                            logger.error( "multiple key objects: %s" % str(keylist) )
+                            multkey += 1
+                        elif len(keylist) == 0:
+                            logger.critical( "NO key object in group: %s" % str(dg) )
+                            withoutkey += 1
                     if debugflag:
                         if count % 1000 == 99:
                             sys.stdout.write("#")
@@ -267,12 +301,23 @@ class DeathGroupsReader:
         #sys.stdout.flush()
         #print "DUPES:", len(dupeset)
         #print "TOTAL:", len(seenset)
-        print "With key: %d" % withkey
+        print "Multiple key: %d" % multkey
         print "Without key: %d" % withoutkey
+        for obj, groups in self.obj2group.iteritems():
+            if len(groups) > 1:
+                # Merge into lower group number.
+                gsort = sorted(groups)
+                tgt = gsort[0]
+                for gtmp in gsort[1:]:
+                    # Add to target group
+                    self.group2list[tgt].extend( self.group2list[gtmp] )
+                    # Remove the merged group
+                    del self.group2list[gtmp]
+                    # TODO Should we remove from other dictionaries?
         print "----------------------------------------------------------------------"
-        for k, v in self.obj2group:
-            if len(v) > 1:
-                print "%d -> %s" % (k, str(v))
+        grlen = sorted( [ len(mylist) for group, mylist in group2list.iteritems() if len(mylist) > 0 ], reverse = True )
+        for g in grlen:
+            print g
         print "----------------------------------------------------------------------"
 
     def iteritems( self ):
@@ -391,7 +436,7 @@ def main():
                          debugflag = debugflag,
                          verbose = args.verbose )
 
-__all__ = [ "GarbologyConfig", "ObjectInfoReader", "is_key_object", "index", ]
+__all__ = [ "GarbologyConfig", "ObjectInfoReader", "is_key_object", "get_index", ]
 
 if __name__ == "__main__":
     main()
