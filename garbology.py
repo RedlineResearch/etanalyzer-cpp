@@ -303,19 +303,24 @@ class DeathGroupsReader:
         #print "TOTAL:", len(seenset)
         print "Multiple key: %d" % multkey
         print "Without key: %d" % withoutkey
+        moved = {}
         for obj, groups in self.obj2group.iteritems():
             if len(groups) > 1:
                 # Merge into lower group number.
-                gsort = sorted(groups)
+                gsort = sorted( [ x for x in groups if (x not in moved and x in self.group2list) ] )
+                if len(gsort) < 2:
+                    continue
                 tgt = gsort[0]
                 for gtmp in gsort[1:]:
                     # Add to target group
-                    self.group2list[tgt].extend( self.group2list[gtmp] )
-                    # Remove the merged group
-                    del self.group2list[gtmp]
+                    if gtmp in self.group2list:
+                        self.group2list[tgt].extend( self.group2list[gtmp] )
+                        moved[gtmp] = tgt
+                        # Remove the merged group
+                        del self.group2list[gtmp]
                     # TODO Should we remove from other dictionaries?
         print "----------------------------------------------------------------------"
-        grlen = sorted( [ len(mylist) for group, mylist in group2list.iteritems() if len(mylist) > 0 ], reverse = True )
+        grlen = sorted( [ len(mylist) for group, mylist in self.group2list.iteritems() if len(mylist) > 0 ], reverse = True )
         for g in grlen:
             print g
         print "----------------------------------------------------------------------"
