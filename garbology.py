@@ -10,6 +10,7 @@ import ConfigParser
 import csv
 import datetime
 import subprocess
+from collections import defaultdict
 
 pp = pprint.PrettyPrinter( indent = 4 )
 
@@ -94,13 +95,26 @@ def is_key_object( rec = None ):
     return ( rec[get_index("GARBTYPE")] == "CYCKEY" or
              rec[get_index("GARBTYPE")] == "DAGKEY" )
 
+def get_key_objects( idlist = [],
+                     object_info_reader = None ):
+    oir = object_info_reader
+    result = []
+    for objId in idlist:
+        rec = oir.get_record( objId )
+        assert( rec != None )
+        if is_key_object(rec):
+            result.append(rec)
+    return result
 
+
+# ----------------------------------------------------------------------------- 
+# ----------------------------------------------------------------------------- 
 class ObjectInfoReader:
     def __init__( self,
                   objinfo_file = None,
                   logger = None ):
+        # TODO: Choice of loading from text file or from pickle
         self.objinfo_file_name = objinfo_file
-        # TODO create logger
         self.objdict = {}
         self.typedict = {}
         self.rev_typedict = {}
@@ -178,17 +192,103 @@ class ObjectInfoReader:
     def get_record( self, objId = 0 ):
         return self.objdict[objId] if (objId in self.objdict) else None
 
-def get_key_objects( idlist = [],
-                     object_info_reader = None ):
-    oir = object_info_reader
-    result = []
-    for objId in idlist:
-        rec = oir.get_record( objId )
-        assert( rec != None )
-        if is_key_object(rec):
-            result.append(rec)
-    return result
+# ----------------------------------------------------------------------------- 
+# ----------------------------------------------------------------------------- 
+class EdgeInfoReader:
+    def __init__( self,
+                  edgeinfo_file = None,
+                  logger = None ):
+        # TODO: Choice of loading from text file or from pickle
+        self.edgeinfo_file_name = edgeinfo_file
+        self.edgedict = {} # (src, tgt) -> (create time, death time)
+        self.srcdict = defaultdict( set ) # src -> set of tgts
+        self.tgtdict = defaultdict( set ) # tgt -> set of srcs
+        self.logger = logger
 
+    def read_edgeinfo_file( self ):
+        start = False
+        done = False
+        edge_info = self.edgedict
+        with get_trace_fp(self.edgeinfo_file_name) as fp:
+            for line in fp:
+                line = line.rstrip()
+                if line.find("---------------[ EDGE INFO") == 0:
+                    start = True if not start else False
+                    if start:
+                        continue
+                    else:
+                        done = True
+                        break
+                if start:
+                    rowtmp = line.split(",")
+                    # 0 - srcId
+                    # 1 - tgtId
+                    # 2 - create time 
+                    # 3 - death time 
+                    row = [ int(x) for x in rowtmp ]
+                    src = row[0]
+                    tgt = row[1]
+                    timepair = tuple(row[2:])
+                    self.edgedict[tuple([src, tgt])] = timepair
+                    self.srcdict[src].add( tgt )
+                    self.tgtdict[tgt].add( src )
+        assert(done)
+
+    def get_targets( self, src = 0 ):
+        if src in self.srcdict:
+            return self.srcdict[src]
+        else:
+            return []
+
+    def get_sources( self, tgt = 0 ):
+        if tgt in self.tgtdict:
+            return self.tgtdict[tgt]
+        else:
+            return []
+
+    def edgedict_iteritems( self ):
+        return self.edgedict.iteritems()
+
+    def srcdict_iteritems( self ):
+        return self.srcdict.iteritems()
+
+    def tgtdict_iteritems( self ):
+        return self.tgtdict.iteritems()
+
+    def print_out( self, numlines = 30 ):
+        count = 0
+        for edge, timepaid in self.edgedict.iteritems():
+            print "(%d, %d) -> (%d, %d)" % (edge[0], edge[1], timepaid[0], timepaid[1])
+            count += 1
+            if numlines != 0 and count >= numlines:
+                break
+
+    def get_edge_times( self, edge = None ):
+        if edge in self.edgedict:
+            return self.edgedict[ edge ]
+        else:
+            return (None, None)
+
+    def get_last_edges( self, obj_group = None ):
+        tgts = set(obj_group)
+        # Get all possible source objects not in the obj_group
+        latest = 0
+        candlist = []
+        for t in tgts:
+            for src in self.tgtdict.iteritems():
+                if src not in tgts:
+                    tpair = self.get_edge_times( (src, t) )
+                    if tpair[1] != None:
+                        dtime = tpair[1]
+                        if dtime == latest:
+                            candlist.append( (src, t) )
+                        elif dtime > latest:
+                            candlist = [ (src, t) ]
+        print "LASTEDGES:", str(candlist)
+        return candlist
+
+# ----------------------------------------------------------------------------- 
+# ----------------------------------------------------------------------------- 
 class DeathGroupsReader:
     def __init__( self,
                   dgroup_file = None,
@@ -279,19 +379,10 @@ class DeathGroupsReader:
                     for ind in xrange(len(dglist)):
                         dg = list( set( dglist[ind] ) )
                         dtime = dtimes[ind]
-                        keylist = get_key_objects( dg, oir )
-                        self.map_key2group( groupnum = groupnum, keylist = keylist )
                         self.map_obj2group( groupnum = groupnum, groupset = dg )
                         self.map_group2dtime( groupnum = groupnum, dtime = dtime )
                         self.group2list[groupnum] = dg
                         groupnum += 1
-                        # Debug key objects. NOTE: This may not be used for now.
-                        if len(keylist) > 1:
-                            logger.error( "multiple key objects: %s" % str(keylist) )
-                            multkey += 1
-                        elif len(keylist) == 0:
-                            logger.critical( "NO key object in group: %s" % str(dg) )
-                            withoutkey += 1
                     if debugflag:
                         if count % 1000 == 99:
                             sys.stdout.write("#")
@@ -301,8 +392,6 @@ class DeathGroupsReader:
         #sys.stdout.flush()
         #print "DUPES:", len(dupeset)
         #print "TOTAL:", len(seenset)
-        print "Multiple key: %d" % multkey
-        print "Without key: %d" % withoutkey
         moved = {}
         for obj, groups in self.obj2group.iteritems():
             if len(groups) > 1:
@@ -320,14 +409,27 @@ class DeathGroupsReader:
                         del self.group2list[gtmp]
                     # TODO Should we remove from other dictionaries?
         print "----------------------------------------------------------------------"
-        grlen = sorted( [ len(mylist) for group, mylist in self.group2list.iteritems() if len(mylist) > 0 ], reverse = True )
-        for g in grlen:
-            print g
+        # TODO grlen = sorted( [ len(mylist) for group, mylist in self.group2list.iteritems() if len(mylist) > 0 ],
+        #                       reverse = True )
+        for gnum, mylist in self.group2list.iteritems():
+            keylist = get_key_objects( mylist, oir )
+            self.map_key2group( groupnum = groupnum, keylist = keylist )
+            # Debug key objects. NOTE: This may not be used for now.
+            if len(keylist) > 1:
+                logger.error( "multiple key objects: %s" % str(keylist) )
+                multkey += 1
+            elif len(keylist) == 0:
+                logger.critical( "NO key object in group: %s" % str(dg) )
+                withoutkey += 1
+        print "Multiple key: %d" % multkey
+        print "Without key: %d" % withoutkey
         print "----------------------------------------------------------------------"
 
     def iteritems( self ):
         return self.dgroups.iteritems()
 
+# ----------------------------------------------------------------------------- 
+# ----------------------------------------------------------------------------- 
 #
 #  PRIVATE FUNCTIONS
 #
@@ -441,7 +543,7 @@ def main():
                          debugflag = debugflag,
                          verbose = args.verbose )
 
-__all__ = [ "GarbologyConfig", "ObjectInfoReader", "is_key_object", "get_index", ]
+__all__ = [ "EdgeInfoReader", "GarbologyConfig", "ObjectInfoReader", "is_key_object", "get_index", ]
 
 if __name__ == "__main__":
     main()
