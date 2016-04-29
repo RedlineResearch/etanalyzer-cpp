@@ -790,7 +790,7 @@ def main_process( output = None,
         dgroups = DeathGroupsReader( abs_filename, logger = logger )
         dgroups.read_dgroup_file( objinfo )
         dupes = find_dupes( dgroups )
-        for dg in dgroups:
+        for gnum, dg in dgroups.iteritems():
             print "--------------------------------------------------"
             ledges = edgeinfo.get_last_edges( dg )
         continue
