@@ -788,7 +788,7 @@ def main_process( output = None,
         dgroups.clean_deathgroups()
         dupes = find_dupes( dgroups )
         for tgt, data in edgeinfo.lastedge_iteritems():
-            print "%d -> %s" % str(data)
+            print "%d -> [%d] : %s" % (tgt, data["dtime"], str(data["lastsources"]))
         continue
     print "DONE."
     exit(3333)
