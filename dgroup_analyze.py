@@ -692,10 +692,10 @@ def find_dupes( dgroups = None):
     revdict = {}
     dupes = {}
     for objId, group in dgroups.iteritems():
-        if count % 1000 == 99:
-            sys.stdout.write("-")
+        if count % 100 == 99:
+            sys.stdout.write("-/")
             dash += 1
-            if dash % 81 == 80:
+            if dash % 41 == 40:
                 sys.stdout.write('\n')
         count += 1
         for mem in group:
