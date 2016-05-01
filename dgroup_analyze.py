@@ -780,19 +780,15 @@ def main_process( output = None,
         eread_end = time.clock()
         print " - DONE: %f" % (eread_end - eread_start)
         edgeinfo.print_out( numlines = 30 )
-        # TODO TODO TODO
-        # HERE HERE HERE
-        # TODO TODO TODO
-        # TODO shouldn't this be something else?
         print "Reading DGROUPS:",
         abs_filename = os.path.join(cycle_cpp_dir, filename)
         print "Open: %s" % abs_filename
         dgroups = DeathGroupsReader( abs_filename, logger = logger )
         dgroups.read_dgroup_file( objinfo )
+        dgroups.clean_deathgroups()
         dupes = find_dupes( dgroups )
-        for gnum, dg in dgroups.iteritems():
-            print "--------------------------------------------------"
-            ledges = edgeinfo.get_last_edges( dg )
+        for tgt, data in edgeinfo.lastedge_iteritems():
+            print "%d -> %s" % str(data)
         continue
     print "DONE."
     exit(3333)

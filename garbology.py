@@ -203,6 +203,7 @@ class EdgeInfoReader:
         self.edgedict = {} # (src, tgt) -> (create time, death time)
         self.srcdict = defaultdict( set ) # src -> set of tgts
         self.tgtdict = defaultdict( set ) # tgt -> set of srcs
+        self.lastedge = {} # tgt -> (list of lastedges, death time)
         self.logger = logger
 
     def read_edgeinfo_file( self ):
@@ -229,9 +230,13 @@ class EdgeInfoReader:
                     src = row[0]
                     tgt = row[1]
                     timepair = tuple(row[2:])
+                    dtime = row[3]
                     self.edgedict[tuple([src, tgt])] = timepair
                     self.srcdict[src].add( tgt )
                     self.tgtdict[tgt].add( src )
+                    self.update_last_edges( src = src,
+                                            tgt = tgt,
+                                            deathtime = dtime )
         assert(done)
 
     def get_targets( self, src = 0 ):
@@ -255,6 +260,9 @@ class EdgeInfoReader:
     def tgtdict_iteritems( self ):
         return self.tgtdict.iteritems()
 
+    def lastedge_iteritems( self ):
+        return self.lastedge.iteritems()
+
     def print_out( self, numlines = 30 ):
         count = 0
         for edge, timepaid in self.edgedict.iteritems():
@@ -269,13 +277,29 @@ class EdgeInfoReader:
         else:
             return (None, None)
 
+    def update_last_edges( self,
+                           src = None,
+                           tgt = None,
+                           deathtime = None ):
+        # Given a target, find what the sources are
+        if tgt in self.lastedge:
+            if self.lastedge[tgt]["dtime"] < deathtime:
+                self.lastedge[tgt] = { "lastsources" : [ src ],
+                                       "dtime" : deathtime }
+            elif self.lastedge[tgt]["dtime"] == deathtime:
+                self.lastedge[tgt]["lastsources"].append(src)
+        else:
+            self.lastedge[tgt] = { "lastsources" : [ src ],
+                                   "dtime" : deathtime }
+
     def get_last_edges( self, obj_group = None ):
         tgts = set(obj_group)
         # Get all possible source objects not in the obj_group
         latest = 0
         candlist = []
         for t in tgts:
-            for src in self.tgtdict.iteritems():
+            # Given a target, find what the sources are
+            for src, tgtset in self.tgtdict.iteritems():
                 if src not in tgts:
                     tpair = self.get_edge_times( (src, t) )
                     if tpair[1] != None:
@@ -295,7 +319,6 @@ class DeathGroupsReader:
                   debugflag = False,
                   logger = None ):
         self.dgroup_file_name = dgroup_file
-        self.dgroups = {}
         self.obj2group = {}
         self.key2group = {}
         self.group2dtime = {}
@@ -426,7 +449,16 @@ class DeathGroupsReader:
         print "----------------------------------------------------------------------"
 
     def iteritems( self ):
-        return self.dgroups.iteritems()
+        return self.group2list.iteritems()
+
+    def clean_deathgroups( self ):
+        group2list = self.group2list
+        count = 0
+        for gnum in group2list.keys():
+            if len(group2list[gnum]) == 0:
+                del group2list[gnum]
+                count += 0
+        print "%d empty groups cleaned." % count
 
 # ----------------------------------------------------------------------------- 
 # ----------------------------------------------------------------------------- 
