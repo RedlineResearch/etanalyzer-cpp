@@ -196,6 +196,26 @@ class ObjectInfoReader:
         return (self.objdict[objId][get_index("DIEDBY")] == "S") if (objId in self.objdict) \
             else False
 
+    def verify_died_by( self,
+                        grouplist = [],
+                        died_by = None,
+                        fail_on_missing = False ):
+        assert( died_by == "S" or died_by == "H" or died_by == "E" )
+        flag = True
+        for obj in grouplist:
+            if obj not in self.objdict:
+                self.logger.critical( "Missing object: %d" % obj )
+                if fail_on_missing:
+                    return False
+                continue
+            else:
+                rec = self.objdict[obj]
+                if rec[ get_index("DIEDBY") ] != died_by:
+                    self.logger.error( "Looking for '%s' - found '%s'" %
+                                       (died_by, rec[ get_index("DIEDBY") ]) )
+                    flag = False
+        return flag
+
 # ----------------------------------------------------------------------------- 
 # ----------------------------------------------------------------------------- 
 class EdgeInfoReader:

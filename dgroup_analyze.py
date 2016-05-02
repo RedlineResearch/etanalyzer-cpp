@@ -808,8 +808,12 @@ def main_process( output = None,
         #     print "%d -> [%d] : %s" % (tgt, data["dtime"], str(data["lastsources"]))
         for gnum, group in dgroups.iteritems():
             lastrec = get_last_edge_record( group, edgeinfo, objinfo )
-            print "%d @ %d -> %s" % (gnum, lastrec["dtime"], str(lastrec["lastsources"]))
-        continue
+            # print "%d @ %d -> %s" % (gnum, lastrec["dtime"], str(lastrec["lastsources"]))
+            if len(lastrec["lastsources"]) == 0:
+                # Means stack object?
+                objinfo.verify_died_by( grouplist = group,
+                                        died_by = "S" )
+        # TODO continue
     print "DONE."
     exit(3333)
     # benchmark:
