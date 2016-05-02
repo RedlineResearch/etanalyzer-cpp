@@ -192,6 +192,10 @@ class ObjectInfoReader:
     def get_record( self, objId = 0 ):
         return self.objdict[objId] if (objId in self.objdict) else None
 
+    def died_by_stack( self, objId = 0 ):
+        return (self.objdict[objId][get_index("DIEDBY")] == "S") if (objId in self.objdict) \
+            else False
+
 # ----------------------------------------------------------------------------- 
 # ----------------------------------------------------------------------------- 
 class EdgeInfoReader:
@@ -199,10 +203,15 @@ class EdgeInfoReader:
                   edgeinfo_file = None,
                   logger = None ):
         # TODO: Choice of loading from text file or from pickle
+        # 
         self.edgeinfo_file_name = edgeinfo_file
+        # Edge dictionary
         self.edgedict = {} # (src, tgt) -> (create time, death time)
+        # Source to target object dictionary
         self.srcdict = defaultdict( set ) # src -> set of tgts
+        # Target to incoming source object dictionary
         self.tgtdict = defaultdict( set ) # tgt -> set of srcs
+        # Target object to record of last edge
         self.lastedge = {} # tgt -> (list of lastedges, death time)
         self.logger = logger
 
@@ -291,25 +300,10 @@ class EdgeInfoReader:
         else:
             self.lastedge[tgt] = { "lastsources" : [ src ],
                                    "dtime" : deathtime }
+    
+    def get_last_edge_record( self, tgtId = None ):
+        return self.lastedge[tgtId] if tgtId in self.lastedge else None
 
-    def get_last_edges( self, obj_group = None ):
-        tgts = set(obj_group)
-        # Get all possible source objects not in the obj_group
-        latest = 0
-        candlist = []
-        for t in tgts:
-            # Given a target, find what the sources are
-            for src, tgtset in self.tgtdict.iteritems():
-                if src not in tgts:
-                    tpair = self.get_edge_times( (src, t) )
-                    if tpair[1] != None:
-                        dtime = tpair[1]
-                        if dtime == latest:
-                            candlist.append( (src, t) )
-                        elif dtime > latest:
-                            candlist = [ (src, t) ]
-        print "LASTEDGES:", str(candlist)
-        return candlist
 
 # ----------------------------------------------------------------------------- 
 # ----------------------------------------------------------------------------- 
@@ -319,9 +313,13 @@ class DeathGroupsReader:
                   debugflag = False,
                   logger = None ):
         self.dgroup_file_name = dgroup_file
+        # Map of object to list of group numbers
         self.obj2group = {}
+        # Map of key to group number
         self.key2group = {}
+        # Map of key to death time 
         self.group2dtime = {}
+        # Map of group number to list of objects
         self.group2list= {}
         self.debugflag = debugflag
         self.logger = logger
@@ -430,6 +428,8 @@ class DeathGroupsReader:
                         moved[gtmp] = tgt
                         # Remove the merged group
                         del self.group2list[gtmp]
+                        # TODO TODO TODO
+                        # Fix the obj2group when we delete from group2list
                     # TODO Should we remove from other dictionaries?
         print "----------------------------------------------------------------------"
         # TODO grlen = sorted( [ len(mylist) for group, mylist in self.group2list.iteritems() if len(mylist) > 0 ],

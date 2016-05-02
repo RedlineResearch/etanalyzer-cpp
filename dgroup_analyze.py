@@ -600,7 +600,7 @@ def get_last_edge_from_result( edge_list ):
             ledge = newedge
     return ledge
 
-def get_last_edge( largest_scc, edge_info_db ):
+def TODO_get_last_edge( largest_scc, edge_info_db ):
     mylist = list(largest_scc)
     print "======================================================================"
     print mylist
@@ -716,6 +716,23 @@ def find_dupes( dgroups = None):
     print " -- DUPES DONE."
     return dupes
 
+def get_last_edge_record( group, edgeinfo, objectinfo ):
+    latest = 0 # Time of most recent
+    srclist = []
+    for obj in group:
+        rec = edgeinfo.get_last_edge_record(obj)
+        if rec == None:
+            # No last edge
+            # TODO Root object?
+            assert( objectinfo.died_by_stack(obj) )
+        elif rec["dtime"] > latest:
+            latest = rec["dtime"]
+            srclist = rec["lastsources"]
+    return { "dtime" : latest,
+             "lastsources" : srclist }
+
+
+
 def main_process( output = None,
                   main_config = None,
                   benchmark = None,
@@ -787,8 +804,11 @@ def main_process( output = None,
         dgroups.read_dgroup_file( objinfo )
         dgroups.clean_deathgroups()
         dupes = find_dupes( dgroups )
-        for tgt, data in edgeinfo.lastedge_iteritems():
-            print "%d -> [%d] : %s" % (tgt, data["dtime"], str(data["lastsources"]))
+        # for tgt, data in edgeinfo.lastedge_iteritems():
+        #     print "%d -> [%d] : %s" % (tgt, data["dtime"], str(data["lastsources"]))
+        for gnum, group in dgroups.iteritems():
+            lastrec = get_last_edge_record( group, edgeinfo, objinfo )
+            print "%d @ %d -> %s" % (gnum, lastrec["dtime"], str(lastrec["lastsources"]))
         continue
     print "DONE."
     exit(3333)
