@@ -807,6 +807,7 @@ def main_process( output = None,
         # for tgt, data in edgeinfo.lastedge_iteritems():
         #     print "%d -> [%d] : %s" % (tgt, data["dtime"], str(data["lastsources"]))
         debug_count = 0
+        debug_tries = 0
         for gnum, group in dgroups.iteritems():
             lastrec = get_last_edge_record( group, edgeinfo, objinfo )
             # print "%d @ %d -> %s" % (gnum, lastrec["dtime"], str(lastrec["lastsources"]))
@@ -814,6 +815,7 @@ def main_process( output = None,
                 # Means stack object?
                 flag = objinfo.verify_died_by( grouplist = group,
                                                died_by = "S" )
+                debug_tries += 1
                 if not flag:
                     debug_count += 1
                     print "-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-"
@@ -825,6 +827,7 @@ def main_process( output = None,
                                                     rec[ get_index("DIEDBY") ] )
                     print "-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-"
         print "Total: %d" % len(dgroups.group2list)
+        print "Tries: %d" % debug_tries
         print "Error: %d" % debug_count
     print "DONE."
     exit(3333)
