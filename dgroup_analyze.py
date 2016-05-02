@@ -806,14 +806,26 @@ def main_process( output = None,
         dupes = find_dupes( dgroups )
         # for tgt, data in edgeinfo.lastedge_iteritems():
         #     print "%d -> [%d] : %s" % (tgt, data["dtime"], str(data["lastsources"]))
+        debug_count = 0
         for gnum, group in dgroups.iteritems():
             lastrec = get_last_edge_record( group, edgeinfo, objinfo )
             # print "%d @ %d -> %s" % (gnum, lastrec["dtime"], str(lastrec["lastsources"]))
             if len(lastrec["lastsources"]) == 0:
                 # Means stack object?
-                objinfo.verify_died_by( grouplist = group,
-                                        died_by = "S" )
-        # TODO continue
+                flag = objinfo.verify_died_by( grouplist = group,
+                                               died_by = "S" )
+                if not flag:
+                    debug_count += 1
+                    print "-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-"
+                    print "No last edge but group didn't die by stack as a whole:"
+                    for obj in group:
+                        rec = objinfo.get_record( obj )
+                        print "[%d] : %s -> %s" % ( obj,
+                                                    rec[ get_index("TYPE"),
+                                                    rec[ get_index("DIEDBY") )
+                    print "-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-"
+        print "Total: %d" % len(dgroups.group2list)
+        print "Error: %d" % debug_count
     print "DONE."
     exit(3333)
     # benchmark:
