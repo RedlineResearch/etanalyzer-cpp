@@ -478,6 +478,8 @@ class DeathGroupsReader:
             if len(group2list[gnum]) == 0:
                 del group2list[gnum]
                 count += 0
+            else:
+                group2list[gnum] = list(set(group2list[gnum]))
         print "%d empty groups cleaned." % count
 
 # ----------------------------------------------------------------------------- 
