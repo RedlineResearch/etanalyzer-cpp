@@ -808,7 +808,7 @@ def main_process( output = None,
         ktdict = {}
         debug_count = 0
         debug_tries = 0
-        for gnum in dgroups.keys():
+        for gnum in dgroups.group2list.keys():
             if gnum in dgroups.group2list:
                 group = dgroups.group2list[gnum] 
             else:
