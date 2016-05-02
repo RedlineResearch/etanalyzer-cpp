@@ -731,6 +731,8 @@ def get_last_edge_record( group, edgeinfo, objectinfo ):
              "target" : tgt }
 
 
+def is_array( mytype ):
+    return mytype == "["
 
 def main_process( output = None,
                   main_config = None,
@@ -823,13 +825,18 @@ def main_process( output = None,
                 src = lastrec["lastsources"][0]
                 tgt = lastrec["target"]
                 mytype = objinfo.get_type(tgt)
+                is_array_flag = is_array(mytype)
+                group_types = [ objinfo.get_type(x) for x in group if x != tgt ] if is_array_flag \
+                    else []
                 if mytype in ktdict:
                     ktdict[mytype]["max"] = max( len(group), ktdict[mytype]["max"] )
                     # ktdict[mytype]["min"] = min( len(group), ktdict[mytype]["min"] )
                     ktdict[mytype]["total"] += 1
                 else:
                     ktdict[mytype] = { "total" : 1,
-                                       "max" : len(group) }
+                                       "max" : len(group),
+                                       "is_array": is_array_flag,
+                                       "group_types" : group_types, }
             elif len(lastrec["lastsources"]) > 1:
                 pass
                 # TODO
@@ -855,7 +862,8 @@ def main_process( output = None,
         print "Error: %d" % debug_count
         print "==============================================================================="
         for mytype, rec in ktdict.iteritems():
-            print "%s,%d,%d" % (mytype, rec["total"], rec["max"])
+            print "%s,%d,%d,%s" % ( mytype, rec["total"], rec["max"], \
+                                    ";".join(rec["group_types"]) )
         print "==============================================================================="
     print "DONE."
     exit(3333)

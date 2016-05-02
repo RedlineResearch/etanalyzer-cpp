@@ -196,6 +196,10 @@ class ObjectInfoReader:
         typeId = self.get_record(objId)[ get_index("TYPE") ]
         return self.rev_typedict[typeId]
 
+    def is_array( self, objId = 0 ):
+        typeId = self.get_record(objId)[ get_index("TYPE") ]
+        return self.rev_typedict[typeId][0] == "["
+
     def died_by_stack( self, objId = 0 ):
         return (self.objdict[objId][get_index("DIEDBY")] == "S") if (objId in self.objdict) \
             else False
