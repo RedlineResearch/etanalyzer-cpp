@@ -821,8 +821,8 @@ def main_process( output = None,
                     for obj in group:
                         rec = objinfo.get_record( obj )
                         print "[%d] : %s -> %s" % ( obj,
-                                                    rec[ get_index("TYPE"),
-                                                    rec[ get_index("DIEDBY") )
+                                                    rec[ get_index("TYPE") ],
+                                                    rec[ get_index("DIEDBY") ] )
                     print "-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-"
         print "Total: %d" % len(dgroups.group2list)
         print "Error: %d" % debug_count
