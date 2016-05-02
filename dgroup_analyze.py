@@ -825,12 +825,11 @@ def main_process( output = None,
                 mytype = objinfo.get_type(tgt)
                 if mytype in ktdict:
                     ktdict[mytype]["max"] = max( len(group), ktdict[mytype]["max"] )
-                    ktdict[mytype]["min"] = min( len(group), ktdict[mytype]["min"] )
+                    # ktdict[mytype]["min"] = min( len(group), ktdict[mytype]["min"] )
                     ktdict[mytype]["total"] += 1
                 else:
-                    ktydict[mytpye] = { "total" : 1,
-                                        "max" : len(group),
-                                        "min" : len(group) }
+                    ktdict[mytype] = { "total" : 1,
+                                       "max" : len(group) }
             elif len(lastrec["lastsources"]) > 1:
                 pass
                 # TODO
@@ -856,7 +855,7 @@ def main_process( output = None,
         print "Error: %d" % debug_count
         print "==============================================================================="
         for mytype, rec in ktdict.iteritems():
-            print "%s,%d,%d,%d" % (mytype, rec["total"], rec["max"], rec["min"])
+            print "%s,%d,%d" % (mytype, rec["total"], rec["max"])
         print "==============================================================================="
     print "DONE."
     exit(3333)
