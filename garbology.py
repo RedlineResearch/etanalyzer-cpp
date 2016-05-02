@@ -193,7 +193,8 @@ class ObjectInfoReader:
         return self.objdict[objId] if (objId in self.objdict) else None
 
     def get_type( self, objId = 0 ):
-        return self.objdict[objId][get_index("TYPE")] if (objId in self.objdict) else None
+        typeId = self.get_typeId(objId)
+        return self.rev_typedict[typeId]
 
     def died_by_stack( self, objId = 0 ):
         return (self.objdict[objId][get_index("DIEDBY")] == "S") if (objId in self.objdict) \
