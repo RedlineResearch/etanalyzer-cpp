@@ -150,7 +150,7 @@ class ObjectInfoReader:
                     # 1 - death time
                     # 2 - size
                     row = [ int(x) for x in rowtmp[1:4] ]
-                    mytype = rowtmp[-2]
+                    mytype = rowtmp[4]
                     row.append( self.get_typeId( mytype ) )
                     row.extend( rowtmp[5:] )
                     objId = int(rowtmp[0])
@@ -193,7 +193,7 @@ class ObjectInfoReader:
         return self.objdict[objId] if (objId in self.objdict) else None
 
     def get_type( self, objId = 0 ):
-        typeId = self.get_typeId(objId)
+        typeId = self.get_record(objId)[ get_index("TYPE") ]
         return self.rev_typedict[typeId]
 
     def died_by_stack( self, objId = 0 ):
