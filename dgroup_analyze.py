@@ -715,6 +715,7 @@ def find_dupes( dgroups = None):
 def get_last_edge_record( group, edgeinfo, objectinfo ):
     latest = 0 # Time of most recent
     srclist = []
+    tgt = 0
     for obj in group:
         rec = edgeinfo.get_last_edge_record(obj)
         if rec == None:
@@ -724,8 +725,10 @@ def get_last_edge_record( group, edgeinfo, objectinfo ):
         elif rec["dtime"] > latest:
             latest = rec["dtime"]
             srclist = rec["lastsources"]
+            tgt = obj
     return { "dtime" : latest,
-             "lastsources" : srclist }
+             "lastsources" : srclist,
+             "target" : tgt }
 
 
 
@@ -802,12 +805,38 @@ def main_process( output = None,
         dupes = find_dupes( dgroups )
         # for tgt, data in edgeinfo.lastedge_iteritems():
         #     print "%d -> [%d] : %s" % (tgt, data["dtime"], str(data["lastsources"]))
+        ktdict = {}
         debug_count = 0
         debug_tries = 0
-        for gnum, group in dgroups.iteritems():
+        for gnum in dgroups.keys():
+            if gnum in dgroups.group2list:
+                group = dgroups.group2list[gnum] 
+            else:
+                continue
             lastrec = get_last_edge_record( group, edgeinfo, objinfo )
-            # print "%d @ %d -> %s" % (gnum, lastrec["dtime"], str(lastrec["lastsources"]))
-            if len(lastrec["lastsources"]) == 0:
+            # print "%d @ %d : %d -> %s" % ( gnum,
+            #                                lastrec["dtime"],
+            #                                lastrec["target"],
+            #                                str(lastrec["lastsources"]) )
+            if len(lastrec["lastsources"]) == 1:
+                # Get the type
+                src = lastrec["lastsources"][0]
+                tgt = lastrec["target"]
+                mytype = objinfo.get_type(tgt)
+                if mytype in ktdict:
+                    ktdict[mytype]["max"] = max( len(group), ktdict[mytype]["max"] )
+                    ktdict[mytype]["min"] = min( len(group), ktdict[mytype]["min"] )
+                    ktdict[mytype]["total"] += 1
+                else:
+                    ktydict[mytpye] = { "total" : 1,
+                                        "max" : len(group),
+                                        "min" : len(group) }
+            elif len(lastrec["lastsources"]) > 1:
+                pass
+                # TODO
+                # No need to do anything becuase this isn't a key object?
+                # But we need to update the counts of the death groups above
+            elif len(lastrec["lastsources"]) == 0:
                 # Means stack object?
                 flag = objinfo.verify_died_by( grouplist = group,
                                                died_by = "S" )
@@ -825,6 +854,10 @@ def main_process( output = None,
         print "Total: %d" % len(dgroups.group2list)
         print "Tries: %d" % debug_tries
         print "Error: %d" % debug_count
+        print "==============================================================================="
+        for mytype, rec in ktdict.iteritems():
+            print "%s,%d,%d,%d" % (mytype, rec["total"], rec["max"], rec["min"])
+        print "==============================================================================="
     print "DONE."
     exit(3333)
     # benchmark:

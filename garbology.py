@@ -192,6 +192,9 @@ class ObjectInfoReader:
     def get_record( self, objId = 0 ):
         return self.objdict[objId] if (objId in self.objdict) else None
 
+    def get_type( self, objId = 0 ):
+        return self.objdict[objId][get_index("TYPE")] if (objId in self.objdict) else None
+
     def died_by_stack( self, objId = 0 ):
         return (self.objdict[objId][get_index("DIEDBY")] == "S") if (objId in self.objdict) \
             else False
@@ -215,6 +218,7 @@ class ObjectInfoReader:
                                        (died_by, rec[ get_index("DIEDBY") ]) )
                     flag = False
         return flag
+
 
 # ----------------------------------------------------------------------------- 
 # ----------------------------------------------------------------------------- 
@@ -374,6 +378,18 @@ class DeathGroupsReader:
         # NOTE: This is made into a function because there may be
         # other things we wish to do with saving the sets of death
         # times.
+
+    def move_group( self,
+                    src = None,
+                    tgt = None ):
+        if src in self.group2list:
+            if tgt in self.group2list:
+                self.group2list[src].extend( self.group2list[tgt] )
+                del self.group2list[tgt]
+            else:
+                self.logger.critical( "%d not found." % tgt )
+        else:
+            self.logger.critical( "%d not found." % src )
 
     def read_dgroup_file( self,
                           object_info_reader = None ):
