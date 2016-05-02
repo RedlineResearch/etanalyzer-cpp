@@ -687,32 +687,28 @@ def summary_by_size( objinfo = None,
     return sbysize
 
 def find_dupes( dgroups = None):
-    count = 0
-    dash = 0
+    count = 0 # Count for printing out debug progress marks
+    dash = 0 # Also for deub progress hash marks
     revdict = {}
-    dupes = {}
-    for objId, group in dgroups.iteritems():
+    for groupnum, grouplist in dgroups.iteritems():
         if count % 100 == 99:
             sys.stdout.write("-/")
             dash += 1
             if dash % 41 == 40:
                 sys.stdout.write('\n')
         count += 1
-        for mem in group:
+        for mem in grouplist:
             if mem in revdict:
-                if mem not in dupes:
-                    dupes[mem] = [ revdict[mem], objId ]
-                else:
-                    dupes[mem].append( objId )
+                revdict[mem].append( groupnum )
             else:
-                revdict[mem] = objId
+                revdict[mem] = [ groupnum ]
     sys.stdout.write("\n")
     print "DUPES:"
-    for objId, key_list in dupes.iteritems():
-        try:
-            print "%d -> %d" % (objId, len(key_list))
-        except:
-            print "ERROR: %s -> %d" % (objId, len(key_list))
+    dupes = {}
+    for objId, grlist in revdict.iteritems():
+        if len(grlist) > 1:
+            dupes[objId] = grlist
+    pp.pprint(dupes)
     print " -- DUPES DONE."
     return dupes
 
