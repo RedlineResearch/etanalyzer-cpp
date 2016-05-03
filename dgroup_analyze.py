@@ -810,6 +810,7 @@ def main_process( output = None,
         ktdict = {}
         debug_count = 0
         debug_tries = 0
+        died_at_end_count = 0
         for gnum in dgroups.group2list.keys():
             if gnum in dgroups.group2list:
                 group = dgroups.group2list[gnum] 
@@ -824,15 +825,19 @@ def main_process( output = None,
                 # Get the type
                 src = lastrec["lastsources"][0]
                 tgt = lastrec["target"]
+                if objinfo.died_at_end(tgt):
+                    died_at_end_count += 1
+                    continue
                 mytype = objinfo.get_type(tgt)
                 is_array_flag = is_array(mytype)
-                print "X: %s -> %s" % (mytype, str(is_array_flag))
+                # print "X: %s -> %s" % (mytype, str(is_array_flag))
                 group_types = [ objinfo.get_type(x) for x in group if x != tgt ] if is_array_flag \
                     else []
                 if mytype in ktdict:
                     ktdict[mytype]["max"] = max( len(group), ktdict[mytype]["max"] )
                     # ktdict[mytype]["min"] = min( len(group), ktdict[mytype]["min"] )
                     ktdict[mytype]["total"] += 1
+                    ktdict[mytype]["group_types"].extend( group_types )
                 else:
                     ktdict[mytype] = { "total" : 1,
                                        "max" : len(group),
@@ -861,10 +866,11 @@ def main_process( output = None,
         print "Total: %d" % len(dgroups.group2list)
         print "Tries: %d" % debug_tries
         print "Error: %d" % debug_count
+        print "Died at end: %d" % died_at_end_count
         print "==============================================================================="
         for mytype, rec in ktdict.iteritems():
             print "%s,%d,%d,%s" % ( mytype, rec["total"], rec["max"], \
-                                    ";".join(rec["group_types"]) )
+                                    ";".join(set(rec["group_types"])) )
         print "==============================================================================="
     print "DONE."
     exit(3333)
