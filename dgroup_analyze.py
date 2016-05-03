@@ -797,7 +797,9 @@ def get_key_object_types( gnum = None,
         print "%d [ %s ] - %d" % (tgt, objinfo.get_type(tgt), objinfo.get_death_time(tgt))
         for x in group:
             if x != tgt:
-                print "%d [ %s ] - %d" % (x, objinfo.get_type(x), objinfo.get_death_time(x))
+                tmp = objinfo.get_record(x)
+                print "%d [ %s ][ by %s ] - %d" % \
+                    (x, tmp[ get_index("TYPE") ], tmp[ get_index("DIEDBY") ], tmp[ get_index("DTIME") ])
     else:
         for t in group_types:
             print t,
