@@ -884,7 +884,11 @@ def main_process( output = None,
         debug_tries = 0
         died_at_end_count = 0
         for gnum in dgroups.group2list.keys():
-            get_key_object_types( ktdict )
+            get_key_object_types( gnum = gnum,
+                                  ktdict = ktdict,
+                                  dgroups = dgroups,
+                                  objinfo = objinfo )
+
         print "Total: %d" % len(dgroups.group2list)
         print "Tries: %d" % debug_tries
         print "Error: %d" % debug_count
