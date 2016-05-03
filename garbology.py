@@ -193,8 +193,12 @@ class ObjectInfoReader:
         return self.objdict[objId] if (objId in self.objdict) else None
 
     def get_type( self, objId = 0 ):
-        typeId = self.get_record(objId)[ get_index("TYPE") ]
-        return self.rev_typedict[typeId]
+        rec = self.get_record(objId)
+        typeId = rec[ get_index("TYPE") ] if rec != None else None
+        if typeId != None:
+            return self.rev_typedict[typeId]
+        else:
+            return "NONE"
 
     def is_array( self, objId = 0 ):
         typeId = self.get_record(objId)[ get_index("TYPE") ]

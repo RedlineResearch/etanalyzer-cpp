@@ -789,14 +789,13 @@ def get_key_object_types( gnum = None,
         return DIEDATEND
     mytype = objinfo.get_type(tgt)
     is_array_flag = is_array(mytype)
-    group_types = [ objinfo.get_type(x) for x in group if x != tgt ] if is_array_flag \
-        else []
-    print "-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-"
+    group_types = [ objinfo.get_type(x) for x in group if x != tgt ]
+    print "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"
     print "%s:" % mytype
     for t in group_types:
         print t,
     print
-    print "-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-"
+    print "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"
     if mytype in ktdict:
         ktdict[mytype]["max"] = max( len(group), ktdict[mytype]["max"] )
         # ktdict[mytype]["min"] = min( len(group), ktdict[mytype]["min"] )
