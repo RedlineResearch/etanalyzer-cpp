@@ -792,8 +792,15 @@ def get_key_object_types( gnum = None,
     group_types = [ objinfo.get_type(x) for x in group if x != tgt ]
     print "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"
     print "%s:" % mytype
-    for t in group_types:
-        print t,
+    if is_array(mytype) and len(group_types) > 0:
+        print " --- DEBUG:"
+        print "%d [ %s ] - %d" % (tgt, objinfo.get_type(tgt), objinfo.get_death_time(tgt))
+        for x in group:
+            if x != tgt:
+                print "%d [ %s ] - %d" % (x, objinfo.get_type(x), objinfo.get_death_time(x))
+    else:
+        for t in group_types:
+            print t,
     print
     print "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"
     if mytype in ktdict:

@@ -200,6 +200,10 @@ class ObjectInfoReader:
         else:
             return "NONE"
 
+    def get_death_time( self, objId = 0 ):
+        rec = self.get_record(objId)
+        return rec[ get_index("DTIME") ] if rec != None else 0
+
     def is_array( self, objId = 0 ):
         typeId = self.get_record(objId)[ get_index("TYPE") ]
         return self.rev_typedict[typeId][0] == "["
