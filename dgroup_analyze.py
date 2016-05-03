@@ -732,7 +732,7 @@ def get_last_edge_record( group, edgeinfo, objectinfo ):
 
 
 def is_array( mytype ):
-    return mytype == "["
+    return mytype[0] == "["
 
 def main_process( output = None,
                   main_config = None,
@@ -826,6 +826,7 @@ def main_process( output = None,
                 tgt = lastrec["target"]
                 mytype = objinfo.get_type(tgt)
                 is_array_flag = is_array(mytype)
+                print "X: %s -> %s" % (mytype, str(is_array_flag))
                 group_types = [ objinfo.get_type(x) for x in group if x != tgt ] if is_array_flag \
                     else []
                 if mytype in ktdict:
