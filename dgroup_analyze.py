@@ -741,6 +741,7 @@ NOTFOUND = 9
 def get_key_object_types( gnum = None,
                           ktdict = {},
                           dgroups = None,
+                          edgeinfo = None,
                           objinfo = None ):
     if gnum in dgroups.group2list:
         group = dgroups.group2list[gnum] 
@@ -887,6 +888,7 @@ def main_process( output = None,
             get_key_object_types( gnum = gnum,
                                   ktdict = ktdict,
                                   dgroups = dgroups,
+                                  edgeinfo = edgeinfo,
                                   objinfo = objinfo )
 
         print "Total: %d" % len(dgroups.group2list)
