@@ -896,7 +896,7 @@ def main_process( output = None,
         print "Died at end: %d" % died_at_end_count
         print "==============================================================================="
         for mytype, rec in ktdict.iteritems():
-            print "%s,%d,%d,%s" % ( mytype, rec["total"], rec["max"], )
+            print "%s,%d,%d" % ( mytype, rec["total"], rec["max"], )
         print "==============================================================================="
     print "DONE."
     exit(3333)
