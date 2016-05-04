@@ -769,7 +769,6 @@ def get_key_object_types( gnum = None,
     used_last_edge = False
     stackflag = objinfo.verify_died_by( grouplist = group,
                                         died_by = "S" )
-    mytype = objinfo.get_type(tgt)
     if len(key_objects) > 0:
         # Found key objects
         found_key = True
@@ -783,6 +782,7 @@ def get_key_object_types( gnum = None,
                                  key_objects = key_objects,
                                  objinfo = objinfo,
                                  logger = logger )
+            return MULTKEY
     else:
         lastrec = get_last_edge_record( group, edgeinfo, objinfo )
         # print "%d @ %d : %d -> %s" % ( gnum,
@@ -823,6 +823,7 @@ def get_key_object_types( gnum = None,
                 return DIEDBYSTACK
     if objinfo.died_at_end(tgt):
         return DIEDATEND
+    mytype = objinfo.get_type(tgt)
     is_array_flag = is_array(mytype)
     group_types = [ objinfo.get_type(x) for x in group if x != tgt ]
     print "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"
