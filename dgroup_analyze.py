@@ -767,6 +767,9 @@ def get_key_object_types( gnum = None,
     key_objects = [ x for x in group if objinfo.is_key_object(x) ]
     found_key = False
     used_last_edge = False
+    stackflag = objinfo.verify_died_by( grouplist = group,
+                                        died_by = "S" )
+    mytype = objinfo.get_type(tgt)
     if len(key_objects) > 0:
         # Found key objects
         found_key = True
@@ -796,9 +799,7 @@ def get_key_object_types( gnum = None,
             # But DO we need to update the counts of the death groups above TODO
         elif len(lastrec["lastsources"]) == 0:
             # Means stack object?
-            flag = objinfo.verify_died_by( grouplist = group,
-                                           died_by = "S" )
-            if not flag:
+            if not stackflag:
                 print "-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-"
                 print "No last edge but group didn't die by stack as a whole:"
                 for obj in group:
@@ -810,18 +811,18 @@ def get_key_object_types( gnum = None,
             else:
                 # Died by stack. Each object is its own key object
                 for obj in group:
-                    if mytype in ktdict:
-                        ktdict[mytype]["max"] = max( 1, ktdict[mytype]["max"] )
-                        ktdict[mytype]["total"] += 1
+                    tmptype = objinfo.get_type(obj)
+                    if tmptype in ktdict:
+                        ktdict[tmptype]["max"] = max( 1, ktdict[tmptype]["max"] )
+                        ktdict[tmptype]["total"] += 1
                     else:
-                        is_array_flag = is_array(mytype)
-                        ktdict[mytype] = { "total" : 1,
-                                           "max" : len(group),
+                        is_array_flag = is_array(tmptype)
+                        ktdict[tmptype] = { "total" : 1,
+                                           "max" : 1,
                                            "is_array": is_array_flag, }
                 return DIEDBYSTACK
     if objinfo.died_at_end(tgt):
         return DIEDATEND
-    mytype = objinfo.get_type(tgt)
     is_array_flag = is_array(mytype)
     group_types = [ objinfo.get_type(x) for x in group if x != tgt ]
     print "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"
@@ -830,24 +831,36 @@ def get_key_object_types( gnum = None,
         print " --- DEBUG:"
         print "%d [ %s ] - %d" % (tgt, objinfo.get_type(tgt), objinfo.get_death_time(tgt))
         for x in group:
+            tmptype = objinfo.get_type(x)
             if x != tgt:
                 tmp = objinfo.get_record(x)
                 print "%d [ %s ][ by %s ] - %d" % \
-                    (x, objinfo.get_type(tgt), tmp[ get_index("DIEDBY") ], tmp[ get_index("DTIME") ])
+                    (x, objinfo.get_type(x), tmp[ get_index("DIEDBY") ], tmp[ get_index("DTIME") ])
     else:
         for t in group_types:
             print t,
     print
     print "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"
     if mytype in ktdict:
+        if stackflag and is_array_flag:
+            print "BY STACK:"
+            for obj in group:
+                tmptype = objinfo.get_type(obj)
+                if tmptype in ktdict:
+                    ktdict[tmptype]["max"] = max( 1, ktdict[tmptype]["max"] )
+                    ktdict[tmptype]["total"] += 1
+                else:
+                    ktdict[tmptype] = { "total" : 1,
+                                       "max" : 1,
+                                       "is_array": is_array(tmptype), }
+            return DIEDBYSTACK
         ktdict[mytype]["max"] = max( len(group), ktdict[mytype]["max"] )
-        # ktdict[mytype]["min"] = min( len(group), ktdict[mytype]["min"] )
         ktdict[mytype]["total"] += 1
     else:
         ktdict[mytype] = { "total" : 1,
                            "max" : len(group),
                            "is_array": is_array_flag, }
-
+    return ONEKEY
 
 def main_process( output = None,
                   main_config = None,
