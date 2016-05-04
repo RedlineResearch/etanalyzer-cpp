@@ -741,10 +741,9 @@ def debug_multiple_keys( group = None,
     print " >>> MULTIPLE KEY DEBUG:"
     print "     [KEYS]"
     for x in key_objects:
-        if x != tgt:
-            tmp = objinfo.get_record(x)
-            print "%d [ %s ][ by %s ] - %d" % \
-                (x, objinfo.get_type(tgt), tmp[ get_index("DIEDBY") ], tmp[ get_index("DTIME") ])
+        tmp = objinfo.get_record(x)
+        print "%d [ %s ][ by %s ] - %d" % \
+            (x, objinfo.get_type(x), tmp[ get_index("DIEDBY") ], tmp[ get_index("DTIME") ])
     print "Others:", str( list(set([ objinfo.get_type(x) for x in group if x not in key_objects ])) )
     print "-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-"
 
