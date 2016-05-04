@@ -844,7 +844,8 @@ def get_key_object_types( gnum = None,
     print "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"
     if mytype in ktdict:
         if stackflag and is_array_flag:
-            print "BY STACK:"
+            keysrc = "WITH KEY" if found_key else ("LAST EDGE" if used_last_edge else "??????")
+            print "BY STACK %s:" % keysrc
             for obj in group:
                 tmptype = objinfo.get_type(obj)
                 if tmptype in ktdict:
