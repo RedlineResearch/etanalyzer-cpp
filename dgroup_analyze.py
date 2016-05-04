@@ -733,31 +733,54 @@ def get_last_edge_record( group, edgeinfo, objectinfo ):
 def is_array( mytype ):
     return mytype[0] == "["
 
+def debug_multiple_keys( group = None,
+                         key_objects = None,
+                         objinfo = None,
+                         logger = None ):
+    print "-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-"
+    print " >>> MULTIPLE KEY DEBUG:"
+    print "     [KEYS]"
+    for x in key_objects:
+        if x != tgt:
+            tmp = objinfo.get_record(x)
+            print "%d [ %s ][ by %s ] - %d" % \
+                (x, objinfo.get_type(tgt), tmp[ get_index("DIEDBY") ], tmp[ get_index("DTIME") ])
+    print "Others:", str( list(set([ objinfo.get_type(x) for x in group if x not in key_objects ])) )
+    print "-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-"
+
 ONEKEY = 1
 MULTKEY = 2
 NOKEY = 3
+DIEDBYSTACK = 7
 DIEDATEND = 8
 NOTFOUND = 9
 def get_key_object_types( gnum = None,
                           ktdict = {},
                           dgroups = None,
                           edgeinfo = None,
-                          objinfo = None ):
+                          objinfo = None,
+                          logger = None ):
     if gnum in dgroups.group2list:
         group = dgroups.group2list[gnum] 
     else:
         return NOTFOUND # TODO What should return be? None?
     # Check if any of the group is a key object
     key_objects = [ x for x in group if objinfo.is_key_object(x) ]
+    found_key = False
+    used_last_edge = False
     if len(key_objects) > 0:
         # Found key objects
+        found_key = True
         if len(key_objects) == 1:
             # One key - the easiest
             tgt = key_objects[0]
         else:
             # Multiple keys?
             tgt = None
-            # TODO TODO TODO
+            debug_multiple_keys( group = group,
+                                 key_objects = key_objects,
+                                 objinfo = objinfo,
+                                 logger = logger )
     else:
         lastrec = get_last_edge_record( group, edgeinfo, objinfo )
         # print "%d @ %d : %d -> %s" % ( gnum,
@@ -766,12 +789,12 @@ def get_key_object_types( gnum = None,
         #                                str(lastrec["lastsources"]) )
         if len(lastrec["lastsources"]) == 1:
             # Get the type
+            used_last_edge = True
             tgt = lastrec["target"]
         elif len(lastrec["lastsources"]) > 1:
             return NOTFOUND
-            # TODO
             # No need to do anything becuase this isn't a key object?
-            # But we need to update the counts of the death groups above
+            # But DO we need to update the counts of the death groups above TODO
         elif len(lastrec["lastsources"]) == 0:
             # Means stack object?
             flag = objinfo.verify_died_by( grouplist = group,
@@ -785,6 +808,18 @@ def get_key_object_types( gnum = None,
                                                 rec[ get_index("TYPE") ],
                                                 rec[ get_index("DIEDBY") ] )
                 print "-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-"
+            else:
+                # Died by stack. Each object is its own key object
+                for obj in group:
+                    if mytype in ktdict:
+                        ktdict[mytype]["max"] = max( 1, ktdict[mytype]["max"] )
+                        ktdict[mytype]["total"] += 1
+                    else:
+                        is_array_flag = is_array(mytype)
+                        ktdict[mytype] = { "total" : 1,
+                                           "max" : len(group),
+                                           "is_array": is_array_flag, }
+                return DIEDBYSTACK
     if objinfo.died_at_end(tgt):
         return DIEDATEND
     mytype = objinfo.get_type(tgt)
@@ -893,11 +928,12 @@ def main_process( output = None,
         debug_tries = 0
         died_at_end_count = 0
         for gnum in dgroups.group2list.keys():
-            get_key_object_types( gnum = gnum,
-                                  ktdict = ktdict,
-                                  dgroups = dgroups,
-                                  edgeinfo = edgeinfo,
-                                  objinfo = objinfo )
+            result = get_key_object_types( gnum = gnum,
+                                           ktdict = ktdict,
+                                           dgroups = dgroups,
+                                           edgeinfo = edgeinfo,
+                                           objinfo = objinfo,
+                                           logger = logger )
 
         print "Total: %d" % len(dgroups.group2list)
         print "Tries: %d" % debug_tries
