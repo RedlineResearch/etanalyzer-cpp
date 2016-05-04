@@ -468,11 +468,21 @@ class DeathGroupsReader:
             loopflag = False
             for obj, groups in self.obj2group.iteritems():
                 if len(groups) > 1:
+                    # an object is in multiple groups
                     # Merge into lower group number.
                     gsort = sorted( [ x for x in groups if (x not in moved and x in self.group2list) ] )
                     if len(gsort) < 2:
+                        logger.debug( "Continuing on length < 2 for objId[ %d ]." % obj )
+                        continue
+                    stackflag =  True
+                    for gtmp in gsort:
+                        stackflag = stackflag and oir.verify_died_by( grouplist = self.group2list[gtmp],
+                                                                      died_by = "S" )
+                    if stackflag:
+                        logger.debug( "Continuing on BY STACK for objId[ %d ]." % obj )
                         continue
                     tgt = gsort[0]
+                    logger.debug( "Merginb into group %d for objId[ %d ]." % (tgt, obj) )
                     for gtmp in gsort[1:]:
                         # Add to target group
                         if gtmp in self.group2list:
