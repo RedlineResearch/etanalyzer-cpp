@@ -19,7 +19,7 @@ import time
 # TODO from itertools import combinations
 
 from mypytools import mean, stdev, variance
-from garbology import EdgeInfoReader, ObjectInfoReader, DeathGroupsReader
+from garbology import EdgeInfoReader, ObjectInfoReader, DeathGroupsReader, get_index
 
 pp = pprint.PrettyPrinter( indent = 4 )
 
