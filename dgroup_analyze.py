@@ -695,7 +695,7 @@ def get_key_object_types( gnum = None,
     stackflag = objinfo.verify_died_by( grouplist = group,
                                         died_by = "S" )
     # Check to see if the key object is a primitive type array
-    if all_primitive_types( group ) and stackflag:
+    if all_primitive_types( group, objinfo ) and stackflag:
         # All are a group unto themselves
         for obj in group:
             tmptype = objinfo.get_type(obj)
