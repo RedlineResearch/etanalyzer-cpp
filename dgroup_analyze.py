@@ -657,11 +657,11 @@ def get_key_object_types( gnum = None,
             return MULTKEY
     else:
         # First try the known groups
-        known_key_objects == fixed_known_key_objects( group = group,
-                                                objinfo = objinfo,
-                                                logger = logger )
-        if known_key_objects != None:
-            tgt = known_key_objects["obj"]
+        key_objects = fixed_known_key_objects( group = group,
+                                               objinfo = objinfo,
+                                               logger = logger )
+        if key_objects != None:
+            tgt = key_objects["obj"]
         else:
             lastrec = get_last_edge_record( group, edgeinfo, objinfo )
             # print "%d @ %d : %d -> %s" % ( gnum,
