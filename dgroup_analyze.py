@@ -651,7 +651,8 @@ def get_key_object_types( gnum = None,
     else:
         # First try the known groups
         key_objects == fixed_known_key_objects( group = group,
-                                                objinfo = objinfo )
+                                                objinfo = objinfo,
+                                                logger = logger )
         if key_objects != None:
             pass
         else:
