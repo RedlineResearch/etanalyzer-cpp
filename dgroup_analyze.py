@@ -546,7 +546,14 @@ def fixed_known_key_objects( group = [],
     # Check against known groups
     if typeset == set( [ "[C", "Ljava/lang/String;" ] ):
         logger.debug( "Matches [C - String" )
-        return { "key" : "Ljava/lang/String;", }
+        obj = None
+        for x in group:
+            if objinfo.get_type(x) == "Ljava/lang/String;":
+                obj = x
+                break
+        assert(obj != None)
+        return { "key" : "Ljava/lang/String;",
+                 "obj" : obj }
     # elif TODO for more
     return None
 
@@ -654,7 +661,7 @@ def get_key_object_types( gnum = None,
                                                 objinfo = objinfo,
                                                 logger = logger )
         if key_objects != None:
-            pass
+            tgt = key_objects["obj"]
         else:
             lastrec = get_last_edge_record( group, edgeinfo, objinfo )
             # print "%d @ %d : %d -> %s" % ( gnum,
