@@ -452,92 +452,6 @@ def output_R( benchmark = None ):
     # Need benchmark.
     # TODO: Do we need this?
 
-def output_results( output_path = None,
-                    results = None ):
-    # Print out results in this format:
-    # ========= <- divider
-    # benchmark:
-    # size, 1, 4, 5, 2, etc
-    # largest_cycle, 1, 2, 5, 1, etc
-    # number_types, 1, 1, 2, 1, etc
-    with open(output_path, "wb") as fp:
-        for bmark, infodict in results.iteritems():
-            fp.write("================================================================================\n")
-            fp.write("%s:\n" % bmark)
-            # Totals
-            contents = row_to_string( infodict["totals"] )
-            fp.write("totals,%s" % contents)
-            # Actual largest cycle
-            contents = row_to_string( [ len(x) for x in infodict["largest_cycle"] ] )
-            fp.write("largest_cycle,%s" % contents)
-            # Types 
-            contents = row_to_string( [ len(x) for x in infodict["largest_cycle_types_set"] ] )
-            fp.write("types,%s" % contents)
-    hist_output_base = output_path + "-histogram"
-    write_histogram( results = results,
-                     tgtbase = hist_output_base,
-                     title = "Historgram TODO" )
-
-def output_results_transpose( output_path = None,
-                              results = None ):
-    # Print out results in this format:
-    # ========= <- divider
-    # benchmark:
-    # size,largest_cycle, number_types, lifetime_ave, lifetime_sd, min, max
-    #   10,            5,            2,           22,           5,   2,  50
-    for bmark, infodict in results.iteritems():
-        bmark_path = bmark + "-" + output_path
-        with open(bmark_path, "wb") as fp:
-            csvwriter = csv.writer(fp)
-            header = [ "totals", "largest_cycle", "num_types",
-                       "lifetime_mean", "lifetime_stdev", "liftime_min",
-                       "lifetime_max",
-                       "size_largest_cycle", "size_all", ]
-            csvwriter.writerow( header )
-            totals = infodict["totals"]
-            largest_cycle = infodict["largest_cycle"]
-            types_set = infodict["largest_cycle_types_set"]
-            lifetimes = infodict["lifetimes"]
-            ltime_mean = infodict["lifetime_mean"]
-            ltime_sd = infodict["lifetime_sd"]
-            ltime_min = infodict["lifetime_min"]
-            ltime_max = infodict["lifetime_max"]
-            for i in xrange(len(infodict["totals"])):
-                row = [ totals[i], len(largest_cycle[i]),
-                        len(types_set[i]), ltime_mean[i],
-                        ltime_sd[i], ltime_min[i], ltime_max[i],
-                        sum(infodict["sizes_largest_scc"][i]),
-                        sum(infodict["sizes_all"][i]), ]
-                csvwriter.writerow( row )
-
-def output_summary( output_path = None,
-                    summary = None ):
-    # Print out results in this format:
-    # ========= <- divider
-    # benchmark:
-    # size,largest_cycle, number_types, lifetime_ave, lifetime_sd, min, max
-    #   10,            5,            2,           22,           5,   2,  50
-    with open(output_path, "wb") as fp:
-        csvwriter = csv.writer(fp)
-        header = [ "benchmark", "total_objects", "total_edges", "died_by_heap",
-                   "died_by_stack", "died_by_stack_after_heap", "died_by_stack_only",
-                   "last_update_null", "number_of_selfloops",
-                   "died_by_stack_size", "died_by_heap_size",
-                   "last_update_null_heap", "last_update_null_stack", "max_live_size",
-                   "last_update_null_size", "last_update_null_heap_size", "last_update_null_stack_size",
-                   "died_by_stack_after_heap_size", "died_by_stack_only_size", ]
-        csvwriter.writerow( header )
-        for bmark, d in summary.iteritems():
-            row = [ bmark, d["number_of_objects"], d["number_of_edges"], d["died_by_heap"],
-                    d["died_by_stack"], d["died_by_stack_after_heap"], d["died_by_stack_only"],
-                    d["last_update_null"], d["number_of_selfloops"],
-                    d["size_died_by_stack"], d["size_died_by_heap"],
-                    d["last_update_null_heap"], d["last_update_null_stack"], d["max_live_size"],
-                    d["last_update_null_size"], d["last_update_null_heap_size"], d["last_update_null_stack_size"],
-                    d["died_by_stack_after_heap_size"], d["died_by_stack_only_size"],
-                    ]
-            csvwriter.writerow( row )
-
 def create_work_directory( work_dir, logger = None, interactive = False ):
     os.chdir( work_dir )
     today = datetime.date.today()
@@ -562,35 +476,6 @@ def save_interesting_small_cycles( largest_scc, summary ):
     length = len(largest_scc)
     if length > 0 and length <= 4:
         summary["by_size"][length].append( largest_scc )
-
-def save_largest_cycles( graphlist = None, num = None ):
-    largelist = heapq.nlargest( num, graphlist, key = len )
-    return largelist
-
-# TODO Do we need selfloops?
-def append_largest_SCC( ldict = None,
-                        scclist = None,
-                        selfloops = None,
-                        logger = None ):
-    maxscc_len = max( ( len(x) for x in scclist ) )
-    if maxscc_len == 1:
-        # When the largest strongly connected component is a single node,
-        # We can't use the largest, because all nodes will be a SCC.
-        # We instead have to use the selfloops
-        selfies = set()
-        for cycle in scclist:
-            cycle = list(cycle)
-            node = cycle[0]
-            if node in selfloops:
-                selfies.add( node )
-        assert( len(selfies) > 0 )
-        if len(selfies) > 1:
-            logger.critical( "More than one selfie in list: %s" % str(selfies) )
-        largest_scc = [ selfies.pop() ]
-    else:
-        largest_scc = max( scclist, key = len )
-    ldict.append(largest_scc)
-    return largest_scc
 
 def get_last_edge_from_result( edge_list ):
     ledge = edge_list[0]
@@ -652,39 +537,19 @@ def skip_benchmark(bmark):
              # )
            )
 
-def summary_by_size( objinfo = None,
-                     cycles = None,
-                     typedict = None,
-                     summary = None,
-                     logger = None ):
-    print summary.keys()
-    sbysize = summary["sbysize"]
-    exit(1000)
-    dbh = 0
-    dbs = 0
-    total_size = 0
-    # TODO
-    dbs_after_heap = 0
-    dbs_only = 0
-    last_update_null = 0
-    # END TODO
-    tmp = 0
-    for cycle in cycles:
-        for c in cycle:
-            mysize = objinfo[c][SIZE]
-            total_size += mysize
-            reason = objinfo[c][REASON]
-            if reason == "S":
-                dbs += mysize
-            elif reason == "H":
-                dbh += mysize
-    sbysize = { "died_by_heap" : dbh, # size
-                "died_by_stack" : dbs, # size
-                "died_by_stack_after_heap" : dbs_after_heap, # subset of died_by_stack TODO
-                "died_by_stack_only" : dbs_only, # subset of died_by_stack TODO
-                "last_update_null" : last_update_null, # subset of died_by_heap TODO
-                "size" : total_size, }
-    return sbysize
+def fixed_known_key_objects( group = [],
+                             objinfo = None,
+                             logger = None ):
+    # Get types
+    typeset = set( [ objinfo.get_type(x) for x in group ] )
+    logger.debug( "Checking group set: %s" % list(str(typeset)) )
+    # Check against known groups
+    if typeset == set( [ "[C", "Ljava/lang/String;" ] ):
+        logger.debug( "Matches [C - String" )
+        return { "key" : "Ljava/lang/String;", }
+    # elif TODO for more
+    return None
+
 
 def find_dupes( dgroups = None):
     count = 0 # Count for printing out debug progress marks
@@ -784,45 +649,51 @@ def get_key_object_types( gnum = None,
                                  logger = logger )
             return MULTKEY
     else:
-        lastrec = get_last_edge_record( group, edgeinfo, objinfo )
-        # print "%d @ %d : %d -> %s" % ( gnum,
-        #                                lastrec["dtime"],
-        #                                lastrec["target"],
-        #                                str(lastrec["lastsources"]) )
-        if len(lastrec["lastsources"]) == 1:
-            # Get the type
-            used_last_edge = True
-            tgt = lastrec["target"]
-        elif len(lastrec["lastsources"]) > 1:
-            return NOTFOUND
-            # No need to do anything becuase this isn't a key object?
-            # But DO we need to update the counts of the death groups above TODO
-        elif len(lastrec["lastsources"]) == 0:
-            # Means stack object?
-            if not stackflag:
-                print "-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-"
-                print "No last edge but group didn't die by stack as a whole:"
-                for obj in group:
-                    rec = objinfo.get_record( obj )
-                    print "[%d] : %s -> %s" % ( obj,
-                                                rec[ get_index("TYPE") ],
-                                                rec[ get_index("DIEDBY") ] )
-                print "-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-"
-            else:
-                # Died by stack. Each object is its own key object
-                for obj in group:
-                    tmptype = objinfo.get_type(obj)
-                    if tmptype in ktdict:
-                        ktdict[tmptype]["max"] = max( 1, ktdict[tmptype]["max"] )
-                        ktdict[tmptype]["total"] += 1
-                    else:
-                        is_array_flag = is_array(tmptype)
-                        ktdict[tmptype] = { "total" : 1,
-                                           "max" : 1,
-                                           "is_array": is_array_flag, }
-                return DIEDBYSTACK
-    if objinfo.died_at_end(tgt):
-        return DIEDATEND
+        # First try the known groups
+        key_objects == fixed_known_key_objects( group = group,
+                                                objinfo = objinfo )
+        if key_objects != None:
+            pass
+        else:
+            lastrec = get_last_edge_record( group, edgeinfo, objinfo )
+            # print "%d @ %d : %d -> %s" % ( gnum,
+            #                                lastrec["dtime"],
+            #                                lastrec["target"],
+            #                                str(lastrec["lastsources"]) )
+            if len(lastrec["lastsources"]) == 1:
+                # Get the type
+                used_last_edge = True
+                tgt = lastrec["target"]
+            elif len(lastrec["lastsources"]) > 1:
+                return NOTFOUND
+                # No need to do anything becuase this isn't a key object?
+                # But DO we need to update the counts of the death groups above TODO
+            elif len(lastrec["lastsources"]) == 0:
+                # Means stack object?
+                if not stackflag:
+                    print "-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-"
+                    print "No last edge but group didn't die by stack as a whole:"
+                    for obj in group:
+                        rec = objinfo.get_record( obj )
+                        print "[%d] : %s -> %s" % ( obj,
+                                                    rec[ get_index("TYPE") ],
+                                                    rec[ get_index("DIEDBY") ] )
+                    print "-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-"
+                else:
+                    # Died by stack. Each object is its own key object
+                    for obj in group:
+                        tmptype = objinfo.get_type(obj)
+                        if tmptype in ktdict:
+                            ktdict[tmptype]["max"] = max( 1, ktdict[tmptype]["max"] )
+                            ktdict[tmptype]["total"] += 1
+                        else:
+                            is_array_flag = is_array(tmptype)
+                            ktdict[tmptype] = { "total" : 1,
+                                               "max" : 1,
+                                               "is_array": is_array_flag, }
+                    return DIEDBYSTACK
+        if objinfo.died_at_end(tgt):
+            return DIEDATEND
     mytype = objinfo.get_type(tgt)
     is_array_flag = is_array(mytype)
     group_types = [ objinfo.get_type(x) for x in group if x != tgt ]
