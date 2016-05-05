@@ -626,7 +626,7 @@ def get_last_edge_record( group, edgeinfo, objectinfo ):
              "target" : tgt }
 
 def is_array( mytype ):
-    return mytype[0] == "["
+    return (len(mytype) > 0) and (mytype[0] == "[")
 
 def debug_multiple_keys( group = None,
                          key_objects = None,
@@ -641,6 +641,36 @@ def debug_multiple_keys( group = None,
             (x, objinfo.get_type(x), tmp[ get_index("DIEDBY") ], tmp[ get_index("DTIME") ])
     print "Others:", str( list(set([ objinfo.get_type(x) for x in group if x not in key_objects ])) )
     print "-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-"
+
+def is_primitive_type( mytype = None ):
+    return ( (mytype == "Z")     # boolean
+              or (mytype == "B") # byte
+              or (mytype == "C") # char
+              or (mytype == "D") # double
+              or (mytype == "F") # float
+              or (mytype == "I") # int
+              or (mytype == "J") # long
+              or (mytype == "S") # short
+              )
+
+def is_primitive_array( mytype = None ):
+    # Is it an array?
+    if not is_array(mytype):
+        return False
+    else:
+        return ( is_primitive_type(mytype[1:]) or
+                 is_primitive_array(mytype[1:]) )
+        
+# Return true if all objects in group are:
+#     - primitive
+#     - primitive arrays
+def all_primitive_types( group = [],
+                         objinfo = None ):
+    for obj in group:
+        mytype = objinfo.get_type(obj)
+        if not is_primitive_type(mytype) and not is_primitive_array(mytype):
+            return False
+    return True
 
 ONEKEY = 1
 MULTKEY = 2
@@ -664,11 +694,24 @@ def get_key_object_types( gnum = None,
     used_last_edge = False
     stackflag = objinfo.verify_died_by( grouplist = group,
                                         died_by = "S" )
+    # Check to see if the key object is a primitive type array
+    if all_primitive_types( group ) and stackflag:
+        # All are a group unto themselves
+        for obj in group:
+            tmptype = objinfo.get_type(obj)
+            if tmptype in ktdict:
+                ktdict[tmptype]["max"] = max( 1, ktdict[tmptype]["max"] )
+                ktdict[tmptype]["total"] += 1
+            else:
+                ktdict[tmptype] = { "total" : 1,
+                                   "max" : 1,
+                                   "is_array": is_array(tmptype), }
+        print "BY STACK - all primitive" # TODO Make into a logging statement
+        return DIEDBYSTACK
     if len(key_objects) > 0:
         # Found key objects
         found_key = True
         if len(key_objects) == 1:
-            # One key - the easiest
             tgt = key_objects[0]
         else:
             # Multiple keys?
