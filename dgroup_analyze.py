@@ -1,4 +1,4 @@
-# basic_cycle_analyze.py 
+# dgroup_analyze.py 
 #
 import argparse
 import os
@@ -30,8 +30,8 @@ TYPE = 3
 REASON = 4
 
 def setup_logger( targetdir = ".",
-                  filename = "basic_cycle_analyze.log",
-                  logger_name = 'basic_cycle_analyze',
+                  filename = "dgroup_analyze.log",
+                  logger_name = 'dgroup_analyze',
                   debugflag = 0 ):
     # Set up main logger
     logger = logging.getLogger( logger_name )
@@ -969,7 +969,7 @@ def create_parser():
     parser.add_argument( "--logfile",
                          help = "Specify logfile name.",
                          action = "store" )
-    parser.set_defaults( logfile = "basic_cycle_analyze.log",
+    parser.set_defaults( logfile = "dgroup_analyze.log",
                          debugflag = False,
                          lastedgeflag = False,
                          benchmark = "_ALL_",
