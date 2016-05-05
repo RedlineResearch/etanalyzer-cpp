@@ -555,7 +555,7 @@ def fixed_known_key_objects( group = [],
                              logger = None ):
     # Get types
     typeset = set( [ objinfo.get_type(x) for x in group ] )
-    logger.debug( "Checking group set: %s" % list(str(typeset)) )
+    logger.debug( "Checking group set: %s" % str(list(typeset)) )
     # Check against known groups
     if typeset == set( [ "[C", "Ljava/lang/String;" ] ):
         logger.debug( "Matches [C - String" )
