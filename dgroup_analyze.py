@@ -693,8 +693,8 @@ def get_key_object_types( gnum = None,
                                                "max" : 1,
                                                "is_array": is_array_flag, }
                     return DIEDBYSTACK
-        if objinfo.died_at_end(tgt):
-            return DIEDATEND
+            if objinfo.died_at_end(tgt):
+                return DIEDATEND
     mytype = objinfo.get_type(tgt)
     is_array_flag = is_array(mytype)
     group_types = [ objinfo.get_type(x) for x in group if x != tgt ]
