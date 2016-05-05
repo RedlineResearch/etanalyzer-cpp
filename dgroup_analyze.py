@@ -537,6 +537,19 @@ def skip_benchmark(bmark):
              # )
            )
 
+def with_primitive_array( typeset = set([]) ):
+    typelist = list(typeset)
+    arre = re.compile("^\[[CIJ]")
+    m1 = arre.search(typelist[1])
+    m0 = arre.search(typelist[0])
+    if ( (typelist[0].find("[L") == 0) and
+         (m1 != None) ):
+        return typelist[0]
+    elif ( (typelist[1].find("[L") == 0) and
+           (m0 != None) ):
+        return typelist[1]
+    return None
+
 def fixed_known_key_objects( group = [],
                              objinfo = None,
                              logger = None ):
@@ -554,7 +567,17 @@ def fixed_known_key_objects( group = [],
         assert(obj != None)
         return { "key" : "Ljava/lang/String;",
                  "obj" : obj }
-    # elif TODO for more
+    elif ( (len(typeset) == 2) and
+           (with_primitive_array(typeset) != None) ):
+        mytype = with_primitive_array(typeset)
+        obj = None
+        for x in group:
+            if objinfo.get_type(x) == mytype:
+                obj = x
+                break
+        assert(obj != None)
+        return { "key" : "Ljava/lang/String;",
+                 "obj" : obj }
     return None
 
 
