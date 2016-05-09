@@ -815,8 +815,10 @@ def check_host( benchmark = None,
                 worklist_config = {},
                 host_config = {} ):
     thishost = socket.gethostname()
-    wanthost = worklist_config[benchmark]
-    return thishost in host_config[wanthost]
+    for wanthost in worklist_config[benchmark]:
+        if thishost in host_config[wanthost]:
+            return True
+    return False
 
 def main_process( output = None,
                   main_config = None,
@@ -1071,6 +1073,13 @@ def process_host_config( host_config = {} ):
         host_config[bmark] = hostlist
     return defaultdict( list, host_config )
 
+def process_worklist_config( worklist_config = {} ):
+    mydict = defaultdict( lambda: "NONE" )
+    for bmark in list(worklist_config.keys()):
+        hostlist = worklist_config[bmark].split(",")
+        mydict[bmark] = hostlist
+    return mydict
+
 def main():
     parser = create_parser()
     args = parser.parse_args()
@@ -1087,13 +1096,12 @@ def main():
     objectinfo_config = configdict["objectinfo"]
     summary_config = configdict["summary"]
     host_config = process_host_config( configdict["host"] )
-    worklist_config = defaultdict( lambda: "NONE",
-                                   configdict["worklist"] )
+    worklist_config = process_worklist_config( configdict["worklist"] )
+    print "WORKLIST_CONFIG:"
+    pp.pprint(worklist_config)
     # Set up logging
     logger = setup_logger( filename = args.logfile,
                            debugflag = global_config["debug"] )
-    pp.pprint(host_config)
-    pp.pprint(worklist_config)
     #
     # Main processing
     #
