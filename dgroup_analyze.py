@@ -15,6 +15,8 @@ import csv
 import subprocess
 import datetime
 import time
+import socket
+from collections import defaultdict
 
 # TODO from itertools import combinations
 
@@ -809,16 +811,25 @@ def get_key_object_types( gnum = None,
                            "is_array": is_array_flag, }
     return ONEKEY
 
+def check_host( benchmark = None,
+                worklist_config = {},
+                host_config = {} ):
+    thishost = socket.gethostname()
+    wanthost = worklist_config[benchmark]
+    return thishost in host_config[wanthost]
+
 def main_process( output = None,
                   main_config = None,
                   benchmark = None,
                   lastedgeflag = False,
-                  etanalyze_config = None,
-                  global_config = None,
-                  edge_config = None,
-                  edgeinfo_config = None,
-                  objectinfo_config = None,
-                  summary_config = None,
+                  etanalyze_config = {},
+                  global_config = {},
+                  edge_config = {},
+                  edgeinfo_config = {},
+                  objectinfo_config = {},
+                  summary_config = {},
+                  host_config = {},
+                  worklist_config = {},
                   debugflag = False,
                   logger = None ):
     global pp
@@ -846,11 +857,16 @@ def main_process( output = None,
     # Take benchmarks to process from etanalyze_config
     for bmark, filename in etanalyze_config.iteritems():
         # if skip_benchmark(bmark):
-        if ( (benchmark != "_ALL_") and (bmark != benchmark) ):
+        if ( ((benchmark != "_ALL_") and
+               (bmark != benchmark)) or 
+             (not check_host( benchmark = bmark,
+                              worklist_config = worklist_config,
+                              host_config = host_config )) ):
             print "SKIP:", bmark
-            continue
+            continue # TODO Temporary Debug TODO
         print "=======[ %s ]=========================================================" \
             % bmark
+        continue
         # Get object dictionary information that has types and sizes
         # TODO Put this code into garbology.py
         typedict = {}
@@ -1000,8 +1016,17 @@ def process_config( args ):
     edgeinfo_config = config_section_map( "edgeinfo", config_parser )
     objectinfo_config = config_section_map( "objectinfo", config_parser )
     summary_config = config_section_map( "summary_cpp", config_parser )
-    return ( global_config, etanalyze_config, main_config, edge_config,
-             edgeinfo_config, objectinfo_config, summary_config )
+    host_config = config_section_map( "hosts", config_parser )
+    worklist_config = config_section_map( "dgroups-worklist", config_parser )
+    return { "global" : global_config,
+             "etanalyze" : etanalyze_config,
+             "main" : main_config,
+             "edge" : edge_config, # TODO is this still needed? TODO
+             "edgeinfo" : edgeinfo_config,
+             "objectinfo" : objectinfo_config,
+             "summary" : summary_config,
+             "host" : host_config,
+             "worklist" : worklist_config }
 
 # TODO: TO REMOVE 8 jan 2016
 def setup_objdb( global_config = None,
@@ -1040,17 +1065,35 @@ def setup_edge_info_db( global_config = None,
         assert( False )
     return edge_info_db
 
+def process_host_config( host_config = {} ):
+    for bmark in list(host_config.keys()):
+        hostlist = host_config[bmark].split(",")
+        host_config[bmark] = hostlist
+    return defaultdict( list, host_config )
+
 def main():
     parser = create_parser()
     args = parser.parse_args()
     configparser = ConfigParser.ConfigParser()
     benchmark = args.benchmark
     assert( args.config != None )
-    global_config, etanalyze_config, main_config, edge_config, \
-        edgeinfo_config, objectinfo_config, summary_config  = process_config( args )
-    # logging
+    # Get all the configurations. Maybe there's a cleaner way to do this. TODO
+    configdict = process_config( args )
+    global_config = configdict["global"]
+    etanalyze_config = configdict["etanalyze"]
+    main_config = configdict["main"]
+    edge_config = configdict["edge"]
+    edgeinfo_config = configdict["edgeinfo"]
+    objectinfo_config = configdict["objectinfo"]
+    summary_config = configdict["summary"]
+    host_config = process_host_config( configdict["host"] )
+    worklist_config = defaultdict( lambda: "NONE",
+                                   configdict["worklist"] )
+    # Set up logging
     logger = setup_logger( filename = args.logfile,
                            debugflag = global_config["debug"] )
+    pp.pprint(host_config)
+    pp.pprint(worklist_config)
     #
     # Main processing
     #
@@ -1065,6 +1108,8 @@ def main():
                          objectinfo_config = objectinfo_config,
                          summary_config = summary_config,
                          global_config = global_config,
+                         host_config = host_config,
+                         worklist_config = worklist_config,
                          logger = logger )
 
 if __name__ == "__main__":
