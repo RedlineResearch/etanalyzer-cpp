@@ -750,6 +750,7 @@ def main_process( output = None,
                               worklist_config = worklist_config,
                               host_config = host_config )) ):
             print "SKIP:", bmark
+            continue
         print "=======[ %s ]=========================================================" \
             % bmark
         sys.stdout.flush()
