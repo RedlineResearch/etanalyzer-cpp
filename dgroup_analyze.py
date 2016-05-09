@@ -125,14 +125,6 @@ def get_types( G, cycle ):
 def get_types_and_save_index( G, cycle ):
     return [ (x, G.node[x]["type"]) for x in cycle ]
 
-def DEBUG_types( largest_by_types_with_index, largest_scc ):
-    l = largest_by_types_with_index
-    if len(largest_scc) == 1:
-        print "LEN1: %s <-> %s" % (str(largest_scc), l)
-        if l[0][1] == '[B':
-            print "DEBUG id: %d" % l[0][0]
-    # elif len(largest_scc) == 2:
-
 def debug_cycle_algorithms( largest_scc, cyclelist, G ):
     global pp
     print "=================================================="
@@ -148,22 +140,6 @@ def debug_cycle_algorithms( largest_scc, cyclelist, G ):
             exit(222)
     print "=================================================="
     
-def get_types_debug( G, cycle ):
-    result = []
-    for x in cycle:
-        try:
-            mynode = G.node[x]
-        except:
-            print "Unable to get node[ %d ]" % x
-            continue
-        try:
-            mytype = mynode["type"]
-        except:
-            print "Unable to get type for node[ %d ] -> %s" % (x, str(mynode))
-            continue
-        result.append(mytype)
-    return result
-
 def get_lifetimes( G, cycle ):
     return [ G.node[x]["lifetime"] for x in cycle ]
 
@@ -217,10 +193,8 @@ def get_edges( edgepath ):
             if line.find("---------------[ EDGE INFO") == 0:
                 start = True if not start else False
                 if start:
-                    print "START--"
                     continue
                 else:
-                    print "--DONE"
                     done = True
                     break
             if start:
@@ -306,68 +280,6 @@ def is_inner_class( mytype ):
     global g_regex
     m = g_regex.match(mytype)
     return True if m else False
-
-def extract_small_cycles( small_summary = None, 
-                          bmark = None,
-                          objinfo_dict = None,
-                          rev_typedict = None,
-                          logger = None ):
-    global pp
-    with open(bmark + "-size1.csv", "wb") as fp1, \
-         open(bmark + "-size2.csv", "wb") as fp2, \
-         open(bmark + "-size3.csv", "wb") as fp3, \
-         open(bmark + "-size4.csv", "wb") as fp4:
-        writer = [ None,
-                   csv.writer(fp1),
-                   csv.writer(fp2),
-                   csv.writer(fp3),
-                   csv.writer(fp4) ]
-        result = [ None, [], [], [], [] ]
-        counterlist = {}
-        regex = re.compile( "([^\$]+)\$(.*)" )
-        total_cycles = 0
-        inner_classes_count = Counter()
-        # TODO DELETE
-        # for feature, fdict in summary.iteritems(): 
-        for size, mylist in small_summary.iteritems():
-            for cycle in mylist:
-                assert( len(cycle) > 0 )
-                assert( len(cycle) <= 4 )
-                cycle_info_list = []
-                for record in cycle:
-                    node, saved_type = record
-                    try:
-                        rec = objinfo_dict[node]
-                        mytype = rec[TYPE]
-                        mysize = rec[SIZE]
-                        atime = rec[ATIME]
-                        dtime = rec[DTIME]
-                        lifetime = (dtime - atime) if ((dtime > atime) and  (dtime != 0)) \
-                            else 0
-                        cycle_info_list.append( (node, mytype, mysize, lifetime) )
-                    except:
-                        logger.critical("Missing node[ %s ]" % str(node))
-                        mytype = "<NONE>"
-                        mysize = 0
-                        lifetime = 0
-                        cycle_info_list.append( (node, mytype, mysize, lifetime) )
-                type_tuple = tuple( sorted( [ rev_typedict[x[1]] for x in cycle_info_list ] ) )
-                # type_tuple contains all the types in the strongly connected component.
-                # This is sorted so that there's a canonical labeling of the type group/tuple.
-                assert( len(cycle) == size )
-                result[size].append( type_tuple )
-                total_cycles += 1
-                flag = False
-                for tmp in list(type_tuple):
-                    if is_inner_class(tmp):
-                        inner_classes_count.update( [ tmp ] )
-            counterlist[size] = Counter(result[size])
-            for row in ( list(key) + [ val ] for key, val
-                         in counterlist[size].iteritems() ):
-                writer[size].writerow( row )
-    pp.pprint( counterlist )
-    return { "total_cycles" : total_cycles,
-             "inner_classes_count" : inner_classes_count }
 
 def row_to_string( row ):
     result = None
@@ -487,30 +399,6 @@ def get_last_edge_from_result( edge_list ):
             ledge = newedge
     return ledge
 
-def TODO_get_last_edge( largest_scc, edge_info_db ):
-    mylist = list(largest_scc)
-    print "======================================================================"
-    print mylist
-    print "----"
-    last_edge_list = []
-    for tgt in mylist:
-        try:
-            result = edge_info_db.get_all( tgt ) # TODO: temporary debug
-            print "XXX: %d" % tgt
-        except KeyError:
-            result = []
-            print "ZZZ: %d" % tgt
-        print result
-        # The edge tuple is:
-        # (tgtId, srcId, fieldId, alloc time, death time )
-        # => Get the edge with the latest death time whose source ID isn't in
-        #    the cycle.
-        last_edge = get_last_edge_from_result( result )
-        last_edge_list.append( last_edge )
-    print "====[ END ]==========================================================="
-    last_edge = get_last_edge_from_result( last_edge_list )
-    return (last_edge[1], last_edge[0])
-
 def print_summary( summary ):
     global pp
     for bmark, fdict in summary.iteritems():
@@ -585,28 +473,25 @@ def fixed_known_key_objects( group = [],
 
 def find_dupes( dgroups = None):
     count = 0 # Count for printing out debug progress marks
-    dash = 0 # Also for deub progress hash marks
+    # dash = 0 # Also for deub progress hash marks
     revdict = {}
     for groupnum, grouplist in dgroups.iteritems():
-        if count % 100 == 99:
-            sys.stdout.write("-/")
-            dash += 1
-            if dash % 41 == 40:
-                sys.stdout.write('\n')
+        #if count % 100 == 99:
+        #    sys.stdout.write("-/")
+        #    dash += 1
+        #    if dash % 41 == 40:
+        #        sys.stdout.write('\n')
         count += 1
         for mem in grouplist:
             if mem in revdict:
                 revdict[mem].append( groupnum )
             else:
                 revdict[mem] = [ groupnum ]
-    sys.stdout.write("\n")
-    print "DUPES:"
+    # sys.stdout.write("\n")
     dupes = {}
     for objId, grlist in revdict.iteritems():
         if len(grlist) > 1:
             dupes[objId] = grlist
-    pp.pprint(dupes)
-    print " -- DUPES DONE."
     return dupes
 
 def get_last_edge_record( group, edgeinfo, objectinfo ):
@@ -708,7 +593,7 @@ def get_key_object_types( gnum = None,
                 ktdict[tmptype] = { "total" : 1,
                                    "max" : 1,
                                    "is_array": is_array(tmptype), }
-        print "BY STACK - all primitive" # TODO Make into a logging statement
+        # print "BY STACK - all primitive" # TODO Make into a logging statement
         return DIEDBYSTACK
     if len(key_objects) > 0:
         # Found key objects
@@ -865,10 +750,9 @@ def main_process( output = None,
                               worklist_config = worklist_config,
                               host_config = host_config )) ):
             print "SKIP:", bmark
-            continue # TODO Temporary Debug TODO
         print "=======[ %s ]=========================================================" \
             % bmark
-        continue
+        sys.stdout.flush()
         # Get object dictionary information that has types and sizes
         # TODO Put this code into garbology.py
         typedict = {}
@@ -920,8 +804,10 @@ def main_process( output = None,
         for mytype, rec in ktdict.iteritems():
             print "%s,%d,%d" % ( mytype, rec["total"], rec["max"], )
         print "==============================================================================="
+        sys.stdout.flush()
     print "DONE."
     exit(3333)
+    # TODO Delete after this
     # benchmark:
     # size, 1, 4, 5, 2, etc
     # largest_cycle, 1, 2, 5, 1, etc
