@@ -802,6 +802,7 @@ def main_process( output = None,
         print "Error: %d" % debug_count
         print "Died at end: %d" % died_at_end_count
         print "==============================================================================="
+        # TODO Output to CSV file. TODO
         for mytype, rec in ktdict.iteritems():
             print "%s,%d,%d" % ( mytype, rec["total"], rec["max"], )
         print "==============================================================================="
