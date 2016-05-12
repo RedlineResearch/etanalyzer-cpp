@@ -154,7 +154,14 @@ def main_process( output = None,
     specjvm_dir = global_config["specjvm_dir"]
     dacapo_dir = global_config["dacapo_dir"]
     procdict = {}
-    for bmark in benchmarks:
+    pp.pprint(bmark_config)
+    for bmark in bmark_config.keys():
+        if ( bmark == "h2" or
+             bmark == "jython" or
+             bmark == "fop" or
+             bmark == "sunflow" or
+             bmark == "eclipse" ):
+            continue
         # TODO Check whether to run or not. Copy from dgroup_analyze.py HERE TODO
         # -----------------------------------------------------------------------
         # Then spawn using multiprocessing
@@ -170,17 +177,17 @@ def main_process( output = None,
         print myargs 
         fp = get_trace_fp( tracefile, logger )
         timenow = time.asctime()
+        cmd = [ simulator ] + myargs
         logger.debug( "[%s] - starting at %s" % (bmark, timenow) )
         sproc = subprocess.Popen( cmd,
                                   stdout = subprocess.PIPE,
                                   stdin = fp,
                                   stderr = subprocess.PIPE )
-        # procdict[bmark] = sproc
+        result = sproc.communicate()
+        for x in result:
+            print x
         timenow = time.asctime()
         logger.debug( "[%s] - done at %s" % (bmark, timenow) )
-        # result = sproc.communicate()
-        # for x in result:
-        #     print x
     print "DONE."
     exit(10000)
     # HERE: TODO
