@@ -190,15 +190,31 @@ class ExecState
         ThreadMap m_threads;
         // -- Time
         unsigned int m_time;
+        // -- Update Time
+        unsigned int m_uptime;
     public:
         ExecState(unsigned int kind)
             : m_kind(kind)
             , m_threads()
-            , m_time(0) {
+            , m_time(0)
+            , m_uptime(0) {
         }
 
         // -- Get the current time
-        unsigned int Now() const { return m_time; }
+        unsigned int TODONow() const { return m_time; }
+
+        // -- Get the current update time
+        unsigned int NowUp() const { return m_uptime; }
+
+        // -- Set the current update time
+        inline unsigned int SetUpdateTime( unsigned int newutime ) {
+            return this->m_uptime = newutime;
+        }
+
+        // -- Increment the current update time
+        inline unsigned int IncUpdateTime() {
+            return this->m_uptime++;
+        }
 
         // -- Look up or create a thread
         Thread* getThread(unsigned int threadid);
@@ -218,6 +234,7 @@ class ExecState
         // Get begin iterator of thread map
         ThreadMap::iterator begin_threadmap() { return this->m_threads.begin(); }
         ThreadMap::iterator end_threadmap() { return this->m_threads.end(); }
+
 };
 
 #endif
