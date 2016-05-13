@@ -809,7 +809,7 @@ def main_process( output = None,
     for bmark, filename in etanalyze_config.iteritems():
         # if skip_benchmark(bmark):
         if ( ((benchmark != "_ALL_") and
-               (bmark != benchmark)) or 
+              (bmark != benchmark)) or 
              (not check_host( benchmark = bmark,
                               worklist_config = worklist_config,
                               host_config = host_config )) ):
