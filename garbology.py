@@ -103,8 +103,9 @@ def get_key_objects( idlist = [],
         rec = oir.get_record( objId )
         assert( rec != None )
         if is_key_object(rec):
-            print "DBG: keyobj: %s is %s" % ( rec[ get_index("TYPE") ],
-                                              rec[ get_index("GARBTYPE") ] )
+            print "DBG: [%d] keyobj: %s is %s" % ( objId,
+                                                   oir.get_type_using_typeId(rec[ get_index("TYPE") ]),
+                                                   rec[ get_index("GARBTYPE") ] )
             result.append(rec)
     return result
 
@@ -201,6 +202,10 @@ class ObjectInfoReader:
             return self.rev_typedict[typeId]
         else:
             return "NONE"
+
+    def get_type_using_typeId( self, typeId = 0 ):
+        return self.rev_typedict[typeId] if typeId in self.rev_typedict \
+            else "NONE"
 
     def get_death_time( self, objId = 0 ):
         rec = self.get_record(objId)
