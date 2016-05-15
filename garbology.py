@@ -99,7 +99,7 @@ def get_key_objects( idlist = [],
                      object_info_reader = None ):
     oir = object_info_reader
     result = []
-    for objId in idlist:
+    for objId in set(idlist):
         rec = oir.get_record( objId )
         assert( rec != None )
         if is_key_object(rec):
@@ -107,7 +107,7 @@ def get_key_objects( idlist = [],
                                                    oir.get_type_using_typeId(rec[ get_index("TYPE") ]),
                                                    rec[ get_index("GARBTYPE") ] )
             result.append(rec)
-    return result
+    return list(set(result))
 
 
 # ----------------------------------------------------------------------------- 
