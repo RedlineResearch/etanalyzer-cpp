@@ -103,6 +103,8 @@ def get_key_objects( idlist = [],
         rec = oir.get_record( objId )
         assert( rec != None )
         if is_key_object(rec):
+            print "DBG: keyobj: %s is %s" % ( rec[ get_index("TYPE"),
+                                              rec[ get_index("GARBTYPE") ] ) ]
             result.append(rec)
     return result
 
@@ -436,23 +438,25 @@ class DeathGroupsReader:
                     dg = [ int(x) for x in line.split(",") if not oir.died_at_end(int(x))  ]
                     if len(dg) == 0:
                         continue
-                    dtimes = list( set( [ oir.get_record(x)[dtind] for x in dg ] ) )
-                    if (len(dtimes) > 1):
-                        # split into groups according to death times
-                        logger.debug( "Multiple death times: %s" % str(dtimes) )
-                    dglist = []
-                    for ind in xrange(len(dtimes)):
-                        dtime = dtimes[ind]
-                        mydg = [ x for x in dg if oir.get_record(x)[dtind] == dtime ]
-                        dglist.append( mydg )
-                    assert(len(dglist) == len(dtimes))
-                    for ind in xrange(len(dglist)):
-                        dg = list( set( dglist[ind] ) )
-                        dtime = dtimes[ind]
-                        self.map_obj2group( groupnum = groupnum, groupset = dg )
-                        self.map_group2dtime( groupnum = groupnum, dtime = dtime )
-                        self.group2list[groupnum] = dg
-                        groupnum += 1
+                    # dtimes = list( set( [ oir.get_record(x)[dtind] for x in dg ] ) )
+                    # if (len(dtimes) > 1):
+                    #     # split into groups according to death times
+                    #     logger.debug( "Multiple death times: %s" % str(dtimes) )
+                    # dglist = []
+                    # for ind in xrange(len(dtimes)):
+                    #     dtime = dtimes[ind]
+                    #     mydg = [ x for x in dg if oir.get_record(x)[dtind] == dtime ]
+                    #     dglist.append( mydg )
+                    # assert(len(dglist) == len(dtimes))
+                    # for ind in xrange(len(dglist)):
+                    # dg = list( set( dglist[ind] ) )
+                    dg = list( set(dg) )
+                    # dtime = dtimes[ind]
+                    dtime = oir.get_record(dg[0])[dtind]
+                    self.map_obj2group( groupnum = groupnum, groupset = dg )
+                    self.map_group2dtime( groupnum = groupnum, dtime = dtime )
+                    self.group2list[groupnum] = dg
+                    groupnum += 1
                     if debugflag:
                         if count % 1000 == 99:
                             sys.stdout.write("#")
@@ -462,38 +466,38 @@ class DeathGroupsReader:
         #sys.stdout.flush()
         #print "DUPES:", len(dupeset)
         #print "TOTAL:", len(seenset)
-        moved = {}
-        loopflag = True
-        while loopflag:
-            loopflag = False
-            for obj, groups in self.obj2group.iteritems():
-                if len(groups) > 1:
-                    # an object is in multiple groups
-                    # Merge into lower group number.
-                    gsort = sorted( [ x for x in groups if (x not in moved and x in self.group2list) ] )
-                    if len(gsort) < 2:
-                        logger.debug( "Continuing on length < 2 for objId[ %d ]." % obj )
-                        continue
-                    stackflag =  True
-                    for gtmp in gsort:
-                        stackflag = stackflag and oir.verify_died_by( grouplist = self.group2list[gtmp],
-                                                                      died_by = "S" )
-                    if stackflag:
-                        logger.debug( "Continuing on BY STACK for objId[ %d ]." % obj )
-                        continue
-                    tgt = gsort[0]
-                    logger.debug( "Merginb into group %d for objId[ %d ]." % (tgt, obj) )
-                    for gtmp in gsort[1:]:
-                        # Add to target group
-                        if gtmp in self.group2list:
-                            loopflag = True
-                            self.group2list[tgt].extend( self.group2list[gtmp] )
-                            moved[gtmp] = tgt
-                            # Remove the merged group
-                            del self.group2list[gtmp]
-                            # TODO TODO TODO
-                            # Fix the obj2group when we delete from group2list
-                        # TODO Should we remove from other dictionaries?
+        # TODO moved = {}
+        # TODO loopflag = True
+        # TODO while loopflag:
+        # TODO     loopflag = False
+        # TODO     for obj, groups in self.obj2group.iteritems():
+        # TODO         if len(groups) > 1:
+        # TODO             # an object is in multiple groups
+        # TODO             # Merge into lower group number.
+        # TODO             gsort = sorted( [ x for x in groups if (x not in moved and x in self.group2list) ] )
+        # TODO             if len(gsort) < 2:
+        # TODO                 logger.debug( "Continuing on length < 2 for objId[ %d ]." % obj )
+        # TODO                 continue
+        # TODO             stackflag =  True
+        # TODO             for gtmp in gsort:
+        # TODO                 stackflag = stackflag and oir.verify_died_by( grouplist = self.group2list[gtmp],
+        # TODO                                                               died_by = "S" )
+        # TODO             if stackflag:
+        # TODO                 logger.debug( "Continuing on BY STACK for objId[ %d ]." % obj )
+        # TODO                 continue
+        # TODO             tgt = gsort[0]
+        # TODO             logger.debug( "Merging into group %d for objId[ %d ]." % (tgt, obj) )
+        # TODO             for gtmp in gsort[1:]:
+        # TODO                 # Add to target group
+        # TODO                 if gtmp in self.group2list:
+        # TODO                     loopflag = True
+        # TODO                     self.group2list[tgt].extend( self.group2list[gtmp] )
+        # TODO                     moved[gtmp] = tgt
+        # TODO                     # Remove the merged group
+        # TODO                     del self.group2list[gtmp]
+        # TODO                     # TODO TODO TODO
+        # TODO                     # Fix the obj2group when we delete from group2list
+        # TODO                 # TODO Should we remove from other dictionaries?
         print "----------------------------------------------------------------------"
         # TODO grlen = sorted( [ len(mylist) for group, mylist in self.group2list.iteritems() if len(mylist) > 0 ],
         #                       reverse = True )
