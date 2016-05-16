@@ -1,6 +1,10 @@
 # mypytools.py
 # - Raoul L. Veroy
 import math
+import smtplib
+# from email.mime.text import MIMEText
+import subprocess
+import StringIO
 
 def merge_two_dicts(x, y):
     '''Given two dicts, merge them into a new dict as a shallow copy.'''
@@ -92,7 +96,45 @@ def stdev( data, m = None ):
     """
     return math.sqrt( variance(data, m) )
 
-__all__ = [ "mean", "merge_two_dicts", "stdev", "variance", ]
+def email_message( message = "",
+                   subject = "",
+                   to_email = "rveroy@cs.tufts.edu",
+                   mutt_path = "/usr/bin/mutt" ):
+    """ Send an email message using mutt.
+    """
+    # minor TODO: As this obviously relies on mutt, it's not very portable.
+    # I can't seem to figure out the python smtplib library so that's a good
+    # portable alternative.
+    msg = StringIO.StringIO( message )
+    cmd = [ mutt_path, "-s %s" % subject, "--", "%s" % to_email ]
+    proc = subprocess.Popen( cmd,
+                             stdin = subprocess.PIPE,
+                             stdout = subprocess.PIPE,
+                             stderr = subprocess.PIPE )
+    result = proc.communicate( message )
+    return result
+
+def XXXX_email_message( message = "",
+                        subject = "",
+                        from_email = "rveroy@cs.tufts.edu",
+                        to_email = "rveroy@cs.tufts.edu",
+                        smtp_host = "smtp-tls.eecs.tufts.edu",
+                        smtp_port = 465 ):
+    """ Send an email message.
+    """
+    msg = ( "From: %s\r\nTo: %s\r\n\r\n"
+            % (from_email, ", ".join( [ to_email ] )) )
+    # msg = MIMEText( message )
+    # msg["Subject"] = subject
+    # msg["From"] = from_email
+    # msg["To"] = to_email
+    server = smtplib.SMTP( host = smtp_host,
+                           port = smtp_port )
+    # server.send( from_email, [ to_email ], msg.as_string() )
+    server.send( from_email, [ to_email ], msg )
+    server.quit()
+
+__all__ = [ "mean", "merge_two_dicts", "stdev", "variance", "email_message" ]
 
 if __name__ == "__main__":
     import doctest

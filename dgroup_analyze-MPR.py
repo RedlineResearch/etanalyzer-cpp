@@ -1,4 +1,4 @@
-# dgroup_analyze.py 
+# dgroup_analyze-MPR.py 
 #
 import argparse
 import os
@@ -17,7 +17,7 @@ import datetime
 import time
 import socket
 from collections import defaultdict
-from multiprocessing import process
+from multiprocessing import Process
 
 # TODO from itertools import combinations
 
@@ -33,8 +33,8 @@ TYPE = 3
 REASON = 4
 
 def setup_logger( targetdir = ".",
-                  filename = "dgroup_analyze.log",
-                  logger_name = 'dgroup_analyze',
+                  filename = "dgroup_analyze-MPR.log",
+                  logger_name = 'dgroup_analyze-MPR',
                   debugflag = 0 ):
     # Set up main logger
     logger = logging.getLogger( logger_name )
@@ -604,10 +604,10 @@ def get_key_object_types( gnum = None,
         else:
             # Multiple keys?
             tgt = None
-            debug_multiple_keys( group = group,
-                                 key_objects = key_objects,
-                                 objinfo = objinfo,
-                                 logger = logger )
+            # debug_multiple_keys( group = group,
+            #                      key_objects = key_objects,
+            #                      objinfo = objinfo,
+            #                      logger = logger )
             return MULTKEY
     else:
         # First try the known groups
@@ -659,26 +659,27 @@ def get_key_object_types( gnum = None,
     mytype = objinfo.get_type(tgt)
     is_array_flag = is_array(mytype)
     group_types = [ objinfo.get_type(x) for x in group if x != tgt ]
-    print "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"
-    print "%s:" % mytype
-    if is_array(mytype) and len(group_types) > 0:
-        print " --- DEBUG:"
-        print "%d [ %s ] - %d" % (tgt, objinfo.get_type(tgt), objinfo.get_death_time(tgt))
-        for x in group:
-            tmptype = objinfo.get_type(x)
-            if x != tgt:
-                tmp = objinfo.get_record(x)
-                print "%d [ %s ][ by %s ] - %d" % \
-                    (x, objinfo.get_type(x), tmp[ get_index("DIEDBY") ], tmp[ get_index("DTIME") ])
-    else:
-        for t in group_types:
-            print t,
-    print
-    print "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"
+    # This looks like all debug.
+    # TODO print "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"
+    # TODO print "%s:" % mytype
+    # TODO if is_array(mytype) and len(group_types) > 0:
+    # TODO     print " --- DEBUG:"
+    # TODO     print "%d [ %s ] - %d" % (tgt, objinfo.get_type(tgt), objinfo.get_death_time(tgt))
+    # TODO     for x in group:
+    # TODO         tmptype = objinfo.get_type(x)
+    # TODO         if x != tgt:
+    # TODO             tmp = objinfo.get_record(x)
+    # TODO             print "%d [ %s ][ by %s ] - %d" % \
+    # TODO                (x, objinfo.get_type(x), tmp[ get_index("DIEDBY") ], tmp[ get_index("DTIME") ])
+    # TODO else:
+    # TODO     for t in group_types:
+    # TODO         print t,
+    # TODO print
+    # TODO print "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"
     if mytype in ktdict:
         if stackflag and is_array_flag:
-            keysrc = "WITH KEY" if found_key else ("LAST EDGE" if used_last_edge else "??????")
-            print "BY STACK %s:" % keysrc
+            # keysrc = "WITH KEY" if found_key else ("LAST EDGE" if used_last_edge else "??????")
+            # TODO print "BY STACK %s:" % keysrc
             for obj in group:
                 tmptype = objinfo.get_type(obj)
                 if tmptype in ktdict:
@@ -705,6 +706,90 @@ def check_host( benchmark = None,
         if thishost in host_config[wanthost]:
             return True
     return False
+
+def death_group_analyze( bmark = None,
+                         cycle_cpp_dir = "",
+                         main_config = {},
+                         dgroups_filename = "",
+                         objectinfo_config = {},
+                         edge_config = {},
+                         logger = None ):
+    logger.debug( "[%s]:================================================================"
+                  % bmark )
+    # Setup stdout to file redirect
+    today = datetime.date.today()
+    today = today.strftime("%Y-%m%d")
+    outputfile = os.path.join( main_config["output"], "%s-%s-OUTPUT.csv" %
+                               (bmark, str(today)) )
+    sys.stdout = open( outputfile, "wb" )
+    # Get object dictionary information that has types and sizes
+    # TODO
+    # typedict = {}
+    # rev_typedict = {}
+    objectinfo_path = os.path.join(cycle_cpp_dir, objectinfo_config[bmark])
+    objinfo = ObjectInfoReader( objectinfo_path, logger = logger )
+    # ----------------------------------------
+    logger.debug( "[%s]: Reading OBJECTINFO file..." % bmark )
+    sys.stdout.write(  "[%s]: Reading OBJECTINFO file...\n" % bmark )
+    oread_start = time.clock()
+    objinfo.read_objinfo_file()
+    oread_end = time.clock()
+    logger.debug( "[%s]: DONE: %f" % (bmark, (oread_end - oread_start)) )
+    sys.stdout.write(  "[%s]: DONE: %f\n" % (bmark, (oread_end - oread_start)) )
+    # ----------------------------------------
+    logger.debug( "[%s]: Reading EDGEINFO file..." % bmark )
+    sys.stdout.write(  "[%s]: Reading EDGEINFO file...\n" % bmark )
+    edgeinfo_path = os.path.join( cycle_cpp_dir, edge_config[bmark] )
+    edgeinfo = EdgeInfoReader( edgeinfo_path, logger = logger )
+    eread_start = time.clock()
+    edgeinfo.read_edgeinfo_file()
+    eread_end = time.clock()
+    logger.debug( "[%s]: DONE: %f" % (bmark, (eread_end - eread_start)) )
+    sys.stdout.write(  "[%s]: DONE: %f\n" % (bmark, (eread_end - eread_start)) )
+    logger.debug( "[%s]: Reading DGROUPS:" % bmark )
+    sys.stdout.write(  "[%s]: Reading DGROUPS:\n" % bmark )
+    dgread_start = time.clock()
+    abs_filename = os.path.join(cycle_cpp_dir, dgroups_filename)
+    dgroups = DeathGroupsReader( abs_filename, logger = logger )
+    dgroups.read_dgroup_file( objinfo )
+    dgroups.clean_deathgroups()
+    dupes = find_dupes( dgroups )
+    dgread_end = time.clock()
+    logger.debug( "[%s]: DONE: %f" % (bmark, (dgread_end - dgread_start)) )
+    sys.stdout.write(  "[%s]: DONE: %f\n" % (bmark, (dgread_end - dgread_start)) )
+    # for tgt, data in edgeinfo.lastedge_iteritems():
+    #     sys.stdout.write(  "%d -> [%d] : %s" % (tgt, data["dtime"], str(data["lastsources"])) )
+    ktdict = {}
+    debug_count = 0
+    debug_tries = 0
+    died_at_end_count = 0
+    for gnum in dgroups.group2list.keys():
+        result = get_key_object_types( gnum = gnum,
+                                       ktdict = ktdict,
+                                       dgroups = dgroups,
+                                       edgeinfo = edgeinfo,
+                                       objinfo = objinfo,
+                                       logger = logger )
+
+    logger.debug( "[%s]: Total: %d" % (bmark, len(dgroups.group2list)) )
+    logger.debug( "[%s]: Tries: %d" % (bmark, debug_tries) )
+    logger.debug( "[%s]: Error: %d" % (bmark, debug_count) )
+    logger.debug( "[%s]: Died at end: %d" % (bmark, died_at_end_count) )
+    sys.stdout.write(  "[%s]: Total: %d\n" % (bmark, len(dgroups.group2list)) )
+    sys.stdout.write(  "[%s]: Tries: %d\n" % (bmark, debug_tries) )
+    sys.stdout.write(  "[%s]: Error: %d\n" % (bmark, debug_count) )
+    sys.stdout.write(  "[%s]: Died at end: %d\n" % (bmark, died_at_end_count) )
+    # Output target filename
+    outfile = os.path.join( main_config["output"], "%s-DGROUPS-TYPES.csv" % bmark )
+    with open( outfile, "wb" ) as fptr:
+        writer = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
+        writer.writerow( [ "type", "number groups", "maximum", ] )
+        for mytype, rec in ktdict.iteritems():
+            writer.writerow( [ mytype, rec["total"], rec["max"], ])
+    sys.stdout.write(  "-----[ %s DONE ]---------------------------------------------------------------\n" % bmark )
+    logger.debug( "-----[ %s DONE ]---------------------------------------------------------------"
+                  % bmark )
+
 
 def main_process( output = None,
                   main_config = None,
@@ -737,114 +822,42 @@ def main_process( output = None,
     # TODO probably need a summary
     # summary = {}
 
-    olddir = os.getcwd()
     count = 0
-    today = create_work_directory( work_dir,
-                                   logger = logger )
-    os.chdir( today )
     # Take benchmarks to process from etanalyze_config
+    procs = {}
     for bmark, filename in etanalyze_config.iteritems():
         # if skip_benchmark(bmark):
         if ( ((benchmark != "_ALL_") and
-               (bmark != benchmark)) or 
+              (bmark != benchmark)) or 
              (not check_host( benchmark = bmark,
                               worklist_config = worklist_config,
                               host_config = host_config )) ):
             print "SKIP:", bmark
             continue
-        print "=======[ %s ]=========================================================" \
+        print "=======[ Spawning %s ]================================================" \
             % bmark
-        sys.stdout.flush()
-        # Get object dictionary information that has types and sizes
-        # TODO Put this code into garbology.py
-        typedict = {}
-        rev_typedict = {}
-        objectinfo_path = os.path.join(cycle_cpp_dir, objectinfo_config[bmark])
-        objinfo = ObjectInfoReader( objectinfo_path, logger = logger )
-        # ----------------------------------------
-        print "Reading OBJECTINFO file:",
-        oread_start = time.clock()
-        objinfo.read_objinfo_file()
-        oread_end = time.clock()
-        print " - DONE: %f" % (oread_end - oread_start)
-        objinfo.print_out( numlines = 20 )
-        # ----------------------------------------
-        print "Reading EDGEINFO file:",
-        edgeinfo_path = os.path.join( cycle_cpp_dir, edge_config[bmark] )
-        edgeinfo = EdgeInfoReader( edgeinfo_path, logger = logger )
-        eread_start = time.clock()
-        edgeinfo.read_edgeinfo_file()
-        eread_end = time.clock()
-        print " - DONE: %f" % (eread_end - eread_start)
-        edgeinfo.print_out( numlines = 30 )
-        print "Reading DGROUPS:",
-        abs_filename = os.path.join(cycle_cpp_dir, filename)
-        print "Open: %s" % abs_filename
-        dgroups = DeathGroupsReader( abs_filename, logger = logger )
-        dgroups.read_dgroup_file( objinfo )
-        dgroups.clean_deathgroups()
-        dupes = find_dupes( dgroups )
-        # for tgt, data in edgeinfo.lastedge_iteritems():
-        #     print "%d -> [%d] : %s" % (tgt, data["dtime"], str(data["lastsources"]))
-        ktdict = {}
-        debug_count = 0
-        debug_tries = 0
-        died_at_end_count = 0
-        for gnum in dgroups.group2list.keys():
-            result = get_key_object_types( gnum = gnum,
-                                           ktdict = ktdict,
-                                           dgroups = dgroups,
-                                           edgeinfo = edgeinfo,
-                                           objinfo = objinfo,
-                                           logger = logger )
-
-        print "Total: %d" % len(dgroups.group2list)
-        print "Tries: %d" % debug_tries
-        print "Error: %d" % debug_count
-        print "Died at end: %d" % died_at_end_count
-        print "==============================================================================="
-        # TODO Output to CSV file. TODO
-        for mytype, rec in ktdict.iteritems():
-            print "%s,%d,%d" % ( mytype, rec["total"], rec["max"], )
-        print "==============================================================================="
-        sys.stdout.flush()
+        p = Process( target = death_group_analyze,
+                     args = ( bmark,
+                              cycle_cpp_dir,
+                              main_config,
+                              filename,
+                              objectinfo_config,
+                              edge_config,
+                              logger ) )
+        p.start()
+        procs[bmark] = p
+    done = False
+    while not done:
+        done = True
+        for bmark in procs.keys():
+            proc = procs[bmark]
+            proc.join(60)
+            if proc.is_alive():
+                done = False
+            else:
+                del procs[bmark]
     print "DONE."
-    exit(3333)
-    # TODO Delete after this
-    # benchmark:
-    # size, 1, 4, 5, 2, etc
-    # largest_cycle, 1, 2, 5, 1, etc
-    # number_types, 1, 1, 2, 1, etc
-    # TODO - fix this documentation
-    print "======================================================================"
-    print "===========[ RESULTS ]================================================"
-    output_results_transpose( output_path = output,
-                              results = results )
-    output_summary( output_path = output,
-                    summary = summary )
-    os.chdir( olddir )
-    # Print out results in this format:
-    print "===========[ SUMMARY ]================================================"
-    print_summary( summary )
-    # TODO: Save the largest X cycles.
-    #       This should be done in the loop so to cut down on duplicate work.
-    print "===========[ TYPES ]=================================================="
-    benchmarks = summary.keys()
-    pp.pprint(benchmarks)
-    # TODO
-    print "---------------[ Common to ALL ]--------------------------------------"
-    # common_all = set.intersection( *[ set(summary[b]["types"].keys()) for b in benchmarks ] )
-    # common_all = [ rev_typedict[x] for x in common_all ]
-    # pp.pprint( common_all )
-    # print "---------------[ Counter over all benchmarks ]------------------------"
-    # g_types = Counter()
-    # for bmark, bdict in summary.iteritems():
-    #     g_types.update( bdict["types"] )
-    # for key, value in g_types.iteritems():
-    #     print "%s: %d" % (rev_typedict[key], value)
-    # print "Number of types - global: %d" % len(g_types)
-    print "===========[ DONE ]==================================================="
-    exit(1000)
+    exit(0)
 
 def create_parser():
     # set up arg parser
@@ -876,13 +889,12 @@ def create_parser():
     parser.add_argument( "--logfile",
                          help = "Specify logfile name.",
                          action = "store" )
-    parser.set_defaults( logfile = "dgroup_analyze.log",
+    parser.set_defaults( logfile = "dgroup_analyze-MPR.log",
                          debugflag = False,
                          lastedgeflag = False,
                          benchmark = "_ALL_",
                          config = None )
     return parser
-
 
 def config_section_map( section, config_parser ):
     result = {}

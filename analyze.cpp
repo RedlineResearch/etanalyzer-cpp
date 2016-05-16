@@ -176,7 +176,7 @@ void analyze(unsigned int max_time)
 
 void analyze2()
 {
-    double total_time = (double) Exec.Now();
+    double total_time = (double) Exec.NowUp();
 
     DisjointSets sets;
 

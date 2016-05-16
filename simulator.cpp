@@ -105,7 +105,7 @@ unsigned int closure( ObjectSet& roots,
             Edge* edge = p->second;
             Object* target = edge->getTarget();
             if (target) {
-                // if (target->isLive(Exec.Now())) {
+                // if (target->isLive(Exec.NowUp())) {
                 if ( !member(target, premarked) &&
                      !member(target, result) ) {
                     worklist.push_back(target);
@@ -166,8 +166,9 @@ unsigned int read_trace_file(FILE* f)
             break;
         }
 
-        if (Exec.Now() % 1000000 == 1) {
-            cout << "  Method time: " << Exec.Now() << "   Alloc time: " << AllocationTime << endl;
+        if (Exec.NowUp() % 1050000 == 1) {
+            // cout << "  Method time: " << Exec.Now() << "   Alloc time: " << AllocationTime << endl;
+            cout << "  Update time: " << Exec.NowUp() << " | Method time: TODO | Alloc time: " << AllocationTime << endl;
         }
 
         switch (tokenizer.getChar(0)) {
@@ -192,7 +193,7 @@ unsigned int read_trace_file(FILE* f)
                                          as,
                                          els,
                                          thread,
-                                         Exec.Now() );
+                                         Exec.NowUp() );
                     unsigned int old_alloc_time = AllocationTime;
                     AllocationTime += obj->getSize();
                     total_objects++;
@@ -210,6 +211,7 @@ unsigned int read_trace_file(FILE* f)
                     unsigned int threadId = tokenizer.getInt(5);
                     Thread *thread = Exec.getThread(threadId);
                     Object *oldObj = Heap.getObject(oldTgtId);
+                    Exec.IncUpdateTime();
                     obj = Heap.getObject(objId);
                     target = ((tgtId > 0) ? Heap.getObject(tgtId) : NULL);
                     // TODO last_map.setLast( threadId, LastEvent::UPDATE, obj );
@@ -227,7 +229,7 @@ unsigned int read_trace_file(FILE* f)
                     if (obj && target) {
                         unsigned int field_id = tokenizer.getInt(4);
                         Edge* new_edge = Heap.make_edge( obj, field_id,
-                                                         target, Exec.Now() );
+                                                         target, Exec.NowUp() );
                         if (thread) {
                             Method *topMethod = thread->TopMethod();
                             if (topMethod) {
@@ -235,7 +237,7 @@ unsigned int read_trace_file(FILE* f)
                             }
                             obj->updateField( new_edge,
                                               field_id,
-                                              Exec.Now(),
+                                              Exec.NowUp(),
                                               topMethod, // for death site info
                                               HEAP, // reason
                                               NULL ); // death root 0 because may not be a root
@@ -272,7 +274,7 @@ unsigned int read_trace_file(FILE* f)
                         // TODO } else if (last_event == LastEvent::UPDATE) {
                         // TODO     obj->setDiedByHeapFlag();
                         // TODO }
-                        Heap.makeDead(obj, Exec.Now());
+                        Heap.makeDead(obj, Exec.NowUp());
                         // Get the current method
                         Method *topMethod = NULL;
                         if (thread) {
@@ -289,7 +291,7 @@ unsigned int read_trace_file(FILE* f)
                                         unsigned int fieldId = target_edge->getSourceField();
                                         obj->updateField( NULL,
                                                           fieldId,
-                                                          Exec.Now(),
+                                                          Exec.NowUp(),
                                                           topMethod,
                                                           STACK,
                                                           obj );
@@ -356,7 +358,7 @@ unsigned int read_trace_file(FILE* f)
                     unsigned int threadId = tokenizer.getInt(2);
                     // cout << "objId: " << objId << "     threadId: " << threadId << endl;
                     if (object) {
-                        object->setRootFlag(Exec.Now());
+                        object->setRootFlag(Exec.NowUp());
                         Thread *thread = Exec.getThread(threadId);
                         if (thread) {
                             thread->objectRoot(object);
@@ -672,12 +674,12 @@ int main(int argc, char* argv[])
     cout << "Start trace..." << endl;
     FILE* f = fdopen(0, "r");
     unsigned int total_objects = read_trace_file(f);
-    unsigned int final_time = Exec.Now();
-    cout << "Done at time " << Exec.Now() << endl;
+    unsigned int final_time = Exec.NowUp();
+    cout << "Done at update time: " << Exec.NowUp() << endl;
     cout << "Total objects: " << total_objects << endl;
     cout << "Heap.size:     " << Heap.size() << endl;
     // assert( total_objects == Heap.size() );
-    Heap.end_of_program(Exec.Now());
+    Heap.end_of_program(Exec.NowUp());
 
     if (cycle_flag) {
         std::deque< pair<int,int> > edgelist; // TODO Do we need the edgelist?

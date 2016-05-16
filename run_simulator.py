@@ -12,9 +12,11 @@ from operator import itemgetter
 from collections import Counter
 import csv
 import datetime
+from collections import defaultdict
 
 import subprocess
-from twisted.internet import protocol, reactor
+from multiprocessing import Process
+import socket
 
 from mypytools import mean, stdev, variance
 
@@ -121,21 +123,52 @@ def is_specjvm( bmark ):
             bmark == "_227_mtrt" or
             bmark == "_228_jack" )
 
-class SimProcessProtocol(  protocol.ProcessProtocol ):
-    def __init__( self, tracefp ):
-        # Replace text with the things to be sent to the simulator
-        self.tracefp = tracefp
+def run_subprocess( cmd = None,
+                    stdout = None,
+                    stdin = None,
+                    stderr = None ):
+    sproc = subprocess.Popen( cmd,
+                              stdout = stdout,
+                              stdin = stdin,
+                              stderr = stderr )
+    sproc.communicate()
 
-    def connectionMade( self ):
-        for line in self.tracefp:
-            self.transport.write( line )
+def check_host( benchmark = None,
+                hostlist= {},
+                host_config = {} ):
+    thishost = socket.gethostname()
+    print "thishost:", thishost
+    print "hostlist:", str(hostlist)
+    print "host_config:", host_config
+    for wanthost in hostlist:
+        print "want:", wanthost
+        if thishost in host_config[wanthost]:
+            return True
+    print "FALSE"
+    return False
+
+def process_host_config( host_config = {} ):
+    for bmark in list(host_config.keys()):
+        hostlist = host_config[bmark].split(",")
+        host_config[bmark] = hostlist
+    return defaultdict( list, host_config )
+
+def process_worklist_config( worklist_config = {} ):
+    mydict = defaultdict( lambda: "NONE" )
+    for bmark in list(worklist_config.keys()):
+        hostlist = worklist_config[bmark].split(",")
+        mydict[bmark] = hostlist
+    return mydict
+
 
 def main_process( output = None,
                   benchmarks = None,
-                  bmark_config = None,
-                  names_config = None,
-                  global_config = None,
-                  run_global_config = None,
+                  worklist = {},
+                  global_config = {},
+                  bmark_config = {},
+                  names_config = {},
+                  simulator_config = {},
+                  host_config = {},
                   debugflag = None,
                   logger = None ):
     global pp
@@ -143,11 +176,11 @@ def main_process( output = None,
     specdir = global_config["specjvm_dir"]
     capodir = global_config["dacapo_dir"]
     # Flags
-    cycle_flag = run_global_config["cycle_flag"]
-    objdebug_flag = run_global_config["objdebug_flag"]
+    cycle_flag = simulator_config["cycle_flag"]
+    objdebug_flag = simulator_config["objdebug_flag"]
     # TODO Objdebug flag
     # Executable
-    simulator = run_global_config["simulator"]
+    simulator = simulator_config["simulator_exe"]
     # Create a directory
     # TODO Option: have a scratch test directory vs a date today directory
     # Currently have the date today
@@ -155,7 +188,7 @@ def main_process( output = None,
     t = datetime.date.today()
     datestr = "%d-%02d%02d" % (t.year, t.month, t.day)
     print "TODAY:", datestr
-    work_dir = run_global_config["sim_work_dir"]
+    work_dir = simulator_config["sim_work_dir"]
     olddir = os.getcwd()
     os.chdir( work_dir )
     work_today = create_work_directory( work_dir, logger = logger )
@@ -164,34 +197,55 @@ def main_process( output = None,
     specjvm_dir = global_config["specjvm_dir"]
     dacapo_dir = global_config["dacapo_dir"]
     procdict = {}
-    for bmark in benchmarks:
+    pp.pprint(bmark_config)
+    procs = {}
+    for bmark in worklist.keys():
+        hostlist = worklist[bmark]
+        if ( not check_host( benchmark = bmark,
+                             hostlist = hostlist,
+                             host_config = host_config ) ):
+            logger.debug( "SKIP: %s" % bmark )
+            print "SKIP: %s" % bmark
+            continue
+        # -----------------------------------------------------------------------
+        # Then spawn using multiprocessing
         tracefile = (specdir + bmark_config[bmark]) if is_specjvm(bmark) else \
             (dacapo_dir + bmark_config[bmark])
         namesfile = (specdir + names_config[bmark]) if is_specjvm(bmark) else \
             (dacapo_dir + names_config[bmark])
         basename = bmark + "-cpp-" + str(datestr)
-        print basename
+        output_name = basename + "-OUTPUT.txt"
         # ./simulator xalan.names xalan-cpp-2016-0129 CYCLE OBJDEBUG
         myargs = [ namesfile, basename, cycle_flag, objdebug_flag ]
-        print os.path.isfile( simulator ), os.path.isfile( namesfile )
-        print myargs 
         fp = get_trace_fp( tracefile, logger )
-        procprot = SimProcessProtocol( fp )
-        reactor.spawnProcess( procprot,
-                              simulator,
-                              args = myargs )
-        reactor.run()
-        break
-        # sproc = subprocess.Popen( cmd,
-        #                           stdout = subprocess.PIPE,
-        #                           stdin = fp,
-        #                           stderr = subprocess.PIPE )
-        # procdict[bmark] = sproc
-        # result = sproc.communicate()
-        # for x in result:
-        #     print x
+        outfptr = open( output_name, "wb" )
+        timenow = time.asctime()
+        cmd = [ simulator ] + myargs
+        logger.debug( "[%s] - starting at %s" % (bmark, timenow) )
+        p = Process( target = run_subprocess,
+                     args = ( cmd,
+                              outfptr,
+                              fp,
+                              outfptr ) )
+        p.start()
+        procs[bmark] = p
+        pp.pprint(procs)
+    # Poll the processes
+    done = False
+    while not done:
+        done = True
+        for bmark in procs.keys():
+            print ".",
+            proc = procs[bmark]
+            proc.join(60)
+            if proc.is_alive():
+                done = False
+            else:
+                del procs[bmark]
+                timenow = time.asctime()
+                logger.debug( "[%s] - done at %s" % (bmark, timenow) )
     print "DONE."
-    exit(10000)
+    exit(0)
     # HERE: TODO
     # 1. Cyclic garbage vs ref count reclaimed:
     #      * Number of objects
@@ -391,7 +445,7 @@ def create_parser():
     parser.add_argument( "--config",
                          help = "Specify global configuration filename.",
                          action = "store" )
-    parser.add_argument( "--runconfig",
+    parser.add_argument( "--simconfig",
                          help = "Specify run configuration filename.",
                          action = "store" )
     parser.add_argument( "--debug",
@@ -436,25 +490,24 @@ def config_section_map( section, config_parser ):
             result[option] = None
     return result
 
-def process_global_config( gconfig ):
+def process_global_config( args ):
+    assert( args.config != None )
     config_parser = ConfigParser.ConfigParser()
-    config_parser.read( gconfig )
-    global_config = config_section_map( "global", config_parser )
-    benchmarks = config_section_map( "benchmarks", config_parser )
-    dacapo_config = config_section_map( "dacapo", config_parser )
-    dacapo_names = config_section_map( "dacapo_names", config_parser )
-    specjvm_config = config_section_map( "specjvm", config_parser )
-    specjvm_names = config_section_map( "specjvm_names", config_parser )
-    return ( global_config, benchmarks,
-             dacapo_config, dacapo_names,
-             specjvm_config, specjvm_names )
+    config_parser.read( args.config )
+    return { "global" : config_section_map( "global", config_parser ),
+             "host" : config_section_map( "hosts", config_parser ),
+             "simulator" : config_section_map( "simulator", config_parser ), }
 
-def process_runsim_config( runconfig ):
-    runconfig_parser = ConfigParser.ConfigParser()
-    runconfig_parser.read( runconfig )
-    run_global_config = config_section_map( "global", runconfig_parser )
-    run_benchmarks = config_section_map( "benchmarks", runconfig_parser )
-    return ( run_global_config, run_benchmarks )
+def process_sim_config( args ):
+    assert( args.simconfig != None )
+    simconfig_parser = ConfigParser.ConfigParser()
+    simconfig_parser.read( args.simconfig )
+    return { "benchmarks" : config_section_map( "benchmarks", simconfig_parser ),
+             "worklist" : config_section_map( "worklist", simconfig_parser ),
+             "dacapo" : config_section_map( "dacapo", simconfig_parser ),
+             "dacapo_names" : config_section_map( "dacapo_names", simconfig_parser ),
+             "specjvm" : config_section_map( "specjvm", simconfig_parser ),
+             "specjvm_names" : config_section_map( "specjvm_names", simconfig_parser ), }
 
 def main():
     global pp
@@ -463,11 +516,20 @@ def main():
     args = parser.parse_args()
     benchmark = args.benchmark
     assert( args.config != None )
-    assert( args.runconfig != None )
-    global_config, benchmarks, dacapo_config, dacapo_names, \
-        specjvm_config, specjvm_names = process_global_config( args.config )
-    run_global_config, run_benchmarks = process_runsim_config( args.runconfig )
-    debugflag = run_global_config["debug"]
+    assert( args.simconfig != None )
+    global_result = process_global_config( args )
+    global_config = global_result["global"]
+    host_config = process_host_config( global_result["host"] )
+    simulator_config = global_result["simulator"]
+    sim_result = process_sim_config( args )
+    benchmarks = sim_result["benchmarks"]
+    worklist = process_worklist_config( sim_result["worklist"] )
+    dacapo_config = sim_result["dacapo"]
+    dacapo_names = sim_result["dacapo_names"]
+    specjvm_config = sim_result["specjvm"]
+    specjvm_names = sim_result["specjvm_names"]
+
+    debugflag = global_config["debug"]
     # logging
     logger = setup_logger( filename = args.logfile,
                            debugflag = debugflag  )
@@ -475,12 +537,13 @@ def main():
     # Main processing
     #
     return main_process( debugflag = debugflag,
+                         worklist = worklist,
                          output = args.output,
-                         benchmarks = run_benchmarks,
+                         global_config = global_config,
                          bmark_config = dict(specjvm_config, **dacapo_config),
                          names_config = dict(specjvm_names, **dacapo_names),
-                         global_config = global_config,
-                         run_global_config = run_global_config,
+                         simulator_config = simulator_config,
+                         host_config = host_config,
                          logger = logger )
 
 if __name__ == "__main__":
