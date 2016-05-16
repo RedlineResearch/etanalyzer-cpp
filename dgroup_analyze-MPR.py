@@ -719,8 +719,9 @@ def death_group_analyze( bmark = None,
     # Setup stdout to file redirect
     today = datetime.date.today()
     today = today.strftime("%Y-%m%d")
-    sys.stdout = open( os.path.join( main_config["output"], "%s-%s-OUTPUT.csv" %
-                                     (bmark, str(today)) ), "wb" )
+    outputfile = os.path.join( main_config["output"], "%s-%s-OUTPUT.csv" %
+                               (bmark, str(today)) )
+    sys.stdout = open( outputfile, "wb" )
     # Get object dictionary information that has types and sizes
     # TODO
     # typedict = {}
@@ -729,24 +730,24 @@ def death_group_analyze( bmark = None,
     objinfo = ObjectInfoReader( objectinfo_path, logger = logger )
     # ----------------------------------------
     logger.debug( "[%s]: Reading OBJECTINFO file..." % bmark )
-    sys.stdout.write(  "[%s]: Reading OBJECTINFO file..." % bmark )
+    sys.stdout.write(  "[%s]: Reading OBJECTINFO file...\n" % bmark )
     oread_start = time.clock()
     objinfo.read_objinfo_file()
     oread_end = time.clock()
     logger.debug( "[%s]: DONE: %f" % (bmark, (oread_end - oread_start)) )
-    sys.stdout.write(  "[%s]: DONE: %f" % (bmark, (oread_end - oread_start)) )
+    sys.stdout.write(  "[%s]: DONE: %f\n" % (bmark, (oread_end - oread_start)) )
     # ----------------------------------------
     logger.debug( "[%s]: Reading EDGEINFO file..." % bmark )
-    sys.stdout.write(  "[%s]: Reading EDGEINFO file..." % bmark )
+    sys.stdout.write(  "[%s]: Reading EDGEINFO file...\n" % bmark )
     edgeinfo_path = os.path.join( cycle_cpp_dir, edge_config[bmark] )
     edgeinfo = EdgeInfoReader( edgeinfo_path, logger = logger )
     eread_start = time.clock()
     edgeinfo.read_edgeinfo_file()
     eread_end = time.clock()
     logger.debug( "[%s]: DONE: %f" % (bmark, (eread_end - eread_start)) )
-    sys.stdout.write(  "[%s]: DONE: %f" % (bmark, (eread_end - eread_start)) )
+    sys.stdout.write(  "[%s]: DONE: %f\n" % (bmark, (eread_end - eread_start)) )
     logger.debug( "[%s]: Reading DGROUPS:" % bmark )
-    sys.stdout.write(  "[%s]: Reading DGROUPS:" % bmark )
+    sys.stdout.write(  "[%s]: Reading DGROUPS:\n" % bmark )
     dgread_start = time.clock()
     abs_filename = os.path.join(cycle_cpp_dir, dgroups_filename)
     dgroups = DeathGroupsReader( abs_filename, logger = logger )
@@ -755,7 +756,7 @@ def death_group_analyze( bmark = None,
     dupes = find_dupes( dgroups )
     dgread_end = time.clock()
     logger.debug( "[%s]: DONE: %f" % (bmark, (dgread_end - dgread_start)) )
-    sys.stdout.write(  "[%s]: DONE: %f" % (bmark, (dgread_end - dgread_start)) )
+    sys.stdout.write(  "[%s]: DONE: %f\n" % (bmark, (dgread_end - dgread_start)) )
     # for tgt, data in edgeinfo.lastedge_iteritems():
     #     sys.stdout.write(  "%d -> [%d] : %s" % (tgt, data["dtime"], str(data["lastsources"])) )
     ktdict = {}
@@ -774,10 +775,10 @@ def death_group_analyze( bmark = None,
     logger.debug( "[%s]: Tries: %d" % (bmark, debug_tries) )
     logger.debug( "[%s]: Error: %d" % (bmark, debug_count) )
     logger.debug( "[%s]: Died at end: %d" % (bmark, died_at_end_count) )
-    sys.stdout.write(  "[%s]: Total: %d" % (bmark, len(dgroups.group2list)) )
-    sys.stdout.write(  "[%s]: Tries: %d" % (bmark, debug_tries) )
-    sys.stdout.write(  "[%s]: Error: %d" % (bmark, debug_count) )
-    sys.stdout.write(  "[%s]: Died at end: %d" % (bmark, died_at_end_count) )
+    sys.stdout.write(  "[%s]: Total: %d\n" % (bmark, len(dgroups.group2list)) )
+    sys.stdout.write(  "[%s]: Tries: %d\n" % (bmark, debug_tries) )
+    sys.stdout.write(  "[%s]: Error: %d\n" % (bmark, debug_count) )
+    sys.stdout.write(  "[%s]: Died at end: %d\n" % (bmark, died_at_end_count) )
     # Output target filename
     outfile = os.path.join( main_config["output"], "%s-DGROUPS-TYPES.csv" % bmark )
     with open( outfile, "wb" ) as fptr:
@@ -785,7 +786,7 @@ def death_group_analyze( bmark = None,
         writer.writerow( [ "type", "number groups", "maximum", ] )
         for mytype, rec in ktdict.iteritems():
             writer.writerow( [ mytype, rec["total"], rec["max"], ])
-    sys.stdout.write(  "-----[ %s DONE ]---------------------------------------------------------------" % bmark )
+    sys.stdout.write(  "-----[ %s DONE ]---------------------------------------------------------------\n" % bmark )
     logger.debug( "-----[ %s DONE ]---------------------------------------------------------------"
                   % bmark )
 
