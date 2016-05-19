@@ -137,7 +137,7 @@ class ObjectInfoReader:
         start = False
         done = False
         object_info = self.objdict
-        with get_trace_fp(self.objinfo_file_name) as fp:
+        with get_trace_fp( self.objinfo_file_name, self.logger ) as fp:
             for line in fp:
                 line = line.rstrip()
                 if line.find("---------------[ OBJECT INFO") == 0:
@@ -263,7 +263,7 @@ class EdgeInfoReader:
         start = False
         done = False
         edge_info = self.edgedict
-        with get_trace_fp(self.edgeinfo_file_name) as fp:
+        with get_trace_fp( self.edgeinfo_file_name, self.logger ) as fp:
             for line in fp:
                 line = line.rstrip()
                 if line.find("---------------[ EDGE INFO") == 0:

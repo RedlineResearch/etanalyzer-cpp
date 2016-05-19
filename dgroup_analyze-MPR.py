@@ -184,27 +184,6 @@ def get_summary( summary_path ):
     assert(done)
     return dict(summary)
 
-def get_edges( edgepath ):
-    start = False
-    done = False
-    edges = set([])
-    with get_trace_fp(edgepath) as fp:
-        for line in fp:
-            line = line.rstrip()
-            if line.find("---------------[ EDGE INFO") == 0:
-                start = True if not start else False
-                if start:
-                    continue
-                else:
-                    done = True
-                    break
-            if start:
-                row = [ int(x) for x in line.split(" -> ") ]
-                edges.add(tuple(row))
-    assert(done)
-    edges = set( sorted( list(edges), key = itemgetter(0, 1) ) )
-    return edges
-
 def get_edge_info( edgeinfo_path ):
     start = False
     done = False
