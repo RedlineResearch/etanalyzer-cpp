@@ -563,6 +563,8 @@ def all_primitive_types( group = [],
 ONEKEY = 1
 MULTKEY = 2
 NOKEY = 3
+ONEKEY_LASTEDGE = 4
+ONEKEY_KNOWNOBJ = 5
 DIEDBYSTACK = 7
 DIEDATEND = 8
 NOTFOUND = 9
@@ -571,7 +573,8 @@ def get_key_object_types( gnum = None,
                           dgroups = None,
                           edgeinfo = None,
                           objinfo = None,
-                          logger = None ):
+                          logger = None,
+                          ignore_died_at_end = True ):
     if gnum in dgroups.group2list:
         group = dgroups.group2list[gnum] 
     else:
@@ -592,8 +595,8 @@ def get_key_object_types( gnum = None,
                 ktdict[tmptype]["total"] += 1
             else:
                 ktdict[tmptype] = { "total" : 1,
-                                   "max" : 1,
-                                   "is_array": is_array(tmptype), }
+                                    "max" : 1,
+                                    "is_array": is_array(tmptype), }
         # print "BY STACK - all primitive" # TODO Make into a logging statement
         return DIEDBYSTACK
     if len(key_objects) > 0:
@@ -601,6 +604,7 @@ def get_key_object_types( gnum = None,
         found_key = True
         if len(key_objects) == 1:
             tgt = key_objects[0]
+            result = ONEKEY
         else:
             # Multiple keys?
             tgt = None
@@ -616,6 +620,7 @@ def get_key_object_types( gnum = None,
                                                logger = logger )
         if key_objects != None:
             tgt = key_objects["obj"]
+            result = ONEKEY_KNOWNOBJ
         else:
             lastrec = get_last_edge_record( group, edgeinfo, objinfo )
             # print "%d @ %d : %d -> %s" % ( gnum,
@@ -651,11 +656,11 @@ def get_key_object_types( gnum = None,
                         else:
                             is_array_flag = is_array(tmptype)
                             ktdict[tmptype] = { "total" : 1,
-                                               "max" : 1,
-                                               "is_array": is_array_flag, }
+                                                "max" : 1,
+                                                "is_array": is_array_flag, }
                     return DIEDBYSTACK
-            if objinfo.died_at_end(tgt):
-                return DIEDATEND
+    if objinfo.died_at_end(tgt):
+        return DIEDATEND
     mytype = objinfo.get_type(tgt)
     is_array_flag = is_array(mytype)
     group_types = [ objinfo.get_type(x) for x in group if x != tgt ]
@@ -746,6 +751,7 @@ def death_group_analyze( bmark = None,
     eread_end = time.clock()
     logger.debug( "[%s]: DONE: %f" % (bmark, (eread_end - eread_start)) )
     sys.stdout.write(  "[%s]: DONE: %f\n" % (bmark, (eread_end - eread_start)) )
+    # ----------------------------------------
     logger.debug( "[%s]: Reading DGROUPS:" % bmark )
     sys.stdout.write(  "[%s]: Reading DGROUPS:\n" % bmark )
     dgread_start = time.clock()
@@ -757,6 +763,7 @@ def death_group_analyze( bmark = None,
     dgread_end = time.clock()
     logger.debug( "[%s]: DONE: %f" % (bmark, (dgread_end - dgread_start)) )
     sys.stdout.write(  "[%s]: DONE: %f\n" % (bmark, (dgread_end - dgread_start)) )
+    # ----------------------------------------
     # for tgt, data in edgeinfo.lastedge_iteritems():
     #     sys.stdout.write(  "%d -> [%d] : %s" % (tgt, data["dtime"], str(data["lastsources"])) )
     ktdict = {}
@@ -771,6 +778,7 @@ def death_group_analyze( bmark = None,
                                        objinfo = objinfo,
                                        logger = logger )
 
+    # ----------------------------------------
     logger.debug( "[%s]: Total: %d" % (bmark, len(dgroups.group2list)) )
     logger.debug( "[%s]: Tries: %d" % (bmark, debug_tries) )
     logger.debug( "[%s]: Error: %d" % (bmark, debug_count) )
@@ -779,6 +787,7 @@ def death_group_analyze( bmark = None,
     sys.stdout.write(  "[%s]: Tries: %d\n" % (bmark, debug_tries) )
     sys.stdout.write(  "[%s]: Error: %d\n" % (bmark, debug_count) )
     sys.stdout.write(  "[%s]: Died at end: %d\n" % (bmark, died_at_end_count) )
+    # ----------------------------------------
     # Output target filename
     outfile = os.path.join( main_config["output"], "%s-DGROUPS-TYPES.csv" % bmark )
     with open( outfile, "wb" ) as fptr:
@@ -930,43 +939,6 @@ def process_config( args ):
              "summary" : summary_config,
              "host" : host_config,
              "worklist" : worklist_config }
-
-# TODO: TO REMOVE 8 jan 2016
-def setup_objdb( global_config = None,
-                 objdb1_config = None,
-                 objdb2_config = None,
-                 objdb_ALL_config = None,
-                 benchmark = None,
-                 logger = None,
-                 debugflag = False ):
-    # set up objdb
-    objdb1 = os.path.join( global_config["objdb_dir"], objdb1_config[benchmark] )
-    objdb2 = os.path.join( global_config["objdb_dir"], objdb2_config[benchmark] )
-    objdb_all = os.path.join( global_config["objdb_dir"], objdb_ALL_config[benchmark] )
-    return ObjDB( objdb1 = objdb1,
-                  objdb2 = objdb2,
-                  objdb_all = objdb_all,
-                  debugflag = debugflag,
-                  logger = logger )
-
-# TODO: TO REMOVE 8 jan 2016
-def setup_edge_info_db( global_config = None,
-                        edge_info_config = None,
-                        benchmark = None,
-                        logger = None,
-                        debugflag = False ):
-    # set up edge_info_db
-    tgtpath = os.path.join( global_config["edge_info_dir"], edge_info_config[benchmark] )
-    print tgtpath
-    try:
-        edge_info_db = sqorm.Sqorm( tgtpath = tgtpath,
-                                    table = "edges",
-                                    keyfield = "tgtId" )
-    except:
-        logger.error( "Unable to load edge info DB: %s" % str(tgtpath) )
-        print "Unable to load edge info DB: %s" % str(tgtpath)
-        assert( False )
-    return edge_info_db
 
 def process_host_config( host_config = {} ):
     for bmark in list(host_config.keys()):
