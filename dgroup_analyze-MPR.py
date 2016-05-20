@@ -13,7 +13,7 @@ from collections import Counter
 import networkx as nx
 import csv
 import subprocess
-import datetime
+from datetime import datetime, date
 import time
 import socket
 from collections import defaultdict
@@ -346,10 +346,26 @@ def output_R( benchmark = None ):
     # Need benchmark.
     # TODO: Do we need this?
 
-def create_work_directory( work_dir, logger = None, interactive = False ):
+def create_work_directory( work_dir,
+                           thishost = "",
+                           today = "",
+                           timenow = "",
+                           logger = None, interactive = False ):
     os.chdir( work_dir )
-    today = datetime.date.today()
-    today = today.strftime("%Y-%m%d")
+    # Check to see host name directory ----------------------------------------
+    if os.path.isfile(thishost):
+        print "%s is a file, NOT a directory." % thishost
+        exit(11)
+    if not os.path.isdir( thishost ):
+        os.mkdir( thishost )
+        print "WARNING: %s directory does not exist. Creating it" % thishost
+        logger.warning( "WARNING: %s directory exists." % thishost )
+        if interactive:
+            raw_input("Press ENTER to continue:")
+        else:
+            print "....continuing!!!"
+    os.chdir( thishost )
+    # Check today directory ---------------------------------------------------
     if os.path.isfile(today):
         print "Can not create %s as directory." % today
         exit(11)
@@ -363,6 +379,20 @@ def create_work_directory( work_dir, logger = None, interactive = False ):
         else:
             print "....continuing!!!"
     os.chdir( today )
+    # Check timenow directory -------------------------------------------------
+    if os.path.isfile(timenow):
+        print "Can not create %s as directory." % timenow
+        exit(11)
+    if not os.path.isdir( timenow ):
+        os.mkdir( timenow )
+    else:
+        print "WARNING: %s directory exists." % timenow
+        logger.warning( "WARNING: %s directory exists." % timenow )
+        if interactive:
+            raw_input("Press ENTER to continue:")
+        else:
+            print "....continuing!!!"
+    os.chdir( timenow )
     return str(os.getcwd())
 
 def save_interesting_small_cycles( largest_scc, summary ):
@@ -698,20 +728,27 @@ def check_host( benchmark = None,
             return True
     return False
 
+def get_actual_hostname( hostname = "",
+                         host_config = {} ):
+    for key, hlist in host_config.iteritems():
+        if hostname in hlist:
+            return key
+    return None
+
 def death_group_analyze( bmark = None,
                          cycle_cpp_dir = "",
                          main_config = {},
                          dgroups_filename = "",
                          objectinfo_config = {},
                          edge_config = {},
+                         host_config = {},
                          logger = None ):
     logger.debug( "[%s]:================================================================"
                   % bmark )
-    # Setup stdout to file redirect
-    today = datetime.date.today()
-    today = today.strftime("%Y-%m%d")
-    outputfile = os.path.join( main_config["output"], "%s-%s-OUTPUT.csv" %
-                               (bmark, str(today)) )
+    # TODO TODO 
+    workdir = os.getcwd()
+    outputfile = os.path.join( workdir,
+                               "%s-OUTPUT.txt" % bmark )
     sys.stdout = open( outputfile, "wb" )
     # Get object dictionary information that has types and sizes
     # TODO
@@ -775,7 +812,7 @@ def death_group_analyze( bmark = None,
     sys.stdout.write(  "[%s]: Died at end: %d\n" % (bmark, died_at_end_count) )
     # ----------------------------------------
     # Output target filename
-    outfile = os.path.join( main_config["output"], "%s-DGROUPS-TYPES.csv" % bmark )
+    outfile = os.path.join( workdir, "%s-DGROUPS-TYPES.csv" % bmark )
     with open( outfile, "wb" ) as fptr:
         writer = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
         writer.writerow( [ "type", "number groups", "maximum", ] )
@@ -784,7 +821,7 @@ def death_group_analyze( bmark = None,
                                rec["total"],
                                rec["max"], ] )
     # Group types output
-    outallfile = os.path.join( main_config["output"], "%s-DGROUPS-ALL-TYPES.csv" % bmark )
+    outallfile = os.path.join( workdir, "%s-DGROUPS-ALL-TYPES.csv" % bmark )
     with open( outallfile, "wb" ) as fptr:
         writer = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
         writer.writerow( [ "type", "set_types", "count", ] )
@@ -796,7 +833,6 @@ def death_group_analyze( bmark = None,
     sys.stdout.write(  "-----[ %s DONE ]---------------------------------------------------------------\n" % bmark )
     logger.debug( "-----[ %s DONE ]---------------------------------------------------------------"
                   % bmark )
-
 
 def main_process( output = None,
                   main_config = None,
@@ -817,10 +853,26 @@ def main_process( output = None,
     print "GLOBAL:"
     pp.pprint(global_config)
     cycle_cpp_dir = global_config["cycle_cpp_dir"]
-    work_dir = main_config["directory"]
+    # TODO: Not used? 
+    # TODO: work_dir = main_config["directory"]
     # In my config this is: '/data/rveroy/pulsrc/etanalyzer/MYWORK/z-SUMMARY/DGROUPS'
     # Change in basic_merge_summary.ini, under the [dgroups-analyze] section.
-
+    # Setup stdout to file redirect
+    thishost = get_actual_hostname( hostname = socket.gethostname().lower(),
+                                    host_config = host_config )
+    assert( thishost != None )
+    thishost = thishost.upper()
+    today = date.today()
+    today = today.strftime("%Y-%m%d")
+    timenow = datetime.now().time().strftime("%H-%M-%S")
+    olddir = os.getcwd()
+    os.chdir( main_config["output"] )
+    workdir = create_work_directory( work_dir = main_config["output"],
+                                     thishost = thishost,
+                                     today = today,
+                                     timenow = timenow,
+                                     logger = logger,
+                                     interactive = False )
     # TODO What is key -> value in the following dictionaries?
     results = {}
     # TODO What is the results structure?
@@ -850,6 +902,7 @@ def main_process( output = None,
                               filename,
                               objectinfo_config,
                               edge_config,
+                              host_config,
                               logger ) )
         p.start()
         procs[bmark] = p
@@ -864,6 +917,7 @@ def main_process( output = None,
             else:
                 del procs[bmark]
     print "DONE."
+    os.chdir( olddir )
     exit(0)
 
 def create_parser():
