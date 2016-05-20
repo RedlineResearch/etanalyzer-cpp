@@ -575,7 +575,8 @@ def get_key_object_types( gnum = None,
             else:
                 ktdict[tmptype] = { "total" : 1,
                                     "max" : 1,
-                                    "is_array": is_array(tmptype), }
+                                    "is_array" : is_array(tmptype),
+                                    "group_types" : Counter( [ frozenset([ tmptype ]) ] ) }
         # print "BY STACK - all primitive" # TODO Make into a logging statement
         return DIEDBYSTACK
     if len(key_objects) > 0:
@@ -636,13 +637,23 @@ def get_key_object_types( gnum = None,
                             is_array_flag = is_array(tmptype)
                             ktdict[tmptype] = { "total" : 1,
                                                 "max" : 1,
-                                                "is_array": is_array_flag, }
+                                                "is_array": is_array_flag,
+                                                "group_types" : Counter( [ frozenset([ tmptype ]) ] ) }
                     return DIEDBYSTACK
     if objinfo.died_at_end(tgt):
         return DIEDATEND
     mytype = objinfo.get_type(tgt)
+    if mytype in ktdict:
+        ktdict[mytype]["max"] = max( 1, ktdict[mytype]["max"] )
+        ktdict[mytype]["total"] += 1
+    else:
+        ktdict[mytype] = { "total" : 1,
+                           "max" : 1,
+                           "is_array": is_array(mytype),
+                           "group_types" : Counter() }
     is_array_flag = is_array(mytype)
-    group_types = [ objinfo.get_type(x) for x in group if x != tgt ]
+    group_types = frozenset( [ objinfo.get_type(x) for x in group if x != tgt ] )
+    ktdict[mytype]["group_types"].update( [ group_types ] )
     # This looks like all debug.
     # TODO print "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"
     # TODO print "%s:" % mytype
@@ -773,7 +784,19 @@ def death_group_analyze( bmark = None,
         writer = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
         writer.writerow( [ "type", "number groups", "maximum", ] )
         for mytype, rec in ktdict.iteritems():
-            writer.writerow( [ mytype, rec["total"], rec["max"], ])
+            writer.writerow( [ mytype,
+                               rec["total"],
+                               rec["max"], ] )
+    # Group types output
+    outallfile = os.path.join( main_config["output"], "%s-DGROUPS-ALL-TYPES.csv" % bmark )
+    with open( outallfile, "wb" ) as fptr:
+        writer = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
+        writer.writerow( [ "type", "number groups", "maximum", ] )
+        for mytype, rec in ktdict.iteritems():
+            for typeset, count in rec["group_types"].iteritems():
+                writer.writerow( [ mytype,
+                                   "|".join( [ str(x) for x in typeset ] ),
+                                   count ] )
     sys.stdout.write(  "-----[ %s DONE ]---------------------------------------------------------------\n" % bmark )
     logger.debug( "-----[ %s DONE ]---------------------------------------------------------------"
                   % bmark )
