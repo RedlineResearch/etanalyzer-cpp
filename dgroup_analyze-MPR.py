@@ -529,15 +529,15 @@ def debug_multiple_keys( group = None,
                          key_objects = None,
                          objinfo = None,
                          logger = None ):
-    print "-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-"
-    print " >>> MULTIPLE KEY DEBUG:"
-    print "     [KEYS]"
+    print "   -+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-"
+    print "    >>> MULTIPLE KEY DEBUG:"
+    print "        [KEYS]"
     for x in key_objects:
         tmp = objinfo.get_record(x)
-        print "%d [ %s ][ by %s ] - %d" % \
+        print "    %d [ %s ][ by %s ] - %d" % \
             (x, objinfo.get_type(x), tmp[ get_index("DIEDBY") ], tmp[ get_index("DTIME") ])
-    print "Others:", str( list(set([ objinfo.get_type(x) for x in group if x not in key_objects ])) )
-    print "-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-"
+    print "   Others:", str( list(set([ objinfo.get_type(x) for x in group if x not in key_objects ])) )
+    print "   -+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-"
 
 def is_primitive_type( mytype = None ):
     return ( (mytype == "Z")     # boolean
@@ -592,12 +592,14 @@ def get_key_object_types( gnum = None,
     key_objects = [ x for x in group if objinfo.is_key_object(x) ]
     found_key = False
     used_last_edge = False
-    stackflag = objinfo.verify_died_by( grouplist = group,
-                                        died_by = "S" )
+    print " - grouplen: %d" % len(group)
     # Check to see if the key object is a primitive type array
     if all_primitive_types( group, objinfo ):
+        print " - all primitive types."
         # All are a group unto themselves
         for obj in group:
+            if objinfo.died_at_end(obj):
+                continue
             tmptype = objinfo.get_type(obj)
             if tmptype in ktdict:
                 ktdict[tmptype]["max"] = max( 1, ktdict[tmptype]["max"] )
@@ -608,22 +610,29 @@ def get_key_object_types( gnum = None,
                                     "is_array" : is_array(tmptype),
                                     "group_types" : Counter( [ frozenset([]) ] ) }
         # print "BY STACK - all primitive" # TODO Make into a logging statement
-        return DIEDBYSTACK
+        return DIEDBYSTACK # TODO This does not seem right.
     if len(key_objects) > 0:
         # Found key objects
         found_key = True
         if len(key_objects) == 1:
             tgt = key_objects[0]
             result = ONEKEY
+            print " - single key object: %s" % objinfo.get_type(tgt)
+            if objinfo.died_at_end(obj):
+                return DIEDATEND
         else:
             # Multiple keys?
             tgt = None
-            # debug_multiple_keys( group = group,
-            #                      key_objects = key_objects,
-            #                      objinfo = objinfo,
-            #                      logger = logger )
-            return MULTKEY
+            debug_multiple_keys( group = group,
+                                 key_objects = key_objects,
+                                 objinfo = objinfo,
+                                 logger = logger )
+            if objinfo.died_at_end(group[0]):
+                return DIEDATEND
+            else:
+                return MULTKEY
     else:
+        print " - NO marked key objects."
         # First try the known groups
         key_objects = fixed_known_key_objects( group = group,
                                                objinfo = objinfo,
@@ -631,6 +640,9 @@ def get_key_object_types( gnum = None,
         if key_objects != None:
             tgt = key_objects["obj"]
             result = ONEKEY_KNOWNOBJ
+            print " - found known key object [%s]" % objinfo.get_type(tgt)
+            if objinfo.died_at_end(obj):
+                return DIEDATEND
         else:
             lastrec = get_last_edge_record( group, edgeinfo, objinfo )
             # print "%d @ %d : %d -> %s" % ( gnum,
@@ -641,24 +653,33 @@ def get_key_object_types( gnum = None,
                 # Get the type
                 used_last_edge = True
                 tgt = lastrec["target"]
+                print " - last edge successful [%s]" % objinfo.get_type(tgt)
+                if objinfo.died_at_end(tgt):
+                    return DIEDATEND
             elif len(lastrec["lastsources"]) > 1:
+                print " - last edge has too many candidates. NO KEY OBJECT FOUND."
                 return NOTFOUND
                 # No need to do anything becuase this isn't a key object?
                 # But DO we need to update the counts of the death groups above TODO
             elif len(lastrec["lastsources"]) == 0:
                 # Means stack object?
                 if not stackflag:
-                    print "-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-"
-                    print "No last edge but group didn't die by stack as a whole:"
+                    print "   -X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-"
+                    print "   No last edge but group didn't die by stack as a whole:"
                     for obj in group:
                         rec = objinfo.get_record( obj )
-                        print "[%d] : %s -> %s" % ( obj,
-                                                    rec[ get_index("TYPE") ],
-                                                    rec[ get_index("DIEDBY") ] )
-                    print "-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-"
+                        print "       [%d] : %s -> %s (%s)" % ( obj,
+                                                                rec[ get_index("TYPE") ],
+                                                                rec[ get_index("DIEDBY") ],
+                                                                "DAE" if objinfo.died_at_end(obj) else "---" )
+                    print "   -X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-"
                 else:
+                    print "   died by stack. Making each object its own key object."
                     # Died by stack. Each object is its own key object
                     for obj in group:
+                        if objinfo.died_at_end(obj):
+                            print " - ignoring DIED AT END."
+                            continue
                         tmptype = objinfo.get_type(obj)
                         if tmptype in ktdict:
                             ktdict[tmptype]["max"] = max( 1, ktdict[tmptype]["max"] )
@@ -671,13 +692,15 @@ def get_key_object_types( gnum = None,
                                                 "is_array": is_array_flag,
                                                 "group_types" : Counter( [ frozenset([]) ] ) }
                     return DIEDBYSTACK
-    if objinfo.died_at_end(tgt):
-        return DIEDATEND
     mytype = objinfo.get_type(tgt)
     group_types = frozenset( [ objinfo.get_type(x) for x in group if x != tgt ] )
     is_array_flag = is_array(mytype)
     if mytype in ktdict:
+        # TODO TODO TODO Verify this TODO TODO TODO
+        # TODO TODO TODO Verify this TODO TODO TODO
         if stackflag and is_array_flag:
+            # TODO TODO TODO Verify this TODO TODO TODO
+            # TODO TODO TODO Verify this TODO TODO TODO
             # keysrc = "WITH KEY" if found_key else ("LAST EDGE" if used_last_edge else "??????")
             # TODO print "BY STACK %s:" % keysrc
             for obj in group:
@@ -794,12 +817,14 @@ def death_group_analyze( bmark = None,
     debug_tries = 0
     died_at_end_count = 0
     for gnum in dgroups.group2list.keys():
+        print "-------[ Group num: %d ]------------------------------------------------" % gnum
         result = get_key_object_types( gnum = gnum,
                                        ktdict = ktdict,
                                        dgroups = dgroups,
                                        edgeinfo = edgeinfo,
                                        objinfo = objinfo,
                                        logger = logger )
+        print "-------[ END group num: %d ]--------------------------------------------" % gnum
 
     # ----------------------------------------
     logger.debug( "[%s]: Total: %d" % (bmark, len(dgroups.group2list)) )

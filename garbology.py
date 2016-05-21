@@ -103,9 +103,9 @@ def get_key_objects( idlist = [],
         rec = oir.get_record( objId )
         assert( rec != None )
         if is_key_object(rec):
-            print "DBG: [%d] keyobj: %s is %s" % ( objId,
-                                                   oir.get_type_using_typeId(rec[ get_index("TYPE") ]),
-                                                   rec[ get_index("GARBTYPE") ] )
+            # print "DBG: [%d] keyobj: %s is %s" % ( objId,
+            #                                        oir.get_type_using_typeId(rec[ get_index("TYPE") ]),
+            #                                        rec[ get_index("GARBTYPE") ] )
             result.append(rec)
     return list(set(result))
 
