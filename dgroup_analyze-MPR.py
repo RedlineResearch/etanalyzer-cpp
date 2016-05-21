@@ -618,7 +618,7 @@ def get_key_object_types( gnum = None,
             tgt = key_objects[0]
             result = ONEKEY
             print " - single key object: %s" % objinfo.get_type(tgt)
-            if objinfo.died_at_end(obj):
+            if objinfo.died_at_end(tgt):
                 return DIEDATEND
         else:
             # Multiple keys?
