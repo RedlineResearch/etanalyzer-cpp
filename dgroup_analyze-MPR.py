@@ -611,16 +611,16 @@ def get_key_object_types( gnum = None,
                                     "group_types" : Counter( [ frozenset([]) ] ) }
         # print "BY STACK - all primitive" # TODO Make into a logging statement
         return DIEDBYSTACK # TODO This does not seem right.
-    if len(key_objects) > 0:
+    if len(key_objects) == 0:
         # Found key objects
         found_key = True
-        if len(key_objects) == 1:
-            tgt = key_objects[0]
-            result = ONEKEY
-            print " - single key object: %s" % objinfo.get_type(tgt)
-            if objinfo.died_at_end(tgt):
-                return DIEDATEND
-        else:
+        tgt = key_objects[0]
+        result = ONEKEY
+        print " - single key object: %s" % objinfo.get_type(tgt)
+        if objinfo.died_at_end(tgt):
+            return DIEDATEND
+    else:
+        if len(key_objects) > 1:
             # Multiple keys?
             tgt = None
             debug_multiple_keys( group = group,
@@ -629,10 +629,10 @@ def get_key_object_types( gnum = None,
                                  logger = logger )
             if objinfo.died_at_end(group[0]):
                 return DIEDATEND
-            else:
-                return MULTKEY
-    else:
-        print " - NO marked key objects."
+            result = MULTKEY
+            print " - Multiple key objects."
+        else:
+            print " - NO marked key objects."
         # First try the known groups
         key_objects = fixed_known_key_objects( group = group,
                                                objinfo = objinfo,
