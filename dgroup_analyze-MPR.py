@@ -611,7 +611,7 @@ def get_key_object_types( gnum = None,
                                     "group_types" : Counter( [ frozenset([]) ] ) }
         # print "BY STACK - all primitive" # TODO Make into a logging statement
         return DIEDBYSTACK # TODO This does not seem right.
-    if len(key_objects) == 0:
+    if len(key_objects) == 1:
         # Found key objects
         found_key = True
         tgt = key_objects[0]
