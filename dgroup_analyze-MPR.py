@@ -641,7 +641,7 @@ def get_key_object_types( gnum = None,
             tgt = key_objects["obj"]
             result = ONEKEY_KNOWNOBJ
             print " - found known key object [%s]" % objinfo.get_type(tgt)
-            if objinfo.died_at_end(obj):
+            if objinfo.died_at_end(tgt):
                 return DIEDATEND
         else:
             lastrec = get_last_edge_record( group, edgeinfo, objinfo )
