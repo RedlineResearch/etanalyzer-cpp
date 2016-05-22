@@ -663,6 +663,7 @@ def get_key_object_types( gnum = None,
                 # But DO we need to update the counts of the death groups above TODO
             elif len(lastrec["lastsources"]) == 0:
                 # Means stack object?
+                stackflag = objinfo.group_died_by_stack(group)
                 if not stackflag:
                     print "   -X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-"
                     print "   No last edge but group didn't die by stack as a whole:"
@@ -696,11 +697,7 @@ def get_key_object_types( gnum = None,
     group_types = frozenset( [ objinfo.get_type(x) for x in group if x != tgt ] )
     is_array_flag = is_array(mytype)
     if mytype in ktdict:
-        # TODO TODO TODO Verify this TODO TODO TODO
-        # TODO TODO TODO Verify this TODO TODO TODO
-        if stackflag and is_array_flag:
-            # TODO TODO TODO Verify this TODO TODO TODO
-            # TODO TODO TODO Verify this TODO TODO TODO
+        if objinfo.died_at_end(tgt) and is_array_flag:
             # keysrc = "WITH KEY" if found_key else ("LAST EDGE" if used_last_edge else "??????")
             # TODO print "BY STACK %s:" % keysrc
             for obj in group:

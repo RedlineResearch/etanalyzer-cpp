@@ -219,6 +219,13 @@ class ObjectInfoReader:
         return (self.objdict[objId][get_index("DIEDBY")] == "S") if (objId in self.objdict) \
             else False
 
+    def group_died_by_stack( self, grouplist = [] ):
+        for obj in grouplist:
+            # Shortcircuits the evaluation
+            if not self.died_by_stack(obj):
+                return False
+        return True
+
     def verify_died_by( self,
                         grouplist = [],
                         died_by = None,
