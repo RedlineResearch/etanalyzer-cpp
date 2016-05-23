@@ -683,13 +683,13 @@ def get_key_object_types( gnum = None,
                             continue
                         tmptype = objinfo.get_type(obj)
                         if tmptype in ktdict:
-                            ktdict[tmptype]["max"] = max( 1, ktdict[tmptype]["max"] )
+                            ktdict[tmptype]["max"] = max( len(group), ktdict[tmptype]["max"] )
                             ktdict[tmptype]["total"] += 1
                             ktdict[mytype]["group_types"].update( [ frozenset([])] )
                         else:
                             is_array_flag = is_array(tmptype)
                             ktdict[tmptype] = { "total" : 1,
-                                                "max" : 1,
+                                                "max" : len(group),
                                                 "is_array": is_array_flag,
                                                 "group_types" : Counter( [ frozenset([]) ] ) }
                     return DIEDBYSTACK
@@ -697,27 +697,14 @@ def get_key_object_types( gnum = None,
     group_types = frozenset( [ objinfo.get_type(x) for x in group if x != tgt ] )
     is_array_flag = is_array(mytype)
     if mytype in ktdict:
-        if objinfo.died_at_end(tgt) and is_array_flag:
-            # keysrc = "WITH KEY" if found_key else ("LAST EDGE" if used_last_edge else "??????")
-            # TODO print "BY STACK %s:" % keysrc
-            for obj in group:
-                tmptype = objinfo.get_type(obj)
-                if tmptype in ktdict:
-                    ktdict[tmptype]["max"] = max( 1, ktdict[tmptype]["max"] )
-                    ktdict[tmptype]["total"] += 1
-                    ktdict[mytype]["group_types"].update([])
-                else:
-                    ktdict[tmptype] = { "total" : 1,
-                                       "max" : 1,
-                                       "is_array": is_array(tmptype),
-                                       "group_types" : Counter( [ frozenset([]) ] ) }
+        if objinfo.died_at_end(tgt):
             return DIEDBYSTACK
         ktdict[mytype]["max"] = max( 1, ktdict[mytype]["max"] )
         ktdict[mytype]["total"] += 1
         ktdict[mytype]["group_types"].update( [ group_types ] )
     else:
         ktdict[mytype] = { "total" : 1,
-                           "max" : 1,
+                           "max" : len(group),
                            "is_array": is_array(mytype),
                            "group_types" : Counter( [ group_types ] ) }
     # This looks like all debug.
