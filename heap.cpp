@@ -774,7 +774,7 @@ void Object::decrementRefCountReal( unsigned int cur_time,
         // DEBUG
         unsigned int drootId = my_death_root->getId();
         // END DEBUG
-        assert(!my_death_root);
+        assert(my_death_root);
         whereis[this] = my_death_root;
         // DEBUG
         if (this_objId == 5229918) {
