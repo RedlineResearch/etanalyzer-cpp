@@ -762,16 +762,28 @@ void Object::decrementRefCountReal( unsigned int cur_time,
         this->recolor(GREEN);
 
         // -- Who's my key object?
+        // DEBUG
+        unsigned int this_objId = this->getId();
+        // END DEBUG
         if (death_root != NULL) {
             this->setDeathRoot( death_root );
         } else {
             this->setDeathRoot( this );
         }
         Object *my_death_root = this->getDeathRoot();
-        if (!my_death_root) {
-            my_death_root = this;
-        }
+        // DEBUG
+        unsigned int drootId = my_death_root->getId();
+        // END DEBUG
+        assert(!my_death_root);
         whereis[this] = my_death_root;
+        // DEBUG
+        if (this_objId == 5229918) {
+            cout << "DEBUG: [C deathroot is [ " << drootId << " ]" << endl;
+        }
+        if (drootId == 5229918) {
+            cout << "DEBUG: [C is used as death root for [ " << this_objId << " ]" << endl;
+        }
+        // END DEBUG
         KeySet_t::iterator itset = keyset.find(my_death_root);
         if (itset == keyset.end()) {
             keyset[my_death_root] = new std::set< Object * >();

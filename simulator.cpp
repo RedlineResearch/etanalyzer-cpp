@@ -225,8 +225,12 @@ unsigned int read_trace_file(FILE* f)
                             oldObj->setLastUpdateNull();
                         }
                     }
-                    // Increment and decrement refcounts
-                    if (obj && target) {
+                    if (oldTgtId == tgtId) {
+                        // It sometimes happens that the newtarget is the same as
+                        // the old target. So we won't create any more new edges.
+                        cout << "UPDATE same new == old: " << target << endl;
+                    } else if (obj && target) {
+                        // Increment and decrement refcounts
                         unsigned int field_id = tokenizer.getInt(4);
                         Edge* new_edge = Heap.make_edge( obj, field_id,
                                                          target, Exec.NowUp() );
