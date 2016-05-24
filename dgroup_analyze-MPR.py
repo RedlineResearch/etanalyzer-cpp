@@ -531,7 +531,7 @@ def debug_primitive_key( group = None,
                          logger = None ):
     print "   -+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-"
     print "    >>> PRIMITIVE KEY: %s" % keytype
-    for x in :
+    for x in group:
         tmp = objinfo.get_record(x)
         print "    %d [ %s ][ by %s ] - %d" % \
             (x, objinfo.get_type(x), tmp[ get_index("DIEDBY") ], tmp[ get_index("DTIME") ])
