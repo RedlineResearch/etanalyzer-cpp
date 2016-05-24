@@ -10,7 +10,6 @@ import re
 import ConfigParser
 from operator import itemgetter
 from collections import Counter
-import networkx as nx
 import csv
 import subprocess
 from datetime import datetime, date
@@ -102,45 +101,12 @@ def create_edge_dictionary( edges = None ):
         edgedict[src] = set(tgtlist)
     return edgedict
 
-def create_graph( cycle_info_list = None,
-                  edgedict = None,
-                  logger = None ):
-    global pp
-    g = nx.DiGraph()
-    nodeset = set([])
-    for mytuple in cycle_info_list:
-        node, mytype, mysize, lifetime = mytuple
-        nodeset.add(node)
-        g.add_node( n = node,
-                    type = mytype,
-                    lifetime = lifetime,
-                    size = mysize )
-        if node in edgedict:
-            for tgt in edgedict[node]:
-                g.add_edge( node, tgt )
-    return g
-
 def get_types( G, cycle ):
     return [ G.node[x]["type"] for x in cycle ]
 
 def get_types_and_save_index( G, cycle ):
     return [ (x, G.node[x]["type"]) for x in cycle ]
 
-def debug_cycle_algorithms( largest_scc, cyclelist, G ):
-    global pp
-    print "=================================================="
-    other = max( cyclelist, key = len )
-    print "SC[ %d ]  SIMP[ %d ]" % (len(largest_scc), len(other))
-    if len(largest_scc) == 1:
-        node = list(largest_scc)[0]
-        if node == 166451:
-            print "Found 166451. Writing out graphs in %s" % str(os.getcwd())
-            nx.write_gexf( G, "DEBUG-ALL-166451.gexf" )
-            nx.write_gexf( G.subgraph( list(largest_scc) ),"DEBUG-SC-166451.gexf" ) 
-            print "DONE DEBUG."
-            exit(222)
-    print "=================================================="
-    
 def get_lifetimes( G, cycle ):
     return [ G.node[x]["lifetime"] for x in cycle ]
 
