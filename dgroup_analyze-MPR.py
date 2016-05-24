@@ -710,7 +710,7 @@ def get_key_object_types( gnum = None,
     is_array_flag = is_array(mytype)
     is_primitive_key = is_primitive_array(mytype)
     if is_primitive_key and len(group_types) > 0:
-        debug_multiple_keys( group = [ x for x in group if x != tgt ],
+        debug_primitive_key( group = [ x for x in group if x != tgt ],
                              keytype = mytype,
                              objinfo = objinfo,
                              logger = logger )
