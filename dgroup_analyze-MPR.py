@@ -525,6 +525,18 @@ def get_last_edge_record( group, edgeinfo, objectinfo ):
 def is_array( mytype ):
     return (len(mytype) > 0) and (mytype[0] == "[")
 
+def debug_primitive_key( group = None,
+                         keytype = None,
+                         objinfo = None,
+                         logger = None ):
+    print "   -+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-"
+    print "    >>> PRIMITIVE KEY: %s" % keytype
+    for x in :
+        tmp = objinfo.get_record(x)
+        print "    %d [ %s ][ by %s ] - %d" % \
+            (x, objinfo.get_type(x), tmp[ get_index("DIEDBY") ], tmp[ get_index("DTIME") ])
+    print "   -+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-"
+
 def debug_multiple_keys( group = None,
                          key_objects = None,
                          objinfo = None,
@@ -696,6 +708,12 @@ def get_key_object_types( gnum = None,
     mytype = objinfo.get_type(tgt)
     group_types = frozenset( [ objinfo.get_type(x) for x in group if x != tgt ] )
     is_array_flag = is_array(mytype)
+    is_primitive_key = is_primitive_array(mytype)
+    if is_primitive_key and len(group_types) > 0:
+        debug_multiple_keys( group = [ x for x in group if x != tgt ],
+                             keytype = mytype,
+                             objinfo = objinfo,
+                             logger = logger )
     if mytype in ktdict:
         if objinfo.died_at_end(tgt):
             return DIEDBYSTACK
