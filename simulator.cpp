@@ -521,6 +521,44 @@ void output_type_summary( string &dgroups_by_type_filename,
     dgroups_by_type_file.close();
 }
 
+void debug_type_algo( Object *object,
+                      string& dgroup_kind )
+{
+    KeyType ktype = object->getKeyType();
+    unsigned int objId = object->getId();
+    if (ktype == UNKNOWN_KEYTYPE) {
+        cout << "ERROR: objId[ " << objId << " ] : "
+             << "Keytype not set but algo determines [ " << dgroup_kind << " ]" << endl;
+        return;
+    }
+    if (dgroup_kind == "CYCLE") {
+        if (ktype != CYCLE) {
+            goto fail;
+        }
+    } else if (dgroup_kind == "CYCLEKEY") {
+        if (ktype != CYCLEKEY) {
+            goto fail;
+        }
+    } else if (dgroup_kind == "DAG") {
+        if (ktype != DAG) {
+            goto fail;
+        }
+    } else if (dgroup_kind == "DAGKEY") {
+        if (ktype != DAGKEY) {
+            goto fail;
+        }
+    } else {
+        cout << "ERROR: objId[ " << objId << " ] : "
+             << "Unkown key type: " << dgroup_kind << endl;
+    }
+    return;
+fail:
+    cout << "ERROR: objId[ " << objId << " ] : "
+         << "Keytype [ " << keytype2str(ktype) << " ]"
+         << " doesn't match [ " << dgroup_kind << " ]" << endl;
+    return;
+}
+
 void output_all_objects( string &objectinfo_filename,
                          HeapState &myheap,
                          std::set<ObjectId_t> dag_keys,
@@ -537,7 +575,7 @@ void output_all_objects( string &objectinfo_filename,
         set<ObjectId_t>::iterator diter = dag_all_set.find(objId);
         string dgroup_kind;
         if (diter == dag_all_set.end()) {
-            // Not a DAG object, therefore CYCle
+            // Not a DAG object, therefore CYCLE
             set<ObjectId_t>::iterator itmp = all_keys.find(objId);
             dgroup_kind = ((itmp == all_keys.end()) ? "CYC" : "CYCKEY" );
         } else {
@@ -545,6 +583,9 @@ void output_all_objects( string &objectinfo_filename,
             set<ObjectId_t>::iterator itmp = dag_keys.find(objId);
             dgroup_kind = ((itmp == dag_keys.end()) ? "DAG" : "DAGKEY" );
         }
+        // DEBUG ONLY
+        debug_type_algo( object, dgroup_kind );
+        // END DEBUG
         string dtype;
         if (object->getDiedByStackFlag()) {
             dtype = "S"; // by stack
@@ -725,6 +766,10 @@ int main(int argc, char* argv[])
                 }
             }
             if (deqtmp.size() > 0) {
+                // TODO Not sure why this transform isn't working like the for loop.
+                // Not too important, but kind of curious as to how I'm not using
+                // std::transform properly.
+                // TODO
                 // std::transform( deqtmp.cbegin(),
                 //                 deqtmp.cend(),
                 //                 dag_all.begin(),

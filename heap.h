@@ -547,4 +547,6 @@ class Edge
         void setEndTime(unsigned int end) { m_endTime = end; }
 };
 
+string keytype2str( KeyType ktype );
+
 #endif

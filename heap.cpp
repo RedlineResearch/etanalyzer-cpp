@@ -5,6 +5,24 @@ bool HeapState::do_refcounting = true;
 bool HeapState::debug = false;
 unsigned int Object::g_counter = 0;
 
+string keytype2str( KeyType ktype )
+{
+    if (ktype == DAG) {
+        return "DAG";
+    } else if (ktype == DAGKEY) {
+        return "DAGKEY";
+    } else if (ktype == CYCLE) {
+        return "CYCLE";
+    } else if (ktype == CYCLEKEY) {
+        return "CYCLEKEY";
+    } else if (ktype == UNKNOWN_KEYTYPE) {
+        return "UNKNOWN_KEYTYPE";
+    }
+    assert(0); // Shouldn't make it here.
+}
+
+// =================================================================
+
 Object* HeapState::allocate( unsigned int id,
                              unsigned int size,
                              char kind,
@@ -814,6 +832,9 @@ void Object::decrementRefCountReal( unsigned int cur_time,
         } else if (last_event == DECRC) {
             // This is a DAGKEY
             this->setKeyType(DAG);
+        } else {
+            // ???? Is this possible?
+            assert(0);
         }
         // Edges are now dead.
         for ( EdgeMap::iterator p = this->m_fields.begin();
