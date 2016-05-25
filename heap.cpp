@@ -593,7 +593,7 @@ void Object::updateField( Edge* edge,
                                                    method,
                                                    reason,
                                                    death_root,
-                                                   UPDATE );
+                                                   last_event );
             } 
             old_edge->setEndTime(cur_time);
         }
@@ -832,6 +832,8 @@ void Object::decrementRefCountReal( unsigned int cur_time,
         } else if (last_event == DECRC) {
             // This is a DAGKEY
             this->setKeyType(DAG);
+        } else if (last_event == OBJECT_DEATH) {
+            // What happens here?
         } else {
             // ???? Is this possible?
             assert(0);
