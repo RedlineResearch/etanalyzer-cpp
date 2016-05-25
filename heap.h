@@ -30,8 +30,25 @@ enum Reason {
 enum LastEvent {
     ROOT = 1,
     UPDATE = 2,
+    DECRC = 3,
+    OBJECT_DEATH = 10,
     END_OF_PROGRAM_EVENT = 11,
     UNKNOWN_EVENT = 99,
+};
+
+enum DecRCReason {
+    UPDATE_DEC = 2,
+    DEC_TO_ZERO = 7,
+    END_OF_PROGRAM_DEC = 8,
+    UNKNOWN_DEC_EVENT = 99,
+};
+
+enum KeyType {
+    DAG = 1,
+    DAGKEY = 2,
+    CYCLE = 3,
+    CYCLEKEY = 4,
+    UNKNOWN_KEYTYPE = 99,
 };
 
 typedef unsigned int ObjectId_t;
@@ -338,6 +355,7 @@ class Object
 
         // Who's my key object? 0 means unassigned.
         Object *m_death_root;
+        KeyType m_key_type;
 
     public:
         Object( unsigned int id,
@@ -378,7 +396,8 @@ class Object
             , m_incFromZero(indeterminate)
             , m_last_event(LastEvent::UNKNOWN_EVENT)
             , m_death_root(NULL)
-            , m_last_object(NULL) {
+            , m_last_object(NULL)
+            , m_key_type(UNKNOWN_KEYTYPE) {
         }
 
         // -- Getters
@@ -446,6 +465,9 @@ class Object
         // Set and get death root
         void setDeathRoot( Object *newroot ) { this->m_death_root = newroot; }
         Object * getDeathRoot() const { return this->m_death_root; }
+        // Set and get key type 
+        void setKeyType( KeyType newtype ) { this->m_key_type = newtype; }
+        KeyType getKeyType() const { return this->m_key_type; }
 
         // -- Ref counting
         unsigned int getRefCount() const { return m_refCount; }
@@ -456,7 +478,8 @@ class Object
         void decrementRefCountReal( unsigned int cur_time,
                                     Method *method,
                                     Reason r,
-                                    Object *death_root );
+                                    Object *death_root,
+                                    LastEvent last_event );
         // -- Access the fields
         const EdgeMap& getFields() const { return m_fields; }
         // -- Get a string representation
@@ -471,7 +494,8 @@ class Object
                           unsigned int cur_time,
                           Method *method,
                           Reason reason,
-                          Object *death_root );
+                          Object *death_root,
+                          LastEvent last_event );
         // -- Record death time
         void makeDead(unsigned int death_time);
         // -- Set the color

@@ -244,7 +244,8 @@ unsigned int read_trace_file(FILE* f)
                                               Exec.NowUp(),
                                               topMethod, // for death site info
                                               HEAP, // reason
-                                              NULL ); // death root 0 because may not be a root
+                                              NULL, // death root 0 because may not be a root
+                                              UPDATE ); // last event to determine cause
                             // NOTE: topMethod COULD be NULL here.
                         }
                         // DEBUG ONLY IF NEEDED
@@ -298,7 +299,8 @@ unsigned int read_trace_file(FILE* f)
                                                           Exec.NowUp(),
                                                           topMethod,
                                                           STACK,
-                                                          obj );
+                                                          obj,
+                                                          OBJECT_DEATH );
                                         // NOTE: STACK is used because the object that died,
                                         // died by STACK.
                                         debug_stack_edges++;

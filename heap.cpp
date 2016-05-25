@@ -417,9 +417,11 @@ void HeapState::scan_queue2( EdgeList& edgelist,
             ObjectPtrMap_t::iterator itmap = whereis.find(root);
             if (itmap == whereis.end()) {
                 keyset[root] = new std::set< Object * >();
+                root->setKeyType( CYCLEKEY );
             } else {
                 // So-called root isn't one
                 root = whereis[root];
+                root->setKeyType( CYCLE );
             }
             assert( root != NULL );
             // Depth First Search
@@ -542,7 +544,8 @@ void Object::updateField( Edge* edge,
                           unsigned int cur_time,
                           Method *method,
                           Reason reason,
-                          Object *death_root )
+                          Object *death_root,
+                          LastEvent last_event )
 {
     EdgeMap::iterator p = this->m_fields.find(fieldId);
     if (p != this->m_fields.end()) {
@@ -560,7 +563,11 @@ void Object::updateField( Edge* edge,
                     cerr << "Invalid reason." << endl;
                     assert( false );
                 }
-                old_target->decrementRefCountReal(cur_time, method, reason, death_root);
+                old_target->decrementRefCountReal( cur_time,
+                                                   method,
+                                                   reason,
+                                                   death_root,
+                                                   UPDATE );
             } 
             old_edge->setEndTime(cur_time);
         }
@@ -734,7 +741,8 @@ void Object::recolor( Color newColor )
 void Object::decrementRefCountReal( unsigned int cur_time,
                                     Method *method,
                                     Reason reason,
-                                    Object *death_root )
+                                    Object *death_root,
+                                    LastEvent last_event )
 {
     this->decrementRefCount();
     this->m_lastMethodDecRC = method;
@@ -791,6 +799,14 @@ void Object::decrementRefCountReal( unsigned int cur_time,
         }
         keyset[my_death_root]->insert( this );
 
+        // Set key type based on last event
+        if (last_event == UPDATE) {
+            // This is a DAGKEY
+            this->setKeyType(DAGKEY);
+        } else if (last_event == DECRC) {
+            // This is a DAGKEY
+            this->setKeyType(DAG);
+        }
         // Edges are now dead.
         for ( EdgeMap::iterator p = this->m_fields.begin();
               p != this->m_fields.end();
@@ -803,7 +819,8 @@ void Object::decrementRefCountReal( unsigned int cur_time,
                                    cur_time,
                                    method,
                                    reason,
-                                   this->getDeathRoot() );
+                                   this->getDeathRoot(),
+                                   DECRC );
             }
         }
         // DEBUG
