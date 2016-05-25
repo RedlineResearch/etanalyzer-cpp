@@ -521,6 +521,7 @@ void output_type_summary( string &dgroups_by_type_filename,
     dgroups_by_type_file.close();
 }
 
+// All sorts of hacky debug function. Very brittle.
 void debug_type_algo( Object *object,
                       string& dgroup_kind )
 {
@@ -535,7 +536,7 @@ void debug_type_algo( Object *object,
         if (ktype != CYCLE) {
             goto fail;
         }
-    } else if (dgroup_kind == "CYCLEKEY") {
+    } else if (dgroup_kind == "CYCKEY") {
         if (ktype != CYCLEKEY) {
             goto fail;
         }
@@ -549,7 +550,7 @@ void debug_type_algo( Object *object,
         }
     } else {
         cout << "ERROR: objId[ " << objId << " ] : "
-             << "Unkown key type: " << dgroup_kind << endl;
+             << "Unknown key type: " << dgroup_kind << endl;
     }
     return;
 fail:
@@ -583,9 +584,6 @@ void output_all_objects( string &objectinfo_filename,
             set<ObjectId_t>::iterator itmp = dag_keys.find(objId);
             dgroup_kind = ((itmp == dag_keys.end()) ? "DAG" : "DAGKEY" );
         }
-        // DEBUG ONLY
-        debug_type_algo( object, dgroup_kind );
-        // END DEBUG
         string dtype;
         if (object->getDiedByStackFlag()) {
             dtype = "S"; // by stack
