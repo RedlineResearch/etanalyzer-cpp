@@ -699,7 +699,10 @@ int main(int argc, char* argv[])
         // Remember the key objects for non-cyclic death groups.
         set<ObjectId_t> dag_keys;
         deque<ObjectId_t> dag_all;
-        auto lfn = [](Object *ptr) -> unsigned int { return ptr->getId(); };
+        // Lambdas for utility
+        auto lfn = [](Object *ptr) -> unsigned int { return ((ptr) ? ptr->getId() : 0); };
+        auto ifNull = [](Object *ptr) -> bool { return (ptr == NULL); };
+
         for ( KeySet_t::iterator kiter = keyset.begin();
               kiter != keyset.end();
               kiter++ ) {
@@ -711,10 +714,22 @@ int main(int argc, char* argv[])
             if (!sptr) {
                 continue; // TODO
             }
-            std::transform( sptr->cbegin(),
-                            sptr->cend(),
-                            dag_all.begin(),
-                            lfn );
+            deque< Object * > deqtmp;
+            // std::copy( sptr->begin(), sptr->end(), vptr.begin() );
+            // std::remove_if( deqtmp.begin(), deqtmp.end(), ifNull );
+            for ( set< Object * >::iterator setit = sptr->begin();
+                  setit != sptr->end();
+                  setit++ ) {
+                if (*setit) {
+                    deqtmp.push_back( *setit );
+                }
+            }
+            if (sptr->size() > 0) {
+                std::transform( deqtmp.cbegin(),
+                                deqtmp.cend(),
+                                dag_all.begin(),
+                                lfn );
+            }
         }
         set<ObjectId_t> dag_all_set( dag_all.cbegin(), dag_all.cend() );
 

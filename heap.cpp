@@ -447,8 +447,10 @@ void HeapState::scan_queue2( EdgeList& edgelist,
                     // TODO candSet.erase(it);
                     Object *other_root = whereis[cur];
                     if (!other_root) {
-                        keyset[root]->insert(cur);
-                        whereis[cur] = root;
+                        if (cur) {
+                            keyset[root]->insert(cur);
+                            whereis[cur] = root;
+                        }
                     } else {
                         unsigned int other_time = other_root->getDeathTime();
                         unsigned int root_time =  root->getDeathTime();
@@ -474,19 +476,25 @@ void HeapState::scan_queue2( EdgeList& edgelist,
                                 }
                                 // Current object belongs to older if died earlier
                                 if (curtime <= older_time) {
-                                    keyset[older_ptr]->insert(cur);
-                                    whereis[cur] = older_ptr;
+                                    if (cur) {
+                                        keyset[older_ptr]->insert(cur);
+                                        whereis[cur] = older_ptr;
+                                    }
                                 } else {
                                     // Else it belongs to the root that died later.
-                                    keyset[newer_ptr]->insert(cur);
-                                    whereis[cur] = newer_ptr;
+                                    if (cur) {
+                                        keyset[newer_ptr]->insert(cur);
+                                        whereis[cur] = newer_ptr;
+                                    }
                                 }
                             } // else {
                                 // No need to do anything since other_root is the SAME as root
                             // }
                         } else {
-                            keyset[root]->insert(cur);
-                            whereis[cur] = root;
+                            if (cur) {
+                                keyset[root]->insert(cur);
+                                whereis[cur] = root;
+                            }
                         }
                     }
                     for ( EdgeMap::iterator p = cur->getEdgeMapBegin();
