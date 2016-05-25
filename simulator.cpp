@@ -704,10 +704,13 @@ int main(int argc, char* argv[])
               kiter != keyset.end();
               kiter++ ) {
             Object *optr = kiter->first;
-            set< Object * > *sptr = kiter->second;
             ObjectId_t objId = (optr ? optr->getId() : 0); 
             dag_keys.insert(objId);
             dag_all.push_back(objId);
+            set< Object * > *sptr = kiter->second;
+            if (!sptr) {
+                continue; // TODO
+            }
             std::transform( sptr->cbegin(),
                             sptr->cend(),
                             dag_all.begin(),
