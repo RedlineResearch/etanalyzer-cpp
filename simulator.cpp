@@ -724,11 +724,18 @@ int main(int argc, char* argv[])
                     deqtmp.push_back( *setit );
                 }
             }
-            if (sptr->size() > 0) {
-                std::transform( deqtmp.cbegin(),
-                                deqtmp.cend(),
-                                dag_all.begin(),
-                                lfn );
+            if (deqtmp.size() > 0) {
+                // std::transform( deqtmp.cbegin(),
+                //                 deqtmp.cend(),
+                //                 dag_all.begin(),
+                //                 lfn );
+                for ( deque< Object * >::iterator dqit = deqtmp.begin();
+                      dqit != deqtmp.end();
+                      dqit++ ) {
+                    if (*dqit) {
+                        dag_all.push_back( (*dqit)->getId() );
+                    }
+                }
             }
         }
         set<ObjectId_t> dag_all_set( dag_all.cbegin(), dag_all.cend() );
