@@ -613,12 +613,11 @@ def get_key_object_types( gnum = None,
             print " - Multiple key objects."
         else:
             print " - DEBUG: NO marked key objects."
-            key_objects = list(group)
         cur = key_objects[0]
         currec = objinfo.get_record(cur)
         cur_dtime = currec[ get_index("DTIME") ]
         curtype = objinfo.get_type(cur)
-        for ktmp in key_objects[1:]:
+        for ktmp in group:
             tmp = key_objects[0]
             tmprec = objinfo.get_record(cur)
             tmp_dtime = currec[ get_index("DTIME") ]
