@@ -620,7 +620,7 @@ def get_key_object_types( gnum = None,
             currec = objinfo.get_record(cur)
             cur_dtime = currec[ get_index("DTIME") ]
             curtype = objinfo.get_type(cur)
-            if is_primitive_array(curtype) or is_primitive(curtype):
+            if is_primitive_array(curtype) or is_primitive_type(curtype):
                 curindex += 1
                 continue
             else:
@@ -632,7 +632,7 @@ def get_key_object_types( gnum = None,
             tmprec = objinfo.get_record(tmp)
             tmp_dtime = currec[ get_index("DTIME") ]
             tmptype = objinfo.get_type(tmp)
-            if is_primitive_array(tmptype) or is_primitive(tmptype):
+            if is_primitive_array(tmptype) or is_primitive_type(tmptype):
                 continue
             elif tmp_dtime > cur_dtime:
                 cur = tmp
