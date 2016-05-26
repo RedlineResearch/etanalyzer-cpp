@@ -613,19 +613,32 @@ def get_key_object_types( gnum = None,
             print " - Multiple key objects."
         else:
             print " - DEBUG: NO marked key objects."
-        cur = key_objects[0]
-        currec = objinfo.get_record(cur)
-        cur_dtime = currec[ get_index("DTIME") ]
-        curtype = objinfo.get_type(cur)
-        for ktmp in group:
-            tmp = key_objects[0]
-            tmprec = objinfo.get_record(cur)
+        done = False
+        curindex = 0
+        while not done and (curindex < len(group)):
+            cur = group[curindex]
+            currec = objinfo.get_record(cur)
+            cur_dtime = currec[ get_index("DTIME") ]
+            curtype = objinfo.get_type(cur)
+            if is_primitive_array(curtype) or is_primitive(curtype):
+                curindex += 1
+                continue
+            else:
+                done = True
+                break
+        if not done or curindex >= len(group):
+            return NOTFOUND
+        for tmp in group[curindex:]:
+            tmprec = objinfo.get_record(tmp)
             tmp_dtime = currec[ get_index("DTIME") ]
-            if tmp_dtime > cur_dtime:
+            tmptype = objinfo.get_type(tmp)
+            if is_primitive_array(tmptype) or is_primitive(tmptype):
+                continue
+            elif tmp_dtime > cur_dtime:
                 cur = tmp
                 currec = tmprec
                 cur_dtime = tmp_dtime
-                curtype = objinfo.get_type(cur)
+                curtype = tmptype
         tgt = cur
         mytype = curtype
         # TODO Make into a logging statement
