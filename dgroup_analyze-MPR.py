@@ -630,7 +630,7 @@ def get_key_object_types( gnum = None,
             return NOTFOUND
         for tmp in group[curindex:]:
             tmprec = objinfo.get_record(tmp)
-            tmp_dtime = currec[ get_index("DTIME") ]
+            tmp_dtime = tmprec[ get_index("DTIME") ]
             tmptype = objinfo.get_type(tmp)
             if is_primitive_array(tmptype) or is_primitive_type(tmptype):
                 continue
