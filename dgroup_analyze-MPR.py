@@ -617,17 +617,16 @@ def get_key_object_types( gnum = None,
         cur = key_objects[0]
         currec = objinfo.get_record(cur)
         cur_dtime = currec[ get_index("DTIME") ]
-        curtype = currec[ get_index("TYPE") ]
+        curtype = objinfo.get_type(tgt)
         for ktmp in key_objects[1:]:
             tmp = key_objects[0]
             tmprec = objinfo.get_record(cur)
             tmp_dtime = currec[ get_index("DTIME") ]
-            # tmptype = currec[ get_index("TYPE") ]
             if tmp_dtime > cur_dtime:
                 cur = tmp
                 currec = tmprec
                 cur_dtime = tmp_dtime
-                curtype = tmprec[ get_index("TYPE") ]
+                curtype = objinfo.get_type(tgt)
         tgt = cur
         mytype = curtype
         # TODO Make into a logging statement
