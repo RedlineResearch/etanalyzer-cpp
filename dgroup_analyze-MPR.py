@@ -630,7 +630,7 @@ def get_key_object_types( gnum = None,
         tgt = cur
         mytype = curtype
         # TODO Make into a logging statement
-        print "  - key among multiples - %d [ %d ][ dtime: %d ]" % (cur, curtype, cur_dtime)
+        print "  - key among multiples - %d [ %s ][ dtime: %d ]" % (cur, curtype, cur_dtime)
         # # First try the known groups
         # key_objects = fixed_known_key_objects( group = group,
         #                                        objinfo = objinfo,
