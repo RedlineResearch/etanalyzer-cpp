@@ -548,6 +548,27 @@ def all_primitive_types( group = [],
             return False
     return True
 
+
+def update_keytype_dict( ktdict = {},
+                         objId = -1,
+                         objType = "",
+                         grouplen = 1,
+                         objinfo = None,
+                         group_types = frozenset([]) ):
+
+    assert( objId >= 0 )
+    if objType in ktdict:
+        if objinfo.died_at_end(objId):
+            return DIEDBYSTACK
+        ktdict[objType]["max"] = max( grouplen, ktdict[objType]["max"] )
+        ktdict[objType]["total"] += 1
+        ktdict[objType]["group_types"].update( [ group_types ] )
+    else:
+        ktdict[objType] = { "total" : 1,
+                            "max" : grouplen,
+                            "is_array": is_array(objType),
+                            "group_types" : Counter( [ group_types ] ) }
+
 ONEKEY = 1
 MULTKEY = 2
 NOKEY = 3
@@ -580,14 +601,12 @@ def get_key_object_types( gnum = None,
             if objinfo.died_at_end(obj):
                 continue
             tmptype = objinfo.get_type(obj)
-            if tmptype in ktdict:
-                ktdict[tmptype]["max"] = max( 1, ktdict[tmptype]["max"] )
-                ktdict[tmptype]["total"] += 1
-            else:
-                ktdict[tmptype] = { "total" : 1,
-                                    "max" : 1,
-                                    "is_array" : is_array(tmptype),
-                                    "group_types" : Counter( [ frozenset([]) ] ) }
+            update_keytype_dict( ktdict = ktdict,
+                                 objId = obj,
+                                 objType = tmptype,
+                                 grouplen = 1,
+                                 objinfo = objinfo,
+                                 group_types = frozenset([]) )
         # print "BY STACK - all primitive" # TODO Make into a logging statement
         return DIEDBYSTACK # TODO This does not seem right.
     if len(key_objects) == 1:
@@ -664,17 +683,12 @@ def get_key_object_types( gnum = None,
                              keyId = tgt,
                              objinfo = objinfo,
                              logger = logger )
-    if mytype in ktdict:
-        if objinfo.died_at_end(tgt):
-            return DIEDBYSTACK
-        ktdict[mytype]["max"] = max( 1, ktdict[mytype]["max"] )
-        ktdict[mytype]["total"] += 1
-        ktdict[mytype]["group_types"].update( [ group_types ] )
-    else:
-        ktdict[mytype] = { "total" : 1,
-                           "max" : len(group),
-                           "is_array": is_array(mytype),
-                           "group_types" : Counter( [ group_types ] ) }
+        update_keytype_dict( ktdict = ktdict,
+                             objId = tgt,
+                             objType = mytype,
+                             grouplen = len(group),
+                             objinfo = objinfo,
+                             group_types = group_types )
     # This looks like all debug.
     # TODO print "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"
     # TODO print "%s:" % mytype
