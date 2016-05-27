@@ -549,25 +549,52 @@ def all_primitive_types( group = [],
     return True
 
 
+def get_earliest_alloctime_object( group ):
+    if len(group) == 0:
+        return None
+    cur = group[0]
+    currec = objinfo.get_record(cur)
+    cur_atime = rec[ get_index("ATIME") ]
+    # dtime = rec[ get_index("DTIME") ]
+    for obj in group:
+        tmp = group[0]
+        tmprec = objinfo.get_record(tmp)
+        tmp_atime = rec[ get_index("ATIME") ]
+        if tmp_atime < cur_atime:
+            cur = tmp
+            currec = tmprec
+            cur_atime = tmp_atime
+    return cur
+
 def update_keytype_dict( ktdict = {},
                          objId = -1,
                          objType = "",
-                         grouplen = 1,
+                         group = [],
                          objinfo = None,
                          group_types = frozenset([]) ):
 
     assert( objId >= 0 )
+    if objinfo.died_at_end(objId):
+        return DIEDBYSTACK
+    grouplen = len(group)
+    early_obj = get_earliest_alloctime_object( group )
+    true_key_flag = (early_obj == objId)
     if objType in ktdict:
-        if objinfo.died_at_end(objId):
-            return DIEDBYSTACK
         ktdict[objType]["max"] = max( grouplen, ktdict[objType]["max"] )
+        ktdict[objType]["min"] = min( grouplen, ktdict[objType]["min"] )
+        ktdict[objType]["grouplen_list"].append( grouplen )
         ktdict[objType]["total"] += 1
         ktdict[objType]["group_types"].update( [ group_types ] )
+        if true_key_flag:
+            ktdict[objType]["true_key_count"] += 1
     else:
         ktdict[objType] = { "total" : 1,
                             "max" : grouplen,
+                            "min" : grouplen,
+                            "grouplen_list" : [ grouplen ],
                             "is_array": is_array(objType),
-                            "group_types" : Counter( [ group_types ] ) }
+                            "group_types" : Counter( [ group_types ] ),
+                            "true_key_count" : 1 if true_key_flag else 0, }
 
 ONEKEY = 1
 MULTKEY = 2
@@ -604,7 +631,7 @@ def get_key_object_types( gnum = None,
             update_keytype_dict( ktdict = ktdict,
                                  objId = obj,
                                  objType = tmptype,
-                                 grouplen = 1,
+                                 group = [ obj ],
                                  objinfo = objinfo,
                                  group_types = frozenset([]) )
         # print "BY STACK - all primitive" # TODO Make into a logging statement
@@ -683,12 +710,12 @@ def get_key_object_types( gnum = None,
                              keyId = tgt,
                              objinfo = objinfo,
                              logger = logger )
-        update_keytype_dict( ktdict = ktdict,
-                             objId = tgt,
-                             objType = mytype,
-                             grouplen = len(group),
-                             objinfo = objinfo,
-                             group_types = group_types )
+    update_keytype_dict( ktdict = ktdict,
+                         objId = tgt,
+                         objType = mytype,
+                         group = group,
+                         objinfo = objinfo,
+                         group_types = group_types )
     # This looks like all debug.
     # TODO print "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"
     # TODO print "%s:" % mytype
@@ -857,11 +884,13 @@ def death_group_analyze( bmark = None,
     outfile = os.path.join( workdir, "%s-DGROUPS-TYPES.csv" % bmark )
     with open( outfile, "wb" ) as fptr:
         writer = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
-        writer.writerow( [ "type", "number groups", "maximum", ] )
+        writer.writerow( [ "type", "number groups", "maximum", "minimum", "true key count", ] )
         for mytype, rec in ktdict.iteritems():
             writer.writerow( [ mytype,
                                rec["total"],
-                               rec["max"], ] )
+                               rec["max"],
+                               rec["min"],
+                               rec["true_key_count"], ] )
     # Group types output
     outallfile = os.path.join( workdir, "%s-DGROUPS-ALL-TYPES.csv" % bmark )
     with open( outallfile, "wb" ) as fptr:
