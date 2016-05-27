@@ -549,7 +549,8 @@ def all_primitive_types( group = [],
     return True
 
 
-def get_earliest_alloctime_object( group ):
+def get_earliest_alloctime_object( group = [],
+                                   objinfo = None ):
     if len(group) == 0:
         return None
     cur = group[0]
@@ -577,7 +578,7 @@ def update_keytype_dict( ktdict = {},
     if objinfo.died_at_end(objId):
         return DIEDBYSTACK
     grouplen = len(group)
-    early_obj = get_earliest_alloctime_object( group )
+    early_obj = get_earliest_alloctime_object( group = group, objinfo = objinfo )
     true_key_flag = (early_obj == objId)
     if objType in ktdict:
         ktdict[objType]["max"] = max( grouplen, ktdict[objType]["max"] )
