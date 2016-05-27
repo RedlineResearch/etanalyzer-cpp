@@ -555,12 +555,12 @@ def get_earliest_alloctime_object( group = [],
         return None
     cur = group[0]
     currec = objinfo.get_record(cur)
-    cur_atime = rec[ get_index("ATIME") ]
+    cur_atime = currec[ get_index("ATIME") ]
     # dtime = rec[ get_index("DTIME") ]
     for obj in group:
         tmp = group[0]
         tmprec = objinfo.get_record(tmp)
-        tmp_atime = rec[ get_index("ATIME") ]
+        tmp_atime = tmprec[ get_index("ATIME") ]
         if tmp_atime < cur_atime:
             cur = tmp
             currec = tmprec
