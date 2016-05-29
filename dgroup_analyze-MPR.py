@@ -573,7 +573,7 @@ def get_most_likely_keytype( objlist = [],
     assert(len(objlist)) > 0
     found = False
     newlist = list( set( [ x for x in objlist
-                           if (tydict[x] not in blacklist or is_primitive_type(tydict[x])) ] )
+                           if (tydict[x] not in blacklist or is_primitive_type(tydict[x])) ] ) )
     if len(newlist) > 1:
         # Let's return the oldest object
         newlist = sorted(newlist)
