@@ -567,6 +567,19 @@ def get_earliest_alloctime_object( group = [],
             cur_atime = tmp_atime
     return cur
 
+def get_most_likely_keytype( objlist = [],
+                             tydict = {} ):
+    blacklist = set([ "Ljava/lang/String;", ])
+    assert(len(objlist)) > 0
+    found = False
+    newlist = set( [ x for x in objlist
+                     if (tydict[x] not in blacklist or is_primitive_type(tydict[x])) ] )
+    if len(newlist) > 1:
+        # Let's return the oldest object
+        newlist = sorted(newlist)
+    return newlist[0]
+
+
 def update_keytype_dict( ktdict = {},
                          objId = -1,
                          objType = "",
@@ -675,6 +688,8 @@ def get_key_object_types( gnum = None,
                 break
         if not done or curindex >= len(group):
             return NOTFOUND
+        curset = set([ cur ])
+        curtydict = { cur : curtype }
         for tmp in group[curindex:]:
             tmprec = objinfo.get_record(tmp)
             tmp_dtime = tmprec[ get_index("DTIME") ]
@@ -682,12 +697,26 @@ def get_key_object_types( gnum = None,
             if is_primitive_array(tmptype) or is_primitive_type(tmptype):
                 continue
             elif tmp_dtime > cur_dtime:
-                cur = tmp
+                curset = set([ tmp ])
                 currec = tmprec
                 cur_dtime = tmp_dtime
-                curtype = tmptype
-        tgt = cur
-        mytype = curtype
+                curtydict = { tmp : tmptype }
+            elif tmp_dtime == cur_dtime:
+                if tmp not in curset:
+                    curset.add( tmp )
+                    curtydict[tmp] = tmptype
+        if len(curset) > 1:
+            print "--------------------------------------------------------------------------------"
+            print curset
+            print "--------------------------------------------------------------------------------"
+            for obj, mytype in curtydict.iteritems():
+                print "%d -> %s" % (obj, mytype)
+            likely = get_most_likely_keytype( objlist = list(curset),
+                                              tydict = curtydict )
+            curset = set([ likely ])
+        assert(len(curset) > 0 )
+        tgt = list(curset)[0]
+        mytype = curtydict[tgt]
         # TODO Make into a logging statement
         print "  - key among multiples - %d [ %s ][ dtime: %d ]" % (cur, curtype, cur_dtime)
         # # First try the known groups
