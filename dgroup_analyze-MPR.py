@@ -571,14 +571,27 @@ def get_most_likely_keytype( objlist = [],
                              tydict = {} ):
     blacklist = set([ "Ljava/lang/String;", ])
     assert(len(objlist)) > 0
-    found = False
     newlist = list( set( [ x for x in objlist
                            if (tydict[x] not in blacklist or is_primitive_type(tydict[x])) ] ) )
     if len(newlist) > 1:
         # Let's return the oldest object
         newlist = sorted(newlist)
-    return newlist[0]
-
+    if len(newlist) > 0:
+        return newlist[0]
+    # Something in the blacklist is the key object
+    newlist = list( set( [ x for x in objlist
+                           if is_primitive_type(tydict[x]) ] ) )
+    if len(newlist) > 1:
+        # Let's return the oldest object
+        newlist = sorted(newlist)
+    if len(newlist) > 0:
+        return newlist[0]
+    # What does this mean?
+    print "--------------------------------------------------------------------------------"
+    print "DEBUG: blacklist doesn't work for -->"
+    print str(tydict)
+    print "--------------------------------------------------------------------------------"
+    return objlist[0]
 
 def update_keytype_dict( ktdict = {},
                          objId = -1,
