@@ -8,19 +8,37 @@
 #include <iostream>
 #include <map>
 #include <deque>
+#include <tuple>
 
 #include "classinfo.h"
 #include "heap.h"
 
 using namespace std;
 
-// ----------------------------------------------------------------------
-//   Calling context tree
+// Type definitions
+typedef unsigned int MethodId_t;
+// TODO typedef unsigned int threadId_t;
 
 class CCNode;
-// TODO class CTreeNode;
 typedef map<unsigned int, CCNode *> CCMap;
-// TODO typedef map<unsigned int, CTreeNode *> CTreeMap;
+
+typedef std::tuple<Method *, Method *> ContextPair;
+
+typedef map<MethodId_t, Thread *> ThreadMap;
+typedef map<ContextPair, unsigned int> ContextCountMap;
+
+
+typedef deque<Method *> MethodDeque;
+typedef set<Object *> LocalVarSet;
+typedef deque<LocalVarSet *> LocalVarDeque;
+    // (f,g) where f is the caller
+    // and g is the current function
+
+// TODO typedef deque< pair<LastEvent, Object*> > LastEventDeque_t;
+// TODO typedef map<threadId_t, LastEventDeque_t> LastMap_t;
+
+// ----------------------------------------------------------------------
+//   Calling context tree
 
 enum class ExecMode {
     CCMode = 1,
@@ -93,13 +111,6 @@ class CCNode
 //  (I realize I could probably do this with fancy-dancy OO programming,
 //  but sometimes that just seems like overkill
 
-typedef deque<Method *> MethodDeque;
-typedef set<Object *> LocalVarSet;
-typedef deque<LocalVarSet *> LocalVarDeque;
-
-// TODO typedef unsigned int threadId_t;
-// TODO typedef deque< pair<LastEvent, Object*> > LastEventDeque_t;
-// TODO typedef map<threadId_t, LastEventDeque_t> LastMap_t;
 
 class Thread
 {
@@ -116,14 +127,21 @@ class Thread
         LocalVarDeque m_locals;
         // -- Local stack variables that have root events and died this scope
         LocalVarDeque m_deadlocals;
-        // -- LastEvent
+        // -- 
+        ContextPair m_context;
+        // -- Map of simple context pair -> count of occurrences
+        ContextCountMap &m_ccountmap;
 
     public:
-        Thread( unsigned int id, unsigned int kind )
+        Thread( unsigned int id,
+                unsigned int kind,
+                ContextCountMap &ccountmap )
             : m_id(id)
             , m_kind(kind)
             , m_rootcc()
-            , m_curcc(&m_rootcc) {
+            , m_curcc(&m_rootcc)
+            , m_context(NULL, NULL)
+            , m_ccountmap( ccountmap ) {
             m_locals.push_back(new LocalVarSet());
             m_deadlocals.push_back(new LocalVarSet());
         }
@@ -155,8 +173,6 @@ class Thread
 // ----------------------------------------------------------------------
 //   Execution state
 
-typedef map<unsigned int, Thread *> ThreadMap;
-
 class ExecState
 {
     private:
@@ -168,12 +184,16 @@ class ExecState
         unsigned int m_time;
         // -- Update Time
         unsigned int m_uptime;
+        // -- Map of simple context pair -> count of occurrences
+        ContextCountMap m_ccountmap;
+
     public:
         ExecState(unsigned int kind)
             : m_kind(kind)
             , m_threads()
             , m_time(0)
-            , m_uptime(0) {
+            , m_uptime(0)
+            , m_ccountmap() {
         }
 
         // -- Get the current time

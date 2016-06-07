@@ -108,9 +108,14 @@ void Thread::Call(Method* m)
     }
 
     if (m_kind == 2) {
-        // TODO TODO TODO
         // Save (old_top, new_top) of m_methods
-        // TODO TODO TODO
+        m_context = std::make_tuple( m_methods.back(), m );
+        ContextCountMap::iterator it = m_ccountmap.find( m_context );
+        if (it != m_ccountmap.end()) {
+            m_ccountmap[m_context] += 1; 
+        } else {
+            m_ccountmap[m_context] = 1; 
+        }
         m_methods.push_back(m);
         // m_methods, m_locals, and m_deadlocals must be synched in pushing
         // TODO: Do we need to check for m existing in map?
@@ -267,7 +272,8 @@ Thread* ExecState::getThread(unsigned int threadid)
     if (p == m_threads.end()) {
         // -- Not there, make a new one
         result = new Thread( threadid,
-                             this->m_kind );
+                             this->m_kind,
+                             this->m_ccountmap );
         m_threads[threadid] = result;
     } else {
         result = (*p).second;
