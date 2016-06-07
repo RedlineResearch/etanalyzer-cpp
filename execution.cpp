@@ -94,31 +94,6 @@ bool CCNode::simple_cc_equal( CCNode &other )
     return (self_ptr->simple_cc_equal(*other_ptr));
 }
 
-// TODO // ----------------------------------------------------------------------
-// TODO //    Calling tree node
-// TODO 
-// TODO CTreeNode *CTreeNode::Call(Method *m)
-// TODO {
-// TODO     CTreeNode* result = 0;
-// TODO     CTreeMap::iterator p = (this->m_callees).find(m->getId());
-// TODO     if (p == m_callees.end()) {
-// TODO         result = new CTreeNode(this, m);
-// TODO         m_callees[m->getId()] = result;
-// TODO     } else {
-// TODO         result = (*p).second;
-// TODO     }
-// TODO     return result;
-// TODO }
-// TODO 
-// TODO CTreeNode *CTreeNode::Return(Method *m)
-// TODO {
-// TODO     if (m_method != m) {
-// TODO         cout << "WEIRD: Returning from the wrong method " << m->info() << endl;
-// TODO         cout << "WEIRD:    should be " << m_method->info() << endl;
-// TODO     }
-// TODO     return m_parent;
-// TODO }
-
 
 // ----------------------------------------------------------------------
 //   Thread representation
@@ -133,6 +108,9 @@ void Thread::Call(Method* m)
     }
 
     if (m_kind == 2) {
+        // TODO TODO TODO
+        // Save (old_top, new_top) of m_methods
+        // TODO TODO TODO
         m_methods.push_back(m);
         // m_methods, m_locals, and m_deadlocals must be synched in pushing
         // TODO: Do we need to check for m existing in map?

@@ -83,30 +83,6 @@ class CCNode
         bool setDone() { this->m_done = true; }
 };
 
-// TODO class CTreeNode
-// TODO {
-// TODO     private:
-// TODO         Method* m_method;
-// TODO         CTreeNode* m_parent;
-// TODO         CTreeMap m_callees;
-// TODO     public:
-// TODO         CTreeNode( CTreeNode* parent, Method* m )
-// TODO             : m_method(m)
-// TODO             , m_parent(parent) {
-// TODO         }
-// TODO         // -- Get method
-// TODO         Method *getMethod() const { return m_method; }
-// TODO         // -- Get parent context (if there is one)
-// TODO         CTreeNode *getParent() const { return m_parent; }
-// TODO         // -- Call a method, making a new child context if necessary
-// TODO         CTreeNode *Call(Method *m);
-// TODO         // -- Return from a method, returning the parent context
-// TODO         CTreeNode *Return(Method *m);
-// TODO         // Method name equality
-// TODO         bool simple_cc_equal( CTreeNode &other );
-// TODO         // TODO
-// TODO         deque<Method *> simple_stacktrace();
-// TODO };
 
 // ----------------------------------------------------------------------
 //   Thread representation
