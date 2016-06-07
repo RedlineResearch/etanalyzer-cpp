@@ -184,8 +184,6 @@ class ExecState
         unsigned int m_time;
         // -- Update Time
         unsigned int m_uptime;
-        // -- Map of simple context pair -> count of occurrences
-        ContextCountMap m_ccountmap;
 
     public:
         ExecState(unsigned int kind)
@@ -231,6 +229,9 @@ class ExecState
         ThreadMap::iterator begin_threadmap() { return this->m_threads.begin(); }
         ThreadMap::iterator end_threadmap() { return this->m_threads.end(); }
 
+        // -- Map of simple context pair -> count of occurrences
+        // TODO: Think about hiding this in an abstraction TODO
+        ContextCountMap m_ccountmap;
 };
 
 #endif

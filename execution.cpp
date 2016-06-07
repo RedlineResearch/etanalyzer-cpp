@@ -100,7 +100,7 @@ bool CCNode::simple_cc_equal( CCNode &other )
 //   (Essentially, the stack)
 
 // -- Call method m
-void Thread::Call(Method* m)
+void Thread::Call(Method *m)
 {
     if (m_kind == 1) {
         CCNode* cur = this->TopCC();
@@ -109,7 +109,11 @@ void Thread::Call(Method* m)
 
     if (m_kind == 2) {
         // Save (old_top, new_top) of m_methods
-        m_context = std::make_tuple( m_methods.back(), m );
+        if (m_methods.size() > 0) {
+            m_context = std::make_tuple( m_methods.back(), m );
+        } else {
+            m_context = std::make_tuple( (Method *) NULL, m );
+        }
         ContextCountMap::iterator it = m_ccountmap.find( m_context );
         if (it != m_ccountmap.end()) {
             m_ccountmap[m_context] += 1; 
