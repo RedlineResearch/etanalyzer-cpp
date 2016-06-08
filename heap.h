@@ -353,6 +353,9 @@ class Object
         LastEvent m_last_event;
         Object *m_last_object;
 
+        // Simple (ContextPair) context of where this object died. Type is defined in classinfo.h
+        ContextPair m_death_cpair;
+
         // Who's my key object? 0 means unassigned.
         Object *m_death_root;
         KeyType m_key_type;
@@ -397,7 +400,8 @@ class Object
             , m_last_event(LastEvent::UNKNOWN_EVENT)
             , m_death_root(NULL)
             , m_last_object(NULL)
-            , m_key_type(UNKNOWN_KEYTYPE) {
+            , m_key_type(UNKNOWN_KEYTYPE)
+            , m_death_cpair(NULL, NULL) {
         }
 
         // -- Getters
@@ -468,6 +472,15 @@ class Object
         // Set and get key type 
         void setKeyType( KeyType newtype ) { this->m_key_type = newtype; }
         KeyType getKeyType() const { return this->m_key_type; }
+
+        // Get death context pair. Note that if <NULL, NULL> then none yet assigned.
+        ContextPair getDeathContextPair() const { return this->m_death_cpair; }
+        // Set death context pair. Note that if <NULL, NULL> then none yet assigned.
+        ContextPair setDeathContextPair( ContextPair cpair ) {
+            this->m_death_cpair = cpair;
+            return this->m_death_cpair;
+        }
+
 
         // -- Ref counting
         unsigned int getRefCount() const { return m_refCount; }

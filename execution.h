@@ -22,8 +22,6 @@ typedef unsigned int MethodId_t;
 class CCNode;
 typedef map<unsigned int, CCNode *> CCMap;
 
-typedef std::tuple<Method *, Method *> ContextPair;
-
 typedef map<MethodId_t, Thread *> ThreadMap;
 typedef map<ContextPair, unsigned int> ContextCountMap;
 typedef map<Object *, ContextPair> ObjectContextMap;
@@ -32,8 +30,6 @@ typedef map<Object *, ContextPair> ObjectContextMap;
 typedef deque<Method *> MethodDeque;
 typedef set<Object *> LocalVarSet;
 typedef deque<LocalVarSet *> LocalVarDeque;
-    // (f,g) where f is the caller
-    // and g is the current function
 
 // TODO typedef deque< pair<LastEvent, Object*> > LastEventDeque_t;
 // TODO typedef map<threadId_t, LastEventDeque_t> LastMap_t;
@@ -241,8 +237,10 @@ class ExecState
         ThreadMap::iterator end_threadmap() { return this->m_threads.end(); }
 
         // Update the Object pointer to simple context pair map
-        void UpdateObj2Context( Object *obj, ContextPair cpair ) {
+        void UpdateObj2Context( Object *obj, Thread *thread ) {
             assert(obj);
+            ContextPair cpair = thread->getContextPair();
+            obj->setDeathContextPair( cpair );
             this->m_obj2contextmap[obj] = cpair;
         }
 

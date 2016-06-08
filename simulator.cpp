@@ -311,7 +311,7 @@ unsigned int read_trace_file(FILE* f)
                             }
                             // Update counters in ExecState for map of
                             //   Object * to simple context pair
-                            Exec.UpdateObj2Context(obj, thread->getContextPair());
+                            Exec.UpdateObj2Context(obj, thread);
 
                         }
                         unsigned int rc = obj->getRefCount();
@@ -595,6 +595,11 @@ void output_all_objects( string &objectinfo_filename,
         } else {
             dtype = "E"; // program end
         }
+        ContextPair cpair = object->getDeathContextPair();
+        Method *meth_ptr1 = std::get<0>(cpair);
+        Method *meth_ptr2 = std::get<1>(cpair);
+        string method1 = (meth_ptr1 ? meth_ptr1->getName() : "NONAME");
+        string method2 = (meth_ptr2 ? meth_ptr2->getName() : "NONAME");
         object_info_file << objId
             << "," << object->getCreateTime()
             << "," << object->getDeathTime()
@@ -605,6 +610,8 @@ void output_all_objects( string &objectinfo_filename,
             << "," << (object->getDiedByStackFlag() ? (object->wasPointedAtByHeap() ? "SHEAP" : "SONLY")
                                                     : "H")
             << "," << dgroup_kind
+            << "," << method1
+            << "," << method2
             << endl;
         // TODO Fix the SHEAP/SONLY for heap objects. - 4/21/2016 - RLV
         // TODO Add the deathgroup number
@@ -685,7 +692,7 @@ unsigned int output_edges( HeapState &myheap,
 
 // ----------------------------------------------------------------------
 
-// TODO TODO TODO TODO HERE
+// Output the map of simple context pair -> count of obects dying
 void output_context_summary( string &context_death_count_filename,
                              ExecState &exstate )
 {
@@ -697,10 +704,10 @@ void output_context_summary( string &context_death_count_filename,
         Method *first = std::get<0>(cpair); 
         Method *second = std::get<1>(cpair); 
         unsigned int total = it->second;
-        string meth1_name = (first ? first->getName() : "NONAME");
-        string meth2_name = (second ? second->getName() : "NONAME");
-        context_death_count_file << meth1_name << "," 
-                                 << meth2_name << ","
+        unsigned int meth1_id = (first ? first->getId() : 0);
+        unsigned int meth2_id = (second ? second->getId() : 0);
+        context_death_count_file << meth1_id << "," 
+                                 << meth2_id << ","
                                  << total << endl;
     }
     context_death_count_file.close();
@@ -854,9 +861,6 @@ int main(int argc, char* argv[])
         // Output all edges
         unsigned int total_edges = output_edges( Heap,
                                                  edgeinfo_filename );
-#if 0
-        // TODO DELETE
-#endif // 0
     } else {
         cout << "NOCYCLE chosen. Skipping cycle detection." << endl;
     }

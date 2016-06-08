@@ -148,9 +148,28 @@ void Thread::Return(Method* m)
             Method *cur = m_methods.back();
             m_methods.pop_back();
             // if (cur != m) {
-            //     cout << "WARNING: Return from method " << m->info() << " does not match stack top " << cur->info() << endl;
+            //     cerr << "WARNING: Return from method " << m->info() << " does not match stack top " << cur->info() << endl;
             // }
             // m_methods, m_locals, and m_deadlocals must be synched in popping
+
+            // NOTE: Maybe refactor. See same code in Thread::Call
+            // Save (old_top, new_top) of m_methods
+            if (m_methods.size() > 0) {
+                // TODO: What if m != cur?
+                // It seems reasonable to simply use the m that's passed to us rather than
+                // rely on the call stack being correct. TODO: Verify.
+                m_context = std::make_tuple( m, m_methods.back() );
+            } else {
+                m_context = std::make_tuple( m, (Method *) NULL );
+            }
+            // TODO TODO: Save type (Call vs Return) -- See similar code above.
+            ContextCountMap::iterator it = m_ccountmap.find( m_context );
+            if (it != m_ccountmap.end()) {
+                m_ccountmap[m_context] += 1; 
+            } else {
+                m_ccountmap[m_context] = 1; 
+            }
+            // Locals
             LocalVarSet *localvars = m_locals.back();
             m_locals.pop_back();
             LocalVarSet *deadvars = m_deadlocals.back();
