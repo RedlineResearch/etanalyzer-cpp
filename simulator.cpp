@@ -262,7 +262,7 @@ unsigned int read_trace_file(FILE* f)
             case 'D':
                 {
                     // D <object> <thread-id>
-                    // 0    1
+                    // 0    1         2
                     unsigned int objId = tokenizer.getInt(1);
                     obj = Heap.getObject(objId);
                     if (obj) {
@@ -285,10 +285,12 @@ unsigned int read_trace_file(FILE* f)
                         Method *topMethod = NULL;
                         if (thread) {
                             topMethod = thread->TopMethod();
+                            // Set the death site
                             if (topMethod) {
                                 obj->setDeathSite(topMethod);
                             } 
                             if (thread->isLocalVariable(obj)) {
+                                // Recursively make the edges dead and assign the proper death cause
                                 for ( EdgeMap::iterator p = obj->getEdgeMapBegin();
                                       p != obj->getEdgeMapEnd();
                                       ++p ) {
@@ -304,13 +306,13 @@ unsigned int read_trace_file(FILE* f)
                                                           OBJECT_DEATH );
                                         // NOTE: STACK is used because the object that died,
                                         // died by STACK.
-                                        debug_stack_edges++;
-                                        if (debug_stack_edges % 200 == 100) {
-                                            cout << "Debug_STACK_EDGES: " << debug_stack_edges << endl;
-                                        }
                                     }
                                 }
                             }
+                            // Update counters in ExecState for map of
+                            //   Object * to simple context pair
+                            Exec.UpdateObj2Context(obj, thread->getContextPair());
+
                         }
                         unsigned int rc = obj->getRefCount();
                         deathrc_map[objId] = rc;
@@ -683,6 +685,29 @@ unsigned int output_edges( HeapState &myheap,
 
 // ----------------------------------------------------------------------
 
+// TODO TODO TODO TODO HERE
+void output_context_summary( string &context_death_count_filename,
+                             ExecState &exstate )
+{
+    ofstream context_death_count_file(context_death_count_filename);
+    for ( ContextCountMap::iterator it = exstate.begin_ccountmap();
+          it != exstate.end_ccountmap();
+          ++it ) {
+        ContextPair cpair = it->first;
+        Method *first = std::get<0>(cpair); 
+        Method *second = std::get<1>(cpair); 
+        unsigned int total = it->second;
+        string meth1_name = (first ? first->getName() : "NONAME");
+        string meth2_name = (second ? second->getName() : "NONAME");
+        context_death_count_file << meth1_name << "," 
+                                 << meth2_name << ","
+                                 << total << endl;
+    }
+    context_death_count_file.close();
+}
+
+// ----------------------------------------------------------------------
+
 int main(int argc, char* argv[])
 {
     if (argc != 5) {
@@ -704,6 +729,7 @@ int main(int argc, char* argv[])
 
     string dgroups_filename( basename + "-DGROUPS.csv" );
     string dgroups_by_type_filename( basename + "-DGROUPS-BY-TYPE.csv" );
+    string context_death_count_filename( basename + "-CONTEXT-DCOUNT.csv" );
 
     string cycle_switch(argv[3]);
     bool cycle_flag = ((cycle_switch == "NOCYCLE") ? false : true);
@@ -817,6 +843,8 @@ int main(int argc, char* argv[])
                             dag_keys,
                             dag_all_set,
                             all_keys );
+        output_context_summary( context_death_count_filename,
+                                Exec );
         // TODO: What next? 
         // Output cycles
         set<int> node_set;

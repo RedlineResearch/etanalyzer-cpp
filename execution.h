@@ -26,6 +26,7 @@ typedef std::tuple<Method *, Method *> ContextPair;
 
 typedef map<MethodId_t, Thread *> ThreadMap;
 typedef map<ContextPair, unsigned int> ContextCountMap;
+typedef map<Object *, ContextPair> ObjectContextMap;
 
 
 typedef deque<Method *> MethodDeque;
@@ -111,6 +112,7 @@ class CCNode
 //  (I realize I could probably do this with fancy-dancy OO programming,
 //  but sometimes that just seems like overkill
 
+class ExecState; // forward declaration to include into Thread
 
 class Thread
 {
@@ -127,21 +129,25 @@ class Thread
         LocalVarDeque m_locals;
         // -- Local stack variables that have root events and died this scope
         LocalVarDeque m_deadlocals;
-        // -- 
+        // -- Current context pair
         ContextPair m_context;
         // -- Map of simple context pair -> count of occurrences
         ContextCountMap &m_ccountmap;
+        // -- Map to ExecState
+        ExecState &m_exec;
 
     public:
         Thread( unsigned int id,
                 unsigned int kind,
-                ContextCountMap &ccountmap )
+                ContextCountMap &ccountmap,
+                ExecState &execstate )
             : m_id(id)
             , m_kind(kind)
             , m_rootcc()
             , m_curcc(&m_rootcc)
             , m_context(NULL, NULL)
-            , m_ccountmap( ccountmap ) {
+            , m_ccountmap( ccountmap )
+            , m_exec(execstate) {
             m_locals.push_back(new LocalVarSet());
             m_deadlocals.push_back(new LocalVarSet());
         }
@@ -168,6 +174,8 @@ class Thread
         CCNode m_rootcc;
         // Get root node CC
         CCNode &getRootCCNode() { return m_rootcc; }
+        // Get simple context pair
+        ContextPair getContextPair() { return m_context; }
 };
 
 // ----------------------------------------------------------------------
@@ -184,6 +192,8 @@ class ExecState
         unsigned int m_time;
         // -- Update Time
         unsigned int m_uptime;
+        // -- Map of Object pointer -> simple context pair
+        ObjectContextMap m_obj2contextmap;
 
     public:
         ExecState(unsigned int kind)
@@ -191,7 +201,8 @@ class ExecState
             , m_threads()
             , m_time(0)
             , m_uptime(0)
-            , m_ccountmap() {
+            , m_ccountmap()
+            , m_obj2contextmap() {
         }
 
         // -- Get the current time
@@ -229,9 +240,17 @@ class ExecState
         ThreadMap::iterator begin_threadmap() { return this->m_threads.begin(); }
         ThreadMap::iterator end_threadmap() { return this->m_threads.end(); }
 
+        // Update the Object pointer to simple context pair map
+        void UpdateObj2Context( Object *obj, ContextPair cpair ) {
+            assert(obj);
+            this->m_obj2contextmap[obj] = cpair;
+        }
+
         // -- Map of simple context pair -> count of occurrences
         // TODO: Think about hiding this in an abstraction TODO
         ContextCountMap m_ccountmap;
+        ContextCountMap::iterator begin_ccountmap() { return this->m_ccountmap.begin(); }
+        ContextCountMap::iterator end_ccountmap() { return this->m_ccountmap.end(); }
 };
 
 #endif

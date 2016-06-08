@@ -277,7 +277,8 @@ Thread* ExecState::getThread(unsigned int threadid)
         // -- Not there, make a new one
         result = new Thread( threadid,
                              this->m_kind,
-                             this->m_ccountmap );
+                             this->m_ccountmap,
+                             *this );
         m_threads[threadid] = result;
     } else {
         result = (*p).second;
