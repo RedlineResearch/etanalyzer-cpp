@@ -601,7 +601,8 @@ void output_all_objects( string &objectinfo_filename,
         string method1 = (meth_ptr1 ? meth_ptr1->getName() : "NONAME");
         string method2 = (meth_ptr2 ? meth_ptr2->getName() : "NONAME");
         AllocSite *allocsite = object->getAllocSite();
-        string allocsite_name =  allocsite->getName();
+        Method *alloc_method = allocsite->getMethod();
+        string allocsite_name = (alloc_method ? alloc_method->getName() : "NONAME");
         object_info_file << objId
             << "," << object->getCreateTime()
             << "," << object->getDeathTime()
