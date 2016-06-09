@@ -718,8 +718,10 @@ void output_context_summary( string &context_death_count_filename,
         unsigned int total = it->second;
         unsigned int meth1_id = (first ? first->getId() : 0);
         unsigned int meth2_id = (second ? second->getId() : 0);
-        context_death_count_file << meth1_id << "," 
-                                 << meth2_id << ","
+        string meth1_name = (first ? first->getName() : "NONAME")
+        string meth2_name = (second ? second->getName() : "NONAME")
+        context_death_count_file << meth1_name << "," 
+                                 << meth2_name << ","
                                  << total << endl;
     }
     context_death_count_file.close();
