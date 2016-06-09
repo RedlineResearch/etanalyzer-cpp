@@ -229,7 +229,7 @@ unsigned int read_trace_file(FILE* f)
                     if (oldTgtId == tgtId) {
                         // It sometimes happens that the newtarget is the same as
                         // the old target. So we won't create any more new edges.
-                        cout << "UPDATE same new == old: " << target << endl;
+                        // DEBUG: cout << "UPDATE same new == old: " << target << endl;
                     } else if (obj && target) {
                         // Increment and decrement refcounts
                         unsigned int field_id = tokenizer.getInt(4);
