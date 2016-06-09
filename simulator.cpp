@@ -187,6 +187,10 @@ unsigned int read_trace_file(FILE* f)
                     unsigned int els  = (tokenizer.numTokens() == 6) ? 0
                                                                      : tokenizer.getInt(5);
                     AllocSite* as = ClassInfo::TheAllocSites[tokenizer.getInt(4)];
+                    // DEBUG
+                    if (!as) {
+                        cerr << "DBG: objId[ " << tokenizer.getInt(1) << " ] has no alloc site." << endl;
+                    } // END DEBUG
                     obj = Heap.allocate( tokenizer.getInt(1),    // id
                                          tokenizer.getInt(2),    // size
                                          tokenizer.getChar(0),   // kind of alloc
@@ -601,8 +605,13 @@ void output_all_objects( string &objectinfo_filename,
         string method1 = (meth_ptr1 ? meth_ptr1->getName() : "NONAME");
         string method2 = (meth_ptr2 ? meth_ptr2->getName() : "NONAME");
         AllocSite *allocsite = object->getAllocSite();
-        Method *alloc_method = allocsite->getMethod();
-        string allocsite_name = (alloc_method ? alloc_method->getName() : "NONAME");
+        string allocsite_name;
+        if (allocsite) {
+            Method *alloc_method = allocsite->getMethod();
+            allocsite_name = (alloc_method ? alloc_method->getName() : "NONAME");
+        } else {
+            allocsite_name = "NONAME";
+        }
         object_info_file << objId
             << "," << object->getCreateTime()
             << "," << object->getDeathTime()
