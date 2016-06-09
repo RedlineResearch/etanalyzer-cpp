@@ -187,14 +187,14 @@ unsigned int read_trace_file(FILE* f)
                     unsigned int els  = (tokenizer.numTokens() == 6) ? 0
                                                                      : tokenizer.getInt(5);
                     AllocSite* as = ClassInfo::TheAllocSites[tokenizer.getInt(4)];
-                    obj = Heap.allocate( tokenizer.getInt(1),
-                                         tokenizer.getInt(2),
-                                         tokenizer.getChar(0),
-                                         tokenizer.getString(3),
-                                         as,
-                                         els,
-                                         thread,
-                                         Exec.NowUp() );
+                    obj = Heap.allocate( tokenizer.getInt(1),    // id
+                                         tokenizer.getInt(2),    // size
+                                         tokenizer.getChar(0),   // kind of alloc
+                                         tokenizer.getString(3), // type
+                                         as,      // AllocSite pointer
+                                         els,     // length IF applicable
+                                         thread,  // thread Id
+                                         Exec.NowUp() ); // Current time
                     unsigned int old_alloc_time = AllocationTime;
                     AllocationTime += obj->getSize();
                     total_objects++;
@@ -600,6 +600,8 @@ void output_all_objects( string &objectinfo_filename,
         Method *meth_ptr2 = std::get<1>(cpair);
         string method1 = (meth_ptr1 ? meth_ptr1->getName() : "NONAME");
         string method2 = (meth_ptr2 ? meth_ptr2->getName() : "NONAME");
+        AllocSite *allocsite = object->getAllocSite();
+        string allocsite_name =  allocsite->getName();
         object_info_file << objId
             << "," << object->getCreateTime()
             << "," << object->getDeathTime()
@@ -610,9 +612,16 @@ void output_all_objects( string &objectinfo_filename,
             << "," << (object->getDiedByStackFlag() ? (object->wasPointedAtByHeap() ? "SHEAP" : "SONLY")
                                                     : "H")
             << "," << dgroup_kind
-            << "," << method1
-            << "," << method2
+            << "," << method1 // Part 1 of simple context pair
+            << "," << method2 // part 2 of simple context pair
+            << "," << allocsite_name
             << endl;
+            // TODO: The following can be made into a lookup table:
+            //       method names
+            //       allocsite names
+            //       type names
+            // May only be necessary for performance reasons (ie, simulator eats up too much RAM 
+            // on the larger benchmarks/programs.)
         // TODO Fix the SHEAP/SONLY for heap objects. - 4/21/2016 - RLV
         // TODO Add the deathgroup number
         // TODO Decide on the deathgroup file output.
@@ -747,6 +756,7 @@ int main(int argc, char* argv[])
         cout << "Enable OBJECT DEBUG." << endl;
         Heap.enableObjectDebug(); // default is no debug
     }
+
     cout << "Read names file..." << endl;
     ClassInfo::read_names_file(argv[1]);
 

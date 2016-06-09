@@ -295,9 +295,9 @@ class Object
         unsigned int m_size;
         char m_kind;
         string m_type;
-        AllocSite* m_site;
+        AllocSite *m_site;
         unsigned int m_elements;
-        Thread* m_thread;
+        Thread *m_thread;
 
         unsigned int m_createTime;
         unsigned int m_deathTime;
@@ -409,7 +409,8 @@ class Object
         unsigned int getSize() const { return m_size; }
         const string& getType() const { return m_type; }
         char getKind() const { return m_kind; }
-        Thread* getThread() const { return m_thread; }
+        AllocSite * getAllocSite() const { return m_site; }
+        Thread * getThread() const { return m_thread; }
         unsigned int getCreateTime() const { return m_createTime; }
         unsigned int getDeathTime() const { return m_deathTime; }
         Color getColor() const { return m_color; }

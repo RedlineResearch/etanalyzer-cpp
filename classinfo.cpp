@@ -100,13 +100,17 @@ void ClassInfo::read_names_file(const char* filename)
                     // S <methodid> <classid> <id> <type> <dims>
                     // 0    1           2      3     4      5
                     Method* meth = TheMethods[t.getInt(1)];
-                    AllocSite* as = new AllocSite(t.getInt(3), meth, t.getString(3), t.getString(4), t.getInt(5));
+                    AllocSite* as = new AllocSite( t.getInt(3), // Id
+                                                   meth, // Method pointer
+                                                   t.getString(3), // Maybe a hack? Use the ID as name.
+                                                   t.getString(4), // descriptor which in this case means type
+                                                   t.getInt(5) );  // Dimensions
                     TheAllocSites[as->getId()] = as;
                     meth->addAllocSite(as);
                     if (debug_names) {
-                        cout << "   + ALLOC " << as->getType()
-                             << " id = " << as->getId()
-                             << " in method " << meth->info()
+                        cout << "> ALLOC   : " << as->getType() << endl
+                             << "    id    = " << as->getId() << endl
+                             << " in method: " << meth->info()
                              << endl;
                     }
                 }

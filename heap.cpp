@@ -26,16 +26,20 @@ string keytype2str( KeyType ktype )
 Object* HeapState::allocate( unsigned int id,
                              unsigned int size,
                              char kind,
-                             char* type,
-                             AllocSite* site, 
+                             char *type,
+                             AllocSite *site, 
                              unsigned int els,
-                             Thread* thread,
+                             Thread *thread,
                              unsigned int create_time )
 {
-    Object* obj = new Object( id, size,
-                              kind, type,
-                              site, els,
-                              thread, create_time,
+    Object* obj = new Object( id,
+                              size,
+                              kind,
+                              type,
+                              site,
+                              els,
+                              thread,
+                              create_time,
                               this );
     m_objects[obj->getId()] = obj;
 
