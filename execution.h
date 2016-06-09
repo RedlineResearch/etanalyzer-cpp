@@ -247,6 +247,12 @@ class ExecState
             ContextPair cpair = thread->getContextPair();
             obj->setDeathContextPair( cpair );
             this->m_obj2contextmap[obj] = cpair;
+            ContextCountMap::iterator it = this->m_ccountmap.find( cpair );
+            if (it != this->m_ccountmap.end()) {
+                this->m_ccountmap[cpair] += 1; 
+            } else {
+                this->m_ccountmap[cpair] = 1; 
+            }
         }
 
         // -- Map of simple context pair -> count of occurrences

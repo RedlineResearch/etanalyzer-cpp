@@ -114,12 +114,6 @@ void Thread::Call(Method *m)
         } else {
             this->setContextPair( std::make_pair( (Method *) NULL, m ) );
         }
-        ContextCountMap::iterator it = m_ccountmap.find( m_context );
-        if (it != m_ccountmap.end()) {
-            m_ccountmap[m_context] += 1; 
-        } else {
-            m_ccountmap[m_context] = 1; 
-        }
         m_methods.push_back(m);
         // m_methods, m_locals, and m_deadlocals must be synched in pushing
         // TODO: Do we need to check for m existing in map?
