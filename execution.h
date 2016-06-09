@@ -171,7 +171,12 @@ class Thread
         // Get root node CC
         CCNode &getRootCCNode() { return m_rootcc; }
         // Get simple context pair
-        ContextPair getContextPair() { return m_context; }
+        ContextPair getContextPair() const { return m_context; }
+        // Get simple context pair
+        ContextPair setContextPair( ContextPair cpair ) {
+            this->m_context = cpair;
+            return cpair; 
+        }
 };
 
 // ----------------------------------------------------------------------

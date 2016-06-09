@@ -110,9 +110,9 @@ void Thread::Call(Method *m)
     if (m_kind == 2) {
         // Save (old_top, new_top) of m_methods
         if (m_methods.size() > 0) {
-            m_context = std::make_tuple( m_methods.back(), m );
+            this->setContextPair( std::make_tuple( m_methods.back(), m ) );
         } else {
-            m_context = std::make_tuple( (Method *) NULL, m );
+            this->setContextPair( std::make_tuple( (Method *) NULL, m ) );
         }
         ContextCountMap::iterator it = m_ccountmap.find( m_context );
         if (it != m_ccountmap.end()) {
@@ -158,9 +158,11 @@ void Thread::Return(Method* m)
                 // TODO: What if m != cur?
                 // It seems reasonable to simply use the m that's passed to us rather than
                 // rely on the call stack being correct. TODO: Verify.
-                m_context = std::make_tuple( m, m_methods.back() );
+                this->setContextPair( std::make_tuple( cur, m_methods.back() ) );
+                // TODO this->setContextPair( std::make_tuple( m, m_methods.back() ) );
             } else {
-                m_context = std::make_tuple( m, (Method *) NULL );
+                this->setContextPair( std::make_tuple( cur, (Method *) NULL ) );
+                // this->setContextPair( std::make_tuple( m, (Method *) NULL ) );
             }
             // TODO TODO: Save type (Call vs Return) -- See similar code above.
             ContextCountMap::iterator it = m_ccountmap.find( m_context );
