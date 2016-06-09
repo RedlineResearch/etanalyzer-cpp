@@ -296,6 +296,7 @@ class Object
         char m_kind;
         string m_type;
         AllocSite *m_site;
+        string m_allocsite_name;
         unsigned int m_elements;
         Thread *m_thread;
 
@@ -401,7 +402,14 @@ class Object
             , m_death_root(NULL)
             , m_last_object(NULL)
             , m_key_type(UNKNOWN_KEYTYPE)
-            , m_death_cpair(NULL, NULL) {
+            , m_death_cpair(NULL, NULL)
+        {
+            if (m_site) {
+                Method *mymeth = m_site->getMethod();
+                m_allocsite_name = (mymeth ? mymeth->getName() : "NONAME");
+            } else {
+                m_allocsite_name = "NONAME";
+            }
         }
 
         // -- Getters
@@ -410,6 +418,7 @@ class Object
         const string& getType() const { return m_type; }
         char getKind() const { return m_kind; }
         AllocSite * getAllocSite() const { return m_site; }
+        string getAllocSiteName() const { return m_allocsite_name; }
         Thread * getThread() const { return m_thread; }
         unsigned int getCreateTime() const { return m_createTime; }
         unsigned int getDeathTime() const { return m_deathTime; }

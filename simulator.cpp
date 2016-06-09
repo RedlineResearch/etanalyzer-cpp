@@ -604,14 +604,7 @@ void output_all_objects( string &objectinfo_filename,
         Method *meth_ptr2 = std::get<1>(cpair);
         string method1 = (meth_ptr1 ? meth_ptr1->getName() : "NONAME");
         string method2 = (meth_ptr2 ? meth_ptr2->getName() : "NONAME");
-        AllocSite *allocsite = object->getAllocSite();
-        string allocsite_name;
-        if (allocsite) {
-            Method *alloc_method = allocsite->getMethod();
-            allocsite_name = (alloc_method ? alloc_method->getName() : "NONAME");
-        } else {
-            allocsite_name = "NONAME";
-        }
+        string allocsite_name = object->getAllocSiteName();
         object_info_file << objId
             << "," << object->getCreateTime()
             << "," << object->getDeathTime()
