@@ -12,6 +12,7 @@
 #include <map>
 #include <set>
 #include <vector>
+#include <utility>
 
 using namespace std;
 
@@ -27,7 +28,7 @@ typedef map<unsigned int, AllocSite*> AllocSiteMap;
 
 // -- Global info, including the big routine to read the names file
 
-typedef std::tuple<Method *, Method *> ContextPair;
+typedef std::pair<Method *, Method *> ContextPair;
     // (f,g) where f is the caller (or returner)
     // and g is the current function
 

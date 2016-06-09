@@ -8,7 +8,7 @@
 #include <iostream>
 #include <map>
 #include <deque>
-#include <tuple>
+#include <utility>
 
 #include "classinfo.h"
 #include "heap.h"
@@ -141,7 +141,7 @@ class Thread
             , m_kind(kind)
             , m_rootcc()
             , m_curcc(&m_rootcc)
-            , m_context(NULL, NULL)
+            , m_context( NULL, NULL )
             , m_ccountmap( ccountmap )
             , m_exec(execstate) {
             m_locals.push_back(new LocalVarSet());
