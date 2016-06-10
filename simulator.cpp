@@ -287,6 +287,13 @@ unsigned int read_trace_file(FILE* f)
                         // Get the current method
                         Method *topMethod = NULL;
                         if (thread) {
+                            // Update counters in ExecState for map of
+                            //   Object * to simple context pair
+                            ContextPair cpair( thread->getContextPair() );
+                            // DEBUG
+                            // thread->debug_cpair( cpair, "death" );
+                            // END DEBUG
+                            Exec.UpdateObj2Context(obj, cpair);
                             topMethod = thread->TopMethod();
                             // Set the death site
                             if (topMethod) {
@@ -312,17 +319,13 @@ unsigned int read_trace_file(FILE* f)
                                     }
                                 }
                             }
-                            // Update counters in ExecState for map of
-                            //   Object * to simple context pair
-                            Exec.UpdateObj2Context(obj, thread);
-
-                        }
+                        } // if (thread)
                         unsigned int rc = obj->getRefCount();
                         deathrc_map[objId] = rc;
                         not_candidate_map[objId] = (rc == 0);
                     } else {
                         assert(false);
-                    }
+                    } // if (obj) ... else
                 }
                 break;
 

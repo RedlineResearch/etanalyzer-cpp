@@ -177,10 +177,23 @@ class Thread
             this->m_context = cpair;
             return cpair; 
         }
+
+        // Debug
+        void debug_cpair( ContextPair cpair,
+                          string ptype ) {
+            Method *m1 = std::get<0>(cpair);
+            Method *m2 = std::get<1>(cpair);
+            string method1 = (m1 ? m1->getName() : "NONAME1");
+            string method2 = (m2 ? m2->getName() : "NONAME2");
+            cout << "CPAIR-dbg< " << ptype << " >" 
+                 << "[ " << method1 << ", " << method2 << "]" << endl;
+        }
 };
 
 // ----------------------------------------------------------------------
+// ----------------------------------------------------------------------
 //   Execution state
+// ----------------------------------------------------------------------
 
 class ExecState
 {
@@ -242,10 +255,12 @@ class ExecState
         ThreadMap::iterator end_threadmap() { return this->m_threads.end(); }
 
         // Update the Object pointer to simple context pair map
-        void UpdateObj2Context( Object *obj, Thread *thread ) {
+        void UpdateObj2Context( Object *obj, ContextPair cpair ) {
             assert(obj);
-            ContextPair cpair = thread->getContextPair();
             obj->setDeathContextPair( cpair );
+            // DEBUG cpair here
+            // TODO debug_cpair( obj->getDeathContextPair(), obj );
+            // END DEBUG
             this->m_obj2contextmap[obj] = cpair;
             ContextCountMap::iterator it = this->m_ccountmap.find( cpair );
             if (it != this->m_ccountmap.end()) {
@@ -260,6 +275,18 @@ class ExecState
         ContextCountMap m_ccountmap;
         ContextCountMap::iterator begin_ccountmap() { return this->m_ccountmap.begin(); }
         ContextCountMap::iterator end_ccountmap() { return this->m_ccountmap.end(); }
+
+    private:
+        void debug_cpair( ContextPair cpair,
+                          Object *object ) {
+            Method *m1 = std::get<0>(cpair);
+            Method *m2 = std::get<1>(cpair);
+            string method1 = (m1 ? m1->getName() : "NONAME1");
+            string method2 = (m2 ? m2->getName() : "NONAME2");
+            cout << "CPAIR-update< " << object->getType() << " >"
+                << "[ " << method1 << ", " << method2 << "]" << endl;
+        }
+
 };
 
 #endif
