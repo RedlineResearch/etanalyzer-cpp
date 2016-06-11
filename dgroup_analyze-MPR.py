@@ -890,18 +890,18 @@ def death_group_analyze( bmark = None,
     # typedict = {}
     # rev_typedict = {}
     # ----------------------------------------
-    contextcount_path = os.path.join(cycle_cpp_dir, contextcount_config[bmark])
-    assert(os.path.isfile( contextcount_path ))
-    contextinfo = ContextCountReader( contextcount_path,
-                                      logger = logger,
-                                      update_missing = True )
-    logger.debug( "[%s]: Reading CONTEXT-DCOUNT file..." % bmark )
-    sys.stdout.write(  "[%s]: Reading CONTEXT-DCOUNT file...\n" % bmark )
-    oread_start = time.clock()
-    contextinfo.read_context_file()
-    oread_end = time.clock()
-    logger.debug( "[%s]: DONE: %f" % (bmark, (oread_end - oread_start)) )
-    sys.stdout.write(  "[%s]: DONE: %f\n" % (bmark, (oread_end - oread_start)) )
+    # TODO contextcount_path = os.path.join(cycle_cpp_dir, contextcount_config[bmark])
+    # TODO assert(os.path.isfile( contextcount_path ))
+    # TODO contextinfo = ContextCountReader( contextcount_path,
+    # TODO                                   logger = logger,
+    # TODO                                   update_missing = True )
+    # TODO logger.debug( "[%s]: Reading CONTEXT-DCOUNT file..." % bmark )
+    # TODO sys.stdout.write(  "[%s]: Reading CONTEXT-DCOUNT file...\n" % bmark )
+    # TODO oread_start = time.clock()
+    # TODO contextinfo.read_context_file()
+    # TODO oread_end = time.clock()
+    # TODO logger.debug( "[%s]: DONE: %f" % (bmark, (oread_end - oread_start)) )
+    # TODO sys.stdout.write(  "[%s]: DONE: %f\n" % (bmark, (oread_end - oread_start)) )
     # ----------------------------------------
     objectinfo_path = os.path.join(cycle_cpp_dir, objectinfo_config[bmark])
     assert(os.path.isfile( objectinfo_path ))
@@ -910,6 +910,17 @@ def death_group_analyze( bmark = None,
     sys.stdout.write(  "[%s]: Reading OBJECTINFO file...\n" % bmark )
     oread_start = time.clock()
     objinfo.read_objinfo_file()
+    oread_end = time.clock()
+    logger.debug( "[%s]: DONE: %f" % (bmark, (oread_end - oread_start)) )
+    sys.stdout.write(  "[%s]: DONE: %f\n" % (bmark, (oread_end - oread_start)) )
+    # ----------------------------------------
+    contextinfo = ContextCountReader( context_file = None,
+                                      logger = logger,
+                                      update_missing = True )
+    logger.debug( "[%s]: Processing CONTEXT-DCOUNT..." % bmark )
+    sys.stdout.write(  "[%s]: Processing CONTEXT-DCOUNT...\n" % bmark )
+    oread_start = time.clock()
+    contextinfo.process_object_info( object_info = objinfo )
     oread_end = time.clock()
     logger.debug( "[%s]: DONE: %f" % (bmark, (oread_end - oread_start)) )
     sys.stdout.write(  "[%s]: DONE: %f\n" % (bmark, (oread_end - oread_start)) )
@@ -956,7 +967,7 @@ def death_group_analyze( bmark = None,
                                        contextresult = contextresult,
                                        logger = logger )
         print "-------[ END group num: %d ]--------------------------------------------" % gnum
-
+    contextinfo.fix_counts()
     # ----------------------------------------
     logger.debug( "[%s]: Total: %d" % (bmark, len(dgroups.group2list)) )
     logger.debug( "[%s]: Tries: %d" % (bmark, debug_tries) )

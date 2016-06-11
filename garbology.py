@@ -186,6 +186,12 @@ class ObjectInfoReader:
     def iteritems( self ):
         return self.objdict.iteritems()
 
+    def iterrecs( self ):
+        odict = self.objdict
+        keys = odict.keys()
+        for objId in keys:
+            yield (objId, odict[objId])
+
     # If numlines == 0, print out all.
     def print_out( self, numlines = 30 ):
         count = 0
@@ -251,6 +257,9 @@ class ObjectInfoReader:
 
     def get_death_context( self, objId = 0 ):
         rec = self.get_record(objId)
+        return self.get_death_context_record(rec)
+
+    def get_death_context_record( self, rec = None ):
         first = rec[ get_index("CONTEXT1") ] if rec != None else "NONE"
         second = rec[ get_index("CONTEXT2") ] if rec != None else "NONE"
         return (first, second)
@@ -570,6 +579,12 @@ class ContextCountReader:
         self.update_missing = update_missing
         self.missing_set = set([])
 
+    def process_object_info( self,
+                             object_info = None ):
+        oi = object_info
+        for objId, rec in oi.iterrecs():
+            self.inc_count( context_pair = oi.get_death_context_record(rec) )
+
     def read_context_file( self ):
         start = False
         done = False
@@ -597,6 +612,21 @@ class ContextCountReader:
     def context_iteritems( self ):
         return self.contextdict.iteritems()
 
+    def inc_count( self,
+                   context_pair = (None, None) ):
+        cpair = context_pair
+        if cpair[0] == None or cpair[1] == None:
+            self.logger.error("Context pair is None.")
+            return False
+        cdict = self.contextdict
+
+        if cpair not in cdict:
+            cdict[cpair] = (1, 0)
+        else:
+            old = cdict[cpair]
+            cdict[cpair] = ((old[0] + 1), 0)
+        return True
+    
     def update_key_count( self,
                           context_pair = (None, None),
                           key_count = 0 ):
@@ -657,6 +687,14 @@ class ContextCountReader:
             cdict[cpair] = ((rec[0] + 1), (rec[1] + 1))
         else:
             cdict[cpair] = (rec[0], (rec[1] + 1))
+
+    def fix_counts( self ):
+        cdict = self.contextdict
+        for cpair in cdict.keys():
+            rec = cdict[cpair]
+            kcount = rec[1]
+            if kcount == 0:
+                cdict[cpair] = (rec[0], rec[0])
 
     def print_out( self, numlines = 30 ):
         pass
