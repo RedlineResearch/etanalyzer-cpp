@@ -992,6 +992,14 @@ def death_group_analyze( bmark = None,
                 writer.writerow( [ mytype,
                                    "|".join( [ str(x) for x in typeset ] ),
                                    count ] )
+    # Context csv reoutput
+    contextfile = os.path.join( workdir, "%s-CONTEXT-DCOUNT-KEY.csv" % bmark )
+    with open( contextfile, "wb" ) as fptr:
+        writer = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
+        writer.writerow( [ "funcsrc", "functarget", "total", "keyobject_count" ] )
+        for cpair, rec in contextinfo.context_iteritems():
+            writer.writerow( [ cpair[0], cpair[1], rec[0], rec[1]] )
+
     sys.stdout.write(  "-----[ %s DONE ]---------------------------------------------------------------\n" % bmark )
     logger.debug( "-----[ %s DONE ]---------------------------------------------------------------"
                   % bmark )
