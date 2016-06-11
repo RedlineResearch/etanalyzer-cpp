@@ -336,7 +336,7 @@ def get_edges( edgepath ):
                     done = True
                     break
             if start:
-                row = [ int(x) for x in line.split(" -> ") ]
+                row = [ int(x) for x in line.split(",") ]
                 edges.add(tuple(row))
     assert(done)
     edges = set( sorted( list(edges), key = itemgetter(0, 1) ) )

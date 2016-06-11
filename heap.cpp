@@ -5,19 +5,41 @@ bool HeapState::do_refcounting = true;
 bool HeapState::debug = false;
 unsigned int Object::g_counter = 0;
 
+string keytype2str( KeyType ktype )
+{
+    if (ktype == DAG) {
+        return "DAG";
+    } else if (ktype == DAGKEY) {
+        return "DAGKEY";
+    } else if (ktype == CYCLE) {
+        return "CYCLE";
+    } else if (ktype == CYCLEKEY) {
+        return "CYCLEKEY";
+    } else if (ktype == UNKNOWN_KEYTYPE) {
+        return "UNKNOWN_KEYTYPE";
+    }
+    assert(0); // Shouldn't make it here.
+}
+
+// =================================================================
+
 Object* HeapState::allocate( unsigned int id,
                              unsigned int size,
                              char kind,
-                             char* type,
-                             AllocSite* site, 
+                             char *type,
+                             AllocSite *site, 
                              unsigned int els,
-                             Thread* thread,
+                             Thread *thread,
                              unsigned int create_time )
 {
-    Object* obj = new Object( id, size,
-                              kind, type,
-                              site, els,
-                              thread, create_time,
+    Object* obj = new Object( id,
+                              size,
+                              kind,
+                              type,
+                              site,
+                              els,
+                              thread,
+                              create_time,
                               this );
     m_objects[obj->getId()] = obj;
 
@@ -417,9 +439,11 @@ void HeapState::scan_queue2( EdgeList& edgelist,
             ObjectPtrMap_t::iterator itmap = whereis.find(root);
             if (itmap == whereis.end()) {
                 keyset[root] = new std::set< Object * >();
+                root->setKeyType( CYCLEKEY );
             } else {
                 // So-called root isn't one
                 root = whereis[root];
+                root->setKeyType( CYCLE );
             }
             assert( root != NULL );
             // Depth First Search
@@ -445,8 +469,10 @@ void HeapState::scan_queue2( EdgeList& edgelist,
                     // TODO candSet.erase(it);
                     Object *other_root = whereis[cur];
                     if (!other_root) {
-                        keyset[root]->insert(cur);
-                        whereis[cur] = root;
+                        if (cur) {
+                            keyset[root]->insert(cur);
+                            whereis[cur] = root;
+                        }
                     } else {
                         unsigned int other_time = other_root->getDeathTime();
                         unsigned int root_time =  root->getDeathTime();
@@ -472,19 +498,25 @@ void HeapState::scan_queue2( EdgeList& edgelist,
                                 }
                                 // Current object belongs to older if died earlier
                                 if (curtime <= older_time) {
-                                    keyset[older_ptr]->insert(cur);
-                                    whereis[cur] = older_ptr;
+                                    if (cur) {
+                                        keyset[older_ptr]->insert(cur);
+                                        whereis[cur] = older_ptr;
+                                    }
                                 } else {
                                     // Else it belongs to the root that died later.
-                                    keyset[newer_ptr]->insert(cur);
-                                    whereis[cur] = newer_ptr;
+                                    if (cur) {
+                                        keyset[newer_ptr]->insert(cur);
+                                        whereis[cur] = newer_ptr;
+                                    }
                                 }
                             } // else {
                                 // No need to do anything since other_root is the SAME as root
                             // }
                         } else {
-                            keyset[root]->insert(cur);
-                            whereis[cur] = root;
+                            if (cur) {
+                                keyset[root]->insert(cur);
+                                whereis[cur] = root;
+                            }
                         }
                     }
                     for ( EdgeMap::iterator p = cur->getEdgeMapBegin();
@@ -542,7 +574,8 @@ void Object::updateField( Edge* edge,
                           unsigned int cur_time,
                           Method *method,
                           Reason reason,
-                          Object *death_root )
+                          Object *death_root,
+                          LastEvent last_event )
 {
     EdgeMap::iterator p = this->m_fields.find(fieldId);
     if (p != this->m_fields.end()) {
@@ -560,7 +593,11 @@ void Object::updateField( Edge* edge,
                     cerr << "Invalid reason." << endl;
                     assert( false );
                 }
-                old_target->decrementRefCountReal(cur_time, method, reason, death_root);
+                old_target->decrementRefCountReal( cur_time,
+                                                   method,
+                                                   reason,
+                                                   death_root,
+                                                   last_event );
             } 
             old_edge->setEndTime(cur_time);
         }
@@ -734,7 +771,8 @@ void Object::recolor( Color newColor )
 void Object::decrementRefCountReal( unsigned int cur_time,
                                     Method *method,
                                     Reason reason,
-                                    Object *death_root )
+                                    Object *death_root,
+                                    LastEvent last_event )
 {
     this->decrementRefCount();
     this->m_lastMethodDecRC = method;
@@ -762,16 +800,28 @@ void Object::decrementRefCountReal( unsigned int cur_time,
         this->recolor(GREEN);
 
         // -- Who's my key object?
+        // DEBUG
+        unsigned int this_objId = this->getId();
+        // END DEBUG
         if (death_root != NULL) {
             this->setDeathRoot( death_root );
         } else {
             this->setDeathRoot( this );
         }
         Object *my_death_root = this->getDeathRoot();
-        if (!my_death_root) {
-            my_death_root = this;
-        }
+        // DEBUG
+        unsigned int drootId = my_death_root->getId();
+        // END DEBUG
+        assert(my_death_root);
         whereis[this] = my_death_root;
+        // DEBUG
+        if (this_objId == 5229918) {
+            cout << "DEBUG: [C deathroot is [ " << drootId << " ]" << endl;
+        }
+        if (drootId == 5229918) {
+            cout << "DEBUG: [C is used as death root for [ " << this_objId << " ]" << endl;
+        }
+        // END DEBUG
         KeySet_t::iterator itset = keyset.find(my_death_root);
         if (itset == keyset.end()) {
             keyset[my_death_root] = new std::set< Object * >();
@@ -779,6 +829,19 @@ void Object::decrementRefCountReal( unsigned int cur_time,
         }
         keyset[my_death_root]->insert( this );
 
+        // Set key type based on last event
+        if (last_event == UPDATE) {
+            // This is a DAGKEY
+            this->setKeyType(DAGKEY);
+        } else if (last_event == DECRC) {
+            // This is a DAGKEY
+            this->setKeyType(DAG);
+        } else if (last_event == OBJECT_DEATH) {
+            // What happens here?
+        } else {
+            // ???? Is this possible?
+            assert(0);
+        }
         // Edges are now dead.
         for ( EdgeMap::iterator p = this->m_fields.begin();
               p != this->m_fields.end();
@@ -791,7 +854,8 @@ void Object::decrementRefCountReal( unsigned int cur_time,
                                    cur_time,
                                    method,
                                    reason,
-                                   this->getDeathRoot() );
+                                   this->getDeathRoot(),
+                                   DECRC );
             }
         }
         // DEBUG

@@ -30,8 +30,25 @@ enum Reason {
 enum LastEvent {
     ROOT = 1,
     UPDATE = 2,
+    DECRC = 3,
+    OBJECT_DEATH = 10,
     END_OF_PROGRAM_EVENT = 11,
     UNKNOWN_EVENT = 99,
+};
+
+enum DecRCReason {
+    UPDATE_DEC = 2,
+    DEC_TO_ZERO = 7,
+    END_OF_PROGRAM_DEC = 8,
+    UNKNOWN_DEC_EVENT = 99,
+};
+
+enum KeyType {
+    DAG = 1,
+    DAGKEY = 2,
+    CYCLE = 3,
+    CYCLEKEY = 4,
+    UNKNOWN_KEYTYPE = 99,
 };
 
 typedef unsigned int ObjectId_t;
@@ -278,9 +295,10 @@ class Object
         unsigned int m_size;
         char m_kind;
         string m_type;
-        AllocSite* m_site;
+        AllocSite *m_site;
+        string m_allocsite_name;
         unsigned int m_elements;
-        Thread* m_thread;
+        Thread *m_thread;
 
         unsigned int m_createTime;
         unsigned int m_deathTime;
@@ -336,8 +354,12 @@ class Object
         LastEvent m_last_event;
         Object *m_last_object;
 
+        // Simple (ContextPair) context of where this object died. Type is defined in classinfo.h
+        ContextPair m_death_cpair;
+
         // Who's my key object? 0 means unassigned.
         Object *m_death_root;
+        KeyType m_key_type;
 
     public:
         Object( unsigned int id,
@@ -378,7 +400,16 @@ class Object
             , m_incFromZero(indeterminate)
             , m_last_event(LastEvent::UNKNOWN_EVENT)
             , m_death_root(NULL)
-            , m_last_object(NULL) {
+            , m_last_object(NULL)
+            , m_key_type(UNKNOWN_KEYTYPE)
+            , m_death_cpair(NULL, NULL)
+        {
+            if (m_site) {
+                Method *mymeth = m_site->getMethod();
+                m_allocsite_name = (mymeth ? mymeth->getName() : "NONAME");
+            } else {
+                m_allocsite_name = "NONAME";
+            }
         }
 
         // -- Getters
@@ -386,7 +417,9 @@ class Object
         unsigned int getSize() const { return m_size; }
         const string& getType() const { return m_type; }
         char getKind() const { return m_kind; }
-        Thread* getThread() const { return m_thread; }
+        AllocSite * getAllocSite() const { return m_site; }
+        string getAllocSiteName() const { return m_allocsite_name; }
+        Thread * getThread() const { return m_thread; }
         unsigned int getCreateTime() const { return m_createTime; }
         unsigned int getDeathTime() const { return m_deathTime; }
         Color getColor() const { return m_color; }
@@ -446,6 +479,18 @@ class Object
         // Set and get death root
         void setDeathRoot( Object *newroot ) { this->m_death_root = newroot; }
         Object * getDeathRoot() const { return this->m_death_root; }
+        // Set and get key type 
+        void setKeyType( KeyType newtype ) { this->m_key_type = newtype; }
+        KeyType getKeyType() const { return this->m_key_type; }
+
+        // Get death context pair. Note that if <NULL, NULL> then none yet assigned.
+        ContextPair getDeathContextPair() const { return this->m_death_cpair; }
+        // Set death context pair. Note that if <NULL, NULL> then none yet assigned.
+        ContextPair setDeathContextPair( ContextPair cpair ) {
+            this->m_death_cpair = cpair;
+            return this->m_death_cpair;
+        }
+
 
         // -- Ref counting
         unsigned int getRefCount() const { return m_refCount; }
@@ -456,7 +501,8 @@ class Object
         void decrementRefCountReal( unsigned int cur_time,
                                     Method *method,
                                     Reason r,
-                                    Object *death_root );
+                                    Object *death_root,
+                                    LastEvent last_event );
         // -- Access the fields
         const EdgeMap& getFields() const { return m_fields; }
         // -- Get a string representation
@@ -471,7 +517,8 @@ class Object
                           unsigned int cur_time,
                           Method *method,
                           Reason reason,
-                          Object *death_root );
+                          Object *death_root,
+                          LastEvent last_event );
         // -- Record death time
         void makeDead(unsigned int death_time);
         // -- Set the color
@@ -522,5 +569,7 @@ class Edge
 
         void setEndTime(unsigned int end) { m_endTime = end; }
 };
+
+string keytype2str( KeyType ktype );
 
 #endif

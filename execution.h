@@ -8,19 +8,34 @@
 #include <iostream>
 #include <map>
 #include <deque>
+#include <utility>
 
 #include "classinfo.h"
 #include "heap.h"
 
 using namespace std;
 
-// ----------------------------------------------------------------------
-//   Calling context tree
+// Type definitions
+typedef unsigned int MethodId_t;
+// TODO typedef unsigned int threadId_t;
 
 class CCNode;
-// TODO class CTreeNode;
 typedef map<unsigned int, CCNode *> CCMap;
-// TODO typedef map<unsigned int, CTreeNode *> CTreeMap;
+
+typedef map<MethodId_t, Thread *> ThreadMap;
+typedef map<ContextPair, unsigned int> ContextCountMap;
+typedef map<Object *, ContextPair> ObjectContextMap;
+
+
+typedef deque<Method *> MethodDeque;
+typedef set<Object *> LocalVarSet;
+typedef deque<LocalVarSet *> LocalVarDeque;
+
+// TODO typedef deque< pair<LastEvent, Object*> > LastEventDeque_t;
+// TODO typedef map<threadId_t, LastEventDeque_t> LastMap_t;
+
+// ----------------------------------------------------------------------
+//   Calling context tree
 
 enum class ExecMode {
     CCMode = 1,
@@ -83,30 +98,6 @@ class CCNode
         bool setDone() { this->m_done = true; }
 };
 
-// TODO class CTreeNode
-// TODO {
-// TODO     private:
-// TODO         Method* m_method;
-// TODO         CTreeNode* m_parent;
-// TODO         CTreeMap m_callees;
-// TODO     public:
-// TODO         CTreeNode( CTreeNode* parent, Method* m )
-// TODO             : m_method(m)
-// TODO             , m_parent(parent) {
-// TODO         }
-// TODO         // -- Get method
-// TODO         Method *getMethod() const { return m_method; }
-// TODO         // -- Get parent context (if there is one)
-// TODO         CTreeNode *getParent() const { return m_parent; }
-// TODO         // -- Call a method, making a new child context if necessary
-// TODO         CTreeNode *Call(Method *m);
-// TODO         // -- Return from a method, returning the parent context
-// TODO         CTreeNode *Return(Method *m);
-// TODO         // Method name equality
-// TODO         bool simple_cc_equal( CTreeNode &other );
-// TODO         // TODO
-// TODO         deque<Method *> simple_stacktrace();
-// TODO };
 
 // ----------------------------------------------------------------------
 //   Thread representation
@@ -117,13 +108,7 @@ class CCNode
 //  (I realize I could probably do this with fancy-dancy OO programming,
 //  but sometimes that just seems like overkill
 
-typedef deque<Method *> MethodDeque;
-typedef set<Object *> LocalVarSet;
-typedef deque<LocalVarSet *> LocalVarDeque;
-
-// TODO typedef unsigned int threadId_t;
-// TODO typedef deque< pair<LastEvent, Object*> > LastEventDeque_t;
-// TODO typedef map<threadId_t, LastEventDeque_t> LastMap_t;
+class ExecState; // forward declaration to include into Thread
 
 class Thread
 {
@@ -140,14 +125,25 @@ class Thread
         LocalVarDeque m_locals;
         // -- Local stack variables that have root events and died this scope
         LocalVarDeque m_deadlocals;
-        // -- LastEvent
+        // -- Current context pair
+        ContextPair m_context;
+        // -- Map of simple context pair -> count of occurrences
+        ContextCountMap &m_ccountmap;
+        // -- Map to ExecState
+        ExecState &m_exec;
 
     public:
-        Thread( unsigned int id, unsigned int kind )
+        Thread( unsigned int id,
+                unsigned int kind,
+                ContextCountMap &ccountmap,
+                ExecState &execstate )
             : m_id(id)
             , m_kind(kind)
             , m_rootcc()
-            , m_curcc(&m_rootcc) {
+            , m_curcc(&m_rootcc)
+            , m_context( NULL, NULL )
+            , m_ccountmap( ccountmap )
+            , m_exec(execstate) {
             m_locals.push_back(new LocalVarSet());
             m_deadlocals.push_back(new LocalVarSet());
         }
@@ -174,12 +170,30 @@ class Thread
         CCNode m_rootcc;
         // Get root node CC
         CCNode &getRootCCNode() { return m_rootcc; }
+        // Get simple context pair
+        ContextPair getContextPair() const { return m_context; }
+        // Get simple context pair
+        ContextPair setContextPair( ContextPair cpair ) {
+            this->m_context = cpair;
+            return cpair; 
+        }
+
+        // Debug
+        void debug_cpair( ContextPair cpair,
+                          string ptype ) {
+            Method *m1 = std::get<0>(cpair);
+            Method *m2 = std::get<1>(cpair);
+            string method1 = (m1 ? m1->getName() : "NONAME1");
+            string method2 = (m2 ? m2->getName() : "NONAME2");
+            cout << "CPAIR-dbg< " << ptype << " >" 
+                 << "[ " << method1 << ", " << method2 << "]" << endl;
+        }
 };
 
 // ----------------------------------------------------------------------
+// ----------------------------------------------------------------------
 //   Execution state
-
-typedef map<unsigned int, Thread *> ThreadMap;
+// ----------------------------------------------------------------------
 
 class ExecState
 {
@@ -192,12 +206,17 @@ class ExecState
         unsigned int m_time;
         // -- Update Time
         unsigned int m_uptime;
+        // -- Map of Object pointer -> simple context pair
+        ObjectContextMap m_obj2contextmap;
+
     public:
         ExecState(unsigned int kind)
             : m_kind(kind)
             , m_threads()
             , m_time(0)
-            , m_uptime(0) {
+            , m_uptime(0)
+            , m_ccountmap()
+            , m_obj2contextmap() {
         }
 
         // -- Get the current time
@@ -234,6 +253,39 @@ class ExecState
         // Get begin iterator of thread map
         ThreadMap::iterator begin_threadmap() { return this->m_threads.begin(); }
         ThreadMap::iterator end_threadmap() { return this->m_threads.end(); }
+
+        // Update the Object pointer to simple context pair map
+        void UpdateObj2Context( Object *obj, ContextPair cpair ) {
+            assert(obj);
+            obj->setDeathContextPair( cpair );
+            // DEBUG cpair here
+            // TODO debug_cpair( obj->getDeathContextPair(), obj );
+            // END DEBUG
+            this->m_obj2contextmap[obj] = cpair;
+            ContextCountMap::iterator it = this->m_ccountmap.find( cpair );
+            if (it != this->m_ccountmap.end()) {
+                this->m_ccountmap[cpair] += 1; 
+            } else {
+                this->m_ccountmap[cpair] = 1; 
+            }
+        }
+
+        // -- Map of simple context pair -> count of occurrences
+        // TODO: Think about hiding this in an abstraction TODO
+        ContextCountMap m_ccountmap;
+        ContextCountMap::iterator begin_ccountmap() { return this->m_ccountmap.begin(); }
+        ContextCountMap::iterator end_ccountmap() { return this->m_ccountmap.end(); }
+
+    private:
+        void debug_cpair( ContextPair cpair,
+                          Object *object ) {
+            Method *m1 = std::get<0>(cpair);
+            Method *m2 = std::get<1>(cpair);
+            string method1 = (m1 ? m1->getName() : "NONAME1");
+            string method2 = (m2 ? m2->getName() : "NONAME2");
+            cout << "CPAIR-update< " << object->getType() << " >"
+                << "[ " << method1 << ", " << method2 << "]" << endl;
+        }
 
 };
 

@@ -10,10 +10,9 @@ import re
 import ConfigParser
 from operator import itemgetter
 from collections import Counter
-import networkx as nx
 import csv
 import subprocess
-import datetime
+from datetime import datetime, date
 import time
 import socket
 from collections import defaultdict
@@ -22,7 +21,7 @@ from multiprocessing import Process
 # TODO from itertools import combinations
 
 from mypytools import mean, stdev, variance
-from garbology import EdgeInfoReader, ObjectInfoReader, DeathGroupsReader, get_index
+from garbology import EdgeInfoReader, ObjectInfoReader, DeathGroupsReader, ContextCountReader, get_index
 
 pp = pprint.PrettyPrinter( indent = 4 )
 
@@ -102,45 +101,12 @@ def create_edge_dictionary( edges = None ):
         edgedict[src] = set(tgtlist)
     return edgedict
 
-def create_graph( cycle_info_list = None,
-                  edgedict = None,
-                  logger = None ):
-    global pp
-    g = nx.DiGraph()
-    nodeset = set([])
-    for mytuple in cycle_info_list:
-        node, mytype, mysize, lifetime = mytuple
-        nodeset.add(node)
-        g.add_node( n = node,
-                    type = mytype,
-                    lifetime = lifetime,
-                    size = mysize )
-        if node in edgedict:
-            for tgt in edgedict[node]:
-                g.add_edge( node, tgt )
-    return g
-
 def get_types( G, cycle ):
     return [ G.node[x]["type"] for x in cycle ]
 
 def get_types_and_save_index( G, cycle ):
     return [ (x, G.node[x]["type"]) for x in cycle ]
 
-def debug_cycle_algorithms( largest_scc, cyclelist, G ):
-    global pp
-    print "=================================================="
-    other = max( cyclelist, key = len )
-    print "SC[ %d ]  SIMP[ %d ]" % (len(largest_scc), len(other))
-    if len(largest_scc) == 1:
-        node = list(largest_scc)[0]
-        if node == 166451:
-            print "Found 166451. Writing out graphs in %s" % str(os.getcwd())
-            nx.write_gexf( G, "DEBUG-ALL-166451.gexf" )
-            nx.write_gexf( G.subgraph( list(largest_scc) ),"DEBUG-SC-166451.gexf" ) 
-            print "DONE DEBUG."
-            exit(222)
-    print "=================================================="
-    
 def get_lifetimes( G, cycle ):
     return [ G.node[x]["lifetime"] for x in cycle ]
 
@@ -183,27 +149,6 @@ def get_summary( summary_path ):
                 summary.append(row)
     assert(done)
     return dict(summary)
-
-def get_edges( edgepath ):
-    start = False
-    done = False
-    edges = set([])
-    with get_trace_fp(edgepath) as fp:
-        for line in fp:
-            line = line.rstrip()
-            if line.find("---------------[ EDGE INFO") == 0:
-                start = True if not start else False
-                if start:
-                    continue
-                else:
-                    done = True
-                    break
-            if start:
-                row = [ int(x) for x in line.split(" -> ") ]
-                edges.add(tuple(row))
-    assert(done)
-    edges = set( sorted( list(edges), key = itemgetter(0, 1) ) )
-    return edges
 
 def get_edge_info( edgeinfo_path ):
     start = False
@@ -367,10 +312,26 @@ def output_R( benchmark = None ):
     # Need benchmark.
     # TODO: Do we need this?
 
-def create_work_directory( work_dir, logger = None, interactive = False ):
+def create_work_directory( work_dir,
+                           thishost = "",
+                           today = "",
+                           timenow = "",
+                           logger = None, interactive = False ):
     os.chdir( work_dir )
-    today = datetime.date.today()
-    today = today.strftime("%Y-%m%d")
+    # Check to see host name directory ----------------------------------------
+    if os.path.isfile(thishost):
+        print "%s is a file, NOT a directory." % thishost
+        exit(11)
+    if not os.path.isdir( thishost ):
+        os.mkdir( thishost )
+        print "WARNING: %s directory does not exist. Creating it" % thishost
+        logger.warning( "WARNING: %s directory exists." % thishost )
+        if interactive:
+            raw_input("Press ENTER to continue:")
+        else:
+            print "....continuing!!!"
+    os.chdir( thishost )
+    # Check today directory ---------------------------------------------------
     if os.path.isfile(today):
         print "Can not create %s as directory." % today
         exit(11)
@@ -384,6 +345,20 @@ def create_work_directory( work_dir, logger = None, interactive = False ):
         else:
             print "....continuing!!!"
     os.chdir( today )
+    # Check timenow directory -------------------------------------------------
+    if os.path.isfile(timenow):
+        print "Can not create %s as directory." % timenow
+        exit(11)
+    if not os.path.isdir( timenow ):
+        os.mkdir( timenow )
+    else:
+        print "WARNING: %s directory exists." % timenow
+        logger.warning( "WARNING: %s directory exists." % timenow )
+        if interactive:
+            raw_input("Press ENTER to continue:")
+        else:
+            print "....continuing!!!"
+    os.chdir( timenow )
     return str(os.getcwd())
 
 def save_interesting_small_cycles( largest_scc, summary ):
@@ -516,19 +491,32 @@ def get_last_edge_record( group, edgeinfo, objectinfo ):
 def is_array( mytype ):
     return (len(mytype) > 0) and (mytype[0] == "[")
 
+def debug_primitive_key( group = None,
+                         keytype = None,
+                         keyId = None,
+                         objinfo = None,
+                         logger = None ):
+    print "   -+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-"
+    print "    >>> PRIMITIVE KEY: %s" % keytype
+    for x in group:
+        tmp = objinfo.get_record(x)
+        print "    %d [ %s ][ by %s ] - %d" % \
+            (x, objinfo.get_type(x), tmp[ get_index("DIEDBY") ], tmp[ get_index("DTIME") ])
+    print "   -+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-"
+
 def debug_multiple_keys( group = None,
                          key_objects = None,
                          objinfo = None,
                          logger = None ):
-    print "-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-"
-    print " >>> MULTIPLE KEY DEBUG:"
-    print "     [KEYS]"
+    print "   -+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-"
+    print "    >>> MULTIPLE KEY DEBUG:"
+    print "        [KEYS]"
     for x in key_objects:
         tmp = objinfo.get_record(x)
-        print "%d [ %s ][ by %s ] - %d" % \
+        print "    %d [ %s ][ by %s ] - %d" % \
             (x, objinfo.get_type(x), tmp[ get_index("DIEDBY") ], tmp[ get_index("DTIME") ])
-    print "Others:", str( list(set([ objinfo.get_type(x) for x in group if x not in key_objects ])) )
-    print "-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-"
+    print "   Others:", str( list(set([ objinfo.get_type(x) for x in group if x not in key_objects ])) )
+    print "   -+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-"
 
 def is_primitive_type( mytype = None ):
     return ( (mytype == "Z")     # boolean
@@ -560,9 +548,96 @@ def all_primitive_types( group = [],
             return False
     return True
 
+
+def get_earliest_alloctime_object( group = [],
+                                   objinfo = None ):
+    if len(group) == 0:
+        return None
+    cur = group[0]
+    currec = objinfo.get_record(cur)
+    cur_atime = currec[ get_index("ATIME") ]
+    # dtime = rec[ get_index("DTIME") ]
+    for obj in group:
+        tmp = group[0]
+        tmprec = objinfo.get_record(tmp)
+        tmp_atime = tmprec[ get_index("ATIME") ]
+        if tmp_atime < cur_atime:
+            cur = tmp
+            currec = tmprec
+            cur_atime = tmp_atime
+    return cur
+
+def get_most_likely_keytype( objlist = [],
+                             tydict = {} ):
+    blacklist = set([ "Ljava/lang/String;", ])
+    assert(len(objlist)) > 0
+    newlist = list( set( [ x for x in objlist
+                           if (tydict[x] not in blacklist or is_primitive_type(tydict[x])) ] ) )
+    if len(newlist) > 1:
+        # Let's return the oldest object
+        newlist = sorted(newlist)
+    if len(newlist) > 0:
+        return newlist[0]
+    # Something in the blacklist is the key object
+    newlist = list( set( [ x for x in objlist
+                           if is_primitive_type(tydict[x]) ] ) )
+    if len(newlist) > 1:
+        # Let's return the oldest object
+        newlist = sorted(newlist)
+    if len(newlist) > 0:
+        return newlist[0]
+    # What does this mean?
+    print "--------------------------------------------------------------------------------"
+    print "DEBUG: blacklist doesn't work for -->"
+    print str(tydict)
+    print "--------------------------------------------------------------------------------"
+    return objlist[0]
+
+def update_keytype_dict( ktdict = {},
+                         objId = -1,
+                         objType = "",
+                         group = [],
+                         objinfo = None,
+                         contextinfo = None,
+                         group_types = frozenset([]) ):
+
+    assert( objId >= 0 )
+    if objinfo.died_at_end(objId):
+        return DIEDBYSTACK
+    grouplen = len(group)
+    early_obj = get_earliest_alloctime_object( group = group, objinfo = objinfo )
+    true_key_flag = (early_obj == objId)
+    if objType in ktdict:
+        ktdict[objType]["max"] = max( grouplen, ktdict[objType]["max"] )
+        ktdict[objType]["min"] = min( grouplen, ktdict[objType]["min"] )
+        ktdict[objType]["grouplen_list"].append( grouplen )
+        ktdict[objType]["total"] += 1
+        ktdict[objType]["group_types"].update( [ group_types ] )
+        if true_key_flag:
+            ktdict[objType]["true_key_count"] += 1
+    else:
+        ktdict[objType] = { "total" : 1,
+                            "max" : grouplen,
+                            "min" : grouplen,
+                            "grouplen_list" : [ grouplen ],
+                            "is_array": is_array(objType),
+                            "group_types" : Counter( [ group_types ] ),
+                            "true_key_count" : 1 if true_key_flag else 0, }
+    # Also update the context information
+    cpair = objinfo.get_death_context( objId )
+    result = contextinfo.inc_key_count( context_pair = cpair )
+    if result == None:
+        return False
+    elif not result:
+        sys.stdout.write( "ERR: objId[%d] -> %s" % (objId, str(cpair)) )
+        return False
+    return True
+
 ONEKEY = 1
 MULTKEY = 2
 NOKEY = 3
+ONEKEY_LASTEDGE = 4
+ONEKEY_KNOWNOBJ = 5
 DIEDBYSTACK = 7
 DIEDATEND = 8
 NOTFOUND = 9
@@ -571,7 +646,10 @@ def get_key_object_types( gnum = None,
                           dgroups = None,
                           edgeinfo = None,
                           objinfo = None,
-                          logger = None ):
+                          contextinfo = None,
+                          contextresult = {},
+                          logger = None,
+                          ignore_died_at_end = True ):
     if gnum in dgroups.group2list:
         group = dgroups.group2list[gnum] 
     else:
@@ -580,85 +658,129 @@ def get_key_object_types( gnum = None,
     key_objects = [ x for x in group if objinfo.is_key_object(x) ]
     found_key = False
     used_last_edge = False
-    stackflag = objinfo.verify_died_by( grouplist = group,
-                                        died_by = "S" )
+    print " - grouplen: %d" % len(group)
     # Check to see if the key object is a primitive type array
+    total_cc = 0
+    err_cc = 0
     if all_primitive_types( group, objinfo ):
+        print " - all primitive types."
         # All are a group unto themselves
         for obj in group:
+            if objinfo.died_at_end(obj):
+                continue
             tmptype = objinfo.get_type(obj)
-            if tmptype in ktdict:
-                ktdict[tmptype]["max"] = max( 1, ktdict[tmptype]["max"] )
-                ktdict[tmptype]["total"] += 1
-            else:
-                ktdict[tmptype] = { "total" : 1,
-                                   "max" : 1,
-                                   "is_array": is_array(tmptype), }
+            result = update_keytype_dict( ktdict = ktdict,
+                                          objId = obj,
+                                          objType = tmptype,
+                                          group = [ obj ],
+                                          objinfo = objinfo,
+                                          contextinfo = contextinfo,
+                                          group_types = frozenset([]) )
+            total_cc += 1
+            err_cc = ((err_cc + 1) if (not result) else err_cc)
         # print "BY STACK - all primitive" # TODO Make into a logging statement
-        return DIEDBYSTACK
-    if len(key_objects) > 0:
+        contextresult["total"] = contextresult["total"] + total_cc
+        contextresult["error"] = contextresult["error"] + err_cc
+        return DIEDBYSTACK # TODO This does not seem right.
+    if len(key_objects) == 1:
         # Found key objects
         found_key = True
-        if len(key_objects) == 1:
-            tgt = key_objects[0]
-        else:
+        tgt = key_objects[0]
+        result = ONEKEY
+        print " - single key object: %s" % objinfo.get_type(tgt)
+        if objinfo.died_at_end(tgt):
+            return DIEDATEND
+        mytype = objinfo.get_type(tgt)
+    else:
+        if len(key_objects) > 1:
             # Multiple keys?
             tgt = None
-            # debug_multiple_keys( group = group,
-            #                      key_objects = key_objects,
-            #                      objinfo = objinfo,
-            #                      logger = logger )
-            return MULTKEY
-    else:
-        # First try the known groups
-        key_objects = fixed_known_key_objects( group = group,
-                                               objinfo = objinfo,
-                                               logger = logger )
-        if key_objects != None:
-            tgt = key_objects["obj"]
-        else:
-            lastrec = get_last_edge_record( group, edgeinfo, objinfo )
-            # print "%d @ %d : %d -> %s" % ( gnum,
-            #                                lastrec["dtime"],
-            #                                lastrec["target"],
-            #                                str(lastrec["lastsources"]) )
-            if len(lastrec["lastsources"]) == 1:
-                # Get the type
-                used_last_edge = True
-                tgt = lastrec["target"]
-            elif len(lastrec["lastsources"]) > 1:
-                return NOTFOUND
-                # No need to do anything becuase this isn't a key object?
-                # But DO we need to update the counts of the death groups above TODO
-            elif len(lastrec["lastsources"]) == 0:
-                # Means stack object?
-                if not stackflag:
-                    print "-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-"
-                    print "No last edge but group didn't die by stack as a whole:"
-                    for obj in group:
-                        rec = objinfo.get_record( obj )
-                        print "[%d] : %s -> %s" % ( obj,
-                                                    rec[ get_index("TYPE") ],
-                                                    rec[ get_index("DIEDBY") ] )
-                    print "-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-"
-                else:
-                    # Died by stack. Each object is its own key object
-                    for obj in group:
-                        tmptype = objinfo.get_type(obj)
-                        if tmptype in ktdict:
-                            ktdict[tmptype]["max"] = max( 1, ktdict[tmptype]["max"] )
-                            ktdict[tmptype]["total"] += 1
-                        else:
-                            is_array_flag = is_array(tmptype)
-                            ktdict[tmptype] = { "total" : 1,
-                                               "max" : 1,
-                                               "is_array": is_array_flag, }
-                    return DIEDBYSTACK
-            if objinfo.died_at_end(tgt):
+            debug_multiple_keys( group = group,
+                                 key_objects = key_objects,
+                                 objinfo = objinfo,
+                                 logger = logger )
+            if objinfo.died_at_end(group[0]):
                 return DIEDATEND
-    mytype = objinfo.get_type(tgt)
+            result = MULTKEY
+            print " - Multiple key objects."
+        else:
+            print " - DEBUG: NO marked key objects."
+        done = False
+        curindex = 0
+        while not done and (curindex < len(group)):
+            cur = group[curindex]
+            currec = objinfo.get_record(cur)
+            cur_dtime = currec[ get_index("DTIME") ]
+            curtype = objinfo.get_type(cur)
+            if is_primitive_array(curtype) or is_primitive_type(curtype):
+                curindex += 1
+                continue
+            else:
+                done = True
+                break
+        if not done or curindex >= len(group):
+            return NOTFOUND
+        curset = set([ cur ])
+        curtydict = { cur : curtype }
+        for tmp in group[curindex:]:
+            tmprec = objinfo.get_record(tmp)
+            tmp_dtime = tmprec[ get_index("DTIME") ]
+            tmptype = objinfo.get_type(tmp)
+            if is_primitive_array(tmptype) or is_primitive_type(tmptype):
+                continue
+            elif tmp_dtime > cur_dtime:
+                curset = set([ tmp ])
+                currec = tmprec
+                cur_dtime = tmp_dtime
+                curtydict = { tmp : tmptype }
+            elif tmp_dtime == cur_dtime:
+                if tmp not in curset:
+                    curset.add( tmp )
+                    curtydict[tmp] = tmptype
+        if len(curset) > 1:
+            print "--------------------------------------------------------------------------------"
+            print curset
+            print "--------------------------------------------------------------------------------"
+            for obj, mytype in curtydict.iteritems():
+                print "%d -> %s" % (obj, mytype)
+            likely = get_most_likely_keytype( objlist = list(curset),
+                                              tydict = curtydict )
+            curset = set([ likely ])
+        assert(len(curset) > 0 )
+        tgt = list(curset)[0]
+        mytype = curtydict[tgt]
+        # TODO Make into a logging statement
+        print "  - key among multiples - %d [ %s ][ dtime: %d ]" % (cur, curtype, cur_dtime)
+        # # First try the known groups
+        # key_objects = fixed_known_key_objects( group = group,
+        #                                        objinfo = objinfo,
+        #                                        logger = logger )
+        # if key_objects != None:
+        #     tgt = key_objects["obj"]
+        #     result = ONEKEY_KNOWNOBJ
+        #     print " - found known key object [%s]" % objinfo.get_type(tgt)
+        #     if objinfo.died_at_end(tgt):
+        #         return DIEDATEND
+        # else:
+        #     pass
+    group_types = frozenset( [ objinfo.get_type(x) for x in group if x != tgt ] )
     is_array_flag = is_array(mytype)
-    group_types = [ objinfo.get_type(x) for x in group if x != tgt ]
+    is_primitive_key = is_primitive_array(mytype)
+    if is_primitive_key and len(group_types) > 0:
+        debug_primitive_key( group = [ x for x in group if x != tgt ],
+                             keytype = mytype,
+                             keyId = tgt,
+                             objinfo = objinfo,
+                             logger = logger )
+    result = update_keytype_dict( ktdict = ktdict,
+                                  objId = tgt,
+                                  objType = mytype,
+                                  group = group,
+                                  objinfo = objinfo,
+                                  contextinfo = contextinfo,
+                                  group_types = group_types )
+    total_cc += 1
+    err_cc = ((err_cc + 1) if not result else err_cc)
     # This looks like all debug.
     # TODO print "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"
     # TODO print "%s:" % mytype
@@ -676,26 +798,8 @@ def get_key_object_types( gnum = None,
     # TODO         print t,
     # TODO print
     # TODO print "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"
-    if mytype in ktdict:
-        if stackflag and is_array_flag:
-            # keysrc = "WITH KEY" if found_key else ("LAST EDGE" if used_last_edge else "??????")
-            # TODO print "BY STACK %s:" % keysrc
-            for obj in group:
-                tmptype = objinfo.get_type(obj)
-                if tmptype in ktdict:
-                    ktdict[tmptype]["max"] = max( 1, ktdict[tmptype]["max"] )
-                    ktdict[tmptype]["total"] += 1
-                else:
-                    ktdict[tmptype] = { "total" : 1,
-                                       "max" : 1,
-                                       "is_array": is_array(tmptype), }
-            return DIEDBYSTACK
-        ktdict[mytype]["max"] = max( len(group), ktdict[mytype]["max"] )
-        ktdict[mytype]["total"] += 1
-    else:
-        ktdict[mytype] = { "total" : 1,
-                           "max" : len(group),
-                           "is_array": is_array_flag, }
+    contextresult["total"] = contextresult["total"] + total_cc
+    contextresult["error"] = contextresult["error"] + err_cc
     return ONEKEY
 
 def check_host( benchmark = None,
@@ -707,28 +811,101 @@ def check_host( benchmark = None,
             return True
     return False
 
+def get_actual_hostname( hostname = "",
+                         host_config = {} ):
+    for key, hlist in host_config.iteritems():
+        if hostname in hlist:
+            return key
+    return None
+
+def __TODO_DELTE_LAST_EDGE():
+    lastrec = get_last_edge_record( group, edgeinfo, objinfo )
+    # print "%d @ %d : %d -> %s" % ( gnum,
+    #                                lastrec["dtime"],
+    #                                lastrec["target"],
+    #                                str(lastrec["lastsources"]) )
+    if len(lastrec["lastsources"]) == 1:
+        # Get the type
+        used_last_edge = True
+        tgt = lastrec["target"]
+        print " - last edge successful [%s]" % objinfo.get_type(tgt)
+        if objinfo.died_at_end(tgt):
+            return DIEDATEND
+    elif len(lastrec["lastsources"]) > 1:
+        print " - last edge has too many candidates. NO KEY OBJECT FOUND."
+        return NOTFOUND
+        # No need to do anything becuase this isn't a key object?
+        # But DO we need to update the counts of the death groups above TODO
+    elif len(lastrec["lastsources"]) == 0:
+        # Means stack object?
+        stackflag = objinfo.group_died_by_stack(group)
+        if not stackflag:
+            print "   -X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-"
+            print "   No last edge but group didn't die by stack as a whole:"
+            for obj in group:
+                rec = objinfo.get_record( obj )
+                print "       [%d] : %s -> %s (%s)" % ( obj,
+                                                        rec[ get_index("TYPE") ],
+                                                        rec[ get_index("DIEDBY") ],
+                                                        "DAE" if objinfo.died_at_end(obj) else "---" )
+            print "   -X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-"
+        else:
+            print "   died by stack. Making each object its own key object."
+            # Died by stack. Each object is its own key object
+            for obj in group:
+                if objinfo.died_at_end(obj):
+                    print " - ignoring DIED AT END."
+                    continue
+                tmptype = objinfo.get_type(obj)
+                if tmptype in ktdict:
+                    ktdict[tmptype]["max"] = max( len(group), ktdict[tmptype]["max"] )
+                    ktdict[tmptype]["total"] += 1
+                    ktdict[mytype]["group_types"].update( [ frozenset([])] )
+                else:
+                    is_array_flag = is_array(tmptype)
+                    ktdict[tmptype] = { "total" : 1,
+                                        "max" : len(group),
+                                        "is_array": is_array_flag,
+                                        "group_types" : Counter( [ frozenset([]) ] ) }
+                return DIEDBYSTACK
+
 def death_group_analyze( bmark = None,
                          cycle_cpp_dir = "",
                          main_config = {},
                          dgroups_filename = "",
+                         contextcount_config = {},
                          objectinfo_config = {},
                          edge_config = {},
+                         host_config = {},
                          logger = None ):
     logger.debug( "[%s]:================================================================"
                   % bmark )
-    # Setup stdout to file redirect
-    today = datetime.date.today()
-    today = today.strftime("%Y-%m%d")
-    outputfile = os.path.join( main_config["output"], "%s-%s-OUTPUT.csv" %
-                               (bmark, str(today)) )
+    # TODO TODO 
+    workdir = os.getcwd()
+    outputfile = os.path.join( workdir,
+                               "%s-OUTPUT.txt" % bmark )
     sys.stdout = open( outputfile, "wb" )
     # Get object dictionary information that has types and sizes
     # TODO
     # typedict = {}
     # rev_typedict = {}
-    objectinfo_path = os.path.join(cycle_cpp_dir, objectinfo_config[bmark])
-    objinfo = ObjectInfoReader( objectinfo_path, logger = logger )
     # ----------------------------------------
+    contextcount_path = os.path.join(cycle_cpp_dir, contextcount_config[bmark])
+    assert(os.path.isfile( contextcount_path ))
+    contextinfo = ContextCountReader( contextcount_path,
+                                      logger = logger,
+                                      update_missing = True )
+    logger.debug( "[%s]: Reading CONTEXT-DCOUNT file..." % bmark )
+    sys.stdout.write(  "[%s]: Reading CONTEXT-DCOUNT file...\n" % bmark )
+    oread_start = time.clock()
+    contextinfo.read_context_file()
+    oread_end = time.clock()
+    logger.debug( "[%s]: DONE: %f" % (bmark, (oread_end - oread_start)) )
+    sys.stdout.write(  "[%s]: DONE: %f\n" % (bmark, (oread_end - oread_start)) )
+    # ----------------------------------------
+    objectinfo_path = os.path.join(cycle_cpp_dir, objectinfo_config[bmark])
+    assert(os.path.isfile( objectinfo_path ))
+    objinfo = ObjectInfoReader( objectinfo_path, logger = logger )
     logger.debug( "[%s]: Reading OBJECTINFO file..." % bmark )
     sys.stdout.write(  "[%s]: Reading OBJECTINFO file...\n" % bmark )
     oread_start = time.clock()
@@ -740,16 +917,19 @@ def death_group_analyze( bmark = None,
     logger.debug( "[%s]: Reading EDGEINFO file..." % bmark )
     sys.stdout.write(  "[%s]: Reading EDGEINFO file...\n" % bmark )
     edgeinfo_path = os.path.join( cycle_cpp_dir, edge_config[bmark] )
+    assert(os.path.isfile( edgeinfo_path ))
     edgeinfo = EdgeInfoReader( edgeinfo_path, logger = logger )
     eread_start = time.clock()
     edgeinfo.read_edgeinfo_file()
     eread_end = time.clock()
     logger.debug( "[%s]: DONE: %f" % (bmark, (eread_end - eread_start)) )
     sys.stdout.write(  "[%s]: DONE: %f\n" % (bmark, (eread_end - eread_start)) )
+    # ----------------------------------------
     logger.debug( "[%s]: Reading DGROUPS:" % bmark )
     sys.stdout.write(  "[%s]: Reading DGROUPS:\n" % bmark )
     dgread_start = time.clock()
     abs_filename = os.path.join(cycle_cpp_dir, dgroups_filename)
+    assert(os.path.isfile( abs_filename ))
     dgroups = DeathGroupsReader( abs_filename, logger = logger )
     dgroups.read_dgroup_file( objinfo )
     dgroups.clean_deathgroups()
@@ -757,20 +937,27 @@ def death_group_analyze( bmark = None,
     dgread_end = time.clock()
     logger.debug( "[%s]: DONE: %f" % (bmark, (dgread_end - dgread_start)) )
     sys.stdout.write(  "[%s]: DONE: %f\n" % (bmark, (dgread_end - dgread_start)) )
+    # ----------------------------------------
     # for tgt, data in edgeinfo.lastedge_iteritems():
     #     sys.stdout.write(  "%d -> [%d] : %s" % (tgt, data["dtime"], str(data["lastsources"])) )
     ktdict = {}
     debug_count = 0
     debug_tries = 0
     died_at_end_count = 0
+    contextresult = { "total" : 0, "error" : 0 }
     for gnum in dgroups.group2list.keys():
+        print "-------[ Group num: %d ]------------------------------------------------" % gnum
         result = get_key_object_types( gnum = gnum,
                                        ktdict = ktdict,
                                        dgroups = dgroups,
                                        edgeinfo = edgeinfo,
                                        objinfo = objinfo,
+                                       contextinfo = contextinfo,
+                                       contextresult = contextresult,
                                        logger = logger )
+        print "-------[ END group num: %d ]--------------------------------------------" % gnum
 
+    # ----------------------------------------
     logger.debug( "[%s]: Total: %d" % (bmark, len(dgroups.group2list)) )
     logger.debug( "[%s]: Tries: %d" % (bmark, debug_tries) )
     logger.debug( "[%s]: Error: %d" % (bmark, debug_count) )
@@ -779,17 +966,43 @@ def death_group_analyze( bmark = None,
     sys.stdout.write(  "[%s]: Tries: %d\n" % (bmark, debug_tries) )
     sys.stdout.write(  "[%s]: Error: %d\n" % (bmark, debug_count) )
     sys.stdout.write(  "[%s]: Died at end: %d\n" % (bmark, died_at_end_count) )
-    # Output target filename
-    outfile = os.path.join( main_config["output"], "%s-DGROUPS-TYPES.csv" % bmark )
+    sys.stdout.write( "-------[ CONTEXT RESULTS ]----------------------------------------------\n" )
+    sys.stdout.write( "Total: %d\n" % contextresult["total"] )
+    sys.stdout.write( "Error: %d\n" % contextresult["error"] )
+    sys.stdout.write( "-------[ END CONTEXT RESULTS ]------------------------------------------\n" )
+    # ----------------------------------------
+    # Output death groups statistics by type
+    outfile = os.path.join( workdir, "%s-DGROUPS-TYPES.csv" % bmark )
     with open( outfile, "wb" ) as fptr:
         writer = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
-        writer.writerow( [ "type", "number groups", "maximum", ] )
+        writer.writerow( [ "type", "number groups", "maximum", "minimum", "true key count", ] )
         for mytype, rec in ktdict.iteritems():
-            writer.writerow( [ mytype, rec["total"], rec["max"], ])
+            writer.writerow( [ mytype,
+                               rec["total"],
+                               rec["max"],
+                               rec["min"],
+                               rec["true_key_count"], ] )
+    # Group types output
+    outallfile = os.path.join( workdir, "%s-DGROUPS-ALL-TYPES.csv" % bmark )
+    with open( outallfile, "wb" ) as fptr:
+        writer = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
+        writer.writerow( [ "type", "set_types", "count", ] )
+        for mytype, rec in ktdict.iteritems():
+            for typeset, count in rec["group_types"].iteritems():
+                writer.writerow( [ mytype,
+                                   "|".join( [ str(x) for x in typeset ] ),
+                                   count ] )
+    # Context csv reoutput
+    contextfile = os.path.join( workdir, "%s-CONTEXT-DCOUNT-KEY.csv" % bmark )
+    with open( contextfile, "wb" ) as fptr:
+        writer = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
+        writer.writerow( [ "funcsrc", "functarget", "total", "keyobject_count" ] )
+        for cpair, rec in contextinfo.context_iteritems():
+            writer.writerow( [ cpair[0], cpair[1], rec[0], rec[1]] )
+
     sys.stdout.write(  "-----[ %s DONE ]---------------------------------------------------------------\n" % bmark )
     logger.debug( "-----[ %s DONE ]---------------------------------------------------------------"
                   % bmark )
-
 
 def main_process( output = None,
                   main_config = None,
@@ -799,6 +1012,7 @@ def main_process( output = None,
                   global_config = {},
                   edge_config = {},
                   edgeinfo_config = {},
+                  contextcount_config = {},
                   objectinfo_config = {},
                   summary_config = {},
                   host_config = {},
@@ -810,10 +1024,26 @@ def main_process( output = None,
     print "GLOBAL:"
     pp.pprint(global_config)
     cycle_cpp_dir = global_config["cycle_cpp_dir"]
-    work_dir = main_config["directory"]
+    # TODO: Not used? 
+    # TODO: work_dir = main_config["directory"]
     # In my config this is: '/data/rveroy/pulsrc/etanalyzer/MYWORK/z-SUMMARY/DGROUPS'
     # Change in basic_merge_summary.ini, under the [dgroups-analyze] section.
-
+    # Setup stdout to file redirect
+    thishost = get_actual_hostname( hostname = socket.gethostname().lower(),
+                                    host_config = host_config )
+    assert( thishost != None )
+    thishost = thishost.upper()
+    today = date.today()
+    today = today.strftime("%Y-%m%d")
+    timenow = datetime.now().time().strftime("%H-%M-%S")
+    olddir = os.getcwd()
+    os.chdir( main_config["output"] )
+    workdir = create_work_directory( work_dir = main_config["output"],
+                                     thishost = thishost,
+                                     today = today,
+                                     timenow = timenow,
+                                     logger = logger,
+                                     interactive = False )
     # TODO What is key -> value in the following dictionaries?
     results = {}
     # TODO What is the results structure?
@@ -841,8 +1071,10 @@ def main_process( output = None,
                               cycle_cpp_dir,
                               main_config,
                               filename,
+                              contextcount_config,
                               objectinfo_config,
                               edge_config,
+                              host_config,
                               logger ) )
         p.start()
         procs[bmark] = p
@@ -857,6 +1089,7 @@ def main_process( output = None,
             else:
                 del procs[bmark]
     print "DONE."
+    os.chdir( olddir )
     exit(0)
 
 def create_parser():
@@ -918,6 +1151,7 @@ def process_config( args ):
     edge_config = config_section_map( "edgeinfo", config_parser )
     edgeinfo_config = config_section_map( "edgeinfo", config_parser )
     objectinfo_config = config_section_map( "objectinfo", config_parser )
+    contextcount_config = config_section_map( "contextcount", config_parser )
     summary_config = config_section_map( "summary_cpp", config_parser )
     host_config = config_section_map( "hosts", config_parser )
     worklist_config = config_section_map( "dgroups-worklist", config_parser )
@@ -927,46 +1161,10 @@ def process_config( args ):
              "edge" : edge_config, # TODO is this still needed? TODO
              "edgeinfo" : edgeinfo_config,
              "objectinfo" : objectinfo_config,
+             "contextcount" : contextcount_config,
              "summary" : summary_config,
              "host" : host_config,
              "worklist" : worklist_config }
-
-# TODO: TO REMOVE 8 jan 2016
-def setup_objdb( global_config = None,
-                 objdb1_config = None,
-                 objdb2_config = None,
-                 objdb_ALL_config = None,
-                 benchmark = None,
-                 logger = None,
-                 debugflag = False ):
-    # set up objdb
-    objdb1 = os.path.join( global_config["objdb_dir"], objdb1_config[benchmark] )
-    objdb2 = os.path.join( global_config["objdb_dir"], objdb2_config[benchmark] )
-    objdb_all = os.path.join( global_config["objdb_dir"], objdb_ALL_config[benchmark] )
-    return ObjDB( objdb1 = objdb1,
-                  objdb2 = objdb2,
-                  objdb_all = objdb_all,
-                  debugflag = debugflag,
-                  logger = logger )
-
-# TODO: TO REMOVE 8 jan 2016
-def setup_edge_info_db( global_config = None,
-                        edge_info_config = None,
-                        benchmark = None,
-                        logger = None,
-                        debugflag = False ):
-    # set up edge_info_db
-    tgtpath = os.path.join( global_config["edge_info_dir"], edge_info_config[benchmark] )
-    print tgtpath
-    try:
-        edge_info_db = sqorm.Sqorm( tgtpath = tgtpath,
-                                    table = "edges",
-                                    keyfield = "tgtId" )
-    except:
-        logger.error( "Unable to load edge info DB: %s" % str(tgtpath) )
-        print "Unable to load edge info DB: %s" % str(tgtpath)
-        assert( False )
-    return edge_info_db
 
 def process_host_config( host_config = {} ):
     for bmark in list(host_config.keys()):
@@ -994,6 +1192,7 @@ def main():
     main_config = configdict["main"]
     edge_config = configdict["edge"]
     edgeinfo_config = configdict["edgeinfo"]
+    contextcount_config = configdict["contextcount"]
     objectinfo_config = configdict["objectinfo"]
     summary_config = configdict["summary"]
     host_config = process_host_config( configdict["host"] )
@@ -1014,6 +1213,7 @@ def main():
                          etanalyze_config = etanalyze_config,
                          edge_config = edge_config,
                          edgeinfo_config = edgeinfo_config,
+                         contextcount_config = contextcount_config,
                          objectinfo_config = objectinfo_config,
                          summary_config = summary_config,
                          global_config = global_config,

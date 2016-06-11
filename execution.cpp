@@ -94,38 +94,13 @@ bool CCNode::simple_cc_equal( CCNode &other )
     return (self_ptr->simple_cc_equal(*other_ptr));
 }
 
-// TODO // ----------------------------------------------------------------------
-// TODO //    Calling tree node
-// TODO 
-// TODO CTreeNode *CTreeNode::Call(Method *m)
-// TODO {
-// TODO     CTreeNode* result = 0;
-// TODO     CTreeMap::iterator p = (this->m_callees).find(m->getId());
-// TODO     if (p == m_callees.end()) {
-// TODO         result = new CTreeNode(this, m);
-// TODO         m_callees[m->getId()] = result;
-// TODO     } else {
-// TODO         result = (*p).second;
-// TODO     }
-// TODO     return result;
-// TODO }
-// TODO 
-// TODO CTreeNode *CTreeNode::Return(Method *m)
-// TODO {
-// TODO     if (m_method != m) {
-// TODO         cout << "WEIRD: Returning from the wrong method " << m->info() << endl;
-// TODO         cout << "WEIRD:    should be " << m_method->info() << endl;
-// TODO     }
-// TODO     return m_parent;
-// TODO }
-
 
 // ----------------------------------------------------------------------
 //   Thread representation
 //   (Essentially, the stack)
 
 // -- Call method m
-void Thread::Call(Method* m)
+void Thread::Call(Method *m)
 {
     if (m_kind == 1) {
         CCNode* cur = this->TopCC();
@@ -133,6 +108,15 @@ void Thread::Call(Method* m)
     }
 
     if (m_kind == 2) {
+        // Save (old_top, new_top) of m_methods
+        ContextPair cpair;
+        if (m_methods.size() > 0) {
+            cpair = std::make_pair( m_methods.back(), m );
+        } else {
+            cpair = std::make_pair( (Method *) NULL, m );
+        }
+        this->setContextPair( cpair );
+        // TODO this->debug_cpair( this->getContextPair(), "call" );
         m_methods.push_back(m);
         // m_methods, m_locals, and m_deadlocals must be synched in pushing
         // TODO: Do we need to check for m existing in map?
@@ -157,13 +141,29 @@ void Thread::Return(Method* m)
     }
 
     if (m_kind == 2) {
-        if ( ! m_methods.empty()) {
+        if ( !m_methods.empty()) {
             Method *cur = m_methods.back();
             m_methods.pop_back();
             // if (cur != m) {
-            //     cout << "WARNING: Return from method " << m->info() << " does not match stack top " << cur->info() << endl;
+            //     cerr << "WARNING: Return from method " << m->info() << " does not match stack top " << cur->info() << endl;
             // }
             // m_methods, m_locals, and m_deadlocals must be synched in popping
+
+            // NOTE: Maybe refactor. See same code in Thread::Call
+            // Save (old_top, new_top) of m_methods
+            ContextPair cpair;
+            if (m_methods.size() > 0) {
+                // TODO: What if m != cur?
+                // It seems reasonable to simply use the m that's passed to us rather than
+                // rely on the call stack being correct. TODO: Verify.
+                cpair = std::make_pair( cur, m_methods.back() );
+            } else {
+                cpair = std::make_pair( cur, (Method *) NULL );
+            }
+            this->setContextPair( cpair );
+            // TODO this->debug_cpair( this->getContextPair(), "return" );
+            // TODO TODO: Save type (Call vs Return) -- See similar code above.
+            // Locals
             LocalVarSet *localvars = m_locals.back();
             m_locals.pop_back();
             LocalVarSet *deadvars = m_deadlocals.back();
@@ -289,7 +289,9 @@ Thread* ExecState::getThread(unsigned int threadid)
     if (p == m_threads.end()) {
         // -- Not there, make a new one
         result = new Thread( threadid,
-                             this->m_kind );
+                             this->m_kind,
+                             this->m_ccountmap,
+                             *this );
         m_threads[threadid] = result;
     } else {
         result = (*p).second;

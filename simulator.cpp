@@ -186,14 +186,18 @@ unsigned int read_trace_file(FILE* f)
                     unsigned int els  = (tokenizer.numTokens() == 6) ? 0
                                                                      : tokenizer.getInt(5);
                     AllocSite* as = ClassInfo::TheAllocSites[tokenizer.getInt(4)];
-                    obj = Heap.allocate( tokenizer.getInt(1),
-                                         tokenizer.getInt(2),
-                                         tokenizer.getChar(0),
-                                         tokenizer.getString(3),
-                                         as,
-                                         els,
-                                         thread,
-                                         Exec.NowUp() );
+                    // DEBUG
+                    if (!as) {
+                        cerr << "DBG: objId[ " << tokenizer.getInt(1) << " ] has no alloc site." << endl;
+                    } // END DEBUG
+                    obj = Heap.allocate( tokenizer.getInt(1),    // id
+                                         tokenizer.getInt(2),    // size
+                                         tokenizer.getChar(0),   // kind of alloc
+                                         tokenizer.getString(3), // type
+                                         as,      // AllocSite pointer
+                                         els,     // length IF applicable
+                                         thread,  // thread Id
+                                         Exec.NowUp() ); // Current time
                     unsigned int old_alloc_time = AllocationTime;
                     AllocationTime += obj->getSize();
                     total_objects++;
@@ -225,8 +229,12 @@ unsigned int read_trace_file(FILE* f)
                             oldObj->setLastUpdateNull();
                         }
                     }
-                    // Increment and decrement refcounts
-                    if (obj && target) {
+                    if (oldTgtId == tgtId) {
+                        // It sometimes happens that the newtarget is the same as
+                        // the old target. So we won't create any more new edges.
+                        // DEBUG: cout << "UPDATE same new == old: " << target << endl;
+                    } else if (obj && target) {
+                        // Increment and decrement refcounts
                         unsigned int field_id = tokenizer.getInt(4);
                         Edge* new_edge = Heap.make_edge( obj, field_id,
                                                          target, Exec.NowUp() );
@@ -240,7 +248,8 @@ unsigned int read_trace_file(FILE* f)
                                               Exec.NowUp(),
                                               topMethod, // for death site info
                                               HEAP, // reason
-                                              NULL ); // death root 0 because may not be a root
+                                              NULL, // death root 0 because may not be a root
+                                              UPDATE ); // last event to determine cause
                             // NOTE: topMethod COULD be NULL here.
                         }
                         // DEBUG ONLY IF NEEDED
@@ -256,7 +265,7 @@ unsigned int read_trace_file(FILE* f)
             case 'D':
                 {
                     // D <object> <thread-id>
-                    // 0    1
+                    // 0    1         2
                     unsigned int objId = tokenizer.getInt(1);
                     obj = Heap.getObject(objId);
                     if (obj) {
@@ -278,11 +287,20 @@ unsigned int read_trace_file(FILE* f)
                         // Get the current method
                         Method *topMethod = NULL;
                         if (thread) {
+                            // Update counters in ExecState for map of
+                            //   Object * to simple context pair
+                            ContextPair cpair( thread->getContextPair() );
+                            // DEBUG
+                            // thread->debug_cpair( cpair, "death" );
+                            // END DEBUG
+                            Exec.UpdateObj2Context(obj, cpair);
                             topMethod = thread->TopMethod();
+                            // Set the death site
                             if (topMethod) {
                                 obj->setDeathSite(topMethod);
                             } 
                             if (thread->isLocalVariable(obj)) {
+                                // Recursively make the edges dead and assign the proper death cause
                                 for ( EdgeMap::iterator p = obj->getEdgeMapBegin();
                                       p != obj->getEdgeMapEnd();
                                       ++p ) {
@@ -294,23 +312,20 @@ unsigned int read_trace_file(FILE* f)
                                                           Exec.NowUp(),
                                                           topMethod,
                                                           STACK,
-                                                          obj );
+                                                          obj,
+                                                          OBJECT_DEATH );
                                         // NOTE: STACK is used because the object that died,
                                         // died by STACK.
-                                        debug_stack_edges++;
-                                        if (debug_stack_edges % 200 == 100) {
-                                            cout << "Debug_STACK_EDGES: " << debug_stack_edges << endl;
-                                        }
                                     }
                                 }
                             }
-                        }
+                        } // if (thread)
                         unsigned int rc = obj->getRefCount();
                         deathrc_map[objId] = rc;
                         not_candidate_map[objId] = (rc == 0);
                     } else {
                         assert(false);
-                    }
+                    } // if (obj) ... else
                 }
                 break;
 
@@ -515,6 +530,45 @@ void output_type_summary( string &dgroups_by_type_filename,
     dgroups_by_type_file.close();
 }
 
+// All sorts of hacky debug function. Very brittle.
+void debug_type_algo( Object *object,
+                      string& dgroup_kind )
+{
+    KeyType ktype = object->getKeyType();
+    unsigned int objId = object->getId();
+    if (ktype == UNKNOWN_KEYTYPE) {
+        cout << "ERROR: objId[ " << objId << " ] : "
+             << "Keytype not set but algo determines [ " << dgroup_kind << " ]" << endl;
+        return;
+    }
+    if (dgroup_kind == "CYCLE") {
+        if (ktype != CYCLE) {
+            goto fail;
+        }
+    } else if (dgroup_kind == "CYCKEY") {
+        if (ktype != CYCLEKEY) {
+            goto fail;
+        }
+    } else if (dgroup_kind == "DAG") {
+        if (ktype != DAG) {
+            goto fail;
+        }
+    } else if (dgroup_kind == "DAGKEY") {
+        if (ktype != DAGKEY) {
+            goto fail;
+        }
+    } else {
+        cout << "ERROR: objId[ " << objId << " ] : "
+             << "Unknown key type: " << dgroup_kind << endl;
+    }
+    return;
+fail:
+    cout << "ERROR: objId[ " << objId << " ] : "
+         << "Keytype [ " << keytype2str(ktype) << " ]"
+         << " doesn't match [ " << dgroup_kind << " ]" << endl;
+    return;
+}
+
 void output_all_objects( string &objectinfo_filename,
                          HeapState &myheap,
                          std::set<ObjectId_t> dag_keys,
@@ -531,7 +585,7 @@ void output_all_objects( string &objectinfo_filename,
         set<ObjectId_t>::iterator diter = dag_all_set.find(objId);
         string dgroup_kind;
         if (diter == dag_all_set.end()) {
-            // Not a DAG object, therefore CYCle
+            // Not a DAG object, therefore CYCLE
             set<ObjectId_t>::iterator itmp = all_keys.find(objId);
             dgroup_kind = ((itmp == all_keys.end()) ? "CYC" : "CYCKEY" );
         } else {
@@ -547,6 +601,12 @@ void output_all_objects( string &objectinfo_filename,
         } else {
             dtype = "E"; // program end
         }
+        ContextPair cpair = object->getDeathContextPair();
+        Method *meth_ptr1 = std::get<0>(cpair);
+        Method *meth_ptr2 = std::get<1>(cpair);
+        string method1 = (meth_ptr1 ? meth_ptr1->getName() : "NONAME");
+        string method2 = (meth_ptr2 ? meth_ptr2->getName() : "NONAME");
+        string allocsite_name = object->getAllocSiteName();
         object_info_file << objId
             << "," << object->getCreateTime()
             << "," << object->getDeathTime()
@@ -557,7 +617,16 @@ void output_all_objects( string &objectinfo_filename,
             << "," << (object->getDiedByStackFlag() ? (object->wasPointedAtByHeap() ? "SHEAP" : "SONLY")
                                                     : "H")
             << "," << dgroup_kind
+            << "," << method1 // Part 1 of simple context pair
+            << "," << method2 // part 2 of simple context pair
+            << "," << allocsite_name
             << endl;
+            // TODO: The following can be made into a lookup table:
+            //       method names
+            //       allocsite names
+            //       type names
+            // May only be necessary for performance reasons (ie, simulator eats up too much RAM 
+            // on the larger benchmarks/programs.)
         // TODO Fix the SHEAP/SONLY for heap objects. - 4/21/2016 - RLV
         // TODO Add the deathgroup number
         // TODO Decide on the deathgroup file output.
@@ -637,6 +706,31 @@ unsigned int output_edges( HeapState &myheap,
 
 // ----------------------------------------------------------------------
 
+// Output the map of simple context pair -> count of obects dying
+void output_context_summary( string &context_death_count_filename,
+                             ExecState &exstate )
+{
+    ofstream context_death_count_file(context_death_count_filename);
+    for ( ContextCountMap::iterator it = exstate.begin_ccountmap();
+          it != exstate.end_ccountmap();
+          ++it ) {
+        ContextPair cpair = it->first;
+        Method *first = std::get<0>(cpair); 
+        Method *second = std::get<1>(cpair); 
+        unsigned int total = it->second;
+        unsigned int meth1_id = (first ? first->getId() : 0);
+        unsigned int meth2_id = (second ? second->getId() : 0);
+        string meth1_name = (first ? first->getName() : "NONAME");
+        string meth2_name = (second ? second->getName() : "NONAME");
+        context_death_count_file << meth1_name << "," 
+                                 << meth2_name << ","
+                                 << total << endl;
+    }
+    context_death_count_file.close();
+}
+
+// ----------------------------------------------------------------------
+
 int main(int argc, char* argv[])
 {
     if (argc != 5) {
@@ -658,6 +752,7 @@ int main(int argc, char* argv[])
 
     string dgroups_filename( basename + "-DGROUPS.csv" );
     string dgroups_by_type_filename( basename + "-DGROUPS-BY-TYPE.csv" );
+    string context_death_count_filename( basename + "-CONTEXT-DCOUNT.csv" );
 
     string cycle_switch(argv[3]);
     bool cycle_flag = ((cycle_switch == "NOCYCLE") ? false : true);
@@ -668,6 +763,7 @@ int main(int argc, char* argv[])
         cout << "Enable OBJECT DEBUG." << endl;
         Heap.enableObjectDebug(); // default is no debug
     }
+
     cout << "Read names file..." << endl;
     ClassInfo::read_names_file(argv[1]);
 
@@ -693,19 +789,48 @@ int main(int argc, char* argv[])
         // Remember the key objects for non-cyclic death groups.
         set<ObjectId_t> dag_keys;
         deque<ObjectId_t> dag_all;
-        auto lfn = [](Object *ptr) -> unsigned int { return ptr->getId(); };
+        // Lambdas for utility
+        auto lfn = [](Object *ptr) -> unsigned int { return ((ptr) ? ptr->getId() : 0); };
+        auto ifNull = [](Object *ptr) -> bool { return (ptr == NULL); };
+
         for ( KeySet_t::iterator kiter = keyset.begin();
               kiter != keyset.end();
               kiter++ ) {
             Object *optr = kiter->first;
-            set< Object * > *sptr = kiter->second;
             ObjectId_t objId = (optr ? optr->getId() : 0); 
             dag_keys.insert(objId);
             dag_all.push_back(objId);
-            std::transform( sptr->cbegin(),
-                            sptr->cend(),
-                            dag_all.begin(),
-                            lfn );
+            set< Object * > *sptr = kiter->second;
+            if (!sptr) {
+                continue; // TODO
+            }
+            deque< Object * > deqtmp;
+            // std::copy( sptr->begin(), sptr->end(), vptr.begin() );
+            // std::remove_if( deqtmp.begin(), deqtmp.end(), ifNull );
+            for ( set< Object * >::iterator setit = sptr->begin();
+                  setit != sptr->end();
+                  setit++ ) {
+                if (*setit) {
+                    deqtmp.push_back( *setit );
+                }
+            }
+            if (deqtmp.size() > 0) {
+                // TODO Not sure why this transform isn't working like the for loop.
+                // Not too important, but kind of curious as to how I'm not using
+                // std::transform properly.
+                // TODO
+                // std::transform( deqtmp.cbegin(),
+                //                 deqtmp.cend(),
+                //                 dag_all.begin(),
+                //                 lfn );
+                for ( deque< Object * >::iterator dqit = deqtmp.begin();
+                      dqit != deqtmp.end();
+                      dqit++ ) {
+                    if (*dqit) {
+                        dag_all.push_back( (*dqit)->getId() );
+                    }
+                }
+            }
         }
         set<ObjectId_t> dag_all_set( dag_all.cbegin(), dag_all.cend() );
 
@@ -742,6 +867,8 @@ int main(int argc, char* argv[])
                             dag_keys,
                             dag_all_set,
                             all_keys );
+        output_context_summary( context_death_count_filename,
+                                Exec );
         // TODO: What next? 
         // Output cycles
         set<int> node_set;
@@ -751,9 +878,6 @@ int main(int argc, char* argv[])
         // Output all edges
         unsigned int total_edges = output_edges( Heap,
                                                  edgeinfo_filename );
-#if 0
-        // TODO DELETE
-#endif // 0
     } else {
         cout << "NOCYCLE chosen. Skipping cycle detection." << endl;
     }

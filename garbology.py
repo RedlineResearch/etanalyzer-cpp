@@ -87,6 +87,9 @@ def get_index( field = None ):
                  "LASTUP" : 5,
                  "STATTR" : 6,
                  "GARBTYPE" : 7,
+                 "CONTEXT1" : 8,
+                 "CONTEXT2" : 9,
+                 "ALLOCSITE" : 10,
         }[field]
     except:
         return None
@@ -103,9 +106,9 @@ def get_key_objects( idlist = [],
         rec = oir.get_record( objId )
         assert( rec != None )
         if is_key_object(rec):
-            print "DBG: [%d] keyobj: %s is %s" % ( objId,
-                                                   oir.get_type_using_typeId(rec[ get_index("TYPE") ]),
-                                                   rec[ get_index("GARBTYPE") ] )
+            # print "DBG: [%d] keyobj: %s is %s" % ( objId,
+            #                                        oir.get_type_using_typeId(rec[ get_index("TYPE") ]),
+            #                                        rec[ get_index("GARBTYPE") ] )
             result.append(rec)
     return list(set(result))
 
@@ -137,7 +140,7 @@ class ObjectInfoReader:
         start = False
         done = False
         object_info = self.objdict
-        with get_trace_fp(self.objinfo_file_name) as fp:
+        with get_trace_fp( self.objinfo_file_name, self.logger ) as fp:
             for line in fp:
                 line = line.rstrip()
                 if line.find("---------------[ OBJECT INFO") == 0:
@@ -219,6 +222,13 @@ class ObjectInfoReader:
         return (self.objdict[objId][get_index("DIEDBY")] == "S") if (objId in self.objdict) \
             else False
 
+    def group_died_by_stack( self, grouplist = [] ):
+        for obj in grouplist:
+            # Shortcircuits the evaluation
+            if not self.died_by_stack(obj):
+                return False
+        return True
+
     def verify_died_by( self,
                         grouplist = [],
                         died_by = None,
@@ -238,6 +248,16 @@ class ObjectInfoReader:
                                        (died_by, rec[ get_index("DIEDBY") ]) )
                     flag = False
         return flag
+
+    def get_death_context( self, objId = 0 ):
+        rec = self.get_record(objId)
+        first = rec[ get_index("CONTEXT1") ] if rec != None else "NONE"
+        second = rec[ get_index("CONTEXT2") ] if rec != None else "NONE"
+        return (first, second)
+
+    def get_allocsite( self, objId = 0 ):
+        rec = self.get_record(objId)
+        return rec[ get_index("ALLOCSITE") ] if rec != None else "NONE"
 
 
 # ----------------------------------------------------------------------------- 
@@ -263,7 +283,7 @@ class EdgeInfoReader:
         start = False
         done = False
         edge_info = self.edgedict
-        with get_trace_fp(self.edgeinfo_file_name) as fp:
+        with get_trace_fp( self.edgeinfo_file_name, self.logger ) as fp:
             for line in fp:
                 line = line.rstrip()
                 if line.find("---------------[ EDGE INFO") == 0:
@@ -536,6 +556,121 @@ class DeathGroupsReader:
 
 # ----------------------------------------------------------------------------- 
 # ----------------------------------------------------------------------------- 
+class ContextCountReader:
+    def __init__( self,
+                  context_file = None,
+                  logger = None,
+                  update_missing = False ):
+        # TODO: Choice of loading from text file or from pickle
+        # 
+        self.context_file_name = context_file
+        # Context to counts and attribute record dictionary
+        self.contextdict = {} # (funcsrc, functgt) -> (count objects, count death groups) 
+        self.logger = logger
+        self.update_missing = update_missing
+        self.missing_set = set([])
+
+    def read_context_file( self ):
+        start = False
+        done = False
+        with get_trace_fp( self.context_file_name, self.logger ) as fp:
+            for line in fp:
+                line = line.rstrip()
+                rowtmp = line.split(",")
+                # TODO HERE TODO 
+                # 0 - function 1
+                # 1 - function 2
+                # 2 - number of objects that died at (function1, function2)
+                # Note that it's either:
+                # * func1 called func2
+                # * func1 returned to func2
+                src = rowtmp[0]
+                tgt = rowtmp[1]
+                tmpcount = int(rowtmp[2])
+                self.contextdict[tuple([src, tgt])] = (tmpcount, 0)
+                # Note that the 0 means it has to be updated
+                # when key objects are processed later
+                # TODO Don't need a src <-> mapping?
+                # TODO self.srcdict[src].add( tgt )
+                # TODO self.tgtdict[tgt].add( src )
+
+    def context_iteritems( self ):
+        return self.contextdict.iteritems()
+
+    def update_key_count( self,
+                          context_pair = (None, None),
+                          key_count = 0 ):
+        cpair = context_pair
+        if cpair[0] == None or cpair[1] == None:
+            self.logger.error("Context pair is None.")
+            return None
+        cdict = self.contextdict
+        if cpair not in cdict:
+            self.logger.error("Context pair[ %s ] not found." % str(cpair))
+            # Update the missing if we're supposed to
+            if not self.update_missing:
+                return False
+            cdict[cpair] = (1, key_count)
+            self.missing_set.add( cpair )
+            return False
+        else:
+            self.update_key_count_no_check( cpair,
+                                            key_count )
+            return True
+    
+    def update_key_count_no_check( self,
+                                   cpair = (None, None),
+                                   key_count = 0 ):
+        cdict = self.contextdict
+        rec = cdict[cpair]
+        if cpair in self.missing_set:
+            # The context was missing, so we also need to update the total count.
+            cdict[cpair] = ((rec[0] + 1), key_count)
+        else:
+            cdict[cpair] = (rec[0], key_count)
+
+    def inc_key_count( self,
+                       context_pair = (None, None) ):
+        cpair = context_pair
+        if cpair[0] == None or cpair[1] == None:
+            self.logger.error("Context pair is None.")
+            return None
+        cdict = self.contextdict
+
+        if cpair not in cdict:
+            self.logger.error("Context pair[ %s ] not found." % str(cpair))
+            # Update the missing if we're supposed to
+            if not self.update_missing:
+                return False
+            cdict[cpair] = (1, key_count)
+            self.missing_set.add( cpair )
+            return False
+        else:
+            self.inc_key_count_no_check( cpair )
+            return True
+    
+    def inc_key_count_no_check( self,
+                                cpair = (None, None) ):
+        cdict = self.contextdict
+        rec = cdict[cpair]
+        if cpair in self.missing_set:
+            cdict[cpair] = ((rec[0] + 1), (rec[1] + 1))
+        else:
+            cdict[cpair] = (rec[0], (rec[1] + 1))
+
+    def print_out( self, numlines = 30 ):
+        pass
+        # TODO
+        # count = 0
+        # for edge, timepaid in self.edgedict.iteritems():
+        #     print "(%d, %d) -> (%d, %d)" % (edge[0], edge[1], timepaid[0], timepaid[1])
+        #     count += 1
+        #     if numlines != 0 and count >= numlines:
+        #         break
+
+
+# ----------------------------------------------------------------------------- 
+# ----------------------------------------------------------------------------- 
 #
 #  PRIVATE FUNCTIONS
 #
@@ -649,7 +784,8 @@ def main():
                          debugflag = debugflag,
                          verbose = args.verbose )
 
-__all__ = [ "EdgeInfoReader", "GarbologyConfig", "ObjectInfoReader", "is_key_object", "get_index", ]
+__all__ = [ "EdgeInfoReader", "GarbologyConfig", "ObjectInfoReader",
+            "ContextCountReader", "is_key_object", "get_index", ]
 
 if __name__ == "__main__":
     main()
