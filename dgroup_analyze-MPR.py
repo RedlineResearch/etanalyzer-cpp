@@ -21,7 +21,7 @@ from multiprocessing import Process
 # TODO from itertools import combinations
 
 from mypytools import mean, stdev, variance
-from garbology import EdgeInfoReader, ObjectInfoReader, DeathGroupsReader, get_index
+from garbology import EdgeInfoReader, ObjectInfoReader, DeathGroupsReader, ContextCountReader, get_index
 
 pp = pprint.PrettyPrinter( indent = 4 )
 
@@ -598,6 +598,7 @@ def update_keytype_dict( ktdict = {},
                          objType = "",
                          group = [],
                          objinfo = None,
+                         contextinfo = None,
                          group_types = frozenset([]) ):
 
     assert( objId >= 0 )
@@ -622,6 +623,15 @@ def update_keytype_dict( ktdict = {},
                             "is_array": is_array(objType),
                             "group_types" : Counter( [ group_types ] ),
                             "true_key_count" : 1 if true_key_flag else 0, }
+    # Also update the context information
+    cpair = objinfo.get_death_context( objId )
+    result = contextinfo.inc_key_count( context_pair = cpair )
+    if result == None:
+        return False
+    elif not result:
+        sys.stdout.write( "ERR: objId[%d] -> %s" % (objId, str(cpair)) )
+        return False
+    return True
 
 ONEKEY = 1
 MULTKEY = 2
@@ -636,6 +646,8 @@ def get_key_object_types( gnum = None,
                           dgroups = None,
                           edgeinfo = None,
                           objinfo = None,
+                          contextinfo = None,
+                          contextresult = {},
                           logger = None,
                           ignore_died_at_end = True ):
     if gnum in dgroups.group2list:
@@ -648,6 +660,8 @@ def get_key_object_types( gnum = None,
     used_last_edge = False
     print " - grouplen: %d" % len(group)
     # Check to see if the key object is a primitive type array
+    total_cc = 0
+    err_cc = 0
     if all_primitive_types( group, objinfo ):
         print " - all primitive types."
         # All are a group unto themselves
@@ -655,13 +669,18 @@ def get_key_object_types( gnum = None,
             if objinfo.died_at_end(obj):
                 continue
             tmptype = objinfo.get_type(obj)
-            update_keytype_dict( ktdict = ktdict,
-                                 objId = obj,
-                                 objType = tmptype,
-                                 group = [ obj ],
-                                 objinfo = objinfo,
-                                 group_types = frozenset([]) )
+            result = update_keytype_dict( ktdict = ktdict,
+                                          objId = obj,
+                                          objType = tmptype,
+                                          group = [ obj ],
+                                          objinfo = objinfo,
+                                          contextinfo = contextinfo,
+                                          group_types = frozenset([]) )
+            total_cc += 1
+            err_cc = ((err_cc + 1) if (not result) else err_cc)
         # print "BY STACK - all primitive" # TODO Make into a logging statement
+        contextresult["total"] = contextresult["total"] + total_cc
+        contextresult["error"] = contextresult["error"] + err_cc
         return DIEDBYSTACK # TODO This does not seem right.
     if len(key_objects) == 1:
         # Found key objects
@@ -753,12 +772,15 @@ def get_key_object_types( gnum = None,
                              keyId = tgt,
                              objinfo = objinfo,
                              logger = logger )
-    update_keytype_dict( ktdict = ktdict,
-                         objId = tgt,
-                         objType = mytype,
-                         group = group,
-                         objinfo = objinfo,
-                         group_types = group_types )
+    result = update_keytype_dict( ktdict = ktdict,
+                                  objId = tgt,
+                                  objType = mytype,
+                                  group = group,
+                                  objinfo = objinfo,
+                                  contextinfo = contextinfo,
+                                  group_types = group_types )
+    total_cc += 1
+    err_cc = ((err_cc + 1) if not result else err_cc)
     # This looks like all debug.
     # TODO print "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"
     # TODO print "%s:" % mytype
@@ -776,6 +798,8 @@ def get_key_object_types( gnum = None,
     # TODO         print t,
     # TODO print
     # TODO print "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"
+    contextresult["total"] = contextresult["total"] + total_cc
+    contextresult["error"] = contextresult["error"] + err_cc
     return ONEKEY
 
 def check_host( benchmark = None,
@@ -849,6 +873,7 @@ def death_group_analyze( bmark = None,
                          cycle_cpp_dir = "",
                          main_config = {},
                          dgroups_filename = "",
+                         contextcount_config = {},
                          objectinfo_config = {},
                          edge_config = {},
                          host_config = {},
@@ -864,9 +889,23 @@ def death_group_analyze( bmark = None,
     # TODO
     # typedict = {}
     # rev_typedict = {}
-    objectinfo_path = os.path.join(cycle_cpp_dir, objectinfo_config[bmark])
-    objinfo = ObjectInfoReader( objectinfo_path, logger = logger )
     # ----------------------------------------
+    contextcount_path = os.path.join(cycle_cpp_dir, contextcount_config[bmark])
+    assert(os.path.isfile( contextcount_path ))
+    contextinfo = ContextCountReader( contextcount_path,
+                                      logger = logger,
+                                      update_missing = True )
+    logger.debug( "[%s]: Reading CONTEXT-DCOUNT file..." % bmark )
+    sys.stdout.write(  "[%s]: Reading CONTEXT-DCOUNT file...\n" % bmark )
+    oread_start = time.clock()
+    contextinfo.read_context_file()
+    oread_end = time.clock()
+    logger.debug( "[%s]: DONE: %f" % (bmark, (oread_end - oread_start)) )
+    sys.stdout.write(  "[%s]: DONE: %f\n" % (bmark, (oread_end - oread_start)) )
+    # ----------------------------------------
+    objectinfo_path = os.path.join(cycle_cpp_dir, objectinfo_config[bmark])
+    assert(os.path.isfile( objectinfo_path ))
+    objinfo = ObjectInfoReader( objectinfo_path, logger = logger )
     logger.debug( "[%s]: Reading OBJECTINFO file..." % bmark )
     sys.stdout.write(  "[%s]: Reading OBJECTINFO file...\n" % bmark )
     oread_start = time.clock()
@@ -878,6 +917,7 @@ def death_group_analyze( bmark = None,
     logger.debug( "[%s]: Reading EDGEINFO file..." % bmark )
     sys.stdout.write(  "[%s]: Reading EDGEINFO file...\n" % bmark )
     edgeinfo_path = os.path.join( cycle_cpp_dir, edge_config[bmark] )
+    assert(os.path.isfile( edgeinfo_path ))
     edgeinfo = EdgeInfoReader( edgeinfo_path, logger = logger )
     eread_start = time.clock()
     edgeinfo.read_edgeinfo_file()
@@ -889,6 +929,7 @@ def death_group_analyze( bmark = None,
     sys.stdout.write(  "[%s]: Reading DGROUPS:\n" % bmark )
     dgread_start = time.clock()
     abs_filename = os.path.join(cycle_cpp_dir, dgroups_filename)
+    assert(os.path.isfile( abs_filename ))
     dgroups = DeathGroupsReader( abs_filename, logger = logger )
     dgroups.read_dgroup_file( objinfo )
     dgroups.clean_deathgroups()
@@ -903,6 +944,7 @@ def death_group_analyze( bmark = None,
     debug_count = 0
     debug_tries = 0
     died_at_end_count = 0
+    contextresult = { "total" : 0, "error" : 0 }
     for gnum in dgroups.group2list.keys():
         print "-------[ Group num: %d ]------------------------------------------------" % gnum
         result = get_key_object_types( gnum = gnum,
@@ -910,6 +952,8 @@ def death_group_analyze( bmark = None,
                                        dgroups = dgroups,
                                        edgeinfo = edgeinfo,
                                        objinfo = objinfo,
+                                       contextinfo = contextinfo,
+                                       contextresult = contextresult,
                                        logger = logger )
         print "-------[ END group num: %d ]--------------------------------------------" % gnum
 
@@ -922,8 +966,12 @@ def death_group_analyze( bmark = None,
     sys.stdout.write(  "[%s]: Tries: %d\n" % (bmark, debug_tries) )
     sys.stdout.write(  "[%s]: Error: %d\n" % (bmark, debug_count) )
     sys.stdout.write(  "[%s]: Died at end: %d\n" % (bmark, died_at_end_count) )
+    sys.stdout.write( "-------[ CONTEXT RESULTS ]----------------------------------------------\n" )
+    sys.stdout.write( "Total: %d\n" % contextresult["total"] )
+    sys.stdout.write( "Error: %d\n" % contextresult["error"] )
+    sys.stdout.write( "-------[ END CONTEXT RESULTS ]------------------------------------------\n" )
     # ----------------------------------------
-    # Output target filename
+    # Output death groups statistics by type
     outfile = os.path.join( workdir, "%s-DGROUPS-TYPES.csv" % bmark )
     with open( outfile, "wb" ) as fptr:
         writer = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
@@ -956,6 +1004,7 @@ def main_process( output = None,
                   global_config = {},
                   edge_config = {},
                   edgeinfo_config = {},
+                  contextcount_config = {},
                   objectinfo_config = {},
                   summary_config = {},
                   host_config = {},
@@ -1014,6 +1063,7 @@ def main_process( output = None,
                               cycle_cpp_dir,
                               main_config,
                               filename,
+                              contextcount_config,
                               objectinfo_config,
                               edge_config,
                               host_config,
@@ -1093,6 +1143,7 @@ def process_config( args ):
     edge_config = config_section_map( "edgeinfo", config_parser )
     edgeinfo_config = config_section_map( "edgeinfo", config_parser )
     objectinfo_config = config_section_map( "objectinfo", config_parser )
+    contextcount_config = config_section_map( "contextcount", config_parser )
     summary_config = config_section_map( "summary_cpp", config_parser )
     host_config = config_section_map( "hosts", config_parser )
     worklist_config = config_section_map( "dgroups-worklist", config_parser )
@@ -1102,6 +1153,7 @@ def process_config( args ):
              "edge" : edge_config, # TODO is this still needed? TODO
              "edgeinfo" : edgeinfo_config,
              "objectinfo" : objectinfo_config,
+             "contextcount" : contextcount_config,
              "summary" : summary_config,
              "host" : host_config,
              "worklist" : worklist_config }
@@ -1132,6 +1184,7 @@ def main():
     main_config = configdict["main"]
     edge_config = configdict["edge"]
     edgeinfo_config = configdict["edgeinfo"]
+    contextcount_config = configdict["contextcount"]
     objectinfo_config = configdict["objectinfo"]
     summary_config = configdict["summary"]
     host_config = process_host_config( configdict["host"] )
@@ -1152,6 +1205,7 @@ def main():
                          etanalyze_config = etanalyze_config,
                          edge_config = edge_config,
                          edgeinfo_config = edgeinfo_config,
+                         contextcount_config = contextcount_config,
                          objectinfo_config = objectinfo_config,
                          summary_config = summary_config,
                          global_config = global_config,
