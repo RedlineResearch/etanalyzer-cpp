@@ -678,7 +678,7 @@ class ContextCountReader:
             if not self.update_missing:
                 return False
             cdict[cpair] = (1, key_count)
-            self.con_typedict = Counter()
+            self.con_typedict[cpair] = Counter()
             self.missing_set.add( cpair )
         else:
             self.inc_key_count_no_check( cpair )
