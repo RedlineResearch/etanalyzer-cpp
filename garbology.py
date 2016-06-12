@@ -10,7 +10,7 @@ import ConfigParser
 import csv
 import datetime
 import subprocess
-from collections import defaultdict
+from collections import defaultdict, Counter
 
 pp = pprint.PrettyPrinter( indent = 4 )
 
@@ -575,6 +575,7 @@ class ContextCountReader:
         self.context_file_name = context_file
         # Context to counts and attribute record dictionary
         self.contextdict = {} # (funcsrc, functgt) -> (count objects, count death groups) 
+        self.con_typedict = Counter() # (funcsrc, functgt) -> Counter of key object types
         self.logger = logger
         self.update_missing = update_missing
         self.missing_set = set([])
@@ -616,11 +617,14 @@ class ContextCountReader:
                    context_pair = (None, None) ):
         cpair = context_pair
         if cpair[0] == None or cpair[1] == None:
+            # Invalid context pair.
             self.logger.error("Context pair is None.")
             return False
         cdict = self.contextdict
 
         if cpair not in cdict:
+            # Not found, initialize. Key count (second element)
+            # is updated later.
             cdict[cpair] = (1, 0)
         else:
             old = cdict[cpair]
@@ -660,13 +664,14 @@ class ContextCountReader:
             cdict[cpair] = (rec[0], key_count)
 
     def inc_key_count( self,
-                       context_pair = (None, None) ):
+                       context_pair = (None, None),
+                       objType = "NONE" ):
         cpair = context_pair
         if cpair[0] == None or cpair[1] == None:
             self.logger.error("Context pair is None.")
             return None
         cdict = self.contextdict
-
+        result = False
         if cpair not in cdict:
             self.logger.error("Context pair[ %s ] not found." % str(cpair))
             # Update the missing if we're supposed to
@@ -674,10 +679,11 @@ class ContextCountReader:
                 return False
             cdict[cpair] = (1, key_count)
             self.missing_set.add( cpair )
-            return False
         else:
             self.inc_key_count_no_check( cpair )
-            return True
+            result = True
+        con_typedict.update( [ objType ] )
+        return result
     
     def inc_key_count_no_check( self,
                                 cpair = (None, None) ):
@@ -695,6 +701,10 @@ class ContextCountReader:
             kcount = rec[1]
             if kcount == 0:
                 cdict[cpair] = (rec[0], rec[0])
+
+    def get_top( self, num = 5 ):
+        """Return the top 'num' key object types"""
+        return self.con_typedict.most_common(num)
 
     def print_out( self, numlines = 30 ):
         pass

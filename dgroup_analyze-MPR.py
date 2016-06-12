@@ -17,6 +17,7 @@ import time
 import socket
 from collections import defaultdict
 from multiprocessing import Process
+from itertools import repeat
 
 # TODO from itertools import combinations
 
@@ -625,7 +626,8 @@ def update_keytype_dict( ktdict = {},
                             "true_key_count" : 1 if true_key_flag else 0, }
     # Also update the context information
     cpair = objinfo.get_death_context( objId )
-    result = contextinfo.inc_key_count( context_pair = cpair )
+    result = contextinfo.inc_key_count( context_pair = cpair,
+                                        objType = objType )
     if result == None:
         return False
     elif not result:
@@ -1007,9 +1009,13 @@ def death_group_analyze( bmark = None,
     contextfile = os.path.join( workdir, "%s-CONTEXT-DCOUNT-KEY.csv" % bmark )
     with open( contextfile, "wb" ) as fptr:
         writer = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
-        writer.writerow( [ "funcsrc", "functarget", "total", "keyobject_count" ] )
+        writer.writerow( [ "funcsrc", "functarget", "total", "keyobject_count",
+                           "topclass1", "topclass2", "topclass3", "topclass4", "topclass5", ] )
         for cpair, rec in contextinfo.context_iteritems():
-            writer.writerow( [ cpair[0], cpair[1], rec[0], rec[1]] )
+            top5 = contextinfo.get_top(5)
+            if (len(top5) < 5):
+                top5 = top5.extend( repeat("NONE", times = (5 - len(top5))) )
+            writer.writerow( [ cpair[0], cpair[1], rec[0], rec[1]].extend(top5) )
 
     sys.stdout.write(  "-----[ %s DONE ]---------------------------------------------------------------\n" % bmark )
     logger.debug( "-----[ %s DONE ]---------------------------------------------------------------"
