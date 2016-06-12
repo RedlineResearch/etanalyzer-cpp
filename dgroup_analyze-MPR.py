@@ -1015,7 +1015,9 @@ def death_group_analyze( bmark = None,
             top5 = contextinfo.get_top(5)
             if (len(top5) < 5):
                 top5.extend( [ x for x in repeat("NONE", times = (5 - len(top5))) ] )
-            writer.writerow( [ cpair[0], cpair[1], rec[0], rec[1]].extend(top5) )
+            row = [ cpair[0], cpair[1], rec[0], rec[1]]
+            row.extend(top5)
+            writer.writerow( row )
 
     sys.stdout.write(  "-----[ %s DONE ]---------------------------------------------------------------\n" % bmark )
     logger.debug( "-----[ %s DONE ]---------------------------------------------------------------"
