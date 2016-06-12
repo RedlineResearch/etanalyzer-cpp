@@ -270,26 +270,21 @@ unsigned int read_trace_file(FILE* f)
                     obj = Heap.getObject(objId);
                     if (obj) {
                         unsigned int threadId = tokenizer.getInt(2);
-                        Thread *thread = Exec.getThread(threadId);
-                        // TODO // Get last event and object from last_map
-                        // TODO pair<LastEvent, Object *> last_pair = last_map.getLastEventAndObject( threadId );
-                        // TODO LastEvent last_event = last_pair.first;
-                        // TODO Object *last_object = last_pair.second;
-                        // TODO // Set the object fields
-                        // TODO obj->setLastEvent( last_event );
-                        // TODO obj->setLastObject( last_object );
-                        // TODO if (last_event == LastEvent::ROOT) {
-                        // TODO     obj->setDiedByStackFlag();
-                        // TODO } else if (last_event == LastEvent::UPDATE) {
-                        // TODO     obj->setDiedByHeapFlag();
-                        // TODO }
                         Heap.makeDead(obj, Exec.NowUp());
                         // Get the current method
                         Method *topMethod = NULL;
-                        if (thread) {
+                        ContextPair cpair;
+                        Thread *thread;
+                        if (threadId > 0) {
+                            thread = Exec.getThread(threadId);
                             // Update counters in ExecState for map of
                             //   Object * to simple context pair
-                            ContextPair cpair( thread->getContextPair() );
+                        } else {
+                            // No thread info. Get from ExecState
+                            thread = Exec.get_last_thread();
+                        }
+                        if (thread) {
+                            cpair = thread->getContextPair();
                             // DEBUG
                             // thread->debug_cpair( cpair, "death" );
                             // END DEBUG

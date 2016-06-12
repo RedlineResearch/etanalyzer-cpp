@@ -307,6 +307,7 @@ void ExecState::Call(Method* m, unsigned int threadid)
     Thread *t = getThread(threadid);
     if (t) {
         t->Call(m);
+        this->m_thread_stack.push_back(t);
     }
 }
 
@@ -314,6 +315,9 @@ void ExecState::Call(Method* m, unsigned int threadid)
 void ExecState::Return(Method* m, unsigned int threadid)
 {
     m_time++;
+    if (this->m_thread_stack.size() > 0) {
+        this->m_thread_stack.pop_back();
+    }
     getThread(threadid)->Return(m);
 }
 

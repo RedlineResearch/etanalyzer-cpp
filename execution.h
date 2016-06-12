@@ -28,6 +28,7 @@ typedef map<Object *, ContextPair> ObjectContextMap;
 
 
 typedef deque<Method *> MethodDeque;
+typedef deque<Thread *> ThreadDeque;
 typedef set<Object *> LocalVarSet;
 typedef deque<LocalVarSet *> LocalVarDeque;
 
@@ -208,6 +209,8 @@ class ExecState
         unsigned int m_uptime;
         // -- Map of Object pointer -> simple context pair
         ObjectContextMap m_obj2contextmap;
+        // Last method called
+        ThreadDeque m_thread_stack;
 
     public:
         ExecState(unsigned int kind)
@@ -216,14 +219,15 @@ class ExecState
             , m_time(0)
             , m_uptime(0)
             , m_ccountmap()
-            , m_obj2contextmap() {
+            , m_obj2contextmap()
+            , m_thread_stack() {
         }
 
         // -- Get the current time
         unsigned int TODONow() const { return m_time; }
 
         // -- Get the current update time
-        unsigned int NowUp() const { return m_uptime; }
+        unsigned int NowUp() const { return m_uptime + m_time; }
 
         // -- Set the current update time
         inline unsigned int SetUpdateTime( unsigned int newutime ) {
@@ -275,6 +279,13 @@ class ExecState
         ContextCountMap m_ccountmap;
         ContextCountMap::iterator begin_ccountmap() { return this->m_ccountmap.begin(); }
         ContextCountMap::iterator end_ccountmap() { return this->m_ccountmap.end(); }
+
+        // Get last global thread called
+        Thread *get_last_thread() const {
+            return ( (this->m_thread_stack.size() > 0)
+                     ? this->m_thread_stack.back()
+                     : NULL );
+        }
 
     private:
         void debug_cpair( ContextPair cpair,
