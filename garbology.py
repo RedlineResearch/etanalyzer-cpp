@@ -682,7 +682,7 @@ class ContextCountReader:
         else:
             self.inc_key_count_no_check( cpair )
             result = True
-        con_typedict.update( [ objType ] )
+        self.con_typedict.update( [ objType ] )
         return result
     
     def inc_key_count_no_check( self,
