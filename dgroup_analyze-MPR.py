@@ -1012,7 +1012,7 @@ def death_group_analyze( bmark = None,
         writer.writerow( [ "funcsrc", "functarget", "total", "keyobject_count",
                            "topclass1", "topclass2", "topclass3", "topclass4", "topclass5", ] )
         for cpair, rec in contextinfo.context_iteritems():
-            top5 = contextinfo.get_top(5)
+            top5 = contextinfo.get_top(cpair, 5)
             if (len(top5) < 5):
                 top5.extend( [ x for x in repeat("NONE", times = (5 - len(top5))) ] )
             row = [ cpair[0], cpair[1], rec[0], rec[1]]

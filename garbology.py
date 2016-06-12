@@ -575,7 +575,7 @@ class ContextCountReader:
         self.context_file_name = context_file
         # Context to counts and attribute record dictionary
         self.contextdict = {} # (funcsrc, functgt) -> (count objects, count death groups) 
-        self.con_typedict = Counter() # (funcsrc, functgt) -> Counter of key object types
+        self.con_typedict = {} # (funcsrc, functgt) -> Counter of key object types
         self.logger = logger
         self.update_missing = update_missing
         self.missing_set = set([])
@@ -682,7 +682,7 @@ class ContextCountReader:
         else:
             self.inc_key_count_no_check( cpair )
             result = True
-        self.con_typedict.update( [ objType ] )
+        self.con_typedict[cpair].update( [ objType ] )
         return result
     
     def inc_key_count_no_check( self,
@@ -702,9 +702,12 @@ class ContextCountReader:
             if kcount == 0:
                 cdict[cpair] = (rec[0], rec[0])
 
-    def get_top( self, num = 5 ):
+    def get_top( self,
+                 cpair = None,
+                 num = 5 ):
         """Return the top 'num' key object types"""
-        return self.con_typedict.most_common(num)
+        return self.con_typedict[cpair].most_common(num) if cpair != None \
+            else [ "NONE" ] * num
 
     def print_out( self, numlines = 30 ):
         pass
