@@ -575,7 +575,7 @@ class ContextCountReader:
         self.context_file_name = context_file
         # Context to counts and attribute record dictionary
         self.contextdict = {} # (funcsrc, functgt) -> (count objects, count death groups) 
-        self.con_typedict = {} # (funcsrc, functgt) -> Counter of key object types
+        self.con_typedict = defaultdict( Counter ) # (funcsrc, functgt) -> Counter of key object types
         self.logger = logger
         self.update_missing = update_missing
         self.missing_set = set([])
@@ -678,7 +678,6 @@ class ContextCountReader:
             if not self.update_missing:
                 return False
             cdict[cpair] = (1, key_count)
-            self.con_typedict[cpair] = Counter()
             self.missing_set.add( cpair )
         else:
             self.inc_key_count_no_check( cpair )
