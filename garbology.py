@@ -577,6 +577,7 @@ class ContextCountReader:
         self.contextdict = {} # (funcsrc, functgt) -> (count objects, count death groups) 
         self.con_typedict = defaultdict( Counter ) # (funcsrc, functgt) -> Counter of key object types
         self.all_typedict = defaultdict( Counter ) # (funcsrc, functgt) -> Counter of all types
+        self.stack_counter = Counter() # (funcsrc, functgt) -> count of stack objects
         self.logger = logger
         self.update_missing = update_missing
         self.missing_set = set([])
@@ -586,7 +587,8 @@ class ContextCountReader:
         oi = object_info
         for objId, rec in oi.iterrecs():
             self.inc_count( context_pair = oi.get_death_context_record(rec),
-                            objTypeId = rec[get_index( "TYPE" )] )
+                            objTypeId = rec[get_index( "TYPE" )],
+                            by_stack = (rec[get_index("DIEDBY")] == 'S') )
 
     def read_context_file( self ):
         start = False
@@ -617,7 +619,8 @@ class ContextCountReader:
 
     def inc_count( self,
                    context_pair = (None, None),
-                   objTypeId = 0 ):
+                   objTypeId = 0,
+                   by_stack = False ):
         cpair = context_pair
         if cpair[0] == None or cpair[1] == None:
             # Invalid context pair.
@@ -633,6 +636,8 @@ class ContextCountReader:
             old = cdict[cpair]
             cdict[cpair] = ((old[0] + 1), 0)
         self.all_typedict[cpair].update( [ objTypeId ] )
+        if by_stack:
+            self.stack_counter.update( [ cpair ] )
         return True
     
     def update_key_count( self,
@@ -717,6 +722,12 @@ class ContextCountReader:
         """Return the top 'num' key object types"""
         return self.con_typedict[cpair].most_common(num) if cpair != None \
             else [ "NONE" ] * num
+
+    def get_stack_count( self,
+                         cpair = None ):
+        if cpair == None:
+            return 0
+        return self.stack_counter[cpair] if cpair in self.stack_counter else 0
 
     def print_out( self, numlines = 30 ):
         pass

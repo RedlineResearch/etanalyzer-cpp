@@ -1009,13 +1009,14 @@ def death_group_analyze( bmark = None,
     contextfile = os.path.join( workdir, "%s-CONTEXT-DCOUNT-KEY.csv" % bmark )
     with open( contextfile, "wb" ) as fptr:
         writer = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
-        writer.writerow( [ "funcsrc", "functarget", "total", "keyobject_count",
+        writer.writerow( [ "funcsrc", "functarget", "total", "keyobject_count", "died_by_stack",
                            "topclass1", "topclass2", "topclass3", "topclass4", "topclass5", ] )
         for cpair, rec in contextinfo.context_iteritems():
             top5 = contextinfo.get_top(cpair, 5)
+            bystack = contextinfo.get_stack_count( cpair )
             if (len(top5) < 5):
                 top5.extend( [ x for x in repeat("NONE", times = (5 - len(top5))) ] )
-            row = [ cpair[0], cpair[1], rec[0], rec[1]]
+            row = [ cpair[0], cpair[1], rec[0], rec[1], bystack ]
             row.extend(top5)
             writer.writerow( row )
 
