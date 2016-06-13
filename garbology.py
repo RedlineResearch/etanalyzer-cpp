@@ -576,6 +576,7 @@ class ContextCountReader:
         # Context to counts and attribute record dictionary
         self.contextdict = {} # (funcsrc, functgt) -> (count objects, count death groups) 
         self.con_typedict = defaultdict( Counter ) # (funcsrc, functgt) -> Counter of key object types
+        self.all_typedict = defaultdict( Counter ) # (funcsrc, functgt) -> Counter of all types
         self.logger = logger
         self.update_missing = update_missing
         self.missing_set = set([])
@@ -584,7 +585,8 @@ class ContextCountReader:
                              object_info = None ):
         oi = object_info
         for objId, rec in oi.iterrecs():
-            self.inc_count( context_pair = oi.get_death_context_record(rec) )
+            self.inc_count( context_pair = oi.get_death_context_record(rec),
+                            objTypeId = rec[get_index( "TYPE" )] )
 
     def read_context_file( self ):
         start = False
@@ -614,7 +616,8 @@ class ContextCountReader:
         return self.contextdict.iteritems()
 
     def inc_count( self,
-                   context_pair = (None, None) ):
+                   context_pair = (None, None),
+                   objTypeId = 0 ):
         cpair = context_pair
         if cpair[0] == None or cpair[1] == None:
             # Invalid context pair.
@@ -629,6 +632,7 @@ class ContextCountReader:
         else:
             old = cdict[cpair]
             cdict[cpair] = ((old[0] + 1), 0)
+        self.all_typedict[cpair].update( [ objTypeId ] )
         return True
     
     def update_key_count( self,
@@ -694,13 +698,18 @@ class ContextCountReader:
         else:
             cdict[cpair] = (rec[0], (rec[1] + 1))
 
-    def fix_counts( self ):
+    def fix_counts( self,
+                    objectinfo = None ):
+        oi = objectinfo
         cdict = self.contextdict
         for cpair in cdict.keys():
             rec = cdict[cpair]
             kcount = rec[1]
             if kcount == 0:
                 cdict[cpair] = (rec[0], rec[0])
+                for typeId, count in self.all_typedict[cpair].iteritems():
+                    self.con_typedict[cpair][ oi.get_type_using_typeId(typeId) ] = count
+
 
     def get_top( self,
                  cpair = None,
