@@ -969,7 +969,7 @@ def death_group_analyze( bmark = None,
                                        contextresult = contextresult,
                                        logger = logger )
         print "-------[ END group num: %d ]--------------------------------------------" % gnum
-    contextinfo.fix_counts()
+    contextinfo.fix_counts( objinfo )
     # ----------------------------------------
     logger.debug( "[%s]: Total: %d" % (bmark, len(dgroups.group2list)) )
     logger.debug( "[%s]: Tries: %d" % (bmark, debug_tries) )
