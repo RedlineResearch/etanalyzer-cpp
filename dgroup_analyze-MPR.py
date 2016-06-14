@@ -1016,15 +1016,15 @@ def death_group_analyze( bmark = None,
             # max_group_size = ktdict[]
             if (len(top5) < 5):
                 top5.extend( [ x for x in repeat("NONE", times = (5 - len(top5))) ] )
-            maxlist = []
-            for x in top5:
-                if (x in ktdict) and (x != "NONE"):
-                    maxlist.append( ktdict[x]["max"] )
-                elif x != "NONE":
-                    maxlist.append( 1 )
-                else:
-                    maxlist.append( 0 )
-            top5 = zip(top5, maxlist)
+            # maxlist = []
+            # for x in top5:
+            #     if (x in ktdict) and (x != "NONE"):
+            #         maxlist.append( ktdict[x]["max"] )
+            #     elif x != "NONE":
+            #         maxlist.append( 1 )
+            #     else:
+            #         maxlist.append( 0 )
+            # top5 = zip(top5, maxlist)
             row = [ cpair[0], cpair[1], rec[0], rec[1], ]
             row.extend(top5)
             writer.writerow( row )
