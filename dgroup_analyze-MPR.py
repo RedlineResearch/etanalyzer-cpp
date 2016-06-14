@@ -1009,14 +1009,23 @@ def death_group_analyze( bmark = None,
     contextfile = os.path.join( workdir, "%s-CONTEXT-DCOUNT-KEY.csv" % bmark )
     with open( contextfile, "wb" ) as fptr:
         writer = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
-        writer.writerow( [ "funcsrc", "functarget", "total", "keyobject_count", "died_by_stack",
+        writer.writerow( [ "funcsrc", "functarget", "total", "keyobject_count",
                            "topclass1", "topclass2", "topclass3", "topclass4", "topclass5", ] )
         for cpair, rec in contextinfo.context_iteritems():
             top5 = contextinfo.get_top(cpair, 5)
-            bystack = contextinfo.get_stack_count( cpair )
+            # max_group_size = ktdict[]
             if (len(top5) < 5):
-                top5.extend( [ x for x in repeat("NONE", times = (5 - len(top5))) ] )
-            row = [ cpair[0], cpair[1], rec[0], rec[1], bystack ]
+                top5.extend( [ x[0] for x in repeat("NONE", times = (5 - len(top5))) ] )
+            maxlist = []
+            for x in top5:
+                if (x in ktdict) and (x != "NONE"):
+                    maxlist.append( ktdict[x]["max"] )
+                elif x != "NONE":
+                    maxlist.append( 1 )
+                else:
+                    maxlist.append( 0 )
+            top5 = zip(top5, maxlist)
+            row = [ cpair[0], cpair[1], rec[0], rec[1], ]
             row.extend(top5)
             writer.writerow( row )
 
