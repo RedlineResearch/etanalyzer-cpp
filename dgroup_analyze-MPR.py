@@ -1012,10 +1012,10 @@ def death_group_analyze( bmark = None,
         writer.writerow( [ "funcsrc", "functarget", "total", "keyobject_count",
                            "topclass1", "topclass2", "topclass3", "topclass4", "topclass5", ] )
         for cpair, rec in contextinfo.context_iteritems():
-            top5 = contextinfo.get_top(cpair, 5)
+            top5 = [ x[0] for x in contextinfo.get_top(cpair, 5) ]
             # max_group_size = ktdict[]
             if (len(top5) < 5):
-                top5.extend( [ x[0] for x in repeat("NONE", times = (5 - len(top5))) ] )
+                top5.extend( [ x for x in repeat("NONE", times = (5 - len(top5))) ] )
             maxlist = []
             for x in top5:
                 if (x in ktdict) and (x != "NONE"):
