@@ -10,7 +10,7 @@
 CCNode* CCNode::Call(Method* m)
 {
     CCNode* result = 0;
-    CCMap::iterator p = m_callees.find(m->getId());
+    auto p = m_callees.find(m->getId());
     if (p == m_callees.end()) {
         result = new CCNode( this, // parent
                              m );  // method
@@ -239,8 +239,9 @@ string Thread::stacktrace()
     if (m_kind == 2) {
         if ( ! m_methods.empty()) {
             stringstream ss;
-            MethodDeque::iterator p;
-            for (p = m_methods.begin(); p != m_methods.end(); p++) {
+            for ( auto p = m_methods.begin();
+                  p != m_methods.end();
+                  p++ ) {
                 Method* m =*p;
                 ss << m->info() << endl;
             }
@@ -270,7 +271,7 @@ bool Thread::isLocalVariable(Object *object)
 {
     if (!m_locals.empty()) {
         LocalVarSet *localvars = m_locals.back();
-        LocalVarSet::iterator it = localvars->find(object);
+        auto it = localvars->find(object);
         return (it != localvars->end());
     } else {
         cout << "[isLocalVariable] ERROR: Stack empty at ROOT event." << endl;
@@ -285,7 +286,7 @@ bool Thread::isLocalVariable(Object *object)
 Thread* ExecState::getThread(unsigned int threadid)
 {
     Thread* result = 0;
-    ThreadMap::iterator p = m_threads.find(threadid);
+    auto p = m_threads.find(threadid);
     if (p == m_threads.end()) {
         // -- Not there, make a new one
         result = new Thread( threadid,

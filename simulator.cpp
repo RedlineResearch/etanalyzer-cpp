@@ -285,9 +285,6 @@ unsigned int read_trace_file(FILE* f)
                         }
                         if (thread) {
                             cpair = thread->getContextPair();
-                            // DEBUG
-                            // thread->debug_cpair( cpair, "death" );
-                            // END DEBUG
                             Exec.UpdateObj2Context(obj, cpair);
                             topMethod = thread->TopMethod();
                             // Set the death site
@@ -394,24 +391,24 @@ void filter_edgelist( deque< pair<int,int> >& edgelist, deque< deque<int> >& cyc
 {
     set<int> nodes;
     deque< pair<int,int> > newlist;
-    for ( deque< deque<int> >::iterator it = cycle_list.begin();
+    for ( auto it = cycle_list.begin();
           it != cycle_list.end();
           ++it ) {
-        for ( deque<int>::iterator tmp = it->begin();
+        for ( auto tmp = it->begin();
               tmp != it->end();
               ++tmp ) {
             nodes.insert(*tmp);
         }
     }
-    for ( EdgeList::iterator it = edgelist.begin();
+    for ( auto it = edgelist.begin();
           it != edgelist.end();
           ++it ) {
-        set<int>::iterator first_it = nodes.find(it->first);
+        auto first_it = nodes.find(it->first);
         if (first_it == nodes.end()) {
             // First node not found, carry on.
             continue;
         }
-        set<int>::iterator second_it = nodes.find(it->second);
+        auto second_it = nodes.find(it->second);
         if (second_it != nodes.end()) {
             // Found both edge nodes in cycle set 'nodes'
             // Add the edge.
@@ -424,7 +421,7 @@ void filter_edgelist( deque< pair<int,int> >& edgelist, deque< deque<int> >& cyc
 unsigned int sumSize( std::set< Object * >& s )
 {
     unsigned int total = 0;
-    for ( std::set<Object *>::iterator it = s.begin();
+    for ( auto it = s.begin();
           it != s.end();
           ++it ) {
         total += (*it)->getSize();
@@ -441,7 +438,7 @@ void update_summaries( Object *key,
     string mytype = key->getType();
     unsigned gsize = tgtSet.size();
     // per group summary
-    GroupSum_t::iterator git = pgs.find(mytype);
+    auto git = pgs.find(mytype);
     if (git == pgs.end()) {
         pgs[mytype] = std::vector< Summary * >();
     }
@@ -450,7 +447,7 @@ void update_summaries( Object *key,
     // -- third parameter is number of groups which is simply 1 here.
     pgs[mytype].push_back(s);
     // type total summary
-    TypeTotalSum_t::iterator titer = tts.find(mytype);
+    auto titer = tts.find(mytype);
     if (titer == tts.end()) {
         Summary *t = new Summary( gsize, total_size, 1 );
         tts[mytype] = t;
@@ -460,7 +457,7 @@ void update_summaries( Object *key,
         tts[mytype]->num_groups++;
     }
     // size summary
-    SizeSum_t::iterator sit = ssum.find(gsize);
+    auto sit = ssum.find(gsize);
     if (sit == ssum.end()) {
         Summary *u = new Summary( gsize, total_size, 1 );
         ssum[gsize] = u;
@@ -476,7 +473,7 @@ void update_summary_from_keyset( KeySet_t &keyset,
                                  TypeTotalSum_t &type_total_summary,
                                  SizeSum_t &size_summary )
 {
-    for ( KeySet_t::iterator it = keyset.begin();
+    for ( auto it = keyset.begin();
           it != keyset.end();
           ++it ) {
         Object *key = it->first;
@@ -496,7 +493,7 @@ void output_size_summary( string &dgroups_filename,
 {
     ofstream dgroups_file(dgroups_filename);
     dgroups_file << "\"num_objects\",\"size_bytes\",\"num_groups\"" << endl;
-    for ( SizeSum_t::iterator it = size_summary.begin();
+    for ( auto it = size_summary.begin();
           it != size_summary.end();
           ++it ) {
         unsigned int gsize = it->first;
