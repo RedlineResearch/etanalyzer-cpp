@@ -981,6 +981,7 @@ def death_group_analyze( bmark = None,
     # ----------------------------------------
     # Output each death group
     dumpfile = os.path.join( workdir, "%s-DGROUPS-DUMP.csv" % bmark )
+    dumpall = (main_config["dumpall"] == "True")
     with open( dumpfile, "wb" ) as fptr:
         writer = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
         writer.writerow( [ "type", "time", "context1", "context2",
