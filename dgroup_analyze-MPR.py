@@ -600,9 +600,13 @@ def update_keytype_dict( ktdict = {},
                          group = [],
                          objinfo = None,
                          contextinfo = None,
-                         group_types = frozenset([]) ):
+                         group_types = frozenset([]),
+                         dumpall = False,
+                         writer = None ):
 
     assert( objId >= 0 )
+    if dumpall:
+        assert( writer != None )
     if objinfo.died_at_end(objId):
         return DIEDBYSTACK
     grouplen = len(group)
@@ -626,6 +630,16 @@ def update_keytype_dict( ktdict = {},
                             "true_key_count" : 1 if true_key_flag else 0, }
     # Also update the context information
     cpair = objinfo.get_death_context( objId )
+    # writer.writerow( [ "type", "time", "context1", "context2",
+    #                    "number of objects", "cause", ] )
+    if dumpall:
+        # Output type, call context, group size, time, cause
+        writer.writerow( [ mytype,
+                           objinfo.get_death_time(objId),
+                           cpair[0],
+                           cpair[1],
+                           grouplen,
+                           objinfo.get_death_cause(objId), ] )
     result = contextinfo.inc_key_count( context_pair = cpair,
                                         objType = objType )
     if result == None:
@@ -650,7 +664,9 @@ def get_key_object_types( gnum = None,
                           objinfo = None,
                           contextinfo = None,
                           contextresult = {},
+                          dumpall = False,
                           logger = None,
+                          writer = None,
                           ignore_died_at_end = True ):
     if gnum in dgroups.group2list:
         group = dgroups.group2list[gnum] 
@@ -677,7 +693,9 @@ def get_key_object_types( gnum = None,
                                           group = [ obj ],
                                           objinfo = objinfo,
                                           contextinfo = contextinfo,
-                                          group_types = frozenset([]) )
+                                          group_types = frozenset([]),
+                                          dumpall = dumpall,
+                                          writer = writer )
             total_cc += 1
             err_cc = ((err_cc + 1) if (not result) else err_cc)
         # print "BY STACK - all primitive" # TODO Make into a logging statement
@@ -780,7 +798,9 @@ def get_key_object_types( gnum = None,
                                   group = group,
                                   objinfo = objinfo,
                                   contextinfo = contextinfo,
-                                  group_types = group_types )
+                                  group_types = group_types,
+                                  dumpall = dumpall,
+                                  writer = writer )
     total_cc += 1
     err_cc = ((err_cc + 1) if not result else err_cc)
     # This looks like all debug.
@@ -958,17 +978,26 @@ def death_group_analyze( bmark = None,
     debug_tries = 0
     died_at_end_count = 0
     contextresult = { "total" : 0, "error" : 0 }
-    for gnum in dgroups.group2list.keys():
-        print "-------[ Group num: %d ]------------------------------------------------" % gnum
-        result = get_key_object_types( gnum = gnum,
-                                       ktdict = ktdict,
-                                       dgroups = dgroups,
-                                       edgeinfo = edgeinfo,
-                                       objinfo = objinfo,
-                                       contextinfo = contextinfo,
-                                       contextresult = contextresult,
-                                       logger = logger )
-        print "-------[ END group num: %d ]--------------------------------------------" % gnum
+    # ----------------------------------------
+    # Output each death group
+    dumpfile = os.path.join( workdir, "%s-DGROUPS-DUMP.csv" % bmark )
+    with open( dumpfile, "wb" ) as fptr:
+        writer = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
+        writer.writerow( [ "type", "time", "context1", "context2",
+                           "number objects", "cause", ] )
+        for gnum in dgroups.group2list.keys():
+            print "-------[ Group num: %d ]------------------------------------------------" % gnum
+            result = get_key_object_types( gnum = gnum,
+                                           ktdict = ktdict,
+                                           dgroups = dgroups,
+                                           edgeinfo = edgeinfo,
+                                           objinfo = objinfo,
+                                           contextinfo = contextinfo,
+                                           contextresult = contextresult,
+                                           dumpall = dumpall,
+                                           writer = writer,
+                                           logger = logger )
+            print "-------[ END group num: %d ]--------------------------------------------" % gnum
     contextinfo.fix_counts( objinfo )
     # ----------------------------------------
     logger.debug( "[%s]: Total: %d" % (bmark, len(dgroups.group2list)) )
@@ -1047,6 +1076,7 @@ def main_process( output = None,
                   host_config = {},
                   worklist_config = {},
                   debugflag = False,
+                  dumpall = False,
                   logger = None ):
     global pp
     # HERE: TODO
@@ -1136,6 +1166,10 @@ def create_parser():
                          dest = "debugflag",
                          help = "Disable debug output.",
                          action = "store_false" )
+    parser.add_argument( "--dumpall",
+                         dest = "dumpall",
+                         help = "Dump each clump/group per key object.",
+                         action = "store_false" )
     parser.add_argument( "--benchmark",
                          dest = "benchmark",
                          help = "Select benchmark.",
@@ -1213,6 +1247,7 @@ def main():
     args = parser.parse_args()
     configparser = ConfigParser.ConfigParser()
     benchmark = args.benchmark
+    dumpall = args.dumpall
     assert( args.config != None )
     # Get all the configurations. Maybe there's a cleaner way to do this. TODO
     configdict = process_config( args )
@@ -1248,6 +1283,7 @@ def main():
                          global_config = global_config,
                          host_config = host_config,
                          worklist_config = worklist_config,
+                         dumpall = dumpall,
                          logger = logger )
 
 if __name__ == "__main__":

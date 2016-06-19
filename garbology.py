@@ -183,6 +183,10 @@ class ObjectInfoReader:
         return (self.objdict[objId][get_index("DIEDBY")] == "E") if (objId in self.objdict) \
             else False
 
+    def get_death_cause( self, objId ):
+        return self.objdict[objId][get_index("DIEDBY")] if (objId in self.objdict) \
+            else "NONE"
+
     def iteritems( self ):
         return self.objdict.iteritems()
 
