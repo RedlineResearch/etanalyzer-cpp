@@ -634,7 +634,7 @@ def update_keytype_dict( ktdict = {},
     #                    "number of objects", "cause", ] )
     if dumpall:
         # Output type, call context, group size, time, cause
-        writer.writerow( [ mytype,
+        writer.writerow( [ objType,
                            objinfo.get_death_time(objId),
                            cpair[0],
                            cpair[1],
