@@ -222,6 +222,9 @@ class ObjectInfoReader:
 
     def get_death_time( self, objId = 0 ):
         rec = self.get_record(objId)
+        return self.get_death_time_using_record(rec)
+
+    def get_death_time_using_record( self, rec = None ):
         return rec[ get_index("DTIME") ] if rec != None else 0
 
     def is_array( self, objId = 0 ):
