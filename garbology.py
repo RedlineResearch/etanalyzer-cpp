@@ -279,7 +279,18 @@ class ObjectInfoReader:
         return rec[ get_index("ALLOCSITE") ] if rec != None else "NONE"
 
     def get_stack_died_by_attr( self, objId = 0 ):
-        pass
+        rec = self.get_record(objId)
+        return self.get_stack_died_by_attr_using_record(rec)
+
+    def get_stack_died_by_attr_using_record( self, rec = None ):
+        return rec[ get_index("STATTR") ] if rec != None else "NONE"
+
+    def get_last_heap_update( self, objId = 0 ):
+        rec = self.get_record(objId)
+        return self.get_last_heap_update_using_record(rec)
+
+    def get_last_heap_update_using_record( self, rec = None ):
+        return rec[ get_index("LASTUP") ] if rec != None else "NONE"
 
 # ----------------------------------------------------------------------------- 
 # ----------------------------------------------------------------------------- 
