@@ -184,7 +184,11 @@ class ObjectInfoReader:
             else False
 
     def get_death_cause( self, objId ):
-        return self.objdict[objId][get_index("DIEDBY")] if (objId in self.objdict) \
+        rec = self.get_record(objId)
+        return self.get_death_cause_using_record(rec)
+
+    def get_death_cause_using_record( self, rec = None ):
+        return rec[get_index("DIEDBY")] if (rec != None) \
             else "NONE"
 
     def iteritems( self ):
