@@ -637,7 +637,7 @@ def update_keytype_dict( ktdict = {},
         # Output type, call context, group size, time, cause
         rec = objinfo.get_record(objId)
         dcause = objinfo.get_death_cause_using_record(rec),
-        subcase = objinfo.get_stack_died_by_attr_using_record(rec) if dcause == "S" \
+        subcause = objinfo.get_stack_died_by_attr_using_record(rec) if dcause == "S" \
             else ( objinfo.get_last_heap_update_using_record(rec) if dcause == "H" \
                    else "NONE" )
         writer.writerow( [ objType,
