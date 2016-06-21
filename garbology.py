@@ -261,6 +261,9 @@ class ObjectInfoReader:
 
     def get_death_context( self, objId = 0 ):
         rec = self.get_record(objId)
+        return self.get_death_context_using_record(rec)
+
+    def get_death_context_using_record( self, rec = None ):
         return self.get_death_context_record(rec)
 
     def get_death_context_record( self, rec = None ):
@@ -270,8 +273,13 @@ class ObjectInfoReader:
 
     def get_allocsite( self, objId = 0 ):
         rec = self.get_record(objId)
+        return self.get_allocsite_using_record(rec)
+
+    def get_allocsite_using_record( self, rec = None ):
         return rec[ get_index("ALLOCSITE") ] if rec != None else "NONE"
 
+    def get_stack_died_by_attr( self, objId = 0 ):
+        pass
 
 # ----------------------------------------------------------------------------- 
 # ----------------------------------------------------------------------------- 

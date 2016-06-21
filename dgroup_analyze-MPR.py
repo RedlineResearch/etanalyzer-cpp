@@ -631,7 +631,7 @@ def update_keytype_dict( ktdict = {},
     # Also update the context information
     cpair = objinfo.get_death_context( objId )
     # writer.writerow( [ "type", "time", "context1", "context2",
-    #                    "number of objects", "cause", ] )
+    #                    "number of objects", "cause", "allocsite", ] )
     if dumpall:
         # Output type, call context, group size, time, cause
         writer.writerow( [ objType,
@@ -639,7 +639,8 @@ def update_keytype_dict( ktdict = {},
                            cpair[0],
                            cpair[1],
                            grouplen,
-                           objinfo.get_death_cause(objId), ] )
+                           objinfo.get_death_cause(objId),
+                           objinfo.get_allocsite(objId), ] )
     result = contextinfo.inc_key_count( context_pair = cpair,
                                         objType = objType )
     if result == None:
@@ -985,7 +986,7 @@ def death_group_analyze( bmark = None,
     with open( dumpfile, "wb" ) as fptr:
         writer = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
         writer.writerow( [ "type", "time", "context1", "context2",
-                           "number objects", "cause", ] )
+                           "number objects", "cause", "allocsite", ] )
         for gnum in dgroups.group2list.keys():
             print "-------[ Group num: %d ]------------------------------------------------" % gnum
             result = get_key_object_types( gnum = gnum,
