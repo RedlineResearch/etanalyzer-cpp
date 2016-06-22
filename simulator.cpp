@@ -41,7 +41,11 @@ ObjectPtrMap_t whereis;
 HeapState Heap( whereis, keyset );
 
 // -- Execution state
+#ifdef ENABLE_TYPE1
+ExecState Exec(1); // Full calling context
+#else
 ExecState Exec(2); // Method-only context
+#endif // ENABLE_TYPE1
 
 // -- Turn on debugging
 bool debug = false;
@@ -727,8 +731,9 @@ int main(int argc, char* argv[])
 {
     if (argc != 5) {
         cout << "Usage: " << argv[0] << " <namesfile> <output base name> <CYCLE/NOCYCLE> <OBJDEBUG/NOOBJDEBUG>" << endl;
-        cout << "      git version: " <<  build_git_sha << endl;
-        cout << "      build date : " <<  build_git_time << endl;
+        cout << "      git version: " << build_git_sha << endl;
+        cout << "      build date : " << build_git_time << endl;
+        cout << "      CC kind    : " << Exec.get_kind() << endl;
         exit(1);
     }
     cout << "#     git version: " <<  build_git_sha << endl;

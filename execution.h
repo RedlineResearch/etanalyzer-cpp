@@ -287,6 +287,8 @@ class ExecState
                      : NULL );
         }
 
+        unsigned int get_kind() const { return m_kind; }
+
     private:
         void debug_cpair( ContextPair cpair,
                           Object *object ) {
