@@ -20,7 +20,8 @@ typedef unsigned int MethodId_t;
 // TODO typedef unsigned int threadId_t;
 
 class CCNode;
-typedef map<unsigned int, CCNode *> CCMap;
+// typedef map<unsigned int, CCNode *> CCMap;
+typedef map<Method *, CCNode *> CCMap;
 
 typedef map<MethodId_t, Thread *> ThreadMap;
 typedef map<ContextPair, unsigned int> ContextCountMap;
@@ -55,16 +56,32 @@ class CCNode
         // Caching the simple_stacktrace
         deque<Method *> m_simptrace;
 
-    public:
-        CCNode()
-            : m_method(0)
-            , m_parent(0)
-            , m_done(false) {
+        unsigned int m_node_id;
+        static unsigned int m_ccnode_nextid;
+
+        unsigned int get_next_node_id() {
+            unsigned int result = this->m_ccnode_nextid;
+            this->m_ccnode_nextid++;
+            return result;
         }
 
-        CCNode( CCNode* parent, Method* m )
+        // File to output the callstack
+        ofstream &m_output;
+
+    public:
+        CCNode( ofstream &output )
+            : m_method(0)
+            , m_parent(0)
+            , m_done(false)
+            , m_node_id(this->get_next_node_id())
+            , m_output(output) {
+        }
+
+        CCNode( CCNode* parent, Method* m, ofstream &output )
             : m_method(m)
-            , m_parent(parent) {
+            , m_parent(parent)
+            , m_node_id(this->get_next_node_id())
+            , m_output(output) {
         }
 
         // -- Get method
@@ -97,6 +114,9 @@ class CCNode
         // Has simple trace been saved for this CCNode?
         bool isDone() { return this->m_done; }
         bool setDone() { this->m_done = true; }
+
+        // Node Ids
+        NodeId_t get_node_id() const { return this->m_node_id; }
 };
 
 
@@ -132,19 +152,27 @@ class Thread
         ContextCountMap &m_ccountmap;
         // -- Map to ExecState
         ExecState &m_exec;
+        // File to output the callstack
+        ofstream &m_output;
+        // File to output the nodeId to method name
+        ofstream &m_nodefile;
 
     public:
         Thread( unsigned int id,
                 unsigned int kind,
                 ContextCountMap &ccountmap,
-                ExecState &execstate )
+                ExecState &execstate,
+                ofstream &output,
+                ofstream &nodefile )
             : m_id(id)
             , m_kind(kind)
-            , m_rootcc()
+            , m_rootcc(output)
             , m_curcc(&m_rootcc)
             , m_context( NULL, NULL )
-            , m_ccountmap( ccountmap )
-            , m_exec(execstate) {
+            , m_ccountmap(ccountmap)
+            , m_exec(execstate)
+            , m_output(output)
+            , m_nodefile(nodefile) {
             m_locals.push_back(new LocalVarSet());
             m_deadlocals.push_back(new LocalVarSet());
         }
@@ -213,14 +241,16 @@ class ExecState
         ThreadDeque m_thread_stack;
 
     public:
-        ExecState(unsigned int kind)
+        ExecState( unsigned int kind )
             : m_kind(kind)
             , m_threads()
             , m_time(0)
             , m_uptime(0)
             , m_ccountmap()
             , m_obj2contextmap()
-            , m_thread_stack() {
+            , m_thread_stack()
+            , m_output(NULL)
+            , m_nodefile(NULL) {
         }
 
         // -- Get the current time
@@ -288,6 +318,14 @@ class ExecState
         }
 
         unsigned int get_kind() const { return m_kind; }
+
+        // File to output the callstack
+        ofstream *m_output;
+        void set_output( ofstream *out ) { this->m_output = out; }
+        // File to output the node id to method name map 
+        ofstream *m_nodefile;
+        void set_nodefile( ofstream *nfile ) { this->m_nodefile = nfile; }
+
 
     private:
         void debug_cpair( ContextPair cpair,

@@ -751,6 +751,13 @@ int main(int argc, char* argv[])
     string dgroups_by_type_filename( basename + "-DGROUPS-BY-TYPE.csv" );
     string context_death_count_filename( basename + "-CONTEXT-DCOUNT.csv" );
 
+    string call_context_filename( basename + "-CALL-CONTEXT.csv" );
+    ofstream call_context_file(call_context_filename);
+    Exec.set_output( &call_context_file );
+    string nodemap_filename( basename + "-NODEMAP.csv" );
+    ofstream nodemap_file(nodemap_filename);
+    Exec.set_nodefile( &nodemap_file );
+
     string cycle_switch(argv[3]);
     bool cycle_flag = ((cycle_switch == "NOCYCLE") ? false : true);
     

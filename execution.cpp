@@ -4,20 +4,28 @@
 
 #include "execution.h"
 
+unsigned int CCNode::m_ccnode_nextid = 1;
+
 // ----------------------------------------------------------------------
 //   Calling context tree
 
 CCNode* CCNode::Call(Method* m)
 {
     CCNode* result = 0;
-    auto p = m_callees.find(m->getId());
+    // TODO auto p = m_callees.find(m->getId());
+    auto p = m_callees.find(m);
     if (p == m_callees.end()) {
         result = new CCNode( this, // parent
-                             m );  // method
-        m_callees[m->getId()] = result;
+                             m,
+                             this->m_output );  // method
+        // TODO m_callees[m->getId()] = result;
+        m_callees[m] = result;
     } else {
         result = (*p).second;
     }
+    NodeId_t parent = this->get_node_id();
+    NodeId_t child = result->get_node_id();
+    this->m_output << parent << "," << child << endl;
     return result;
 }
 
@@ -104,7 +112,8 @@ void Thread::Call(Method *m)
 {
     if (m_kind == 1) {
         CCNode* cur = this->TopCC();
-        m_curcc = cur->Call(m);
+        this->m_curcc = cur->Call(m);
+        // this->nodefile << child << "," << m->getName() << endl;
     }
 
     if (m_kind == 2) {
@@ -132,9 +141,9 @@ void Thread::Return(Method* m)
 {
     if (m_kind == 1) {
         CCNode* cur = this->TopCC();
-        if (cur->getMethod())
-            m_curcc = cur->Return(m);
-        else {
+        if (cur->getMethod()) {
+            this->m_curcc = cur->Return(m);
+        } else {
             cout << "WARNING: Return from " << m->info() << " at top context" << endl;
             m_curcc = cur;
         }
@@ -292,7 +301,9 @@ Thread* ExecState::getThread(unsigned int threadid)
         result = new Thread( threadid,
                              this->m_kind,
                              this->m_ccountmap,
-                             *this );
+                             *this,
+                             *this->m_output,
+                             *this->m_nodefile );
         m_threads[threadid] = result;
     } else {
         result = (*p).second;
