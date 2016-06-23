@@ -217,6 +217,7 @@ unsigned int read_trace_file(FILE* f)
                     unsigned int tgtId = tokenizer.getInt(3);
                     unsigned int oldTgtId = tokenizer.getInt(1);
                     unsigned int threadId = tokenizer.getInt(5);
+                    unsigned int field = tokenizer.getInt(4);
                     Thread *thread = Exec.getThread(threadId);
                     Object *oldObj = Heap.getObject(oldTgtId);
                     Exec.IncUpdateTime();
@@ -231,6 +232,11 @@ unsigned int read_trace_file(FILE* f)
                             oldObj->unsetLastUpdateNull();
                         } else {
                             oldObj->setLastUpdateNull();
+                        }
+                        if (field == 0) {
+                            oldObj->setLastUpdateFromStatic();
+                        } else {
+                            oldObj->unsetLastUpdateFromStatic();
                         }
                     }
                     if (oldTgtId == tgtId) {
@@ -593,7 +599,11 @@ void output_all_objects( string &objectinfo_filename,
         if (object->getDiedByStackFlag()) {
             dtype = "S"; // by stack
         } else if (object->getDiedByHeapFlag()) {
-            dtype = "H"; // by heap
+            if (object->wasLastUpdateFromStatic()) {
+                dtype = "G"; // by static global
+            } else {
+                dtype = "H"; // by heap
+            }
         } else {
             dtype = "E"; // program end
         }
@@ -623,14 +633,6 @@ void output_all_objects( string &objectinfo_filename,
             //       type names
             // May only be necessary for performance reasons (ie, simulator eats up too much RAM 
             // on the larger benchmarks/programs.)
-        // TODO Fix the SHEAP/SONLY for heap objects. - 4/21/2016 - RLV
-        // TODO Add the deathgroup number
-        // TODO Decide on the deathgroup file output.
-        //         - group number?
-        //         - key object
-        //         - total ojects
-        //         - total size
-        //         - by stack only size
     }
     object_info_file << "---------------[ OBJECT INFO END ]----------------------------------------------" << endl;
     object_info_file.close();

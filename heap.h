@@ -319,6 +319,8 @@ class Object
         bool m_was_root;
         // Did last update move to NULL?
         tribool m_last_update_null; // If false, it moved to a differnet object
+        // Was last update away from this object from a static field?
+        bool m_last_update_away_from_static;
         // Did this object die by loss of heap reference?
         bool m_diedByHeap;
         // Did this object die by loss of stack reference?
@@ -393,6 +395,7 @@ class Object
             , m_reason(UNKNOWN_REASON)
             , m_last_action_time(0)
             , m_last_update_null(indeterminate)
+            , m_last_update_away_from_static(false)
             , m_methodDeathSite(0)
             , m_methodRCtoZero(NULL)
             , m_lastMethodDecRC(NULL)
@@ -456,6 +459,12 @@ class Object
         void setLastUpdateNull() { m_last_update_null = true; }
         // Set the last update null flag to false
         void unsetLastUpdateNull() { m_last_update_null = false; }
+        // Check if last update was from static
+        bool wasLastUpdateFromStatic() const { return m_last_update_away_from_static; }
+        // Set the last update from static flag to true
+        void setLastUpdateFromStatic() { m_last_update_away_from_static = true; }
+        // Set the last update from static flag to false
+        void unsetLastUpdateFromStatic() { m_last_update_away_from_static = false; }
         // Get the death site according the the Death event
         Method *getDeathSite() const { return m_methodDeathSite; }
         // Set the death site because of a Death event

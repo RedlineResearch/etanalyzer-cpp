@@ -20,8 +20,8 @@ typedef unsigned int MethodId_t;
 // TODO typedef unsigned int threadId_t;
 
 class CCNode;
-// typedef map<unsigned int, CCNode *> CCMap;
-typedef map<Method *, CCNode *> CCMap;
+typedef map<unsigned int, CCNode *> CCMap;
+typedef map<Method *, CCNode *> FullCCMap;
 
 typedef map<MethodId_t, Thread *> ThreadMap;
 typedef map<ContextPair, unsigned int> ContextCountMap;

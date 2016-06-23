@@ -12,14 +12,14 @@ unsigned int CCNode::m_ccnode_nextid = 1;
 CCNode* CCNode::Call(Method* m)
 {
     CCNode* result = 0;
-    // TODO auto p = m_callees.find(m->getId());
-    auto p = m_callees.find(m);
+    auto p = m_callees.find(m->getId());
+    // TODO auto p = m_callees.find(m);
     if (p == m_callees.end()) {
         result = new CCNode( this, // parent
-                             m,
-                             this->m_output );  // method
-        // TODO m_callees[m->getId()] = result;
-        m_callees[m] = result;
+                             m,    // method
+                             this->m_output ); // file output
+        m_callees[m->getId()] = result;
+        // TODO m_callees[m] = result;
     } else {
         result = (*p).second;
     }
