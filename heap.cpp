@@ -113,8 +113,7 @@ void HeapState::update_death_counters( Object *obj )
     if ( obj->getReason() ==  Reason::END_OF_PROGRAM_REASON ) {
         this->m_totalDiedAtEnd++;
         this->m_sizeDiedAtEnd += obj_size;
-    }
-    else if ( obj->getDiedByStackFlag() ||
+    } else if ( obj->getDiedByStackFlag() ||
          ( ((obj->getReason() == Reason::STACK) ||
             (obj->getLastEvent() == LastEvent::ROOT)) &&
             !obj->getDiedByHeapFlag() )
@@ -148,6 +147,7 @@ void HeapState::update_death_counters( Object *obj )
         if (m_obj_debug_flag) {
             cout << "H> " << obj->info2();
         }
+        // Check to see if the last update was from global
         this->m_totalDiedByHeap_ver2++;
         this->m_sizeDiedByHeap += obj_size;
         obj->setDiedByHeapFlag();
@@ -249,6 +249,7 @@ void HeapState::end_of_program(unsigned int cur_time)
             obj->setLastEvent( LastEvent::END_OF_PROGRAM_EVENT );
         } else {
             if (obj->getReason() == HEAP) {
+                // if (obj->) // TODO TODO GLOBAL type
                 obj->setDiedByHeapFlag();
             } else {
                 obj->setDiedByStackFlag();
@@ -399,8 +400,10 @@ void HeapState::scan_queue2( EdgeList& edgelist,
                 // Object exists
                 unsigned int uptime = obj->getLastActionTime();
                 // DEBUG: Compare to getDeathTime
+                // Insert (objId, update time) pair into candidate set
                 candSet.insert( std::make_pair( objId, uptime ) );
                 utimeMap[objId] = uptime;
+                // Copy all edges from source 'obj'
                 for ( EdgeMap::iterator p = obj->getEdgeMapBegin();
                       p != obj->getEdgeMapEnd();
                       ++p ) {
@@ -423,6 +426,7 @@ void HeapState::scan_queue2( EdgeList& edgelist,
     }
     cout << "Before whereis size: " << whereis.size() << endl;
     // Anything seen in this loop has a reference count (RefCount) greater than zero.
+    // The 'whereis' maps an object to its key object (both Object pointers)
     while (!(candSet.empty())) {
         CandidateSet_t::iterator it = candSet.begin();
         if (it != candSet.end()) {
@@ -465,14 +469,12 @@ void HeapState::scan_queue2( EdgeList& edgelist,
                 if (itdisc == discovered.end()) {
                     // Not yet seen by DFS.
                     discovered.insert(cur);
-                    // Remove from candidate set.
-                    // TODO candSet.erase(it);
                     Object *other_root = whereis[cur];
                     if (!other_root) {
-                        if (cur) {
-                            keyset[root]->insert(cur);
-                            whereis[cur] = root;
-                        }
+                        // 'cur' not found in 'whereis'
+                        // No need to check for 'cur' being NULL here.
+                        keyset[root]->insert(cur);
+                        whereis[cur] = root;
                     } else {
                         unsigned int other_time = other_root->getDeathTime();
                         unsigned int root_time =  root->getDeathTime();
@@ -814,14 +816,7 @@ void Object::decrementRefCountReal( unsigned int cur_time,
         // END DEBUG
         assert(my_death_root);
         whereis[this] = my_death_root;
-        // DEBUG
-        if (this_objId == 5229918) {
-            cout << "DEBUG: [C deathroot is [ " << drootId << " ]" << endl;
-        }
-        if (drootId == 5229918) {
-            cout << "DEBUG: [C is used as death root for [ " << this_objId << " ]" << endl;
-        }
-        // END DEBUG
+
         KeySet_t::iterator itset = keyset.find(my_death_root);
         if (itset == keyset.end()) {
             keyset[my_death_root] = new std::set< Object * >();
@@ -837,9 +832,9 @@ void Object::decrementRefCountReal( unsigned int cur_time,
             // This is a DAGKEY
             this->setKeyType(DAG);
         } else if (last_event == OBJECT_DEATH) {
-            // What happens here?
+            this->setKeyType(DAGKEY);
         } else {
-            // ???? Is this possible?
+            // This isn't possible.
             assert(0);
         }
         // Edges are now dead.

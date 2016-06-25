@@ -638,6 +638,75 @@ void output_all_objects( string &objectinfo_filename,
     object_info_file.close();
 }
 
+void output_all_objects2( string &objectinfo_filename,
+                          HeapState &myheap,
+                          std::set<ObjectId_t> dag_keys,
+                          std::set<ObjectId_t> dag_all_set,
+                          std::set<ObjectId_t> all_keys )
+{
+    ofstream object_info_file(objectinfo_filename);
+    object_info_file << "---------------[ OBJECT INFO ]--------------------------------------------------" << endl;
+    for ( ObjectMap::iterator it = myheap.begin();
+          it != myheap.end();
+          ++it ) {
+        Object *object = it->second;
+        ObjectId_t objId = object->getId();
+        KeyType ktype = object->getKeyType();
+        string dgroup_kind;
+        if (ktype == CYCLE) {
+            dgroup_kind = "CYC";
+        } else if (ktype == CYCLEKEY) {
+            dgroup_kind = "CYCKEY";
+        } else if (ktype == DAG) {
+            dgroup_kind = "DAG";
+        } else if (ktype == DAGKEY) {
+            dgroup_kind = "DAGKEY";
+        } else {
+            dgroup_kind = "UNKNOWN";
+        }
+        string dtype;
+        if (object->getDiedByStackFlag()) {
+            dtype = "S"; // by stack
+        } else if (object->getDiedByHeapFlag()) {
+            if (object->wasLastUpdateFromStatic()) {
+                dtype = "G"; // by static global
+            } else {
+                dtype = "H"; // by heap
+            }
+        } else {
+            dtype = "E"; // program end
+        }
+        ContextPair cpair = object->getDeathContextPair();
+        Method *meth_ptr1 = std::get<0>(cpair);
+        Method *meth_ptr2 = std::get<1>(cpair);
+        string method1 = (meth_ptr1 ? meth_ptr1->getName() : "NONAME");
+        string method2 = (meth_ptr2 ? meth_ptr2->getName() : "NONAME");
+        string allocsite_name = object->getAllocSiteName();
+        object_info_file << objId
+            << "," << object->getCreateTime()
+            << "," << object->getDeathTime()
+            << "," << object->getSize()
+            << "," << object->getType()
+            << "," << dtype
+            << "," << (object->wasLastUpdateNull() ? "NULL" : "VAL")
+            << "," << (object->getDiedByStackFlag() ? (object->wasPointedAtByHeap() ? "SHEAP" : "SONLY")
+                                                    : "H")
+            << "," << dgroup_kind
+            << "," << method1 // Part 1 of simple context pair
+            << "," << method2 // part 2 of simple context pair
+            << "," << allocsite_name
+            << endl;
+            // TODO: The following can be made into a lookup table:
+            //       method names
+            //       allocsite names
+            //       type names
+            // May only be necessary for performance reasons (ie, simulator eats up too much RAM 
+            // on the larger benchmarks/programs.)
+    }
+    object_info_file << "---------------[ OBJECT INFO END ]----------------------------------------------" << endl;
+    object_info_file.close();
+}
+
 void output_cycles( KeySet_t &keyset,
                     string &cycle_filename,
                     std::set<int> &node_set )
@@ -811,7 +880,7 @@ int main(int argc, char* argv[])
                 continue; // TODO
             }
             deque< Object * > deqtmp;
-            // std::copy( sptr->begin(), sptr->end(), vptr.begin() );
+            // std::copy( sptr->begin(), sptr->end(), deqtmp.begin() );
             // std::remove_if( deqtmp.begin(), deqtmp.end(), ifNull );
             for ( set< Object * >::iterator setit = sptr->begin();
                   setit != sptr->end();
@@ -838,6 +907,7 @@ int main(int argc, char* argv[])
                 }
             }
         }
+        // Copy all dag_all object Ids into dag_all_set to get rid of duplicates.
         set<ObjectId_t> dag_all_set( dag_all.cbegin(), dag_all.cend() );
 
         // scan_queue2 determines all the death groups that are cyclic
@@ -868,11 +938,11 @@ int main(int argc, char* argv[])
         output_type_summary( dgroups_by_type_filename,
                              type_total_summary );
         // Output all objects info
-        output_all_objects( objectinfo_filename,
-                            Heap,
-                            dag_keys,
-                            dag_all_set,
-                            all_keys );
+        output_all_objects2( objectinfo_filename,
+                             Heap,
+                             dag_keys,
+                             dag_all_set,
+                             all_keys );
         output_context_summary( context_death_count_filename,
                                 Exec );
         // TODO: What next? 
@@ -894,6 +964,7 @@ int main(int argc, char* argv[])
                  << "number_of_edges," << Heap.numberEdges() << endl
                  << "died_by_stack," << Heap.getTotalDiedByStack2() << endl
                  << "died_by_heap," << Heap.getTotalDiedByHeap2() << endl
+                 << "died_by_global," << Heap.getTotalDiedByHeap2() << endl
                  << "died_at_end," << Heap.getTotalDiedAtEnd() << endl
                  << "last_update_null," << Heap.getTotalLastUpdateNull() << endl
                  << "last_update_null_heap," << Heap.getTotalLastUpdateNullHeap() << endl
