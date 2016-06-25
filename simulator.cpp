@@ -938,7 +938,7 @@ int main(int argc, char* argv[])
         output_type_summary( dgroups_by_type_filename,
                              type_total_summary );
         // Output all objects info
-        output_all_objects( objectinfo_filename,
+        output_all_objects2( objectinfo_filename,
                              Heap,
                              dag_keys,
                              dag_all_set,
