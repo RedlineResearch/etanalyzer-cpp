@@ -662,7 +662,7 @@ void output_all_objects2( string &objectinfo_filename,
         } else if (ktype == DAGKEY) {
             dgroup_kind = "DAGKEY";
         } else {
-            dgroup_kind = "UNKNOWN";
+            dgroup_kind = "CYC";
         }
         string dtype;
         if (object->getDiedByStackFlag()) {
@@ -938,7 +938,7 @@ int main(int argc, char* argv[])
         output_type_summary( dgroups_by_type_filename,
                              type_total_summary );
         // Output all objects info
-        output_all_objects2( objectinfo_filename,
+        output_all_objects( objectinfo_filename,
                              Heap,
                              dag_keys,
                              dag_all_set,
