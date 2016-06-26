@@ -602,6 +602,7 @@ def update_keytype_dict( ktdict = {},
                          contextinfo = None,
                          group_types = frozenset([]),
                          dumpall = False,
+                         filterflag = True,
                          writer = None ):
 
     assert( objId >= 0 )
@@ -630,24 +631,27 @@ def update_keytype_dict( ktdict = {},
                             "true_key_count" : 1 if true_key_flag else 0, }
     # Also update the context information
     cpair = objinfo.get_death_context( objId )
-    # writer.writerow( [ "type", "time", "context1", "context2",
-    #                    "number of objects", "cause", "subcause",
-    #                    "allocsite", ] )
     if dumpall:
-        # Output type, call context, group size, time, cause
+        # Header is [ "type", "time", "context1", "context2",
+        #             "number of objects", "cause", "subcause",
+        #             "allocsite", ]
         rec = objinfo.get_record(objId)
         dcause = objinfo.get_death_cause_using_record(rec)
         subcause = objinfo.get_stack_died_by_attr_using_record(rec) if dcause == "S" \
-            else ( objinfo.get_last_heap_update_using_record(rec) if dcause == "H" \
-                   else "NONE" )
-        writer.writerow( [ objType,
-                           objinfo.get_death_time_using_record(rec),
-                           cpair[0],
-                           cpair[1],
-                           grouplen,
-                           dcause,
-                           subcause,
-                           objinfo.get_allocsite_using_record(rec), ] )
+            else ( objinfo.get_last_heap_update_using_record(rec) \
+                   if (dcause == "H" or dcause == "G") else "NONE" )
+        age = objinfo.get_age_using_record(rec)
+        # TODO TODO TODO
+        # Filter here
+        if not filterflag or (True):
+            writer.writerow( [ objType,
+                               objinfo.get_death_time_using_record(rec),
+                               cpair[0],
+                               cpair[1],
+                               grouplen,
+                               dcause,
+                               subcause,
+                               objinfo.get_allocsite_using_record(rec), ] )
     result = contextinfo.inc_key_count( context_pair = cpair,
                                         objType = objType )
     if result == None:

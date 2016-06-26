@@ -228,6 +228,22 @@ class ObjectInfoReader:
         rec = self.get_record(objId)
         return self.get_death_time_using_record(rec)
 
+    def get_alloc_time_using_record( self, rec = None ):
+        return rec[ get_index("ATIME") ] if rec != None else 0
+
+    def get_alloc_time( self, objId = 0 ):
+        rec = self.get_record(objId)
+        return self.get_alloc_time_using_record(rec)
+
+    def get_age_using_record( self, rec = None ):
+        return ( self.get_death_time_using_record(rec) - \
+                 self.get_alloc_time_using_record(rec) ) \
+            if rec != None else 0
+
+    def get_age( self, objId = 0 ):
+        rec = self.get_record(objId)
+        return self.get_age_using_record(rec)
+
     def get_death_time_using_record( self, rec = None ):
         return rec[ get_index("DTIME") ] if rec != None else 0
 
@@ -237,6 +253,14 @@ class ObjectInfoReader:
 
     def died_by_stack( self, objId = 0 ):
         return (self.objdict[objId][get_index("DIEDBY")] == "S") if (objId in self.objdict) \
+            else False
+
+    def died_by_heap( self, objId = 0 ):
+        return (self.objdict[objId][get_index("DIEDBY")] == "H") if (objId in self.objdict) \
+            else False
+
+    def died_by_global( self, objId = 0 ):
+        return (self.objdict[objId][get_index("DIEDBY")] == "G") if (objId in self.objdict) \
             else False
 
     def group_died_by_stack( self, grouplist = [] ):
@@ -250,7 +274,7 @@ class ObjectInfoReader:
                         grouplist = [],
                         died_by = None,
                         fail_on_missing = False ):
-        assert( died_by == "S" or died_by == "H" or died_by == "E" )
+        assert( died_by == "S" or died_by == "H" or died_by == "E" or died_by == "G" )
         flag = True
         for obj in grouplist:
             if obj not in self.objdict:
@@ -406,7 +430,6 @@ class EdgeInfoReader:
     
     def get_last_edge_record( self, tgtId = None ):
         return self.lastedge[tgtId] if tgtId in self.lastedge else None
-
 
 # ----------------------------------------------------------------------------- 
 # ----------------------------------------------------------------------------- 
@@ -768,6 +791,73 @@ class ContextCountReader:
         #     count += 1
         #     if numlines != 0 and count >= numlines:
         #         break
+
+# ----------------------------------------------------------------------------- 
+# ----------------------------------------------------------------------------- 
+class SummaryReader:
+    def __init__( self,
+                  summary_file = None,
+                  logger = None ):
+        # TODO: Choice of loading from text file or from pickle
+        # 
+        self.summary_file_name = summary_file
+        self.summarydict = {}
+        self.logger = logger
+
+    def read_summary_file( self ):
+        start = False
+        done = False
+        sdict = self.summarydict
+        with get_trace_fp( self.summary_file_name, self.logger ) as fp:
+            for line in fp:
+                line = line.rstrip()
+                if line.find("---------------[ SUMMARY INFO") == 0:
+                    start = True if not start else False
+                    if start:
+                        continue
+                    else:
+                        done = True
+                        break
+                if start:
+                    rowtmp = line.split(",")
+                    # 0 - key
+                    # 1 - value
+                    row = [ int(x) for x in rowtmp ]
+                    sdict[row[0]] = row[1]
+        assert(done)
+
+    def edgedict_iteritems( self ):
+        return self.edgedict.iteritems()
+
+    def get_final_garbology_time( self ):
+        assert("final_time" in self.summarydict)
+        return self.summarydict["final_time"]
+
+    def get_number_of_objects( self ):
+        assert("number_of_objects" in self.summarydict)
+        return self.summarydict["number_of_objects"]
+
+    def get_number_died_by_stack( self ):
+        assert("died_by_stack" in self.summarydict)
+        return self.summarydict["died_by_stack"]
+
+    def get_number_died_by_heap( self ):
+        assert("died_by_heap" in self.summarydict)
+        return self.summarydict["died_by_heap"]
+
+    def get_number_died_by_global( self ):
+        assert("died_by_global" in self.summarydict)
+        return self.summarydict["died_by_global"]
+
+    def keys( self ):
+        return self.summarydict.keys()
+
+    def items( self ):
+        return self.summarydict.items()
+
+    def print_out( self ):
+        for key, val in self.summarydict.iteritems():
+            print "%s -> %d" % (key, val)
 
 
 # ----------------------------------------------------------------------------- 
