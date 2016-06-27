@@ -230,12 +230,26 @@ class ObjectInfoReader:
         rec = self.get_record(objId)
         return self.get_death_time_using_record(rec)
 
+    def get_death_time_ALLOC( self, objId = 0 ):
+        rec = self.get_record(objId)
+        return self.get_death_time_using_record_ALLOC(rec)
+
     def get_alloc_time_using_record( self, rec = None ):
         return rec[ get_index("ATIME") ] if rec != None else 0
 
     def get_alloc_time( self, objId = 0 ):
         rec = self.get_record(objId)
         return self.get_alloc_time_using_record(rec)
+
+    # This weirdly named function gets the allocation time of an object
+    # using the logical allocation time (in bytes allocated) as the
+    # basis for time. I know it sounds weird
+    def get_alloc_time_using_record_ALLOC( self, rec = None ):
+        return rec[ get_index("ATIME_ALLOC") ] if rec != None else 0
+
+    def get_alloc_time_ALLOC( self, objId = 0 ):
+        rec = self.get_record(objId)
+        return self.get_alloc_time_using_record_ALLOC(rec)
 
     def get_age_using_record( self, rec = None ):
         return ( self.get_death_time_using_record(rec) - \
@@ -246,8 +260,25 @@ class ObjectInfoReader:
         rec = self.get_record(objId)
         return self.get_age_using_record(rec)
 
+    # The *_ALLOC versions means that we're using allocation time
+    # instead of our standard logical (method + update) time.
+    def get_age_using_record_ALLOC( self, rec = None ):
+        return ( self.get_death_time_using_record_ALLOC(rec) - \
+                 self.get_alloc_time_using_record_ALLOC(rec) ) \
+            if rec != None else 0
+
+    def get_age_ALLOC( self, objId = 0 ):
+        rec = self.get_record(objId)
+        return self.get_age_using_record_ALLOC(rec)
+
     def get_death_time_using_record( self, rec = None ):
         return rec[ get_index("DTIME") ] if rec != None else 0
+
+    # This weirdly named function gets the death time of an object
+    # using the logical allocation time (in bytes allocated) as the
+    # basis for time.
+    def get_death_time_using_record_ALLOC( self, rec = None ):
+        return rec[ get_index("DTIME_ALLOC") ] if rec != None else 0
 
     def is_array( self, objId = 0 ):
         typeId = self.get_record(objId)[ get_index("TYPE") ]
