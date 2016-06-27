@@ -120,7 +120,7 @@ class HeapState
 
         unsigned long int m_liveSize; // current live size of program in bytes
         unsigned long int m_maxLiveSize; // max live size of program in bytes
-        unsigned long int m_alloc_time; // current alloc time
+        unsigned int m_alloc_time; // current alloc time
 
         // Total number of objects that died by loss of heap reference version 2
         unsigned int m_totalDiedByHeap_ver2;
@@ -238,7 +238,7 @@ class HeapState
         unsigned int size() const { return m_objects.size(); }
         unsigned long int liveSize() const { return m_liveSize; }
         unsigned long int maxLiveSize() const { return m_maxLiveSize; }
-        unsigned long int getAllocTime() const { return m_alloc_time; }
+        unsigned int getAllocTime() const { return m_alloc_time; }
 
         unsigned int getTotalDiedByStack2() const { return m_totalDiedByStack_ver2; }
         unsigned int getTotalDiedByHeap2() const { return m_totalDiedByHeap_ver2; }

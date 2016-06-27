@@ -752,7 +752,7 @@ void Object::makeDead( unsigned int death_time,
 {
     // -- Record the death time
     this->m_deathTime = death_time;
-    this->m_deathTime_alloc = death_time;
+    this->m_deathTime_alloc = death_time_alloc;
     if (this->m_deadFlag) {
         cerr << "Object[ " << this->getId() << " ] : double Death event." << endl;
     } else {
