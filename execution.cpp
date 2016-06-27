@@ -4,20 +4,28 @@
 
 #include "execution.h"
 
+unsigned int CCNode::m_ccnode_nextid = 1;
+
 // ----------------------------------------------------------------------
 //   Calling context tree
 
 CCNode* CCNode::Call(Method* m)
 {
     CCNode* result = 0;
-    CCMap::iterator p = m_callees.find(m->getId());
+    auto p = m_callees.find(m->getId());
+    // TODO auto p = m_callees.find(m);
     if (p == m_callees.end()) {
         result = new CCNode( this, // parent
-                             m );  // method
+                             m,    // method
+                             this->m_output ); // file output
         m_callees[m->getId()] = result;
+        // TODO m_callees[m] = result;
     } else {
         result = (*p).second;
     }
+    NodeId_t parent = this->get_node_id();
+    NodeId_t child = result->get_node_id();
+    this->m_output << parent << "," << child << endl;
     return result;
 }
 
@@ -104,7 +112,8 @@ void Thread::Call(Method *m)
 {
     if (m_kind == 1) {
         CCNode* cur = this->TopCC();
-        m_curcc = cur->Call(m);
+        this->m_curcc = cur->Call(m);
+        // this->nodefile << child << "," << m->getName() << endl;
     }
 
     if (m_kind == 2) {
@@ -132,9 +141,9 @@ void Thread::Return(Method* m)
 {
     if (m_kind == 1) {
         CCNode* cur = this->TopCC();
-        if (cur->getMethod())
-            m_curcc = cur->Return(m);
-        else {
+        if (cur->getMethod()) {
+            this->m_curcc = cur->Return(m);
+        } else {
             cout << "WARNING: Return from " << m->info() << " at top context" << endl;
             m_curcc = cur;
         }
@@ -239,8 +248,9 @@ string Thread::stacktrace()
     if (m_kind == 2) {
         if ( ! m_methods.empty()) {
             stringstream ss;
-            MethodDeque::iterator p;
-            for (p = m_methods.begin(); p != m_methods.end(); p++) {
+            for ( auto p = m_methods.begin();
+                  p != m_methods.end();
+                  p++ ) {
                 Method* m =*p;
                 ss << m->info() << endl;
             }
@@ -270,7 +280,7 @@ bool Thread::isLocalVariable(Object *object)
 {
     if (!m_locals.empty()) {
         LocalVarSet *localvars = m_locals.back();
-        LocalVarSet::iterator it = localvars->find(object);
+        auto it = localvars->find(object);
         return (it != localvars->end());
     } else {
         cout << "[isLocalVariable] ERROR: Stack empty at ROOT event." << endl;
@@ -285,13 +295,15 @@ bool Thread::isLocalVariable(Object *object)
 Thread* ExecState::getThread(unsigned int threadid)
 {
     Thread* result = 0;
-    ThreadMap::iterator p = m_threads.find(threadid);
+    auto p = m_threads.find(threadid);
     if (p == m_threads.end()) {
         // -- Not there, make a new one
         result = new Thread( threadid,
                              this->m_kind,
                              this->m_ccountmap,
-                             *this );
+                             *this,
+                             *this->m_output,
+                             *this->m_nodefile );
         m_threads[threadid] = result;
     } else {
         result = (*p).second;
@@ -303,17 +315,21 @@ Thread* ExecState::getThread(unsigned int threadid)
 // -- Call method m in thread t
 void ExecState::Call(Method* m, unsigned int threadid)
 {
-    m_time++;
+    m_meth_time++;
     Thread *t = getThread(threadid);
     if (t) {
         t->Call(m);
+        this->m_thread_stack.push_back(t);
     }
 }
 
 // -- Return from method m in thread t
 void ExecState::Return(Method* m, unsigned int threadid)
 {
-    m_time++;
+    m_meth_time++;
+    if (this->m_thread_stack.size() > 0) {
+        this->m_thread_stack.pop_back();
+    }
     getThread(threadid)->Return(m);
 }
 

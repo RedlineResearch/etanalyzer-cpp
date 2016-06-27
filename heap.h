@@ -120,11 +120,14 @@ class HeapState
 
         unsigned long int m_liveSize; // current live size of program in bytes
         unsigned long int m_maxLiveSize; // max live size of program in bytes
+        unsigned int m_alloc_time; // current alloc time
 
         // Total number of objects that died by loss of heap reference version 2
         unsigned int m_totalDiedByHeap_ver2;
         // Total number of objects that died by stack frame going out of scope version 2
         unsigned int m_totalDiedByStack_ver2;
+        // Total number of objects that died by loss of global/static reference
+        unsigned int m_totalDiedByGlobal;
         // Total number of objects that live till the end of the program
         unsigned int m_totalDiedAtEnd;
         // Total number of objects unknown using version 2 method
@@ -189,8 +192,10 @@ class HeapState
             , m_keyset( keyset )
             , m_maxLiveSize(0)
             , m_liveSize(0)
+            , m_alloc_time(0)
             , m_totalDiedByHeap_ver2(0)
             , m_totalDiedByStack_ver2(0)
+            , m_totalDiedByGlobal(0)
             , m_totalDiedAtEnd(0)
             , m_sizeDiedByHeap(0)
             , m_sizeDiedByStack(0)
@@ -233,9 +238,11 @@ class HeapState
         unsigned int size() const { return m_objects.size(); }
         unsigned long int liveSize() const { return m_liveSize; }
         unsigned long int maxLiveSize() const { return m_maxLiveSize; }
+        unsigned int getAllocTime() const { return m_alloc_time; }
 
         unsigned int getTotalDiedByStack2() const { return m_totalDiedByStack_ver2; }
         unsigned int getTotalDiedByHeap2() const { return m_totalDiedByHeap_ver2; }
+        unsigned int getTotalDiedByGlobal() const { return m_totalDiedByGlobal; }
         unsigned int getTotalDiedAtEnd() const { return m_totalDiedAtEnd; }
         unsigned int getTotalDiedUnknown() const { return m_totalDiedUnknown_ver2; }
         unsigned int getSizeDiedByHeap() const { return m_sizeDiedByHeap; }
@@ -302,6 +309,8 @@ class Object
 
         unsigned int m_createTime;
         unsigned int m_deathTime;
+        unsigned int m_createTime_alloc;
+        unsigned int m_deathTime_alloc;
 
         unsigned int m_refCount;
         Color m_color;
@@ -319,6 +328,8 @@ class Object
         bool m_was_root;
         // Did last update move to NULL?
         tribool m_last_update_null; // If false, it moved to a differnet object
+        // Was last update away from this object from a static field?
+        bool m_last_update_away_from_static;
         // Did this object die by loss of heap reference?
         bool m_diedByHeap;
         // Did this object die by loss of stack reference?
@@ -381,6 +392,8 @@ class Object
             , m_deadFlag(false)
             , m_createTime(create_time)
             , m_deathTime(UINT_MAX)
+            , m_createTime_alloc( heap->getAllocTime() )
+            , m_deathTime_alloc(UINT_MAX)
             , m_refCount(0)
             , m_maxRefCount(0)
             , m_color(GREEN)
@@ -393,6 +406,7 @@ class Object
             , m_reason(UNKNOWN_REASON)
             , m_last_action_time(0)
             , m_last_update_null(indeterminate)
+            , m_last_update_away_from_static(false)
             , m_methodDeathSite(0)
             , m_methodRCtoZero(NULL)
             , m_lastMethodDecRC(NULL)
@@ -422,6 +436,8 @@ class Object
         Thread * getThread() const { return m_thread; }
         unsigned int getCreateTime() const { return m_createTime; }
         unsigned int getDeathTime() const { return m_deathTime; }
+        unsigned int getCreateTimeAlloc() const { return this->m_createTime_alloc; }
+        unsigned int getDeathTimeAlloc() const { return m_deathTime_alloc; }
         Color getColor() const { return m_color; }
         EdgeMap::iterator const getEdgeMapBegin() { return m_fields.begin(); }
         EdgeMap::iterator const getEdgeMapEnd() { return m_fields.end(); }
@@ -456,6 +472,12 @@ class Object
         void setLastUpdateNull() { m_last_update_null = true; }
         // Set the last update null flag to false
         void unsetLastUpdateNull() { m_last_update_null = false; }
+        // Check if last update was from static
+        bool wasLastUpdateFromStatic() const { return m_last_update_away_from_static; }
+        // Set the last update from static flag to true
+        void setLastUpdateFromStatic() { m_last_update_away_from_static = true; }
+        // Set the last update from static flag to false
+        void unsetLastUpdateFromStatic() { m_last_update_away_from_static = false; }
         // Get the death site according the the Death event
         Method *getDeathSite() const { return m_methodDeathSite; }
         // Set the death site because of a Death event
@@ -520,7 +542,8 @@ class Object
                           Object *death_root,
                           LastEvent last_event );
         // -- Record death time
-        void makeDead(unsigned int death_time);
+        void makeDead( unsigned int death_time,
+                       unsigned int death_time_alloc );
         // -- Set the color
         void recolor(Color newColor);
         // Mark object as red

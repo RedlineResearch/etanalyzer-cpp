@@ -4,7 +4,7 @@ GIT=git
 FLAGS=-O2 -std=c++11 -g -Werror -I./boost_1_60_0 -static
 .PHONY: clean gitversion
 
-all: gitversion simulator
+all: gitversion simulator simulator-type1
 
 gitversion:
 	$(GIT) rev-parse HEAD | awk ' BEGIN {print "#include \"version.hpp\""} {print "const char *build_git_sha = \"" $$0"\";"} END {}' > version.cpp
@@ -14,8 +14,15 @@ simulator: simulator.o execution.o heap.o classinfo.o tokenizer.o analyze.o vers
 			summary.hpp
 	g++ $(FLAGS) -o simulator simulator.o execution.o heap.o classinfo.o tokenizer.o analyze.o version.o
 
+simulator-type1: simulator-type1.o execution.o heap.o classinfo.o tokenizer.o analyze.o version.o \
+			summary.hpp
+	g++ $(FLAGS) -o simulator-type1 simulator-type1.o execution.o heap.o classinfo.o tokenizer.o analyze.o version.o
+
 simulator.o: simulator.cpp classinfo.h tokenizer.h heap.h refstate.h
 	g++ $(FLAGS)  -c simulator.cpp
+
+simulator-type1.o: simulator.cpp classinfo.h tokenizer.h heap.h refstate.h
+	g++ $(FLAGS) -D ENABLE_TYPE1 -c simulator.cpp -o simulator-type1.o
 
 analyze.o: analyze.cpp classinfo.h tokenizer.h execution.h
 	g++ $(FLAGS)  -c analyze.cpp

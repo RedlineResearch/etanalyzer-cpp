@@ -17,6 +17,7 @@ import time
 import socket
 from collections import defaultdict
 from multiprocessing import Process
+from itertools import repeat
 
 # TODO from itertools import combinations
 
@@ -599,9 +600,15 @@ def update_keytype_dict( ktdict = {},
                          group = [],
                          objinfo = None,
                          contextinfo = None,
-                         group_types = frozenset([]) ):
+                         group_types = frozenset([]),
+                         dumpall = False,
+                         filterflag = True,
+                         writer = None ):
 
     assert( objId >= 0 )
+    EIGHTMB = 8388608 # 8 megabytes (generous binary version)
+    if dumpall:
+        assert( writer != None )
     if objinfo.died_at_end(objId):
         return DIEDBYSTACK
     grouplen = len(group)
@@ -625,7 +632,29 @@ def update_keytype_dict( ktdict = {},
                             "true_key_count" : 1 if true_key_flag else 0, }
     # Also update the context information
     cpair = objinfo.get_death_context( objId )
-    result = contextinfo.inc_key_count( context_pair = cpair )
+    if dumpall:
+        # Header is [ "type", "time", "context1", "context2",
+        #             "number of objects", "cause", "subcause",
+        #             "allocsite", ]
+        rec = objinfo.get_record(objId)
+        dcause = objinfo.get_death_cause_using_record(rec)
+        subcause = objinfo.get_stack_died_by_attr_using_record(rec) if dcause == "S" \
+            else ( objinfo.get_last_heap_update_using_record(rec) \
+                   if (dcause == "H" or dcause == "G") else "NONE" )
+        age = objinfo.get_age_using_record(rec)
+        # Filter here. Hardcoded 8 MB limit
+        if ( not filterflag or
+             objinfo.get_age_using_record_ALLOC(rec) <= EIGHTMB ):
+            writer.writerow( [ objType,
+                               objinfo.get_death_time_using_record(rec),
+                               cpair[0],
+                               cpair[1],
+                               grouplen,
+                               dcause,
+                               subcause,
+                               objinfo.get_allocsite_using_record(rec), ] )
+    result = contextinfo.inc_key_count( context_pair = cpair,
+                                        objType = objType )
     if result == None:
         return False
     elif not result:
@@ -648,7 +677,9 @@ def get_key_object_types( gnum = None,
                           objinfo = None,
                           contextinfo = None,
                           contextresult = {},
+                          dumpall = False,
                           logger = None,
+                          writer = None,
                           ignore_died_at_end = True ):
     if gnum in dgroups.group2list:
         group = dgroups.group2list[gnum] 
@@ -675,7 +706,9 @@ def get_key_object_types( gnum = None,
                                           group = [ obj ],
                                           objinfo = objinfo,
                                           contextinfo = contextinfo,
-                                          group_types = frozenset([]) )
+                                          group_types = frozenset([]),
+                                          dumpall = dumpall,
+                                          writer = writer )
             total_cc += 1
             err_cc = ((err_cc + 1) if (not result) else err_cc)
         # print "BY STACK - all primitive" # TODO Make into a logging statement
@@ -778,7 +811,9 @@ def get_key_object_types( gnum = None,
                                   group = group,
                                   objinfo = objinfo,
                                   contextinfo = contextinfo,
-                                  group_types = group_types )
+                                  group_types = group_types,
+                                  dumpall = dumpall,
+                                  writer = writer )
     total_cc += 1
     err_cc = ((err_cc + 1) if not result else err_cc)
     # This looks like all debug.
@@ -890,18 +925,18 @@ def death_group_analyze( bmark = None,
     # typedict = {}
     # rev_typedict = {}
     # ----------------------------------------
-    contextcount_path = os.path.join(cycle_cpp_dir, contextcount_config[bmark])
-    assert(os.path.isfile( contextcount_path ))
-    contextinfo = ContextCountReader( contextcount_path,
-                                      logger = logger,
-                                      update_missing = True )
-    logger.debug( "[%s]: Reading CONTEXT-DCOUNT file..." % bmark )
-    sys.stdout.write(  "[%s]: Reading CONTEXT-DCOUNT file...\n" % bmark )
-    oread_start = time.clock()
-    contextinfo.read_context_file()
-    oread_end = time.clock()
-    logger.debug( "[%s]: DONE: %f" % (bmark, (oread_end - oread_start)) )
-    sys.stdout.write(  "[%s]: DONE: %f\n" % (bmark, (oread_end - oread_start)) )
+    # TODO contextcount_path = os.path.join(cycle_cpp_dir, contextcount_config[bmark])
+    # TODO assert(os.path.isfile( contextcount_path ))
+    # TODO contextinfo = ContextCountReader( contextcount_path,
+    # TODO                                   logger = logger,
+    # TODO                                   update_missing = True )
+    # TODO logger.debug( "[%s]: Reading CONTEXT-DCOUNT file..." % bmark )
+    # TODO sys.stdout.write(  "[%s]: Reading CONTEXT-DCOUNT file...\n" % bmark )
+    # TODO oread_start = time.clock()
+    # TODO contextinfo.read_context_file()
+    # TODO oread_end = time.clock()
+    # TODO logger.debug( "[%s]: DONE: %f" % (bmark, (oread_end - oread_start)) )
+    # TODO sys.stdout.write(  "[%s]: DONE: %f\n" % (bmark, (oread_end - oread_start)) )
     # ----------------------------------------
     objectinfo_path = os.path.join(cycle_cpp_dir, objectinfo_config[bmark])
     assert(os.path.isfile( objectinfo_path ))
@@ -910,6 +945,17 @@ def death_group_analyze( bmark = None,
     sys.stdout.write(  "[%s]: Reading OBJECTINFO file...\n" % bmark )
     oread_start = time.clock()
     objinfo.read_objinfo_file()
+    oread_end = time.clock()
+    logger.debug( "[%s]: DONE: %f" % (bmark, (oread_end - oread_start)) )
+    sys.stdout.write(  "[%s]: DONE: %f\n" % (bmark, (oread_end - oread_start)) )
+    # ----------------------------------------
+    contextinfo = ContextCountReader( context_file = None,
+                                      logger = logger,
+                                      update_missing = True )
+    logger.debug( "[%s]: Processing CONTEXT-DCOUNT..." % bmark )
+    sys.stdout.write(  "[%s]: Processing CONTEXT-DCOUNT...\n" % bmark )
+    oread_start = time.clock()
+    contextinfo.process_object_info( object_info = objinfo )
     oread_end = time.clock()
     logger.debug( "[%s]: DONE: %f" % (bmark, (oread_end - oread_start)) )
     sys.stdout.write(  "[%s]: DONE: %f\n" % (bmark, (oread_end - oread_start)) )
@@ -926,7 +972,7 @@ def death_group_analyze( bmark = None,
     sys.stdout.write(  "[%s]: DONE: %f\n" % (bmark, (eread_end - eread_start)) )
     # ----------------------------------------
     logger.debug( "[%s]: Reading DGROUPS:" % bmark )
-    sys.stdout.write(  "[%s]: Reading DGROUPS:\n" % bmark )
+    sys.stdout.write( "[%s]: Reading DGROUPS:\n" % bmark )
     dgread_start = time.clock()
     abs_filename = os.path.join(cycle_cpp_dir, dgroups_filename)
     assert(os.path.isfile( abs_filename ))
@@ -945,18 +991,29 @@ def death_group_analyze( bmark = None,
     debug_tries = 0
     died_at_end_count = 0
     contextresult = { "total" : 0, "error" : 0 }
-    for gnum in dgroups.group2list.keys():
-        print "-------[ Group num: %d ]------------------------------------------------" % gnum
-        result = get_key_object_types( gnum = gnum,
-                                       ktdict = ktdict,
-                                       dgroups = dgroups,
-                                       edgeinfo = edgeinfo,
-                                       objinfo = objinfo,
-                                       contextinfo = contextinfo,
-                                       contextresult = contextresult,
-                                       logger = logger )
-        print "-------[ END group num: %d ]--------------------------------------------" % gnum
-
+    # ----------------------------------------
+    # Output each death group
+    dumpfile = os.path.join( workdir, "%s-DGROUPS-DUMP.csv" % bmark )
+    dumpall = (main_config["dumpall"] == "True")
+    with open( dumpfile, "wb" ) as fptr:
+        writer = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
+        writer.writerow( [ "type", "time", "context1", "context2",
+                           "number objects", "cause", "subcause",
+                          "allocsite", ] )
+        for gnum in dgroups.group2list.keys():
+            print "-------[ Group num: %d ]------------------------------------------------" % gnum
+            result = get_key_object_types( gnum = gnum,
+                                           ktdict = ktdict,
+                                           dgroups = dgroups,
+                                           edgeinfo = edgeinfo,
+                                           objinfo = objinfo,
+                                           contextinfo = contextinfo,
+                                           contextresult = contextresult,
+                                           dumpall = dumpall,
+                                           writer = writer,
+                                           logger = logger )
+            print "-------[ END group num: %d ]--------------------------------------------" % gnum
+    contextinfo.fix_counts( objinfo )
     # ----------------------------------------
     logger.debug( "[%s]: Total: %d" % (bmark, len(dgroups.group2list)) )
     logger.debug( "[%s]: Tries: %d" % (bmark, debug_tries) )
@@ -996,9 +1053,25 @@ def death_group_analyze( bmark = None,
     contextfile = os.path.join( workdir, "%s-CONTEXT-DCOUNT-KEY.csv" % bmark )
     with open( contextfile, "wb" ) as fptr:
         writer = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
-        writer.writerow( [ "funcsrc", "functarget", "total", "keyobject_count" ] )
+        writer.writerow( [ "funcsrc", "functarget", "total", "keyobject_count",
+                           "topclass1", "topclass2", "topclass3", "topclass4", "topclass5", ] )
         for cpair, rec in contextinfo.context_iteritems():
-            writer.writerow( [ cpair[0], cpair[1], rec[0], rec[1]] )
+            top5 = [ x[0] for x in contextinfo.get_top(cpair, 5) ]
+            # max_group_size = ktdict[]
+            if (len(top5) < 5):
+                top5.extend( [ x for x in repeat("NONE", times = (5 - len(top5))) ] )
+            # maxlist = []
+            # for x in top5:
+            #     if (x in ktdict) and (x != "NONE"):
+            #         maxlist.append( ktdict[x]["max"] )
+            #     elif x != "NONE":
+            #         maxlist.append( 1 )
+            #     else:
+            #         maxlist.append( 0 )
+            # top5 = zip(top5, maxlist)
+            row = [ cpair[0], cpair[1], rec[0], rec[1], ]
+            row.extend(top5)
+            writer.writerow( row )
 
     sys.stdout.write(  "-----[ %s DONE ]---------------------------------------------------------------\n" % bmark )
     logger.debug( "-----[ %s DONE ]---------------------------------------------------------------"
@@ -1018,6 +1091,7 @@ def main_process( output = None,
                   host_config = {},
                   worklist_config = {},
                   debugflag = False,
+                  dumpall = False,
                   logger = None ):
     global pp
     # HERE: TODO
@@ -1107,6 +1181,10 @@ def create_parser():
                          dest = "debugflag",
                          help = "Disable debug output.",
                          action = "store_false" )
+    parser.add_argument( "--dumpall",
+                         dest = "dumpall",
+                         help = "Dump each clump/group per key object.",
+                         action = "store_false" )
     parser.add_argument( "--benchmark",
                          dest = "benchmark",
                          help = "Select benchmark.",
@@ -1184,6 +1262,7 @@ def main():
     args = parser.parse_args()
     configparser = ConfigParser.ConfigParser()
     benchmark = args.benchmark
+    dumpall = args.dumpall
     assert( args.config != None )
     # Get all the configurations. Maybe there's a cleaner way to do this. TODO
     configdict = process_config( args )
@@ -1219,6 +1298,7 @@ def main():
                          global_config = global_config,
                          host_config = host_config,
                          worklist_config = worklist_config,
+                         dumpall = dumpall,
                          logger = logger )
 
 if __name__ == "__main__":

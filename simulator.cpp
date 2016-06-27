@@ -41,7 +41,11 @@ ObjectPtrMap_t whereis;
 HeapState Heap( whereis, keyset );
 
 // -- Execution state
+#ifdef ENABLE_TYPE1
+ExecState Exec(1); // Full calling context
+#else
 ExecState Exec(2); // Method-only context
+#endif // ENABLE_TYPE1
 
 // -- Turn on debugging
 bool debug = false;
@@ -198,8 +202,8 @@ unsigned int read_trace_file(FILE* f)
                                          els,     // length IF applicable
                                          thread,  // thread Id
                                          Exec.NowUp() ); // Current time
-                    unsigned int old_alloc_time = AllocationTime;
-                    AllocationTime += obj->getSize();
+                    AllocationTime = Heap.getAllocTime();
+                    Exec.SetAllocTime( AllocationTime );
                     total_objects++;
                 }
                 break;
@@ -213,6 +217,7 @@ unsigned int read_trace_file(FILE* f)
                     unsigned int tgtId = tokenizer.getInt(3);
                     unsigned int oldTgtId = tokenizer.getInt(1);
                     unsigned int threadId = tokenizer.getInt(5);
+                    unsigned int field = tokenizer.getInt(4);
                     Thread *thread = Exec.getThread(threadId);
                     Object *oldObj = Heap.getObject(oldTgtId);
                     Exec.IncUpdateTime();
@@ -227,6 +232,11 @@ unsigned int read_trace_file(FILE* f)
                             oldObj->unsetLastUpdateNull();
                         } else {
                             oldObj->setLastUpdateNull();
+                        }
+                        if (field == 0) {
+                            oldObj->setLastUpdateFromStatic();
+                        } else {
+                            oldObj->unsetLastUpdateFromStatic();
                         }
                     }
                     if (oldTgtId == tgtId) {
@@ -270,29 +280,21 @@ unsigned int read_trace_file(FILE* f)
                     obj = Heap.getObject(objId);
                     if (obj) {
                         unsigned int threadId = tokenizer.getInt(2);
-                        Thread *thread = Exec.getThread(threadId);
-                        // TODO // Get last event and object from last_map
-                        // TODO pair<LastEvent, Object *> last_pair = last_map.getLastEventAndObject( threadId );
-                        // TODO LastEvent last_event = last_pair.first;
-                        // TODO Object *last_object = last_pair.second;
-                        // TODO // Set the object fields
-                        // TODO obj->setLastEvent( last_event );
-                        // TODO obj->setLastObject( last_object );
-                        // TODO if (last_event == LastEvent::ROOT) {
-                        // TODO     obj->setDiedByStackFlag();
-                        // TODO } else if (last_event == LastEvent::UPDATE) {
-                        // TODO     obj->setDiedByHeapFlag();
-                        // TODO }
                         Heap.makeDead(obj, Exec.NowUp());
                         // Get the current method
                         Method *topMethod = NULL;
-                        if (thread) {
+                        ContextPair cpair;
+                        Thread *thread;
+                        if (threadId > 0) {
+                            thread = Exec.getThread(threadId);
                             // Update counters in ExecState for map of
                             //   Object * to simple context pair
-                            ContextPair cpair( thread->getContextPair() );
-                            // DEBUG
-                            // thread->debug_cpair( cpair, "death" );
-                            // END DEBUG
+                        } else {
+                            // No thread info. Get from ExecState
+                            thread = Exec.get_last_thread();
+                        }
+                        if (thread) {
+                            cpair = thread->getContextPair();
                             Exec.UpdateObj2Context(obj, cpair);
                             topMethod = thread->TopMethod();
                             // Set the death site
@@ -399,24 +401,24 @@ void filter_edgelist( deque< pair<int,int> >& edgelist, deque< deque<int> >& cyc
 {
     set<int> nodes;
     deque< pair<int,int> > newlist;
-    for ( deque< deque<int> >::iterator it = cycle_list.begin();
+    for ( auto it = cycle_list.begin();
           it != cycle_list.end();
           ++it ) {
-        for ( deque<int>::iterator tmp = it->begin();
+        for ( auto tmp = it->begin();
               tmp != it->end();
               ++tmp ) {
             nodes.insert(*tmp);
         }
     }
-    for ( EdgeList::iterator it = edgelist.begin();
+    for ( auto it = edgelist.begin();
           it != edgelist.end();
           ++it ) {
-        set<int>::iterator first_it = nodes.find(it->first);
+        auto first_it = nodes.find(it->first);
         if (first_it == nodes.end()) {
             // First node not found, carry on.
             continue;
         }
-        set<int>::iterator second_it = nodes.find(it->second);
+        auto second_it = nodes.find(it->second);
         if (second_it != nodes.end()) {
             // Found both edge nodes in cycle set 'nodes'
             // Add the edge.
@@ -429,7 +431,7 @@ void filter_edgelist( deque< pair<int,int> >& edgelist, deque< deque<int> >& cyc
 unsigned int sumSize( std::set< Object * >& s )
 {
     unsigned int total = 0;
-    for ( std::set<Object *>::iterator it = s.begin();
+    for ( auto it = s.begin();
           it != s.end();
           ++it ) {
         total += (*it)->getSize();
@@ -446,7 +448,7 @@ void update_summaries( Object *key,
     string mytype = key->getType();
     unsigned gsize = tgtSet.size();
     // per group summary
-    GroupSum_t::iterator git = pgs.find(mytype);
+    auto git = pgs.find(mytype);
     if (git == pgs.end()) {
         pgs[mytype] = std::vector< Summary * >();
     }
@@ -455,7 +457,7 @@ void update_summaries( Object *key,
     // -- third parameter is number of groups which is simply 1 here.
     pgs[mytype].push_back(s);
     // type total summary
-    TypeTotalSum_t::iterator titer = tts.find(mytype);
+    auto titer = tts.find(mytype);
     if (titer == tts.end()) {
         Summary *t = new Summary( gsize, total_size, 1 );
         tts[mytype] = t;
@@ -465,7 +467,7 @@ void update_summaries( Object *key,
         tts[mytype]->num_groups++;
     }
     // size summary
-    SizeSum_t::iterator sit = ssum.find(gsize);
+    auto sit = ssum.find(gsize);
     if (sit == ssum.end()) {
         Summary *u = new Summary( gsize, total_size, 1 );
         ssum[gsize] = u;
@@ -481,7 +483,7 @@ void update_summary_from_keyset( KeySet_t &keyset,
                                  TypeTotalSum_t &type_total_summary,
                                  SizeSum_t &size_summary )
 {
-    for ( KeySet_t::iterator it = keyset.begin();
+    for ( auto it = keyset.begin();
           it != keyset.end();
           ++it ) {
         Object *key = it->first;
@@ -501,7 +503,7 @@ void output_size_summary( string &dgroups_filename,
 {
     ofstream dgroups_file(dgroups_filename);
     dgroups_file << "\"num_objects\",\"size_bytes\",\"num_groups\"" << endl;
-    for ( SizeSum_t::iterator it = size_summary.begin();
+    for ( auto it = size_summary.begin();
           it != size_summary.end();
           ++it ) {
         unsigned int gsize = it->first;
@@ -569,11 +571,12 @@ fail:
     return;
 }
 
-void output_all_objects( string &objectinfo_filename,
-                         HeapState &myheap,
-                         std::set<ObjectId_t> dag_keys,
-                         std::set<ObjectId_t> dag_all_set,
-                         std::set<ObjectId_t> all_keys )
+
+void output_all_objects2( string &objectinfo_filename,
+                          HeapState &myheap,
+                          std::set<ObjectId_t> dag_keys,
+                          std::set<ObjectId_t> dag_all_set,
+                          std::set<ObjectId_t> all_keys )
 {
     ofstream object_info_file(objectinfo_filename);
     object_info_file << "---------------[ OBJECT INFO ]--------------------------------------------------" << endl;
@@ -582,22 +585,28 @@ void output_all_objects( string &objectinfo_filename,
           ++it ) {
         Object *object = it->second;
         ObjectId_t objId = object->getId();
-        set<ObjectId_t>::iterator diter = dag_all_set.find(objId);
+        KeyType ktype = object->getKeyType();
         string dgroup_kind;
-        if (diter == dag_all_set.end()) {
-            // Not a DAG object, therefore CYCLE
-            set<ObjectId_t>::iterator itmp = all_keys.find(objId);
-            dgroup_kind = ((itmp == all_keys.end()) ? "CYC" : "CYCKEY" );
+        if (ktype == CYCLE) {
+            dgroup_kind = "CYC";
+        } else if (ktype == CYCLEKEY) {
+            dgroup_kind = "CYCKEY";
+        } else if (ktype == DAG) {
+            dgroup_kind = "DAG";
+        } else if (ktype == DAGKEY) {
+            dgroup_kind = "DAGKEY";
         } else {
-            // A DAG object
-            set<ObjectId_t>::iterator itmp = dag_keys.find(objId);
-            dgroup_kind = ((itmp == dag_keys.end()) ? "DAG" : "DAGKEY" );
+            dgroup_kind = "CYC";
         }
         string dtype;
         if (object->getDiedByStackFlag()) {
             dtype = "S"; // by stack
         } else if (object->getDiedByHeapFlag()) {
-            dtype = "H"; // by heap
+            if (object->wasLastUpdateFromStatic()) {
+                dtype = "G"; // by static global
+            } else {
+                dtype = "H"; // by heap
+            }
         } else {
             dtype = "E"; // program end
         }
@@ -620,6 +629,8 @@ void output_all_objects( string &objectinfo_filename,
             << "," << method1 // Part 1 of simple context pair
             << "," << method2 // part 2 of simple context pair
             << "," << allocsite_name
+            << "," << object->getCreateTimeAlloc()
+            << "," << object->getDeathTimeAlloc()
             << endl;
             // TODO: The following can be made into a lookup table:
             //       method names
@@ -627,14 +638,6 @@ void output_all_objects( string &objectinfo_filename,
             //       type names
             // May only be necessary for performance reasons (ie, simulator eats up too much RAM 
             // on the larger benchmarks/programs.)
-        // TODO Fix the SHEAP/SONLY for heap objects. - 4/21/2016 - RLV
-        // TODO Add the deathgroup number
-        // TODO Decide on the deathgroup file output.
-        //         - group number?
-        //         - key object
-        //         - total ojects
-        //         - total size
-        //         - by stack only size
     }
     object_info_file << "---------------[ OBJECT INFO END ]----------------------------------------------" << endl;
     object_info_file.close();
@@ -735,8 +738,9 @@ int main(int argc, char* argv[])
 {
     if (argc != 5) {
         cout << "Usage: " << argv[0] << " <namesfile> <output base name> <CYCLE/NOCYCLE> <OBJDEBUG/NOOBJDEBUG>" << endl;
-        cout << "      git version: " <<  build_git_sha << endl;
-        cout << "      build date : " <<  build_git_time << endl;
+        cout << "      git version: " << build_git_sha << endl;
+        cout << "      build date : " << build_git_time << endl;
+        cout << "      CC kind    : " << Exec.get_kind() << endl;
         exit(1);
     }
     cout << "#     git version: " <<  build_git_sha << endl;
@@ -753,6 +757,13 @@ int main(int argc, char* argv[])
     string dgroups_filename( basename + "-DGROUPS.csv" );
     string dgroups_by_type_filename( basename + "-DGROUPS-BY-TYPE.csv" );
     string context_death_count_filename( basename + "-CONTEXT-DCOUNT.csv" );
+
+    string call_context_filename( basename + "-CALL-CONTEXT.csv" );
+    ofstream call_context_file(call_context_filename);
+    Exec.set_output( &call_context_file );
+    string nodemap_filename( basename + "-NODEMAP.csv" );
+    ofstream nodemap_file(nodemap_filename);
+    Exec.set_nodefile( &nodemap_file );
 
     string cycle_switch(argv[3]);
     bool cycle_flag = ((cycle_switch == "NOCYCLE") ? false : true);
@@ -771,6 +782,7 @@ int main(int argc, char* argv[])
     FILE* f = fdopen(0, "r");
     unsigned int total_objects = read_trace_file(f);
     unsigned int final_time = Exec.NowUp();
+    unsigned int final_time_alloc = Heap.getAllocTime();
     cout << "Done at update time: " << Exec.NowUp() << endl;
     cout << "Total objects: " << total_objects << endl;
     cout << "Heap.size:     " << Heap.size() << endl;
@@ -805,7 +817,7 @@ int main(int argc, char* argv[])
                 continue; // TODO
             }
             deque< Object * > deqtmp;
-            // std::copy( sptr->begin(), sptr->end(), vptr.begin() );
+            // std::copy( sptr->begin(), sptr->end(), deqtmp.begin() );
             // std::remove_if( deqtmp.begin(), deqtmp.end(), ifNull );
             for ( set< Object * >::iterator setit = sptr->begin();
                   setit != sptr->end();
@@ -832,6 +844,7 @@ int main(int argc, char* argv[])
                 }
             }
         }
+        // Copy all dag_all object Ids into dag_all_set to get rid of duplicates.
         set<ObjectId_t> dag_all_set( dag_all.cbegin(), dag_all.cend() );
 
         // scan_queue2 determines all the death groups that are cyclic
@@ -862,11 +875,11 @@ int main(int argc, char* argv[])
         output_type_summary( dgroups_by_type_filename,
                              type_total_summary );
         // Output all objects info
-        output_all_objects( objectinfo_filename,
-                            Heap,
-                            dag_keys,
-                            dag_all_set,
-                            all_keys );
+        output_all_objects2( objectinfo_filename,
+                             Heap,
+                             dag_keys,
+                             dag_all_set,
+                             all_keys );
         output_context_summary( context_death_count_filename,
                                 Exec );
         // TODO: What next? 
@@ -888,6 +901,7 @@ int main(int argc, char* argv[])
                  << "number_of_edges," << Heap.numberEdges() << endl
                  << "died_by_stack," << Heap.getTotalDiedByStack2() << endl
                  << "died_by_heap," << Heap.getTotalDiedByHeap2() << endl
+                 << "died_by_global," << Heap.getTotalDiedByHeap2() << endl
                  << "died_at_end," << Heap.getTotalDiedAtEnd() << endl
                  << "last_update_null," << Heap.getTotalLastUpdateNull() << endl
                  << "last_update_null_heap," << Heap.getTotalLastUpdateNullHeap() << endl
@@ -906,7 +920,8 @@ int main(int argc, char* argv[])
                  << "vm_RC_zero," << Heap.getVMObjectsRefCountZero() << endl
                  << "vm_RC_positive," << Heap.getVMObjectsRefCountPositive() << endl
                  << "max_live_size," << Heap.maxLiveSize() << endl
-                 << "final_time," << final_time << endl;
+                 << "final_time," << final_time << endl
+                 << "final_time_alloc," << final_time_alloc << endl;
     summary_file << "---------------[ SUMMARY INFO END ]------------------------------------------------" << endl;
     summary_file.close();
     //---------------------------------------------------------------------
@@ -935,3 +950,72 @@ int main(int argc, char* argv[])
     cout << "#     build date : " <<  build_git_time << endl;
 }
 
+// TODO:
+// void output_all_objects( string &objectinfo_filename,
+//                          HeapState &myheap,
+//                          std::set<ObjectId_t> dag_keys,
+//                          std::set<ObjectId_t> dag_all_set,
+//                          std::set<ObjectId_t> all_keys )
+// {
+//     ofstream object_info_file(objectinfo_filename);
+//     object_info_file << "---------------[ OBJECT INFO ]--------------------------------------------------" << endl;
+//     for ( ObjectMap::iterator it = myheap.begin();
+//           it != myheap.end();
+//           ++it ) {
+//         Object *object = it->second;
+//         ObjectId_t objId = object->getId();
+//         set<ObjectId_t>::iterator diter = dag_all_set.find(objId);
+//         string dgroup_kind;
+//         if (diter == dag_all_set.end()) {
+//             // Not a DAG object, therefore CYCLE
+//             set<ObjectId_t>::iterator itmp = all_keys.find(objId);
+//             dgroup_kind = ((itmp == all_keys.end()) ? "CYC" : "CYCKEY" );
+//         } else {
+//             // A DAG object
+//             set<ObjectId_t>::iterator itmp = dag_keys.find(objId);
+//             dgroup_kind = ((itmp == dag_keys.end()) ? "DAG" : "DAGKEY" );
+//         }
+//         string dtype;
+//         if (object->getDiedByStackFlag()) {
+//             dtype = "S"; // by stack
+//         } else if (object->getDiedByHeapFlag()) {
+//             if (object->wasLastUpdateFromStatic()) {
+//                 dtype = "G"; // by static global
+//             } else {
+//                 dtype = "H"; // by heap
+//             }
+//         } else {
+//             dtype = "E"; // program end
+//         }
+//         ContextPair cpair = object->getDeathContextPair();
+//         Method *meth_ptr1 = std::get<0>(cpair);
+//         Method *meth_ptr2 = std::get<1>(cpair);
+//         string method1 = (meth_ptr1 ? meth_ptr1->getName() : "NONAME");
+//         string method2 = (meth_ptr2 ? meth_ptr2->getName() : "NONAME");
+//         string allocsite_name = object->getAllocSiteName();
+//         object_info_file << objId
+//             << "," << object->getCreateTime()
+//             << "," << object->getDeathTime()
+//             << "," << object->getSize()
+//             << "," << object->getType()
+//             << "," << dtype
+//             << "," << (object->wasLastUpdateNull() ? "NULL" : "VAL")
+//             << "," << (object->getDiedByStackFlag() ? (object->wasPointedAtByHeap() ? "SHEAP" : "SONLY")
+//                                                     : "H")
+//             << "," << dgroup_kind
+//             << "," << method1 // Part 1 of simple context pair
+//             << "," << method2 // part 2 of simple context pair
+//             << "," << allocsite_name
+//             << "," << object->getCreateTimeAlloc()
+//             << "," << object->getDeathTimeAlloc()
+//             << endl;
+//             // TODO: The following can be made into a lookup table:
+//             //       method names
+//             //       allocsite names
+//             //       type names
+//             // May only be necessary for performance reasons (ie, simulator eats up too much RAM 
+//             // on the larger benchmarks/programs.)
+//     }
+//     object_info_file << "---------------[ OBJECT INFO END ]----------------------------------------------" << endl;
+//     object_info_file.close();
+// }

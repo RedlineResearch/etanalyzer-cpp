@@ -10,7 +10,7 @@ import ConfigParser
 import csv
 import datetime
 import subprocess
-from collections import defaultdict
+from collections import defaultdict, Counter
 
 pp = pprint.PrettyPrinter( indent = 4 )
 
@@ -90,6 +90,8 @@ def get_index( field = None ):
                  "CONTEXT1" : 8,
                  "CONTEXT2" : 9,
                  "ALLOCSITE" : 10,
+                 "ATIME_ALLOC" : 11,
+                 "DTIME_ALLOC" : 12,
         }[field]
     except:
         return None
@@ -156,9 +158,11 @@ class ObjectInfoReader:
                     # 1 - death time
                     # 2 - size
                     row = [ int(x) for x in rowtmp[1:4] ]
-                    mytype = rowtmp[4]
+                    mytype = rowtmp[get_index("TYPE")]
                     row.append( self.get_typeId( mytype ) )
-                    row.extend( rowtmp[5:] )
+                    row.extend( rowtmp[5:12] )
+                    row.append( int(rowtmp[12]) )
+                    row.append( int(rowtmp[13]) )
                     objId = int(rowtmp[0])
                     if objId not in object_info:
                         object_info[objId] = tuple(row)
@@ -183,8 +187,22 @@ class ObjectInfoReader:
         return (self.objdict[objId][get_index("DIEDBY")] == "E") if (objId in self.objdict) \
             else False
 
+    def get_death_cause( self, objId ):
+        rec = self.get_record(objId)
+        return self.get_death_cause_using_record(rec)
+
+    def get_death_cause_using_record( self, rec = None ):
+        return rec[get_index("DIEDBY")] if (rec != None) \
+            else "NONE"
+
     def iteritems( self ):
         return self.objdict.iteritems()
+
+    def iterrecs( self ):
+        odict = self.objdict
+        keys = odict.keys()
+        for objId in keys:
+            yield (objId, odict[objId])
 
     # If numlines == 0, print out all.
     def print_out( self, numlines = 30 ):
@@ -212,7 +230,57 @@ class ObjectInfoReader:
 
     def get_death_time( self, objId = 0 ):
         rec = self.get_record(objId)
+        return self.get_death_time_using_record(rec)
+
+    def get_death_time_ALLOC( self, objId = 0 ):
+        rec = self.get_record(objId)
+        return self.get_death_time_using_record_ALLOC(rec)
+
+    def get_alloc_time_using_record( self, rec = None ):
+        return rec[ get_index("ATIME") ] if rec != None else 0
+
+    def get_alloc_time( self, objId = 0 ):
+        rec = self.get_record(objId)
+        return self.get_alloc_time_using_record(rec)
+
+    # This weirdly named function gets the allocation time of an object
+    # using the logical allocation time (in bytes allocated) as the
+    # basis for time. I know it sounds weird
+    def get_alloc_time_using_record_ALLOC( self, rec = None ):
+        return rec[ get_index("ATIME_ALLOC") ] if rec != None else 0
+
+    def get_alloc_time_ALLOC( self, objId = 0 ):
+        rec = self.get_record(objId)
+        return self.get_alloc_time_using_record_ALLOC(rec)
+
+    def get_age_using_record( self, rec = None ):
+        return ( self.get_death_time_using_record(rec) - \
+                 self.get_alloc_time_using_record(rec) ) \
+            if rec != None else 0
+
+    def get_age( self, objId = 0 ):
+        rec = self.get_record(objId)
+        return self.get_age_using_record(rec)
+
+    # The *_ALLOC versions means that we're using allocation time
+    # instead of our standard logical (method + update) time.
+    def get_age_using_record_ALLOC( self, rec = None ):
+        return ( self.get_death_time_using_record_ALLOC(rec) - \
+                 self.get_alloc_time_using_record_ALLOC(rec) ) \
+            if rec != None else 0
+
+    def get_age_ALLOC( self, objId = 0 ):
+        rec = self.get_record(objId)
+        return self.get_age_using_record_ALLOC(rec)
+
+    def get_death_time_using_record( self, rec = None ):
         return rec[ get_index("DTIME") ] if rec != None else 0
+
+    # This weirdly named function gets the death time of an object
+    # using the logical allocation time (in bytes allocated) as the
+    # basis for time.
+    def get_death_time_using_record_ALLOC( self, rec = None ):
+        return rec[ get_index("DTIME_ALLOC") ] if rec != None else 0
 
     def is_array( self, objId = 0 ):
         typeId = self.get_record(objId)[ get_index("TYPE") ]
@@ -220,6 +288,14 @@ class ObjectInfoReader:
 
     def died_by_stack( self, objId = 0 ):
         return (self.objdict[objId][get_index("DIEDBY")] == "S") if (objId in self.objdict) \
+            else False
+
+    def died_by_heap( self, objId = 0 ):
+        return (self.objdict[objId][get_index("DIEDBY")] == "H") if (objId in self.objdict) \
+            else False
+
+    def died_by_global( self, objId = 0 ):
+        return (self.objdict[objId][get_index("DIEDBY")] == "G") if (objId in self.objdict) \
             else False
 
     def group_died_by_stack( self, grouplist = [] ):
@@ -233,7 +309,7 @@ class ObjectInfoReader:
                         grouplist = [],
                         died_by = None,
                         fail_on_missing = False ):
-        assert( died_by == "S" or died_by == "H" or died_by == "E" )
+        assert( died_by == "S" or died_by == "H" or died_by == "E" or died_by == "G" )
         flag = True
         for obj in grouplist:
             if obj not in self.objdict:
@@ -251,14 +327,36 @@ class ObjectInfoReader:
 
     def get_death_context( self, objId = 0 ):
         rec = self.get_record(objId)
+        return self.get_death_context_using_record(rec)
+
+    def get_death_context_using_record( self, rec = None ):
+        return self.get_death_context_record(rec)
+
+    def get_death_context_record( self, rec = None ):
         first = rec[ get_index("CONTEXT1") ] if rec != None else "NONE"
         second = rec[ get_index("CONTEXT2") ] if rec != None else "NONE"
         return (first, second)
 
     def get_allocsite( self, objId = 0 ):
         rec = self.get_record(objId)
+        return self.get_allocsite_using_record(rec)
+
+    def get_allocsite_using_record( self, rec = None ):
         return rec[ get_index("ALLOCSITE") ] if rec != None else "NONE"
 
+    def get_stack_died_by_attr( self, objId = 0 ):
+        rec = self.get_record(objId)
+        return self.get_stack_died_by_attr_using_record(rec)
+
+    def get_stack_died_by_attr_using_record( self, rec = None ):
+        return rec[ get_index("STATTR") ] if rec != None else "NONE"
+
+    def get_last_heap_update( self, objId = 0 ):
+        rec = self.get_record(objId)
+        return self.get_last_heap_update_using_record(rec)
+
+    def get_last_heap_update_using_record( self, rec = None ):
+        return rec[ get_index("LASTUP") ] if rec != None else "NONE"
 
 # ----------------------------------------------------------------------------- 
 # ----------------------------------------------------------------------------- 
@@ -367,7 +465,6 @@ class EdgeInfoReader:
     
     def get_last_edge_record( self, tgtId = None ):
         return self.lastedge[tgtId] if tgtId in self.lastedge else None
-
 
 # ----------------------------------------------------------------------------- 
 # ----------------------------------------------------------------------------- 
@@ -566,9 +663,20 @@ class ContextCountReader:
         self.context_file_name = context_file
         # Context to counts and attribute record dictionary
         self.contextdict = {} # (funcsrc, functgt) -> (count objects, count death groups) 
+        self.con_typedict = defaultdict( Counter ) # (funcsrc, functgt) -> Counter of key object types
+        self.all_typedict = defaultdict( Counter ) # (funcsrc, functgt) -> Counter of all types
+        self.stack_counter = Counter() # (funcsrc, functgt) -> count of stack objects
         self.logger = logger
         self.update_missing = update_missing
         self.missing_set = set([])
+
+    def process_object_info( self,
+                             object_info = None ):
+        oi = object_info
+        for objId, rec in oi.iterrecs():
+            self.inc_count( context_pair = oi.get_death_context_record(rec),
+                            objTypeId = rec[get_index( "TYPE" )],
+                            by_stack = (rec[get_index("DIEDBY")] == 'S') )
 
     def read_context_file( self ):
         start = False
@@ -597,6 +705,29 @@ class ContextCountReader:
     def context_iteritems( self ):
         return self.contextdict.iteritems()
 
+    def inc_count( self,
+                   context_pair = (None, None),
+                   objTypeId = 0,
+                   by_stack = False ):
+        cpair = context_pair
+        if cpair[0] == None or cpair[1] == None:
+            # Invalid context pair.
+            self.logger.error("Context pair is None.")
+            return False
+        cdict = self.contextdict
+
+        if cpair not in cdict:
+            # Not found, initialize. Key count (second element)
+            # is updated later.
+            cdict[cpair] = (1, 0)
+        else:
+            old = cdict[cpair]
+            cdict[cpair] = ((old[0] + 1), 0)
+        self.all_typedict[cpair].update( [ objTypeId ] )
+        if by_stack:
+            self.stack_counter.update( [ cpair ] )
+        return True
+    
     def update_key_count( self,
                           context_pair = (None, None),
                           key_count = 0 ):
@@ -630,13 +761,14 @@ class ContextCountReader:
             cdict[cpair] = (rec[0], key_count)
 
     def inc_key_count( self,
-                       context_pair = (None, None) ):
+                       context_pair = (None, None),
+                       objType = "NONE" ):
         cpair = context_pair
         if cpair[0] == None or cpair[1] == None:
             self.logger.error("Context pair is None.")
             return None
         cdict = self.contextdict
-
+        result = False
         if cpair not in cdict:
             self.logger.error("Context pair[ %s ] not found." % str(cpair))
             # Update the missing if we're supposed to
@@ -644,10 +776,11 @@ class ContextCountReader:
                 return False
             cdict[cpair] = (1, key_count)
             self.missing_set.add( cpair )
-            return False
         else:
             self.inc_key_count_no_check( cpair )
-            return True
+            result = True
+        self.con_typedict[cpair].update( [ objType ] )
+        return result
     
     def inc_key_count_no_check( self,
                                 cpair = (None, None) ):
@@ -658,6 +791,32 @@ class ContextCountReader:
         else:
             cdict[cpair] = (rec[0], (rec[1] + 1))
 
+    def fix_counts( self,
+                    objectinfo = None ):
+        oi = objectinfo
+        cdict = self.contextdict
+        for cpair in cdict.keys():
+            rec = cdict[cpair]
+            kcount = rec[1]
+            if kcount == 0:
+                cdict[cpair] = (rec[0], rec[0])
+                for typeId, count in self.all_typedict[cpair].iteritems():
+                    self.con_typedict[cpair][ oi.get_type_using_typeId(typeId) ] = count
+
+
+    def get_top( self,
+                 cpair = None,
+                 num = 5 ):
+        """Return the top 'num' key object types"""
+        return self.con_typedict[cpair].most_common(num) if cpair != None \
+            else [ "NONE" ] * num
+
+    def get_stack_count( self,
+                         cpair = None ):
+        if cpair == None:
+            return 0
+        return self.stack_counter[cpair] if cpair in self.stack_counter else 0
+
     def print_out( self, numlines = 30 ):
         pass
         # TODO
@@ -667,6 +826,77 @@ class ContextCountReader:
         #     count += 1
         #     if numlines != 0 and count >= numlines:
         #         break
+
+# ----------------------------------------------------------------------------- 
+# ----------------------------------------------------------------------------- 
+class SummaryReader:
+    def __init__( self,
+                  summary_file = None,
+                  logger = None ):
+        # TODO: Choice of loading from text file or from pickle
+        # 
+        self.summary_file_name = summary_file
+        self.summarydict = {}
+        self.logger = logger
+
+    def read_summary_file( self ):
+        start = False
+        done = False
+        sdict = self.summarydict
+        with get_trace_fp( self.summary_file_name, self.logger ) as fp:
+            for line in fp:
+                line = line.rstrip()
+                if line.find("---------------[ SUMMARY INFO") == 0:
+                    start = True if not start else False
+                    if start:
+                        continue
+                    else:
+                        done = True
+                        break
+                if start:
+                    rowtmp = line.split(",")
+                    # 0 - key
+                    # 1 - value
+                    row = [ int(x) for x in rowtmp ]
+                    sdict[row[0]] = row[1]
+        assert(done)
+
+    def edgedict_iteritems( self ):
+        return self.edgedict.iteritems()
+
+    def get_final_garbology_time( self ):
+        assert("final_time" in self.summarydict)
+        return self.summarydict["final_time"]
+
+    def get_final_garbology_alloc_time( self ):
+        assert("final_time" in self.summarydict)
+        return self.summarydict["final_time_alloc"]
+
+    def get_number_of_objects( self ):
+        assert("number_of_objects" in self.summarydict)
+        return self.summarydict["number_of_objects"]
+
+    def get_number_died_by_stack( self ):
+        assert("died_by_stack" in self.summarydict)
+        return self.summarydict["died_by_stack"]
+
+    def get_number_died_by_heap( self ):
+        assert("died_by_heap" in self.summarydict)
+        return self.summarydict["died_by_heap"]
+
+    def get_number_died_by_global( self ):
+        assert("died_by_global" in self.summarydict)
+        return self.summarydict["died_by_global"]
+
+    def keys( self ):
+        return self.summarydict.keys()
+
+    def items( self ):
+        return self.summarydict.items()
+
+    def print_out( self ):
+        for key, val in self.summarydict.iteritems():
+            print "%s -> %d" % (key, val)
 
 
 # ----------------------------------------------------------------------------- 

@@ -32,6 +32,8 @@ Object* HeapState::allocate( unsigned int id,
                              Thread *thread,
                              unsigned int create_time )
 {
+    // Design decision: allocation time isn't 0 based.
+    this->m_alloc_time += size;
     Object* obj = new Object( id,
                               size,
                               kind,
@@ -98,7 +100,7 @@ void HeapState::makeDead(Object * obj, unsigned int death_time)
             // All good. Fight on.
             this->m_liveSize = temp;
         }
-        obj->makeDead(death_time);
+        obj->makeDead( death_time, this->m_alloc_time );
     }
 }
 
@@ -113,8 +115,7 @@ void HeapState::update_death_counters( Object *obj )
     if ( obj->getReason() ==  Reason::END_OF_PROGRAM_REASON ) {
         this->m_totalDiedAtEnd++;
         this->m_sizeDiedAtEnd += obj_size;
-    }
-    else if ( obj->getDiedByStackFlag() ||
+    } else if ( obj->getDiedByStackFlag() ||
          ( ((obj->getReason() == Reason::STACK) ||
             (obj->getLastEvent() == LastEvent::ROOT)) &&
             !obj->getDiedByHeapFlag() )
@@ -148,6 +149,7 @@ void HeapState::update_death_counters( Object *obj )
         if (m_obj_debug_flag) {
             cout << "H> " << obj->info2();
         }
+        // Check to see if the last update was from global
         this->m_totalDiedByHeap_ver2++;
         this->m_sizeDiedByHeap += obj_size;
         obj->setDiedByHeapFlag();
@@ -240,7 +242,7 @@ void HeapState::end_of_program(unsigned int cur_time)
             if (!obj->isDead()) {
                 // A hack: not sure why this check may be needed.
                 // TODO: Debug this.
-                obj->makeDead(cur_time);
+                obj->makeDead( cur_time, this->m_alloc_time );
             }
             obj->unsetDiedByStackFlag();
             obj->unsetDiedByHeapFlag();
@@ -249,6 +251,7 @@ void HeapState::end_of_program(unsigned int cur_time)
             obj->setLastEvent( LastEvent::END_OF_PROGRAM_EVENT );
         } else {
             if (obj->getReason() == HEAP) {
+                // if (obj->) // TODO TODO GLOBAL type
                 obj->setDiedByHeapFlag();
             } else {
                 obj->setDiedByStackFlag();
@@ -399,8 +402,10 @@ void HeapState::scan_queue2( EdgeList& edgelist,
                 // Object exists
                 unsigned int uptime = obj->getLastActionTime();
                 // DEBUG: Compare to getDeathTime
+                // Insert (objId, update time) pair into candidate set
                 candSet.insert( std::make_pair( objId, uptime ) );
                 utimeMap[objId] = uptime;
+                // Copy all edges from source 'obj'
                 for ( EdgeMap::iterator p = obj->getEdgeMapBegin();
                       p != obj->getEdgeMapEnd();
                       ++p ) {
@@ -423,27 +428,56 @@ void HeapState::scan_queue2( EdgeList& edgelist,
     }
     cout << "Before whereis size: " << whereis.size() << endl;
     // Anything seen in this loop has a reference count (RefCount) greater than zero.
+    // The 'whereis' maps an object to its key object (both Object pointers)
     while (!(candSet.empty())) {
         CandidateSet_t::iterator it = candSet.begin();
         if (it != candSet.end()) {
             ObjectId_t rootId = it->first;
             unsigned int uptime = it->second;
-            Object *root = this->getObject(rootId);
+            Object *root;
+            Object *object = this->getObject(rootId);
             // DFS work stack - can't use 'stack' as a variable name
             std::deque< Object * > work;
             // The discovered set of objects.
             std::set< Object * > discovered;
             // Root goes in first.
-            work.push_back(root);
-            // Check to see if the root is already in there?
-            ObjectPtrMap_t::iterator itmap = whereis.find(root);
-            if (itmap == whereis.end()) {
-                keyset[root] = new std::set< Object * >();
-                root->setKeyType( CYCLEKEY );
+            work.push_back(object);
+            // Check to see if the object is already in there?
+            auto itmap = whereis.find(object);
+            if ( (itmap == whereis.end()) || 
+                 (object == whereis[object]) ) {
+                // It's a root...for now.
+                root = object;
+                if (itmap == whereis.end()) {
+                    // Haven't saved object in whereis yet.
+                    whereis[object] = root;
+                }
+                auto keysetit = keyset.find(root);
+                if (keysetit == keyset.end()) {
+                    keyset[root] = new std::set< Object * >();
+                }
+                root->setKeyType( CYCLEKEY ); // Note: root == object
             } else {
-                // So-called root isn't one
-                root = whereis[root];
-                root->setKeyType( CYCLE );
+                // So-called root isn't one because we have an entry in 'whereis'
+                // and root != whereis[object]
+                object->setKeyType( CYCLE ); // object is a CYCLE object
+                root = whereis[object]; // My real root.
+                auto obj_it = keyset.find(object);
+                if (obj_it != keyset.end()) {
+                    // So we found that object is not a root but has an entry
+                    // in keyset. We need to:
+                    //    1. Remove from keyset
+                    std::set< Object * > *sptr = obj_it->second;
+                    keyset.erase(obj_it);
+                    //    2. Add root if root is not there.
+                    keyset[root] = new std::set< Object * >(*sptr);
+                    delete sptr;
+                } else {
+                    // Create an empty set for root in keyset
+                    keyset[root] = new std::set< Object * >();
+                }
+                // Add object to root's set
+                keyset[root]->insert(object);
             }
             assert( root != NULL );
             // Depth First Search
@@ -452,27 +486,25 @@ void HeapState::scan_queue2( EdgeList& edgelist,
                 ObjectId_t curId = cur->getId();
                 work.pop_back();
                 // Look in whereis
-                ObjectPtrMap_t::iterator itwhere = whereis.find(cur);
+                auto itwhere = whereis.find(cur);
                 // Look in discovered
-                std::set< Object * >::iterator itdisc = discovered.find(cur);
+                auto itdisc = discovered.find(cur);
                 // Look in candidate
                 unsigned int uptime = utimeMap[curId];
-                CandidateSet_t::iterator itcand = candSet.find( std::make_pair( curId, uptime ) );
+                auto itcand = candSet.find( std::make_pair( curId, uptime ) );
                 if (itcand != candSet.end()) {
+                    // Found in candidate set so remove it.
                     candSet.erase(itcand);
                 }
                 assert(cur);
                 if (itdisc == discovered.end()) {
                     // Not yet seen by DFS.
                     discovered.insert(cur);
-                    // Remove from candidate set.
-                    // TODO candSet.erase(it);
                     Object *other_root = whereis[cur];
                     if (!other_root) {
-                        if (cur) {
-                            keyset[root]->insert(cur);
-                            whereis[cur] = root;
-                        }
+                        // 'cur' not found in 'whereis'
+                        keyset[root]->insert(cur);
+                        whereis[cur] = root;
                     } else {
                         unsigned int other_time = other_root->getDeathTime();
                         unsigned int root_time =  root->getDeathTime();
@@ -715,10 +747,12 @@ deque<int> Object::collect_blue( EdgeList& edgelist )
     return result;
 }
 
-void Object::makeDead(unsigned int death_time)
+void Object::makeDead( unsigned int death_time,
+                       unsigned int death_time_alloc )
 {
     // -- Record the death time
     this->m_deathTime = death_time;
+    this->m_deathTime_alloc = death_time_alloc;
     if (this->m_deadFlag) {
         cerr << "Object[ " << this->getId() << " ] : double Death event." << endl;
     } else {
@@ -814,14 +848,7 @@ void Object::decrementRefCountReal( unsigned int cur_time,
         // END DEBUG
         assert(my_death_root);
         whereis[this] = my_death_root;
-        // DEBUG
-        if (this_objId == 5229918) {
-            cout << "DEBUG: [C deathroot is [ " << drootId << " ]" << endl;
-        }
-        if (drootId == 5229918) {
-            cout << "DEBUG: [C is used as death root for [ " << this_objId << " ]" << endl;
-        }
-        // END DEBUG
+
         KeySet_t::iterator itset = keyset.find(my_death_root);
         if (itset == keyset.end()) {
             keyset[my_death_root] = new std::set< Object * >();
@@ -837,9 +864,9 @@ void Object::decrementRefCountReal( unsigned int cur_time,
             // This is a DAGKEY
             this->setKeyType(DAG);
         } else if (last_event == OBJECT_DEATH) {
-            // What happens here?
+            this->setKeyType(DAGKEY);
         } else {
-            // ???? Is this possible?
+            // This isn't possible.
             assert(0);
         }
         // Edges are now dead.
