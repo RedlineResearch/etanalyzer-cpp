@@ -835,6 +835,10 @@ class SummaryReader:
         assert("final_time" in self.summarydict)
         return self.summarydict["final_time"]
 
+    def get_final_garbology_alloc_time( self ):
+        assert("final_time" in self.summarydict)
+        return self.summarydict["final_time_alloc"]
+
     def get_number_of_objects( self ):
         assert("number_of_objects" in self.summarydict)
         return self.summarydict["number_of_objects"]

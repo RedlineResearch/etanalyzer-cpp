@@ -782,6 +782,7 @@ int main(int argc, char* argv[])
     FILE* f = fdopen(0, "r");
     unsigned int total_objects = read_trace_file(f);
     unsigned int final_time = Exec.NowUp();
+    unsigned int final_time_alloc = Heap.getAllocTime();
     cout << "Done at update time: " << Exec.NowUp() << endl;
     cout << "Total objects: " << total_objects << endl;
     cout << "Heap.size:     " << Heap.size() << endl;
@@ -919,7 +920,8 @@ int main(int argc, char* argv[])
                  << "vm_RC_zero," << Heap.getVMObjectsRefCountZero() << endl
                  << "vm_RC_positive," << Heap.getVMObjectsRefCountPositive() << endl
                  << "max_live_size," << Heap.maxLiveSize() << endl
-                 << "final_time," << final_time << endl;
+                 << "final_time," << final_time << endl
+                 << "final_time_alloc," << final_time_alloc << endl;
     summary_file << "---------------[ SUMMARY INFO END ]------------------------------------------------" << endl;
     summary_file.close();
     //---------------------------------------------------------------------
