@@ -601,9 +601,11 @@ def update_keytype_dict( ktdict = {},
                          objinfo = None,
                          contextinfo = None,
                          group_types = frozenset([]),
+                         max_age = 0,
                          dumpall = False,
                          filterflag = True,
-                         writer = None ):
+                         writer = None,
+                         logger = None ):
 
     assert( objId >= 0 )
     EIGHTMB = 8388608 # 8 megabytes (generous binary version)
@@ -643,8 +645,7 @@ def update_keytype_dict( ktdict = {},
                    if (dcause == "H" or dcause == "G") else "NONE" )
         age = objinfo.get_age_using_record(rec)
         # Filter here. Hardcoded 8 MB limit
-        if ( not filterflag or
-             objinfo.get_age_using_record_ALLOC(rec) <= EIGHTMB ):
+        if ( not filterflag or (max_age <= EIGHTMB) ):
             writer.writerow( [ objType,
                                objinfo.get_death_time_using_record(rec),
                                cpair[0],
@@ -653,6 +654,8 @@ def update_keytype_dict( ktdict = {},
                                dcause,
                                subcause,
                                objinfo.get_allocsite_using_record(rec), ] )
+        else:
+            logger.debug( "Object [%s](%d) IGNORED." % (objType, objId) )
     result = contextinfo.inc_key_count( context_pair = cpair,
                                         objType = objType )
     if result == None:
@@ -686,7 +689,12 @@ def get_key_object_types( gnum = None,
     else:
         return NOTFOUND # TODO What should return be? None?
     # Check if any of the group is a key object
-    key_objects = [ x for x in group if objinfo.is_key_object(x) ]
+    key_objects = []
+    max_age = 0 
+    for xtmp in group:
+        if objinfo.is_key_object(x):
+            key_objects.append(xtmp)
+        max_age = max( max_age, objinfo.get_age_ALLOC(x) )
     found_key = False
     used_last_edge = False
     print " - grouplen: %d" % len(group)
@@ -707,8 +715,11 @@ def get_key_object_types( gnum = None,
                                           objinfo = objinfo,
                                           contextinfo = contextinfo,
                                           group_types = frozenset([]),
+                                          max_age = max_age,
+                                          filterflag = True,
                                           dumpall = dumpall,
-                                          writer = writer )
+                                          writer = writer,
+                                          logger = logger )
             total_cc += 1
             err_cc = ((err_cc + 1) if (not result) else err_cc)
         # print "BY STACK - all primitive" # TODO Make into a logging statement
@@ -812,8 +823,11 @@ def get_key_object_types( gnum = None,
                                   objinfo = objinfo,
                                   contextinfo = contextinfo,
                                   group_types = group_types,
+                                  filterflag = True,
+                                  max_age = max_age,
                                   dumpall = dumpall,
-                                  writer = writer )
+                                  writer = writer,
+                                  logger = logger )
     total_cc += 1
     err_cc = ((err_cc + 1) if not result else err_cc)
     # This looks like all debug.
