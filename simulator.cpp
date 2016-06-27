@@ -616,6 +616,8 @@ void output_all_objects( string &objectinfo_filename,
         object_info_file << objId
             << "," << object->getCreateTime()
             << "," << object->getDeathTime()
+            << "," << object->getCreateTimeAlloc()
+            << "," << object->getDeathTimeAlloc()
             << "," << object->getSize()
             << "," << object->getType()
             << "," << dtype
@@ -626,8 +628,6 @@ void output_all_objects( string &objectinfo_filename,
             << "," << method1 // Part 1 of simple context pair
             << "," << method2 // part 2 of simple context pair
             << "," << allocsite_name
-            << "," << object->getCreateTimeAlloc()
-            << "," << object->getDeathTimeAlloc()
             << endl;
             // TODO: The following can be made into a lookup table:
             //       method names
