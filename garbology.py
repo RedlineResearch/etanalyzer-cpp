@@ -158,9 +158,11 @@ class ObjectInfoReader:
                     # 1 - death time
                     # 2 - size
                     row = [ int(x) for x in rowtmp[1:4] ]
-                    mytype = rowtmp[4]
+                    mytype = rowtmp[get_index("TYPE")]
                     row.append( self.get_typeId( mytype ) )
-                    row.extend( rowtmp[5:] )
+                    row.extend( rowtmp[5:12] )
+                    row.append( rowtmp[12] )
+                    row.append( rowtmp[13] )
                     objId = int(rowtmp[0])
                     if objId not in object_info:
                         object_info[objId] = tuple(row)
