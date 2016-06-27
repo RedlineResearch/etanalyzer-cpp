@@ -606,6 +606,7 @@ def update_keytype_dict( ktdict = {},
                          writer = None ):
 
     assert( objId >= 0 )
+    EIGHTMB = 8388608 # 8 megabytes (generous binary version)
     if dumpall:
         assert( writer != None )
     if objinfo.died_at_end(objId):
@@ -641,9 +642,9 @@ def update_keytype_dict( ktdict = {},
             else ( objinfo.get_last_heap_update_using_record(rec) \
                    if (dcause == "H" or dcause == "G") else "NONE" )
         age = objinfo.get_age_using_record(rec)
-        # TODO TODO TODO
-        # Filter here
-        if not filterflag or (True):
+        # Filter here. Hardcoded 8 MB limit
+        if ( not filterflag or
+             objinfo.get_age_using_record_ALLOC(rec) <= EIGHTMB ):
             writer.writerow( [ objType,
                                objinfo.get_death_time_using_record(rec),
                                cpair[0],
