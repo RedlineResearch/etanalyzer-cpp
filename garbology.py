@@ -90,6 +90,8 @@ def get_index( field = None ):
                  "CONTEXT1" : 8,
                  "CONTEXT2" : 9,
                  "ALLOCSITE" : 10,
+                 "ATIME_ALLOC" : 11,
+                 "DTIME_ALLOC" : 12,
         }[field]
     except:
         return None

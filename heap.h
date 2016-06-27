@@ -120,6 +120,7 @@ class HeapState
 
         unsigned long int m_liveSize; // current live size of program in bytes
         unsigned long int m_maxLiveSize; // max live size of program in bytes
+        unsigned long int m_alloc_time; // current alloc time
 
         // Total number of objects that died by loss of heap reference version 2
         unsigned int m_totalDiedByHeap_ver2;
@@ -191,6 +192,7 @@ class HeapState
             , m_keyset( keyset )
             , m_maxLiveSize(0)
             , m_liveSize(0)
+            , m_alloc_time(0)
             , m_totalDiedByHeap_ver2(0)
             , m_totalDiedByStack_ver2(0)
             , m_totalDiedByGlobal(0)
@@ -236,6 +238,7 @@ class HeapState
         unsigned int size() const { return m_objects.size(); }
         unsigned long int liveSize() const { return m_liveSize; }
         unsigned long int maxLiveSize() const { return m_maxLiveSize; }
+        unsigned long int getAllocTime() const { return m_alloc_time; }
 
         unsigned int getTotalDiedByStack2() const { return m_totalDiedByStack_ver2; }
         unsigned int getTotalDiedByHeap2() const { return m_totalDiedByHeap_ver2; }
@@ -306,6 +309,8 @@ class Object
 
         unsigned int m_createTime;
         unsigned int m_deathTime;
+        unsigned int m_createTime_alloc;
+        unsigned int m_deathTime_alloc;
 
         unsigned int m_refCount;
         Color m_color;
@@ -387,6 +392,8 @@ class Object
             , m_deadFlag(false)
             , m_createTime(create_time)
             , m_deathTime(UINT_MAX)
+            , m_createTime_alloc( heap->getAllocTime() )
+            , m_deathTime_alloc(UINT_MAX)
             , m_refCount(0)
             , m_maxRefCount(0)
             , m_color(GREEN)
@@ -429,6 +436,8 @@ class Object
         Thread * getThread() const { return m_thread; }
         unsigned int getCreateTime() const { return m_createTime; }
         unsigned int getDeathTime() const { return m_deathTime; }
+        unsigned int getCreateTimeAlloc() const { return m_createTime_alloc; }
+        unsigned int getDeathTimeAlloc() const { return m_deathTime_alloc; }
         Color getColor() const { return m_color; }
         EdgeMap::iterator const getEdgeMapBegin() { return m_fields.begin(); }
         EdgeMap::iterator const getEdgeMapEnd() { return m_fields.end(); }

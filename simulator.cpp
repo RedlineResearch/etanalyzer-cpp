@@ -202,8 +202,8 @@ unsigned int read_trace_file(FILE* f)
                                          els,     // length IF applicable
                                          thread,  // thread Id
                                          Exec.NowUp() ); // Current time
-                    unsigned int old_alloc_time = AllocationTime;
-                    AllocationTime += obj->getSize();
+                    AllocationTime = Heap.getAllocTime();
+                    Exec.SetAllocTime( AllocationTime );
                     total_objects++;
                 }
                 break;
@@ -626,6 +626,8 @@ void output_all_objects( string &objectinfo_filename,
             << "," << method1 // Part 1 of simple context pair
             << "," << method2 // part 2 of simple context pair
             << "," << allocsite_name
+            << "," << object->getCreateTimeAlloc()
+            << "," << object->getDeathTimeAlloc()
             << endl;
             // TODO: The following can be made into a lookup table:
             //       method names

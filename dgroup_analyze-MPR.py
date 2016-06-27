@@ -971,7 +971,7 @@ def death_group_analyze( bmark = None,
     sys.stdout.write(  "[%s]: DONE: %f\n" % (bmark, (eread_end - eread_start)) )
     # ----------------------------------------
     logger.debug( "[%s]: Reading DGROUPS:" % bmark )
-    sys.stdout.write(  "[%s]: Reading DGROUPS:\n" % bmark )
+    sys.stdout.write( "[%s]: Reading DGROUPS:\n" % bmark )
     dgread_start = time.clock()
     abs_filename = os.path.join(cycle_cpp_dir, dgroups_filename)
     assert(os.path.isfile( abs_filename ))

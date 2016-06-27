@@ -232,9 +232,11 @@ class ExecState
         // -- Set of threads
         ThreadMap m_threads;
         // -- Time
-        unsigned int m_time;
+        unsigned int m_meth_time;
         // -- Update Time
         unsigned int m_uptime;
+        // -- Alloc Time
+        unsigned int m_alloc_time;
         // -- Map of Object pointer -> simple context pair
         ObjectContextMap m_obj2contextmap;
         // Last method called
@@ -244,8 +246,9 @@ class ExecState
         ExecState( unsigned int kind )
             : m_kind(kind)
             , m_threads()
-            , m_time(0)
+            , m_meth_time(0)
             , m_uptime(0)
+            , m_alloc_time(0)
             , m_ccountmap()
             , m_obj2contextmap()
             , m_thread_stack()
@@ -254,10 +257,15 @@ class ExecState
         }
 
         // -- Get the current time
-        unsigned int TODONow() const { return m_time; }
+        unsigned int MethNow() const { return m_meth_time; }
 
         // -- Get the current update time
-        unsigned int NowUp() const { return m_uptime + m_time; }
+        unsigned int NowUp() const { return m_uptime + m_meth_time; }
+
+        // -- Get the current allocation time
+        unsigned int NowAlloc() const { return m_alloc_time; }
+        // -- Set the current allocation time
+        void SetAllocTime( unsigned int newtime ) { this->m_alloc_time = newtime; }
 
         // -- Set the current update time
         inline unsigned int SetUpdateTime( unsigned int newutime ) {

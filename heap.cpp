@@ -32,6 +32,8 @@ Object* HeapState::allocate( unsigned int id,
                              Thread *thread,
                              unsigned int create_time )
 {
+    // Design decision: allocation time isn't 0 based.
+    this->m_alloc_time += size;
     Object* obj = new Object( id,
                               size,
                               kind,
