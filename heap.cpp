@@ -432,22 +432,50 @@ void HeapState::scan_queue2( EdgeList& edgelist,
         if (it != candSet.end()) {
             ObjectId_t rootId = it->first;
             unsigned int uptime = it->second;
-            Object *root = this->getObject(rootId);
+            Object *root;
+            Object *object = this->getObject(rootId);
             // DFS work stack - can't use 'stack' as a variable name
             std::deque< Object * > work;
             // The discovered set of objects.
             std::set< Object * > discovered;
             // Root goes in first.
-            work.push_back(root);
-            // Check to see if the root is already in there?
-            ObjectPtrMap_t::iterator itmap = whereis.find(root);
-            if (itmap == whereis.end()) {
-                keyset[root] = new std::set< Object * >();
-                root->setKeyType( CYCLEKEY );
+            work.push_back(object);
+            // Check to see if the object is already in there?
+            auto itmap = whereis.find(object);
+            if ( (itmap == whereis.end()) || 
+                 (object == whereis[object]) ) {
+                // It's a root...for now.
+                root = object;
+                if (itmap == whereis.end()) {
+                    // Haven't saved object in whereis yet.
+                    whereis[object] = root;
+                }
+                auto keysetit = keyset.find(root);
+                if (keysetit == keyset.end()) {
+                    keyset[root] = new std::set< Object * >();
+                }
+                root->setKeyType( CYCLEKEY ); // Note: root == object
             } else {
-                // So-called root isn't one
-                root = whereis[root];
-                root->setKeyType( CYCLE );
+                // So-called root isn't one because we have an entry in 'whereis'
+                // and root != whereis[object]
+                object->setKeyType( CYCLE ); // object is a CYCLE object
+                root = whereis[object]; // My real root.
+                auto obj_it = keyset.find(object);
+                if (obj_it != keyset.end()) {
+                    // So we found that object is not a root but has an entry
+                    // in keyset. We need to:
+                    //    1. Remove from keyset
+                    std::set< Object * > *sptr = obj_it->second;
+                    keyset.erase(obj_it);
+                    //    2. Add root if root is not there.
+                    keyset[root] = new std::set< Object * >(*sptr);
+                    delete sptr;
+                } else {
+                    // Create an empty set for root in keyset
+                    keyset[root] = new std::set< Object * >();
+                }
+                // Add object to root's set
+                keyset[root]->insert(object);
             }
             assert( root != NULL );
             // Depth First Search
@@ -456,13 +484,14 @@ void HeapState::scan_queue2( EdgeList& edgelist,
                 ObjectId_t curId = cur->getId();
                 work.pop_back();
                 // Look in whereis
-                ObjectPtrMap_t::iterator itwhere = whereis.find(cur);
+                auto itwhere = whereis.find(cur);
                 // Look in discovered
-                std::set< Object * >::iterator itdisc = discovered.find(cur);
+                auto itdisc = discovered.find(cur);
                 // Look in candidate
                 unsigned int uptime = utimeMap[curId];
-                CandidateSet_t::iterator itcand = candSet.find( std::make_pair( curId, uptime ) );
+                auto itcand = candSet.find( std::make_pair( curId, uptime ) );
                 if (itcand != candSet.end()) {
+                    // Found in candidate set so remove it.
                     candSet.erase(itcand);
                 }
                 assert(cur);
@@ -472,7 +501,6 @@ void HeapState::scan_queue2( EdgeList& edgelist,
                     Object *other_root = whereis[cur];
                     if (!other_root) {
                         // 'cur' not found in 'whereis'
-                        // No need to check for 'cur' being NULL here.
                         keyset[root]->insert(cur);
                         whereis[cur] = root;
                     } else {
