@@ -692,9 +692,9 @@ def get_key_object_types( gnum = None,
     key_objects = []
     max_age = 0 
     for xtmp in group:
-        if objinfo.is_key_object(x):
+        if objinfo.is_key_object(xtmp):
             key_objects.append(xtmp)
-        max_age = max( max_age, objinfo.get_age_ALLOC(x) )
+        max_age = max( max_age, objinfo.get_age_ALLOC(xtmp) )
     found_key = False
     used_last_edge = False
     print " - grouplen: %d" % len(group)
