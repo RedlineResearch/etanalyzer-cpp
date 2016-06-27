@@ -571,74 +571,6 @@ fail:
     return;
 }
 
-void output_all_objects( string &objectinfo_filename,
-                         HeapState &myheap,
-                         std::set<ObjectId_t> dag_keys,
-                         std::set<ObjectId_t> dag_all_set,
-                         std::set<ObjectId_t> all_keys )
-{
-    ofstream object_info_file(objectinfo_filename);
-    object_info_file << "---------------[ OBJECT INFO ]--------------------------------------------------" << endl;
-    for ( ObjectMap::iterator it = myheap.begin();
-          it != myheap.end();
-          ++it ) {
-        Object *object = it->second;
-        ObjectId_t objId = object->getId();
-        set<ObjectId_t>::iterator diter = dag_all_set.find(objId);
-        string dgroup_kind;
-        if (diter == dag_all_set.end()) {
-            // Not a DAG object, therefore CYCLE
-            set<ObjectId_t>::iterator itmp = all_keys.find(objId);
-            dgroup_kind = ((itmp == all_keys.end()) ? "CYC" : "CYCKEY" );
-        } else {
-            // A DAG object
-            set<ObjectId_t>::iterator itmp = dag_keys.find(objId);
-            dgroup_kind = ((itmp == dag_keys.end()) ? "DAG" : "DAGKEY" );
-        }
-        string dtype;
-        if (object->getDiedByStackFlag()) {
-            dtype = "S"; // by stack
-        } else if (object->getDiedByHeapFlag()) {
-            if (object->wasLastUpdateFromStatic()) {
-                dtype = "G"; // by static global
-            } else {
-                dtype = "H"; // by heap
-            }
-        } else {
-            dtype = "E"; // program end
-        }
-        ContextPair cpair = object->getDeathContextPair();
-        Method *meth_ptr1 = std::get<0>(cpair);
-        Method *meth_ptr2 = std::get<1>(cpair);
-        string method1 = (meth_ptr1 ? meth_ptr1->getName() : "NONAME");
-        string method2 = (meth_ptr2 ? meth_ptr2->getName() : "NONAME");
-        string allocsite_name = object->getAllocSiteName();
-        object_info_file << objId
-            << "," << object->getCreateTime()
-            << "," << object->getDeathTime()
-            << "," << object->getCreateTimeAlloc()
-            << "," << object->getDeathTimeAlloc()
-            << "," << object->getSize()
-            << "," << object->getType()
-            << "," << dtype
-            << "," << (object->wasLastUpdateNull() ? "NULL" : "VAL")
-            << "," << (object->getDiedByStackFlag() ? (object->wasPointedAtByHeap() ? "SHEAP" : "SONLY")
-                                                    : "H")
-            << "," << dgroup_kind
-            << "," << method1 // Part 1 of simple context pair
-            << "," << method2 // part 2 of simple context pair
-            << "," << allocsite_name
-            << endl;
-            // TODO: The following can be made into a lookup table:
-            //       method names
-            //       allocsite names
-            //       type names
-            // May only be necessary for performance reasons (ie, simulator eats up too much RAM 
-            // on the larger benchmarks/programs.)
-    }
-    object_info_file << "---------------[ OBJECT INFO END ]----------------------------------------------" << endl;
-    object_info_file.close();
-}
 
 void output_all_objects2( string &objectinfo_filename,
                           HeapState &myheap,
@@ -697,6 +629,8 @@ void output_all_objects2( string &objectinfo_filename,
             << "," << method1 // Part 1 of simple context pair
             << "," << method2 // part 2 of simple context pair
             << "," << allocsite_name
+            << "," << object->getCreateTimeAlloc()
+            << "," << object->getDeathTimeAlloc()
             << endl;
             // TODO: The following can be made into a lookup table:
             //       method names
@@ -1014,3 +948,72 @@ int main(int argc, char* argv[])
     cout << "#     build date : " <<  build_git_time << endl;
 }
 
+// TODO:
+// void output_all_objects( string &objectinfo_filename,
+//                          HeapState &myheap,
+//                          std::set<ObjectId_t> dag_keys,
+//                          std::set<ObjectId_t> dag_all_set,
+//                          std::set<ObjectId_t> all_keys )
+// {
+//     ofstream object_info_file(objectinfo_filename);
+//     object_info_file << "---------------[ OBJECT INFO ]--------------------------------------------------" << endl;
+//     for ( ObjectMap::iterator it = myheap.begin();
+//           it != myheap.end();
+//           ++it ) {
+//         Object *object = it->second;
+//         ObjectId_t objId = object->getId();
+//         set<ObjectId_t>::iterator diter = dag_all_set.find(objId);
+//         string dgroup_kind;
+//         if (diter == dag_all_set.end()) {
+//             // Not a DAG object, therefore CYCLE
+//             set<ObjectId_t>::iterator itmp = all_keys.find(objId);
+//             dgroup_kind = ((itmp == all_keys.end()) ? "CYC" : "CYCKEY" );
+//         } else {
+//             // A DAG object
+//             set<ObjectId_t>::iterator itmp = dag_keys.find(objId);
+//             dgroup_kind = ((itmp == dag_keys.end()) ? "DAG" : "DAGKEY" );
+//         }
+//         string dtype;
+//         if (object->getDiedByStackFlag()) {
+//             dtype = "S"; // by stack
+//         } else if (object->getDiedByHeapFlag()) {
+//             if (object->wasLastUpdateFromStatic()) {
+//                 dtype = "G"; // by static global
+//             } else {
+//                 dtype = "H"; // by heap
+//             }
+//         } else {
+//             dtype = "E"; // program end
+//         }
+//         ContextPair cpair = object->getDeathContextPair();
+//         Method *meth_ptr1 = std::get<0>(cpair);
+//         Method *meth_ptr2 = std::get<1>(cpair);
+//         string method1 = (meth_ptr1 ? meth_ptr1->getName() : "NONAME");
+//         string method2 = (meth_ptr2 ? meth_ptr2->getName() : "NONAME");
+//         string allocsite_name = object->getAllocSiteName();
+//         object_info_file << objId
+//             << "," << object->getCreateTime()
+//             << "," << object->getDeathTime()
+//             << "," << object->getSize()
+//             << "," << object->getType()
+//             << "," << dtype
+//             << "," << (object->wasLastUpdateNull() ? "NULL" : "VAL")
+//             << "," << (object->getDiedByStackFlag() ? (object->wasPointedAtByHeap() ? "SHEAP" : "SONLY")
+//                                                     : "H")
+//             << "," << dgroup_kind
+//             << "," << method1 // Part 1 of simple context pair
+//             << "," << method2 // part 2 of simple context pair
+//             << "," << allocsite_name
+//             << "," << object->getCreateTimeAlloc()
+//             << "," << object->getDeathTimeAlloc()
+//             << endl;
+//             // TODO: The following can be made into a lookup table:
+//             //       method names
+//             //       allocsite names
+//             //       type names
+//             // May only be necessary for performance reasons (ie, simulator eats up too much RAM 
+//             // on the larger benchmarks/programs.)
+//     }
+//     object_info_file << "---------------[ OBJECT INFO END ]----------------------------------------------" << endl;
+//     object_info_file.close();
+// }

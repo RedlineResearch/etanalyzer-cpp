@@ -81,17 +81,17 @@ def get_index( field = None ):
     try:
         return { "ATIME" : 0,
                  "DTIME" : 1,
-                 "ATIME_ALLOC" : 2,
-                 "DTIME_ALLOC" : 3,
-                 "SIZE"  : 4,
-                 "TYPE"  : 5,
-                 "DIEDBY" : 6,
-                 "LASTUP" : 7,
-                 "STATTR" : 8,
-                 "GARBTYPE" : 9,
-                 "CONTEXT1" : 10,
-                 "CONTEXT2" : 11,
-                 "ALLOCSITE" : 12,
+                 "SIZE"  : 2,
+                 "TYPE"  : 3,
+                 "DIEDBY" : 4,
+                 "LASTUP" : 5,
+                 "STATTR" : 6,
+                 "GARBTYPE" : 7,
+                 "CONTEXT1" : 8,
+                 "CONTEXT2" : 9,
+                 "ALLOCSITE" : 10,
+                 "ATIME_ALLOC" : 11,
+                 "DTIME_ALLOC" : 12,
         }[field]
     except:
         return None

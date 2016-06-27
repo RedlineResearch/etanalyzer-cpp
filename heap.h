@@ -436,7 +436,7 @@ class Object
         Thread * getThread() const { return m_thread; }
         unsigned int getCreateTime() const { return m_createTime; }
         unsigned int getDeathTime() const { return m_deathTime; }
-        unsigned int getCreateTimeAlloc() const { return m_createTime_alloc; }
+        unsigned int getCreateTimeAlloc() const { return this->m_createTime_alloc; }
         unsigned int getDeathTimeAlloc() const { return m_deathTime_alloc; }
         Color getColor() const { return m_color; }
         EdgeMap::iterator const getEdgeMapBegin() { return m_fields.begin(); }
