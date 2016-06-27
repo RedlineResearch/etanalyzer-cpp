@@ -542,7 +542,8 @@ class Object
                           Object *death_root,
                           LastEvent last_event );
         // -- Record death time
-        void makeDead(unsigned int death_time);
+        void makeDead( unsigned int death_time,
+                       unsigned int death_time_alloc );
         // -- Set the color
         void recolor(Color newColor);
         // Mark object as red

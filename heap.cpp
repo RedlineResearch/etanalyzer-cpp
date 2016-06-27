@@ -100,7 +100,7 @@ void HeapState::makeDead(Object * obj, unsigned int death_time)
             // All good. Fight on.
             this->m_liveSize = temp;
         }
-        obj->makeDead(death_time);
+        obj->makeDead( death_time, this->m_alloc_time );
     }
 }
 
@@ -242,7 +242,7 @@ void HeapState::end_of_program(unsigned int cur_time)
             if (!obj->isDead()) {
                 // A hack: not sure why this check may be needed.
                 // TODO: Debug this.
-                obj->makeDead(cur_time);
+                obj->makeDead( cur_time, this->m_alloc_time );
             }
             obj->unsetDiedByStackFlag();
             obj->unsetDiedByHeapFlag();
@@ -747,10 +747,12 @@ deque<int> Object::collect_blue( EdgeList& edgelist )
     return result;
 }
 
-void Object::makeDead(unsigned int death_time)
+void Object::makeDead( unsigned int death_time,
+                       unsigned int death_time_alloc )
 {
     // -- Record the death time
     this->m_deathTime = death_time;
+    this->m_deathTime_alloc = death_time;
     if (this->m_deadFlag) {
         cerr << "Object[ " << this->getId() << " ] : double Death event." << endl;
     } else {
