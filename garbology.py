@@ -161,8 +161,8 @@ class ObjectInfoReader:
                     mytype = rowtmp[get_index("TYPE")]
                     row.append( self.get_typeId( mytype ) )
                     row.extend( rowtmp[5:12] )
-                    row.append( rowtmp[12] )
-                    row.append( rowtmp[13] )
+                    row.append( int(rowtmp[12]) )
+                    row.append( int(rowtmp[13]) )
                     objId = int(rowtmp[0])
                     if objId not in object_info:
                         object_info[objId] = tuple(row)
