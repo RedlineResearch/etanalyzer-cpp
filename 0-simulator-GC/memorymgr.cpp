@@ -148,9 +148,11 @@ int MemoryMgr::do_collection()
 // Returns true if allocation caused garbage collection.
 //         false otherwise.
 bool MemoryMgr::allocate( Object *object,
-                          unsigned int create_time )
+                          unsigned int create_time,
+                          unsigned int new_alloc_time )
 {
     assert(this->m_alloc_region);
+    this->m_alloc_time = new_alloc_time;
     // Decisions for collection should be done here at the MemoryMgr level.
     bool done = this->m_alloc_region->allocate( object, create_time );
     if (!done) {
@@ -182,7 +184,7 @@ bool MemoryMgr::makeDead( Object *object, unsigned int death_time )
 {
     // Which region? Since we only have one region in this basic MemmoryMgr:
     this->m_alloc_region->makeDead( object );
-    object->makeDead( death_time );
+    object->makeDead( death_time, this->m_alloc_time );
     return true;
 }
 
