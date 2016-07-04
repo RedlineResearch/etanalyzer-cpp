@@ -622,6 +622,7 @@ def update_keytype_dict( ktdict = {},
         ktdict[objType]["grouplen_list"].append( grouplen )
         ktdict[objType]["total"] += 1
         ktdict[objType]["group_types"].update( [ group_types ] )
+        ktdict[objType]["allocsites"].update( [ objinfo.get_allocsite(objId) ] )
         if true_key_flag:
             ktdict[objType]["true_key_count"] += 1
     else:
@@ -631,7 +632,8 @@ def update_keytype_dict( ktdict = {},
                             "grouplen_list" : [ grouplen ],
                             "is_array": is_array(objType),
                             "group_types" : Counter( [ group_types ] ),
-                            "true_key_count" : 1 if true_key_flag else 0, }
+                            "true_key_count" : 1 if true_key_flag else 0,
+                            "allocsites" : Counter( [ objinfo.get_allocsite(objId) ] ), }
     # Also update the context information
     cpair = objinfo.get_death_context( objId )
     if dumpall:
@@ -1046,13 +1048,14 @@ def death_group_analyze( bmark = None,
     outfile = os.path.join( workdir, "%s-DGROUPS-TYPES.csv" % bmark )
     with open( outfile, "wb" ) as fptr:
         writer = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
-        writer.writerow( [ "type", "number groups", "maximum", "minimum", "true key count", ] )
+        writer.writerow( [ "type", "number groups", "maximum", "minimum", "true key count", "number alloc sites" ] )
         for mytype, rec in ktdict.iteritems():
             writer.writerow( [ mytype,
                                rec["total"],
                                rec["max"],
                                rec["min"],
-                               rec["true_key_count"], ] )
+                               rec["true_key_count"],
+                               len(rec["allocsites"]), ] )
     # Group types output
     outallfile = os.path.join( workdir, "%s-DGROUPS-ALL-TYPES.csv" % bmark )
     with open( outallfile, "wb" ) as fptr:
