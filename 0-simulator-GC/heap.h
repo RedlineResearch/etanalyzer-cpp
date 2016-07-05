@@ -24,13 +24,24 @@ class Edge;
 enum Reason {
     STACK = 1,
     HEAP = 2,
+    END_OF_PROGRAM_REASON = 8,
     UNKNOWN_REASON = 99,
 };
 
 enum LastEvent {
     ROOT = 1,
     UPDATE = 2,
+    DECRC = 3,
+    OBJECT_DEATH = 10,
+    END_OF_PROGRAM_EVENT = 11,
     UNKNOWN_EVENT = 99,
+};
+
+enum DecRCReason {
+    UPDATE_DEC = 2,
+    DEC_TO_ZERO = 7,
+    END_OF_PROGRAM_DEC = 8,
+    UNKNOWN_DEC_EVENT = 99,
 };
 
 typedef unsigned int ObjectId_t;
@@ -63,13 +74,17 @@ struct compclass {
     }
 };
 
+
 class HeapState
 {
     public:
+
         // -- Do ref counting?
         static bool do_refcounting;
+
         // -- Turn on debugging
         static bool debug;
+
         // -- Turn on output of objects to stdout
         bool m_obj_debug_flag;
 
@@ -83,17 +98,24 @@ class HeapState
 
         unsigned long int m_liveSize; // current live size of program in bytes
         unsigned long int m_maxLiveSize; // max live size of program in bytes
+        unsigned int m_alloc_time; // current alloc time
 
         // Total number of objects that died by loss of heap reference version 2
         unsigned int m_totalDiedByHeap_ver2;
         // Total number of objects that died by stack frame going out of scope version 2
         unsigned int m_totalDiedByStack_ver2;
+        // Total number of objects that died by loss of global/static reference
+        unsigned int m_totalDiedByGlobal;
+        // Total number of objects that live till the end of the program
+        unsigned int m_totalDiedAtEnd;
         // Total number of objects unknown using version 2 method
         unsigned int m_totalDiedUnknown_ver2;
         // Size of objects that died by loss of heap reference
         unsigned int m_sizeDiedByHeap;
         // Size of objects that died by stack frame going out of scope
         unsigned int m_sizeDiedByStack;
+        // Size of objects that live till the end of the program
+        unsigned int m_sizeDiedAtEnd;
 
         // Total number of objects whose last update away from the object
         // was null
@@ -118,6 +140,8 @@ class HeapState
         // Died by stack only -- size
         unsigned int m_diedByStackOnly_size;
 
+        // Number of objects with no death sites
+        unsigned int m_no_dsites_count;
         // Number of VM objects that always have RC 0
         unsigned int m_vm_refcount_0;
         // Number of VM objects that have RC > 0 at some point
@@ -142,10 +166,14 @@ class HeapState
             , m_keyset( keyset )
             , m_maxLiveSize(0)
             , m_liveSize(0)
+            , m_alloc_time(0)
             , m_totalDiedByHeap_ver2(0)
             , m_totalDiedByStack_ver2(0)
+            , m_totalDiedByGlobal(0)
+            , m_totalDiedAtEnd(0)
             , m_sizeDiedByHeap(0)
             , m_sizeDiedByStack(0)
+            , m_sizeDiedAtEnd(0)
             , m_totalDiedUnknown_ver2(0)
             , m_totalUpdateNull(0)
             , m_totalUpdateNullHeap(0)
@@ -155,6 +183,7 @@ class HeapState
             , m_totalUpdateNullStack_size(0)
             , m_diedByStackAfterHeap(0)
             , m_diedByStackOnly(0)
+            , m_no_dsites_count(0)
             , m_vm_refcount_positive(0)
             , m_vm_refcount_0(0)
             , m_obj_debug_flag(false) {
@@ -187,12 +216,16 @@ class HeapState
         unsigned int size() const { return m_objects.size(); }
         unsigned long int liveSize() const { return m_liveSize; }
         unsigned long int maxLiveSize() const { return m_maxLiveSize; }
+        unsigned int getAllocTime() const { return m_alloc_time; }
 
         unsigned int getTotalDiedByStack2() const { return m_totalDiedByStack_ver2; }
         unsigned int getTotalDiedByHeap2() const { return m_totalDiedByHeap_ver2; }
+        unsigned int getTotalDiedByGlobal() const { return m_totalDiedByGlobal; }
+        unsigned int getTotalDiedAtEnd() const { return m_totalDiedAtEnd; }
         unsigned int getTotalDiedUnknown() const { return m_totalDiedUnknown_ver2; }
         unsigned int getSizeDiedByHeap() const { return m_sizeDiedByHeap; }
         unsigned int getSizeDiedByStack() const { return m_sizeDiedByStack; }
+        unsigned int getSizeDiedAtEnd() const { return m_sizeDiedAtEnd; }
 
         unsigned int getTotalLastUpdateNull() const { return m_totalUpdateNull; }
         unsigned int getTotalLastUpdateNullHeap() const { return m_totalUpdateNullHeap; }
@@ -205,6 +238,8 @@ class HeapState
         unsigned int getDiedByStackOnly() const { return m_diedByStackOnly; }
         unsigned int getSizeDiedByStackAfterHeap() const { return m_diedByStackAfterHeap_size; }
         unsigned int getSizeDiedByStackOnly() const { return m_diedByStackOnly_size; }
+
+        unsigned int getNumberNoDeathSites() const { return m_no_dsites_count; }
 
         unsigned int getVMObjectsRefCountZero() const { return m_vm_refcount_0; }
         unsigned int getVMObjectsRefCountPositive() const { return m_vm_refcount_positive; }
@@ -239,12 +274,15 @@ class Object
         unsigned int m_size;
         char m_kind;
         string m_type;
-        AllocSite* m_site;
+        AllocSite *m_site;
+        string m_allocsite_name;
         unsigned int m_elements;
-        Thread* m_thread;
+        Thread *m_thread;
 
         unsigned int m_createTime;
         unsigned int m_deathTime;
+        unsigned int m_createTime_alloc;
+        unsigned int m_deathTime_alloc;
 
         unsigned int m_refCount;
         Color m_color;
@@ -263,10 +301,14 @@ class Object
         bool m_was_root;
         // Did last update move to NULL?
         tribool m_last_update_null; // If false, it moved to a differnet object
+        // Was last update away from this object from a static field?
+        bool m_last_update_away_from_static;
         // Did this object die by loss of heap reference?
         bool m_diedByHeap;
         // Did this object die by loss of stack reference?
         bool m_diedByStack;
+        // Did this object die because the program ended?
+        bool m_diedAtEnd;
         // Reason for death
         Reason m_reason;
         // Time that m_reason happened
@@ -296,6 +338,9 @@ class Object
         LastEvent m_last_event;
         Object *m_last_object;
 
+        // Simple (ContextPair) context of where this object died. Type is defined in classinfo.h
+        ContextPair m_death_cpair;
+
         // Who's my key object? 0 means unassigned.
         Object *m_death_root;
 
@@ -320,6 +365,8 @@ class Object
             , m_garbageFlag(false)
             , m_createTime(create_time)
             , m_deathTime(UINT_MAX)
+            , m_createTime_alloc( heap->getAllocTime() )
+            , m_deathTime_alloc(UINT_MAX)
             , m_refCount(0)
             , m_maxRefCount(0)
             , m_color(GREEN)
@@ -328,9 +375,11 @@ class Object
             , m_was_root(false)
             , m_diedByHeap(false)
             , m_diedByStack(false)
+            , m_diedAtEnd(false)
             , m_reason(UNKNOWN_REASON)
             , m_last_action_time(0)
             , m_last_update_null(indeterminate)
+            , m_last_update_away_from_static(false)
             , m_methodDeathSite(0)
             , m_methodRCtoZero(NULL)
             , m_lastMethodDecRC(NULL)
@@ -338,7 +387,15 @@ class Object
             , m_incFromZero(indeterminate)
             , m_last_event(LastEvent::UNKNOWN_EVENT)
             , m_death_root(NULL)
-            , m_last_object(NULL) {
+            , m_last_object(NULL)
+            , m_death_cpair(NULL, NULL)
+        {
+            if (m_site) {
+                Method *mymeth = m_site->getMethod();
+                m_allocsite_name = (mymeth ? mymeth->getName() : "NONAME");
+            } else {
+                m_allocsite_name = "NONAME";
+            }
         }
 
         // -- Getters
@@ -346,9 +403,13 @@ class Object
         unsigned int getSize() const { return m_size; }
         const string& getType() const { return m_type; }
         char getKind() const { return m_kind; }
-        Thread* getThread() const { return m_thread; }
+        AllocSite * getAllocSite() const { return m_site; }
+        string getAllocSiteName() const { return m_allocsite_name; }
+        Thread * getThread() const { return m_thread; }
         unsigned int getCreateTime() const { return m_createTime; }
         unsigned int getDeathTime() const { return m_deathTime; }
+        unsigned int getCreateTimeAlloc() const { return this->m_createTime_alloc; }
+        unsigned int getDeathTimeAlloc() const { return m_deathTime_alloc; }
         Color getColor() const { return m_color; }
         EdgeMap::iterator const getEdgeMapBegin() { return m_fields.begin(); }
         EdgeMap::iterator const getEdgeMapEnd() { return m_fields.end(); }
@@ -367,9 +428,14 @@ class Object
         }
         bool getDiedByStackFlag() const { return m_diedByStack; }
         void setDiedByStackFlag() { m_diedByStack = true; m_reason = STACK; }
+        void unsetDiedByStackFlag() { m_diedByStack = false; }
         void setStackReason( unsigned int t ) { m_reason = STACK; m_last_action_time = t; }
         bool getDiedByHeapFlag() const { return m_diedByHeap; }
         void setDiedByHeapFlag() { m_diedByHeap = true; m_reason = HEAP; }
+        void unsetDiedByHeapFlag() { m_diedByHeap = false; }
+        bool getDiedAtEndFlag() const { return m_diedAtEnd; }
+        void setDiedAtEndFlag() { m_diedAtEnd = true; m_reason = END_OF_PROGRAM_REASON; }
+        void unsetDiedAtEndFlag() { m_diedAtEnd = false; }
         void setHeapReason( unsigned int t ) { m_reason = HEAP; m_last_action_time = t; }
         Reason setReason( Reason r, unsigned int t ) { m_reason = r; m_last_action_time = t; }
         Reason getReason() const { return m_reason; }
@@ -381,6 +447,12 @@ class Object
         void setLastUpdateNull() { m_last_update_null = true; }
         // Set the last update null flag to false
         void unsetLastUpdateNull() { m_last_update_null = false; }
+        // Check if last update was from static
+        bool wasLastUpdateFromStatic() const { return m_last_update_away_from_static; }
+        // Set the last update from static flag to true
+        void setLastUpdateFromStatic() { m_last_update_away_from_static = true; }
+        // Set the last update from static flag to false
+        void unsetLastUpdateFromStatic() { m_last_update_away_from_static = false; }
         // Get the death site according the the Death event
         Method *getDeathSite() const { return m_methodDeathSite; }
         // Set the death site because of a Death event
@@ -404,6 +476,15 @@ class Object
         // Set and get death root
         void setDeathRoot( Object *newroot ) { this->m_death_root = newroot; }
         Object * getDeathRoot() const { return this->m_death_root; }
+
+        // Get death context pair. Note that if <NULL, NULL> then none yet assigned.
+        ContextPair getDeathContextPair() const { return this->m_death_cpair; }
+        // Set death context pair. Note that if <NULL, NULL> then none yet assigned.
+        ContextPair setDeathContextPair( ContextPair cpair ) {
+            this->m_death_cpair = cpair;
+            return this->m_death_cpair;
+        }
+
 
         // -- Ref counting
         unsigned int getRefCount() const { return m_refCount; }
@@ -431,7 +512,8 @@ class Object
                           Reason reason,
                           Object *death_root );
         // -- Record death time
-        void makeDead(unsigned int death_time);
+        void makeDead( unsigned int death_time,
+                       unsigned int death_time_alloc );
         // -- Set the color
         void recolor(Color newColor);
         // Mark object as red
@@ -480,5 +562,6 @@ class Edge
 
         void setEndTime(unsigned int end) { m_endTime = end; }
 };
+
 
 #endif

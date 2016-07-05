@@ -13,16 +13,22 @@ bool HeapState::initialize_memory( std::vector<int> sizes )
 Object* HeapState::allocate( unsigned int id,
                              unsigned int size,
                              char kind,
-                             char* type,
-                             AllocSite* site, 
+                             char *type,
+                             AllocSite *site, 
                              unsigned int els,
-                             Thread* thread,
+                             Thread *thread,
                              unsigned int create_time )
 {
-    Object* obj = new Object( id, size,
-                              kind, type,
-                              site, els,
-                              thread, create_time,
+    // Design decision: allocation time isn't 0 based.
+    this->m_alloc_time += size;
+    Object* obj = new Object( id,
+                              size,
+                              kind,
+                              type,
+                              site,
+                              els,
+                              thread,
+                              create_time,
                               this );
     m_objects[obj->getId()] = obj;
 
@@ -36,7 +42,7 @@ Object* HeapState::allocate( unsigned int id,
         this->m_maxLiveSize = this->m_liveSize;
     }
     // Call the Memory Manager allocate
-    this->m_memmgr.allocate( obj, create_time );
+    this->m_memmgr.allocate( obj, create_time, this->getAllocTime() );
     return obj;
 }
 
@@ -72,15 +78,18 @@ Edge* HeapState::make_edge( Object* source,
 
 void HeapState::makeDead(Object * obj, unsigned int death_time)
 {
-    unsigned long int temp = this->m_liveSize - obj->getSize();
-    if (temp > this->m_liveSize) {
-        // OVERFLOW, underflow?
-        this->m_liveSize = 0;
-        cerr << "UNDERFLOW of substraction." << endl;
-        // TODO If this happens, maybe we should think about why it happens.
-    } else {
-        // All good. Fight on.
-        this->m_liveSize = temp;
+    if (!obj->isDead()) {
+        unsigned long int temp = this->m_liveSize - obj->getSize();
+        if (temp > this->m_liveSize) {
+            // OVERFLOW, underflow?
+            this->m_liveSize = 0;
+            cerr << "UNDERFLOW of substraction." << endl;
+            // TODO If this happens, maybe we should think about why it happens.
+        } else {
+            // All good. Fight on.
+            this->m_liveSize = temp;
+        }
+        obj->makeDead( death_time, this->m_alloc_time );
     }
     this->m_memmgr.makeDead( obj, death_time );
     // obj->makeDead(death_time);
@@ -92,8 +101,13 @@ void HeapState::update_death_counters( Object *obj )
     unsigned int obj_size = obj->getSize();
     // VERSION 1
     // TODO: This could use some refactoring.
-    if ( obj->getDiedByStackFlag() ||
-         ( ((obj->getReason() == STACK) ||
+    //
+    // Check for end of program kind first.
+    if ( obj->getReason() ==  Reason::END_OF_PROGRAM_REASON ) {
+        this->m_totalDiedAtEnd++;
+        this->m_sizeDiedAtEnd += obj_size;
+    } else if ( obj->getDiedByStackFlag() ||
+         ( ((obj->getReason() == Reason::STACK) ||
             (obj->getLastEvent() == LastEvent::ROOT)) &&
             !obj->getDiedByHeapFlag() )
          ) {
@@ -120,12 +134,13 @@ void HeapState::update_death_counters( Object *obj )
             this->m_totalUpdateNullStack_size += obj_size;
         }
     } else if ( obj->getDiedByHeapFlag() ||
-                (obj->getReason() == HEAP) ||
+                (obj->getReason() == Reason::HEAP) ||
                 (obj->getLastEvent() == LastEvent::UPDATE) ||
                 obj->wasPointedAtByHeap() ) {
         if (m_obj_debug_flag) {
             cout << "H> " << obj->info2();
         }
+        // Check to see if the last update was from global
         this->m_totalDiedByHeap_ver2++;
         this->m_sizeDiedByHeap += obj_size;
         obj->setDiedByHeapFlag();
@@ -215,8 +230,19 @@ void HeapState::end_of_program(unsigned int cur_time)
         if (obj->isLive(cur_time)) {
             // Go ahead and ignore the call to HeapState::makeDead
             // as we won't need to update maxLiveSize here anymore.
-            obj->makeDead(cur_time);
+            if (!obj->isDead()) {
+                // A hack: not sure why this check may be needed.
+                // TODO: Debug this.
+                obj->makeDead( cur_time, this->m_alloc_time );
+            }
+            obj->unsetDiedByStackFlag();
+            obj->unsetDiedByHeapFlag();
+            obj->setDiedAtEndFlag();
+            obj->setReason( Reason::END_OF_PROGRAM_REASON, cur_time );
+            obj->setLastEvent( LastEvent::END_OF_PROGRAM_EVENT );
+        } else {
             if (obj->getReason() == HEAP) {
+                // if (obj->) // TODO TODO GLOBAL type
                 obj->setDiedByHeapFlag();
             } else {
                 obj->setDiedByStackFlag();
@@ -319,8 +345,14 @@ void Object::updateField( Edge* edge,
                     old_target->setHeapReason( cur_time );
                 } else if (reason == STACK) {
                     old_target->setStackReason( cur_time );
+                } else {
+                    cerr << "Invalid reason." << endl;
+                    assert( false );
                 }
-                old_target->decrementRefCountReal(cur_time, method, reason, death_root);
+                old_target->decrementRefCountReal( cur_time,
+                                                   method,
+                                                   reason,
+                                                   death_root );
             } 
             old_edge->setEndTime(cur_time);
         }
@@ -438,10 +470,12 @@ deque<int> Object::collect_blue( EdgeList& edgelist )
     return result;
 }
 
-void Object::makeDead(unsigned int death_time)
+void Object::makeDead( unsigned int death_time,
+                       unsigned int death_time_alloc )
 {
     // -- Record the death time
     this->m_deathTime = death_time;
+    this->m_deathTime_alloc = death_time_alloc;
     if (this->m_deadFlag) {
         cerr << "Object[ " << this->getId() << " ] : double Death event." << endl;
     } else {

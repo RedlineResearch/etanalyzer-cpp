@@ -110,14 +110,16 @@ public:
     // Returns true if allocation caused garbage collection.
     //         false otherwise.
     bool allocate( Object *object,
-                   unsigned int create_time );
+                   unsigned int create_time,
+                   unsigned int new_alloc_time );
 
     MemoryMgr( float GC_threshold )
         : m_region_map()
         , m_level_map()
         , m_level2name_map()
         , m_alloc_region(NULL)
-        , m_GC_threshold(GC_threshold) {
+        , m_GC_threshold(GC_threshold)
+        , m_alloc_time(0) {
     }
 
     // Initializes all the regions. This should contain all knowledge
@@ -160,6 +162,8 @@ private:
     // needed, then 'initialize_memory' needs to be overridden in the 
     // inheriting class.
     float m_GC_threshold;
+    // Logical allocation time
+    unsigned int m_alloc_time;
 };
 
 #endif
