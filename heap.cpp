@@ -7,15 +7,15 @@ unsigned int Object::g_counter = 0;
 
 string keytype2str( KeyType ktype )
 {
-    if (ktype == DAG) {
+    if (ktype == KeyType::DAG) {
         return "DAG";
-    } else if (ktype == DAGKEY) {
+    } else if (ktype == KeyType::DAGKEY) {
         return "DAGKEY";
-    } else if (ktype == CYCLE) {
+    } else if (ktype == KeyType::CYCLE) {
         return "CYCLE";
-    } else if (ktype == CYCLEKEY) {
+    } else if (ktype == KeyType::CYCLEKEY) {
         return "CYCLEKEY";
-    } else if (ktype == UNKNOWN_KEYTYPE) {
+    } else if (ktype == KeyType::UNKNOWN_KEYTYPE) {
         return "UNKNOWN_KEYTYPE";
     }
     assert(0); // Shouldn't make it here.
@@ -456,11 +456,11 @@ void HeapState::scan_queue2( EdgeList& edgelist,
                 if (keysetit == keyset.end()) {
                     keyset[root] = new std::set< Object * >();
                 }
-                root->setKeyType( CYCLEKEY ); // Note: root == object
+                root->setKeyType( KeyType::CYCLEKEY ); // Note: root == object
             } else {
                 // So-called root isn't one because we have an entry in 'whereis'
                 // and root != whereis[object]
-                object->setKeyType( CYCLE ); // object is a CYCLE object
+                object->setKeyType( KeyType::CYCLE ); // object is a CYCLE object
                 root = whereis[object]; // My real root.
                 auto obj_it = keyset.find(object);
                 if (obj_it != keyset.end()) {
@@ -859,12 +859,12 @@ void Object::decrementRefCountReal( unsigned int cur_time,
         // Set key type based on last event
         if (last_event == UPDATE) {
             // This is a DAGKEY
-            this->setKeyType(DAGKEY);
+            this->setKeyType(KeyType::DAGKEY);
         } else if (last_event == DECRC) {
             // This is a DAGKEY
-            this->setKeyType(DAG);
+            this->setKeyType(KeyType::DAG);
         } else if (last_event == OBJECT_DEATH) {
-            this->setKeyType(DAGKEY);
+            this->setKeyType(KeyType::DAGKEY);
         } else {
             // This isn't possible.
             assert(0);

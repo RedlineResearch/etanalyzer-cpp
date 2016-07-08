@@ -89,9 +89,10 @@ def get_index( field = None ):
                  "GARBTYPE" : 7,
                  "CONTEXT1" : 8,
                  "CONTEXT2" : 9,
-                 "ALLOCSITE" : 10,
-                 "ATIME_ALLOC" : 11,
-                 "DTIME_ALLOC" : 12,
+                 "DCONTEXT_TYPE" : 10,
+                 "ALLOCSITE" : 11,
+                 "ATIME_ALLOC" : 12,
+                 "DTIME_ALLOC" : 13,
         }[field]
     except:
         return None

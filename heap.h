@@ -43,13 +43,20 @@ enum DecRCReason {
     UNKNOWN_DEC_EVENT = 99,
 };
 
-enum KeyType {
+enum class KeyType {
     DAG = 1,
     DAGKEY = 2,
     CYCLE = 3,
     CYCLEKEY = 4,
     UNKNOWN_KEYTYPE = 99,
 };
+
+enum class CPairType {
+    CP_Call = 1,
+    CP_Return = 2,
+    CP_None = 99,
+};
+
 
 typedef unsigned int ObjectId_t;
 typedef unsigned int FieldId_t;
@@ -366,7 +373,15 @@ class Object
         Object *m_last_object;
 
         // Simple (ContextPair) context of where this object died. Type is defined in classinfo.h
+        // And the associated type.
         ContextPair m_death_cpair;
+        CPairType  m_death_cptype;
+        // Simple (ContextPair) context of where this object was allocated. Type is defined in classinfo.h
+        // And the associated type.
+        ContextPair m_alloc_cpair;
+        CPairType  m_alloc_cptype;
+        // NOTE: This could have been made into a single class which felt like overkill.
+        // The option is there if it seems better to do so, but chose to go the simpler route.
 
         // Who's my key object? 0 means unassigned.
         Object *m_death_root;
@@ -415,7 +430,7 @@ class Object
             , m_last_event(LastEvent::UNKNOWN_EVENT)
             , m_death_root(NULL)
             , m_last_object(NULL)
-            , m_key_type(UNKNOWN_KEYTYPE)
+            , m_key_type(KeyType::UNKNOWN_KEYTYPE)
             , m_death_cpair(NULL, NULL)
         {
             if (m_site) {
@@ -505,13 +520,28 @@ class Object
         void setKeyType( KeyType newtype ) { this->m_key_type = newtype; }
         KeyType getKeyType() const { return this->m_key_type; }
 
-        // Get death context pair. Note that if <NULL, NULL> then none yet assigned.
+        // Get Allocation context pair. Note that if <NULL, NULL> then none yet assigned.
+        ContextPair getAllocContextPair() const { return this->m_alloc_cpair; }
+        // Set Allocation context pair. Note that if <NULL, NULL> then none yet assigned.
+        ContextPair setAllocContextPair( ContextPair cpair, CPairType cptype ) {
+            this->m_alloc_cpair = cpair;
+            this->m_alloc_cptype = cptype;
+            return this->m_alloc_cpair;
+        }
+        // Get Allocation context type
+        CPairType getAllocContextType() const { return this->m_alloc_cptype; }
+
+        // Get Death context pair. Note that if <NULL, NULL> then none yet assigned.
         ContextPair getDeathContextPair() const { return this->m_death_cpair; }
-        // Set death context pair. Note that if <NULL, NULL> then none yet assigned.
-        ContextPair setDeathContextPair( ContextPair cpair ) {
+        // Set Death context pair. Note that if <NULL, NULL> then none yet assigned.
+        ContextPair setDeathContextPair( ContextPair cpair, CPairType cptype ) {
             this->m_death_cpair = cpair;
+            this->m_death_cptype = cptype;
             return this->m_death_cpair;
         }
+        // Get Death context type
+        CPairType getDeathContextType() const { return this->m_death_cptype; }
+
 
 
         // -- Ref counting
