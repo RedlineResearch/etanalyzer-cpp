@@ -124,7 +124,7 @@ void Thread::Call(Method *m)
         } else {
             cpair = std::make_pair( (Method *) NULL, m );
         }
-        this->setContextPair( cpair );
+        this->setContextPair( cpair, CPairType::CP_Call );
         // TODO this->debug_cpair( this->getContextPair(), "call" );
         m_methods.push_back(m);
         // m_methods, m_locals, and m_deadlocals must be synched in pushing
@@ -169,7 +169,7 @@ void Thread::Return(Method* m)
             } else {
                 cpair = std::make_pair( cur, (Method *) NULL );
             }
-            this->setContextPair( cpair );
+            this->setContextPair( cpair, CPairType::CP_Return );
             // TODO this->debug_cpair( this->getContextPair(), "return" );
             // TODO TODO: Save type (Call vs Return) -- See similar code above.
             // Locals
@@ -300,7 +300,8 @@ Thread* ExecState::getThread(unsigned int threadid)
         // -- Not there, make a new one
         result = new Thread( threadid,
                              this->m_kind,
-                             this->m_ccountmap,
+                             this->m_allocCountmap,
+                             this->m_deathCountmap,
                              *this,
                              *this->m_output,
                              *this->m_nodefile );

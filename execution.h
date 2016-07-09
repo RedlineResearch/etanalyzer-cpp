@@ -44,6 +44,11 @@ enum class ExecMode {
     MethodMode = 2
 };
 
+enum class EventKind {
+    Allocation = 1,
+    Death = 2,
+};
+
 class CCNode
 {
     private:
@@ -148,8 +153,12 @@ class Thread
         LocalVarDeque m_deadlocals;
         // -- Current context pair
         ContextPair m_context;
-        // -- Map of simple context pair -> count of occurrences
-        ContextCountMap &m_ccountmap;
+        // -- Type of ContextPair m_context
+        CPairType m_cptype;
+        // -- Map of simple Allocation context pair -> count of occurrences
+        ContextCountMap &m_allocCountmap;
+        // -- Map of simple Death context pair -> count of occurrences
+        ContextCountMap &m_deathCountmap;
         // -- Map to ExecState
         ExecState &m_exec;
         // File to output the callstack
@@ -160,7 +169,8 @@ class Thread
     public:
         Thread( unsigned int id,
                 unsigned int kind,
-                ContextCountMap &ccountmap,
+                ContextCountMap &allocCountmap,
+                ContextCountMap &deathCountmap,
                 ExecState &execstate,
                 ofstream &output,
                 ofstream &nodefile )
@@ -169,7 +179,9 @@ class Thread
             , m_rootcc(output)
             , m_curcc(&m_rootcc)
             , m_context( NULL, NULL )
-            , m_ccountmap(ccountmap)
+            , m_cptype(CPairType::CP_None) 
+            , m_allocCountmap(allocCountmap)
+            , m_deathCountmap(deathCountmap)
             , m_exec(execstate)
             , m_output(output)
             , m_nodefile(nodefile) {
@@ -201,11 +213,16 @@ class Thread
         CCNode &getRootCCNode() { return m_rootcc; }
         // Get simple context pair
         ContextPair getContextPair() const { return m_context; }
-        // Get simple context pair
-        ContextPair setContextPair( ContextPair cpair ) {
+        // Set simple context pair
+        ContextPair setContextPair( ContextPair cpair, CPairType cptype ) {
             this->m_context = cpair;
+            this->m_cptype = cptype;
             return cpair; 
         }
+        // Get simple context pair type
+        CPairType getContextPairType() const { return this->m_cptype; }
+        // Set simple context pair type
+        void setContextPairType( CPairType cptype ) { this->m_cptype = cptype; }
 
         // Debug
         void debug_cpair( ContextPair cpair,
@@ -237,8 +254,10 @@ class ExecState
         unsigned int m_uptime;
         // -- Alloc Time
         unsigned int m_alloc_time;
-        // -- Map of Object pointer -> simple context pair
-        ObjectContextMap m_obj2contextmap;
+        // -- Map of Object pointer -> simple allocation context pair
+        ObjectContextMap m_objAlloc2cmap;
+        // -- Map of Object pointer -> simple death context pair
+        ObjectContextMap m_objDeath2cmap;
         // Last method called
         ThreadDeque m_thread_stack;
 
@@ -249,8 +268,10 @@ class ExecState
             , m_meth_time(0)
             , m_uptime(0)
             , m_alloc_time(0)
-            , m_ccountmap()
-            , m_obj2contextmap()
+            , m_allocCountmap()
+            , m_deathCountmap()
+            , m_objAlloc2cmap()
+            , m_objDeath2cmap()
             , m_thread_stack()
             , m_output(NULL)
             , m_nodefile(NULL) {
@@ -296,27 +317,65 @@ class ExecState
         ThreadMap::iterator begin_threadmap() { return this->m_threads.begin(); }
         ThreadMap::iterator end_threadmap() { return this->m_threads.end(); }
 
+        // Update the Object pointer to simple Allocation context pair map
+        void UpdateObj2AllocContext( Object *obj,
+                                     ContextPair cpair,
+                                     CPairType cptype ) {
+            UpdateObj2Context( obj,
+                               cpair,
+                               cptype,
+                               EventKind::Allocation );
+        }
+
+        // Update the Object pointer to simple Death context pair map
+        void UpdateObj2DeathContext( Object *obj,
+                                     ContextPair cpair,
+                                     CPairType cptype ) {
+            UpdateObj2Context( obj,
+                               cpair,
+                               cptype,
+                               EventKind::Death );
+        }
+
         // Update the Object pointer to simple context pair map
-        void UpdateObj2Context( Object *obj, ContextPair cpair ) {
+        void UpdateObj2Context( Object *obj,
+                                ContextPair cpair,
+                                CPairType cptype,
+                                EventKind ekind ) {
             assert(obj);
-            obj->setDeathContextPair( cpair );
             // DEBUG cpair here
             // TODO debug_cpair( obj->getDeathContextPair(), obj );
             // END DEBUG
-            this->m_obj2contextmap[obj] = cpair;
-            ContextCountMap::iterator it = this->m_ccountmap.find( cpair );
-            if (it != this->m_ccountmap.end()) {
-                this->m_ccountmap[cpair] += 1; 
+            if (ekind == EventKind::Allocation) {
+                this->m_objAlloc2cmap[obj] = cpair;
+                obj->setAllocContextPair( cpair, cptype );
             } else {
-                this->m_ccountmap[cpair] = 1; 
+                assert( ekind == EventKind::Death );
+                this->m_objDeath2cmap[obj] = cpair;
+                obj->setDeathContextPair( cpair, cptype );
+            }
+
+            ContextCountMap &curcmap = ((ekind == EventKind::Allocation) ? this->m_allocCountmap
+                                                                         : this->m_deathCountmap);
+            auto it = curcmap.find( cpair );
+            if (it != curcmap.end()) {
+                curcmap[cpair] += 1; 
+            } else {
+                curcmap[cpair] = 1; 
             }
         }
 
-        // -- Map of simple context pair -> count of occurrences
+        // -- Map of simple Allocation context pair -> count of occurrences
         // TODO: Think about hiding this in an abstraction TODO
-        ContextCountMap m_ccountmap;
-        ContextCountMap::iterator begin_ccountmap() { return this->m_ccountmap.begin(); }
-        ContextCountMap::iterator end_ccountmap() { return this->m_ccountmap.end(); }
+        ContextCountMap m_allocCountmap;
+        ContextCountMap::iterator begin_allocCountmap() { return this->m_allocCountmap.begin(); }
+        ContextCountMap::iterator end_allocCountmap() { return this->m_allocCountmap.end(); }
+
+        // -- Map of simple Death context pair -> count of occurrences
+        // TODO: Think about hiding this in an abstraction TODO
+        ContextCountMap m_deathCountmap;
+        ContextCountMap::iterator begin_deathCountmap() { return this->m_deathCountmap.begin(); }
+        ContextCountMap::iterator end_deathCountmap() { return this->m_deathCountmap.end(); }
 
         // Get last global thread called
         Thread *get_last_thread() const {

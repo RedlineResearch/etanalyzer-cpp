@@ -650,11 +650,13 @@ def update_keytype_dict( ktdict = {},
         if ( not filterflag or (max_age <= EIGHTMB) ):
             writer.writerow( [ objType,
                                objinfo.get_death_time_using_record(rec),
-                               cpair[0],
-                               cpair[1],
+                               cpair[0], # death context pair first element
+                               cpair[1], # death context pair second element
+                               # TODO: which direction does the context pair go?
                                grouplen,
                                dcause,
                                subcause,
+                               # TODO: Use a context pair for allocation site too?
                                objinfo.get_allocsite_using_record(rec), ] )
         else:
             logger.debug( "Object [%s](%d) IGNORED." % (objType, objId) )

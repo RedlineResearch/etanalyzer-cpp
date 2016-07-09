@@ -190,6 +190,9 @@ unsigned int read_trace_file(FILE* f)
                     unsigned int els  = (tokenizer.numTokens() == 6) ? 0
                                                                      : tokenizer.getInt(5);
                     AllocSite* as = ClassInfo::TheAllocSites[tokenizer.getInt(4)];
+                    assert(thread);
+                    ContextPair cpair = thread->getContextPair();
+                    CPairType cptype = thread->getContextPairType();
                     // DEBUG
                     if (!as) {
                         cerr << "DBG: objId[ " << tokenizer.getInt(1) << " ] has no alloc site." << endl;
@@ -204,6 +207,9 @@ unsigned int read_trace_file(FILE* f)
                                          Exec.NowUp() ); // Current time
                     AllocationTime = Heap.getAllocTime();
                     Exec.SetAllocTime( AllocationTime );
+                    Exec.UpdateObj2AllocContext( obj,
+                                                 cpair,
+                                                 cptype );
                     total_objects++;
                 }
                 break;
@@ -284,6 +290,7 @@ unsigned int read_trace_file(FILE* f)
                         // Get the current method
                         Method *topMethod = NULL;
                         ContextPair cpair;
+                        CPairType cptype;
                         Thread *thread;
                         if (threadId > 0) {
                             thread = Exec.getThread(threadId);
@@ -295,7 +302,10 @@ unsigned int read_trace_file(FILE* f)
                         }
                         if (thread) {
                             cpair = thread->getContextPair();
-                            Exec.UpdateObj2Context(obj, cpair);
+                            cptype = thread->getContextPairType();
+                            Exec.UpdateObj2DeathContext( obj,
+                                                         cpair,
+                                                         cptype );
                             topMethod = thread->TopMethod();
                             // Set the death site
                             if (topMethod) {
@@ -538,25 +548,25 @@ void debug_type_algo( Object *object,
 {
     KeyType ktype = object->getKeyType();
     unsigned int objId = object->getId();
-    if (ktype == UNKNOWN_KEYTYPE) {
+    if (ktype == KeyType::UNKNOWN_KEYTYPE) {
         cout << "ERROR: objId[ " << objId << " ] : "
              << "Keytype not set but algo determines [ " << dgroup_kind << " ]" << endl;
         return;
     }
     if (dgroup_kind == "CYCLE") {
-        if (ktype != CYCLE) {
+        if (ktype != KeyType::CYCLE) {
             goto fail;
         }
     } else if (dgroup_kind == "CYCKEY") {
-        if (ktype != CYCLEKEY) {
+        if (ktype != KeyType::CYCLEKEY) {
             goto fail;
         }
     } else if (dgroup_kind == "DAG") {
-        if (ktype != DAG) {
+        if (ktype != KeyType::DAG) {
             goto fail;
         }
     } else if (dgroup_kind == "DAGKEY") {
-        if (ktype != DAGKEY) {
+        if (ktype != KeyType::DAGKEY) {
             goto fail;
         }
     } else {
@@ -580,6 +590,12 @@ void output_all_objects2( string &objectinfo_filename,
 {
     ofstream object_info_file(objectinfo_filename);
     object_info_file << "---------------[ OBJECT INFO ]--------------------------------------------------" << endl;
+    const vector<string> header( { "objId", "createTime", "deathTime", "size", "type",
+                                   "diedBy", "lastUpdate", "subCause", "clumpKind",
+                                   "deathContext1", "deathContext2", "deathContextType",
+                                   // TODO TODO "allocSiteName",
+                                   "allocContext1", "allocContext2", "allocContextType",
+                                   "createTime_alloc", "deathTime_alloc", } );
     for ( ObjectMap::iterator it = myheap.begin();
           it != myheap.end();
           ++it ) {
@@ -587,13 +603,13 @@ void output_all_objects2( string &objectinfo_filename,
         ObjectId_t objId = object->getId();
         KeyType ktype = object->getKeyType();
         string dgroup_kind;
-        if (ktype == CYCLE) {
+        if (ktype == KeyType::CYCLE) {
             dgroup_kind = "CYC";
-        } else if (ktype == CYCLEKEY) {
+        } else if (ktype == KeyType::CYCLEKEY) {
             dgroup_kind = "CYCKEY";
-        } else if (ktype == DAG) {
+        } else if (ktype == KeyType::DAG) {
             dgroup_kind = "DAG";
-        } else if (ktype == DAGKEY) {
+        } else if (ktype == KeyType::DAGKEY) {
             dgroup_kind = "DAGKEY";
         } else {
             dgroup_kind = "CYC";
@@ -610,11 +626,19 @@ void output_all_objects2( string &objectinfo_filename,
         } else {
             dtype = "E"; // program end
         }
-        ContextPair cpair = object->getDeathContextPair();
-        Method *meth_ptr1 = std::get<0>(cpair);
-        Method *meth_ptr2 = std::get<1>(cpair);
-        string method1 = (meth_ptr1 ? meth_ptr1->getName() : "NONAME");
-        string method2 = (meth_ptr2 ? meth_ptr2->getName() : "NONAME");
+        // Get the context pair and type for the allocation event
+        ContextPair allocCpair = object->getAllocContextPair();
+        Method *alloc_meth_ptr1 = std::get<0>(allocCpair);
+        Method *alloc_meth_ptr2 = std::get<1>(allocCpair);
+        string alloc_method1 = (alloc_meth_ptr1 ? alloc_meth_ptr1->getName() : "NONAME");
+        string alloc_method2 = (alloc_meth_ptr2 ? alloc_meth_ptr2->getName() : "NONAME");
+        // Get the context pair and type for the death event
+        ContextPair deathCpair = object->getDeathContextPair();
+        Method *death_meth_ptr1 = std::get<0>(deathCpair);
+        Method *death_meth_ptr2 = std::get<1>(deathCpair);
+        string death_method1 = (death_meth_ptr1 ? death_meth_ptr1->getName() : "NONAME");
+        string death_method2 = (death_meth_ptr2 ? death_meth_ptr2->getName() : "NONAME");
+        // This allocsite_name isn't needed. TODO TODO TODO
         string allocsite_name = object->getAllocSiteName();
         object_info_file << objId
             << "," << object->getCreateTime()
@@ -626,9 +650,13 @@ void output_all_objects2( string &objectinfo_filename,
             << "," << (object->getDiedByStackFlag() ? (object->wasPointedAtByHeap() ? "SHEAP" : "SONLY")
                                                     : "H")
             << "," << dgroup_kind
-            << "," << method1 // Part 1 of simple context pair
-            << "," << method2 // part 2 of simple context pair
-            << "," << allocsite_name
+            << "," << death_method1 // Part 1 of simple context pair - death site
+            << "," << death_method2 // part 2 of simple context pair - death site
+            << "," << (object->getDeathContextType() == CPairType::CP_Call ? "C" : "R") // C is call. R is return.
+            // TODO TODO << "," << allocsite_name
+            << "," << alloc_method1 // Part 1 of simple context pair - alloc site
+            << "," << alloc_method2 // part 2 of simple context pair - alloc site
+            << "," << (object->getAllocContextType() == CPairType::CP_Call ? "C" : "R") // C is call. R is return.
             << "," << object->getCreateTimeAlloc()
             << "," << object->getDeathTimeAlloc()
             << endl;
@@ -714,8 +742,8 @@ void output_context_summary( string &context_death_count_filename,
                              ExecState &exstate )
 {
     ofstream context_death_count_file(context_death_count_filename);
-    for ( ContextCountMap::iterator it = exstate.begin_ccountmap();
-          it != exstate.end_ccountmap();
+    for ( auto it = exstate.begin_deathCountmap();
+          it != exstate.end_deathCountmap();
           ++it ) {
         ContextPair cpair = it->first;
         Method *first = std::get<0>(cpair); 
