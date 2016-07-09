@@ -343,15 +343,16 @@ class ExecState
                                 CPairType cptype,
                                 EventKind ekind ) {
             assert(obj);
-            obj->setDeathContextPair( cpair, cptype );
             // DEBUG cpair here
             // TODO debug_cpair( obj->getDeathContextPair(), obj );
             // END DEBUG
             if (ekind == EventKind::Allocation) {
                 this->m_objAlloc2cmap[obj] = cpair;
+                obj->setAllocContextPair( cpair, cptype );
             } else {
                 assert( ekind == EventKind::Death );
                 this->m_objDeath2cmap[obj] = cpair;
+                obj->setDeathContextPair( cpair, cptype );
             }
 
             ContextCountMap &curcmap = ((ekind == EventKind::Allocation) ? this->m_allocCountmap
