@@ -77,6 +77,8 @@ class GarbologyConfig:
             mypp.pprint( cfg )
             print "-------------------------------------------------------------------------------"
 
+# IMPORTANT: Any changes here, means you have to make the corresponding change
+# down in ObjectInfoReader.read_objinfo_file.
 def get_index( field = None ):
     try:
         return { "ATIME" : 0,
@@ -90,15 +92,19 @@ def get_index( field = None ):
                  "CONTEXT1" : 8,
                  "CONTEXT2" : 9,
                  "DEATH_CONTEXT_TYPE" : 10,
-                 # TODO TODO "ALLOCSITE" : 11,
                  "ALLOC_CONTEXT1" : 11,
                  "ALLOC_CONTEXT2" : 12,
                  "ALLOC_CONTEXT_TYPE" : 13,
                  "ATIME_ALLOC" : 14,
                  "DTIME_ALLOC" : 15,
+                 "ALLOCSITE" : 16,
         }[field]
     except:
         return None
+
+def get_raw_index( field = None ):
+    return 0 if field == "OBJID" else \
+        get_index(field) + 1
 
 def is_key_object( rec = None ):
     return ( rec[get_index("GARBTYPE")] == "CYCKEY" or
@@ -157,17 +163,33 @@ class ObjectInfoReader:
                         done = True
                         break
                 if start:
-                    rowtmp = line.split(",")
+                    rec = line.split(",")
                     # 0 - allocation time
                     # 1 - death time
                     # 2 - size
-                    row = [ int(x) for x in rowtmp[1:4] ]
-                    mytype = rowtmp[get_index("TYPE")]
-                    row.append( self.get_typeId( mytype ) )
-                    row.extend( rowtmp[5:12] )
-                    row.append( int(rowtmp[12]) )
-                    row.append( int(rowtmp[13]) )
-                    objId = int(rowtmp[0])
+                    objId = int(rec[ get_raw_index("OBJID") ])
+                    # IMPORTANT: Any changes here, means you have to make the
+                    # corresponding change up in function 'get_index'
+                    # The price of admission for a dynamically typed language.
+                    row = [ int(rec[ get_raw_index("ATIME") ]),
+                            int(rec[ get_raw_index("DTIME") ]),
+                            int(rec[ get_raw_index("SIZE") ]),
+                            rec[ get_raw_index("TYPE") ],
+                            rec[ get_raw_index("DIEDBY") ],
+                            rec[ get_raw_index("LASTUP") ],
+                            rec[ get_raw_index("STATTR") ],
+                            rec[ get_raw_index("GARBTYPE") ],
+                            rec[ get_raw_index("CONTEXT1") ],
+                            rec[ get_raw_index("CONTEXT2") ],
+                            rec[ get_raw_index("DEATH_CONTEXT_TYPE") ],
+                            rec[ get_raw_index("ALLOC_CONTEXT1") ],
+                            rec[ get_raw_index("ALLOC_CONTEXT2") ],
+                            rec[ get_raw_index("ALLOC_CONTEXT_TYPE") ],
+                            int(rec[ get_raw_index("ATIME_ALLOC") ]),
+                            int(rec[ get_raw_index("DTIME_ALLOC") ]),
+                            # TODO TODO run with proper simulator output
+                            # rec[ get_raw_index("ALLOCSITE") ],
+                            ]
                     if objId not in object_info:
                         object_info[objId] = tuple(row)
                         if self.is_key_object( objId ):
@@ -329,11 +351,9 @@ class ObjectInfoReader:
                     flag = False
         return flag
 
+    # Death context functions
     def get_death_context( self, objId = 0 ):
         rec = self.get_record(objId)
-        return self.get_death_context_using_record(rec)
-
-    def get_death_context_using_record( self, rec = None ):
         return self.get_death_context_record(rec)
 
     def get_death_context_record( self, rec = None ):
@@ -341,6 +361,31 @@ class ObjectInfoReader:
         second = rec[ get_index("CONTEXT2") ] if rec != None else "NONE"
         return (first, second)
 
+    def get_death_context_type( self, objId = 0 ):
+        rec = self.get_record(objId)
+        return self.get_death_context_type_using_record(rec)
+
+    def get_death_context_type_using_record( self, rec = None ):
+        return rec[ get_index("DEATH_CONTEXT_TYPE") ] if rec != None else "NONE"
+
+    # Alloc context functions
+    def get_alloc_context( self, objId = 0 ):
+        rec = self.get_record(objId)
+        return self.get_alloc_context_record(rec)
+
+    def get_alloc_context_record( self, rec = None ):
+        first = rec[ get_index("ALLOC_CONTEXT1") ] if rec != None else "NONE"
+        second = rec[ get_index("ALLOC_CONTEXT2") ] if rec != None else "NONE"
+        return (first, second)
+
+    def get_alloc_context_type( self, objId = 0 ):
+        rec = self.get_record(objId)
+        return self.get_alloc_context_type_using_record(rec)
+
+    def get_alloc_context_type_using_record( self, rec = None ):
+        return rec[ get_index("ALLOC_CONTEXT_TYPE") ] if rec != None else "NONE"
+    
+    # Allocsite functions
     def get_allocsite( self, objId = 0 ):
         rec = self.get_record(objId)
         return self.get_allocsite_using_record(rec)

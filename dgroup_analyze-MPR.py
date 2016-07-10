@@ -612,6 +612,7 @@ def update_keytype_dict( ktdict = {},
     if dumpall:
         assert( writer != None )
     if objinfo.died_at_end(objId):
+        # We ignore immortal objects that died at the END.
         return DIEDBYSTACK
     grouplen = len(group)
     early_obj = get_earliest_alloctime_object( group = group, objinfo = objinfo )
@@ -642,9 +643,9 @@ def update_keytype_dict( ktdict = {},
         #             "allocsite", ]
         rec = objinfo.get_record(objId)
         dcause = objinfo.get_death_cause_using_record(rec)
-        subcause = objinfo.get_stack_died_by_attr_using_record(rec) if dcause == "S" \
-            else ( objinfo.get_last_heap_update_using_record(rec) \
-                   if (dcause == "H" or dcause == "G") else "NONE" )
+        subcause = ( objinfo.get_stack_died_by_attr_using_record(rec) if dcause == "S"
+                     else ( objinfo.get_last_heap_update_using_record(rec)
+                            if (dcause == "H" or dcause == "G") else "NONE" ) )
         age = objinfo.get_age_using_record(rec)
         # Filter here. Hardcoded 8 MB limit
         if ( not filterflag or (max_age <= EIGHTMB) ):
@@ -957,6 +958,7 @@ def death_group_analyze( bmark = None,
     # TODO sys.stdout.write(  "[%s]: DONE: %f\n" % (bmark, (oread_end - oread_start)) )
     # ----------------------------------------
     objectinfo_path = os.path.join(cycle_cpp_dir, objectinfo_config[bmark])
+    print "XXX:", objectinfo_path, os.path.isfile( objectinfo_path )
     assert(os.path.isfile( objectinfo_path ))
     objinfo = ObjectInfoReader( objectinfo_path, logger = logger )
     logger.debug( "[%s]: Reading OBJECTINFO file..." % bmark )

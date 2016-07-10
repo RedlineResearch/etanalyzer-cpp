@@ -17,6 +17,7 @@ from collections import defaultdict
 import subprocess
 from multiprocessing import Process
 import socket
+import shutil
 
 from mypytools import mean, stdev, variance
 
@@ -113,6 +114,16 @@ def create_work_directory( work_dir, logger = None, interactive = False ):
             print "....continuing!!!"
     return work_today
 
+def backup_old_simulator_output( cycle_cpp_dir, backup_cycle_cpp_dir ):
+    # For every file (not a directory in cycle_cpp_dir,
+    # move to backup_cycle_cpp_dir.
+    assert( os.path.isdir( backup_cycle_cpp_dir ) )
+    for fname in os.listdir( cycle_cpp_dir ):
+        abs_fname = os.path.join( cycle_cpp_dir, fname )
+        if os.path.isfile(abs_fname):
+            # Move this file into backup directory
+            shutil.move( abs_fname, backup_cycle_cpp_dir )
+
 def is_specjvm( bmark ):
    return ( bmark == "_201_compress" or
             bmark == "_202_jess" or
@@ -126,11 +137,13 @@ def is_specjvm( bmark ):
 def run_subprocess( cmd = None,
                     stdout = None,
                     stdin = None,
-                    stderr = None ):
+                    stderr = None,
+                    cwd = None ):
     sproc = subprocess.Popen( cmd,
                               stdout = stdout,
                               stdin = stdin,
-                              stderr = stderr )
+                              stderr = stderr,
+                              cwd = cwd )
     sproc.communicate()
 
 def check_host( benchmark = None,
@@ -196,6 +209,12 @@ def main_process( output = None,
     # Get the benchmark directories
     specjvm_dir = global_config["specjvm_dir"]
     dacapo_dir = global_config["dacapo_dir"]
+    # Trace drop location for simulator output
+    cycle_cpp_dir = global_config["cycle_cpp_dir"]
+    backup_cycle_cpp_dir = global_config["backup_cycle_cpp_dir"]
+    # Backup old simulator output into backup directory
+    num_backed_up = backup_old_simulator_output( cycle_cpp_dir, backup_cycle_cpp_dir )
+    # Sub process related stuff
     procdict = {}
     pp.pprint(bmark_config)
     procs = {}
@@ -214,7 +233,7 @@ def main_process( output = None,
         namesfile = (specdir + names_config[bmark]) if is_specjvm(bmark) else \
             (dacapo_dir + names_config[bmark])
         basename = bmark + "-cpp-" + str(datestr)
-        output_name = basename + "-OUTPUT.txt"
+        output_name = os.path.join( cycle_cpp_dir, basename + "-OUTPUT.txt" )
         # ./simulator xalan.names xalan-cpp-2016-0129 CYCLE OBJDEBUG
         myargs = [ namesfile, basename, cycle_flag, objdebug_flag ]
         fp = get_trace_fp( tracefile, logger )
@@ -223,10 +242,11 @@ def main_process( output = None,
         cmd = [ simulator ] + myargs
         logger.debug( "[%s] - starting at %s" % (bmark, timenow) )
         p = Process( target = run_subprocess,
-                     args = ( cmd,
-                              outfptr,
-                              fp,
-                              outfptr ) )
+                     args = ( cmd,     # simulator command
+                              outfptr, # stdout
+                              fp,      # stdin
+                              outfptr, # sterr
+                              cycle_cpp_dir ) ) # change current working directory
         p.start()
         procs[bmark] = p
         pp.pprint(procs)
@@ -254,7 +274,6 @@ def main_process( output = None,
     # 3. Size of cycles
     print "GLOBAL:"
     pp.pprint(global_config)
-    cycle_cpp_dir = global_config["cycle_cpp_dir"]
     results = {}
     count = 0
     for bmark, filename in etanalyze_config.iteritems():

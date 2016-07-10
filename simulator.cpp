@@ -593,9 +593,10 @@ void output_all_objects2( string &objectinfo_filename,
     const vector<string> header( { "objId", "createTime", "deathTime", "size", "type",
                                    "diedBy", "lastUpdate", "subCause", "clumpKind",
                                    "deathContext1", "deathContext2", "deathContextType",
-                                   // TODO TODO "allocSiteName",
                                    "allocContext1", "allocContext2", "allocContextType",
-                                   "createTime_alloc", "deathTime_alloc", } );
+                                   "createTime_alloc", "deathTime_alloc",
+                                   "allocSiteName", } );
+
     for ( ObjectMap::iterator it = myheap.begin();
           it != myheap.end();
           ++it ) {
@@ -638,7 +639,6 @@ void output_all_objects2( string &objectinfo_filename,
         Method *death_meth_ptr2 = std::get<1>(deathCpair);
         string death_method1 = (death_meth_ptr1 ? death_meth_ptr1->getName() : "NONAME");
         string death_method2 = (death_meth_ptr2 ? death_meth_ptr2->getName() : "NONAME");
-        // This allocsite_name isn't needed. TODO TODO TODO
         string allocsite_name = object->getAllocSiteName();
         object_info_file << objId
             << "," << object->getCreateTime()
@@ -653,12 +653,12 @@ void output_all_objects2( string &objectinfo_filename,
             << "," << death_method1 // Part 1 of simple context pair - death site
             << "," << death_method2 // part 2 of simple context pair - death site
             << "," << (object->getDeathContextType() == CPairType::CP_Call ? "C" : "R") // C is call. R is return.
-            // TODO TODO << "," << allocsite_name
             << "," << alloc_method1 // Part 1 of simple context pair - alloc site
             << "," << alloc_method2 // part 2 of simple context pair - alloc site
             << "," << (object->getAllocContextType() == CPairType::CP_Call ? "C" : "R") // C is call. R is return.
             << "," << object->getCreateTimeAlloc()
             << "," << object->getDeathTimeAlloc()
+            << "," << allocsite_name
             << endl;
             // TODO: The following can be made into a lookup table:
             //       method names
