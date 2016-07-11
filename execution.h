@@ -352,7 +352,7 @@ class ExecState
             } else {
                 cptype_map[cpair] = cptype;
             }
-            cerr << "XXX: " << this->_get_cptype_name( cptype_map[cpair] ) << endl;
+            cout << "XXX: " << this->_get_cptype_name( cptype_map[cpair] ) << endl;
         }
         
         // Get the context pair type for a given context pair
