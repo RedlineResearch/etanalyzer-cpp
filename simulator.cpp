@@ -753,8 +753,10 @@ void output_context_summary( string &context_death_count_filename,
         unsigned int meth2_id = (second ? second->getId() : 0);
         string meth1_name = (first ? first->getName() : "NONAME");
         string meth2_name = (second ? second->getName() : "NONAME");
+        char cptype = exstate.get_cptype_name(cpair);
         context_death_count_file << meth1_name << "," 
                                  << meth2_name << ","
+                                 << cptype << ","
                                  << total << endl;
     }
     context_death_count_file.close();

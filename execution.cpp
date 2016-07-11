@@ -302,6 +302,7 @@ Thread* ExecState::getThread(unsigned int threadid)
                              this->m_kind,
                              this->m_allocCountmap,
                              this->m_deathCountmap,
+                             this->m_contextTypeMap,
                              *this,
                              *this->m_output,
                              *this->m_nodefile );

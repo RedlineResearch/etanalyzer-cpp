@@ -25,6 +25,7 @@ typedef map<Method *, CCNode *> FullCCMap;
 
 typedef map<MethodId_t, Thread *> ThreadMap;
 typedef map<ContextPair, unsigned int> ContextCountMap;
+typedef map<ContextPair, CPairType> ContextTypeMap_t;
 typedef map<Object *, ContextPair> ObjectContextMap;
 
 
@@ -159,6 +160,8 @@ class Thread
         ContextCountMap &m_allocCountmap;
         // -- Map of simple Death context pair -> count of occurrences
         ContextCountMap &m_deathCountmap;
+        // Context type map - see documentation below in ExecState
+        ContextTypeMap_t &m_contextTypeMap;
         // -- Map to ExecState
         ExecState &m_exec;
         // File to output the callstack
@@ -171,6 +174,7 @@ class Thread
                 unsigned int kind,
                 ContextCountMap &allocCountmap,
                 ContextCountMap &deathCountmap,
+                ContextTypeMap_t &contextTypeMap,
                 ExecState &execstate,
                 ofstream &output,
                 ofstream &nodefile )
@@ -182,6 +186,7 @@ class Thread
             , m_cptype(CPairType::CP_None) 
             , m_allocCountmap(allocCountmap)
             , m_deathCountmap(deathCountmap)
+            , m_contextTypeMap(contextTypeMap)
             , m_exec(execstate)
             , m_output(output)
             , m_nodefile(nodefile) {
@@ -337,6 +342,44 @@ class ExecState
                                EventKind::Death );
         }
 
+        void UpdateContextTypeMap( ContextPair cpair,
+                                   CPairType cptype ) {
+            ContextTypeMap_t cptype_map = this->m_contextTypeMap;
+            auto it = cptype_map.find(cpair);
+            if ( (it != cptype_map.end()) &&
+                 (cptype_map[cpair] != cptype) ) {
+                cptype_map[cpair] = CPairType::CP_Both;
+            } else {
+                cptype_map[cpair] = cptype;
+            }
+        }
+        
+        // Get the context pair type for a given context pair
+        CPairType get_cptype( ContextPair cpair ) {
+            ContextTypeMap_t cptype_map = this->m_contextTypeMap;
+            auto it = cptype_map.find(cpair);
+            if (it != cptype_map.end()) {
+                return cptype_map[cpair];
+            } else {
+                return CPairType::CP_None;
+            }
+        }
+
+        char get_cptype_name( ContextPair cpair ) {
+            CPairType cptype = this->get_cptype(cpair);
+            switch (cptype) {
+                case CPairType::CP_Call:
+                    return 'C';
+                case CPairType::CP_Return:
+                    return 'R';
+                case CPairType::CP_Both:
+                    return 'B';
+                default:
+                    // None
+                    return 'N';
+            }
+        }
+
         // Update the Object pointer to simple context pair map
         void UpdateObj2Context( Object *obj,
                                 ContextPair cpair,
@@ -355,6 +398,8 @@ class ExecState
                 obj->setDeathContextPair( cpair, cptype );
             }
 
+            UpdateContextTypeMap( cpair, cptype );
+
             ContextCountMap &curcmap = ((ekind == EventKind::Allocation) ? this->m_allocCountmap
                                                                          : this->m_deathCountmap);
             auto it = curcmap.find( cpair );
@@ -364,6 +409,11 @@ class ExecState
                 curcmap[cpair] = 1; 
             }
         }
+
+        // -- The assumption is that a context pair will be only a single
+        // type. See the definition for CPairType in heap.h. Possible values are
+        // Call, Return, Both. (Don't use None)
+        ContextTypeMap_t m_contextTypeMap;
 
         // -- Map of simple Allocation context pair -> count of occurrences
         // TODO: Think about hiding this in an abstraction TODO

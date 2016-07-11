@@ -711,7 +711,7 @@ class ContextCountReader:
         # 
         self.context_file_name = context_file
         # Context to counts and attribute record dictionary
-        self.contextdict = {} # (funcsrc, functgt) -> (count objects, count death groups) 
+        self.contextdict = {} # (funcsrc, functgt, contexttype) -> (count objects, count death groups) 
         self.con_typedict = defaultdict( Counter ) # (funcsrc, functgt) -> Counter of key object types
         self.all_typedict = defaultdict( Counter ) # (funcsrc, functgt) -> Counter of all types
         self.stack_counter = Counter() # (funcsrc, functgt) -> count of stack objects
@@ -743,8 +743,9 @@ class ContextCountReader:
                 # * func1 returned to func2
                 src = rowtmp[0]
                 tgt = rowtmp[1]
-                tmpcount = int(rowtmp[2])
-                self.contextdict[tuple([src, tgt])] = (tmpcount, 0)
+                cptype = rowtmp[2]
+                tmpcount = int(rowtmp[3])
+                self.contextdict[tuple([src, tgt, cptype])] = (tmpcount, 0)
                 # Note that the 0 means it has to be updated
                 # when key objects are processed later
                 # TODO Don't need a src <-> mapping?
@@ -756,6 +757,7 @@ class ContextCountReader:
 
     def inc_count( self,
                    context_pair = (None, None),
+                   cptype = None,
                    objTypeId = 0,
                    by_stack = False ):
         cpair = context_pair
@@ -765,49 +767,52 @@ class ContextCountReader:
             return False
         cdict = self.contextdict
 
-        if cpair not in cdict:
+        newkey = cpair + (cptype,)
+        if newkey not in cdict:
             # Not found, initialize. Key count (second element)
             # is updated later.
-            cdict[cpair] = (1, 0)
+            cdict[newkey] = (1, 0)
         else:
-            old = cdict[cpair]
-            cdict[cpair] = ((old[0] + 1), 0)
-        self.all_typedict[cpair].update( [ objTypeId ] )
+            old = cdict[newkey]
+            cdict[newkey] = ((old[0] + 1), 0)
+        self.all_typedict[newkey].update( [ objTypeId ] )
         if by_stack:
-            self.stack_counter.update( [ cpair ] )
+            self.stack_counter.update( [ newkey ] )
         return True
     
     def update_key_count( self,
                           context_pair = (None, None),
+                          cptype = None,
                           key_count = 0 ):
         cpair = context_pair
         if cpair[0] == None or cpair[1] == None:
             self.logger.error("Context pair is None.")
             return None
         cdict = self.contextdict
-        if cpair not in cdict:
-            self.logger.error("Context pair[ %s ] not found." % str(cpair))
+        newkey = cpair + (cptype,)
+        if newkey not in cdict:
+            self.logger.error("Context pair[ %s ] not found." % str(newkey))
             # Update the missing if we're supposed to
             if not self.update_missing:
                 return False
-            cdict[cpair] = (1, key_count)
-            self.missing_set.add( cpair )
+            cdict[newkey] = (1, key_count)
+            self.missing_set.add( newkey )
             return False
         else:
-            self.update_key_count_no_check( cpair,
+            self.update_key_count_no_check( newkey,
                                             key_count )
             return True
     
     def update_key_count_no_check( self,
-                                   cpair = (None, None),
+                                   newkey = (None, None, None),
                                    key_count = 0 ):
         cdict = self.contextdict
-        rec = cdict[cpair]
-        if cpair in self.missing_set:
+        rec = cdict[newkey]
+        if newkey in self.missing_set:
             # The context was missing, so we also need to update the total count.
-            cdict[cpair] = ((rec[0] + 1), key_count)
+            cdict[newkey] = ((rec[0] + 1), key_count)
         else:
-            cdict[cpair] = (rec[0], key_count)
+            cdict[newkey] = (rec[0], key_count)
 
     def inc_key_count( self,
                        context_pair = (None, None),

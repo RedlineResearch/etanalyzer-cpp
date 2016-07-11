@@ -54,6 +54,7 @@ enum class KeyType {
 enum class CPairType {
     CP_Call = 1,
     CP_Return = 2,
+    CP_Both = 3,
     CP_None = 99,
 };
 
