@@ -352,6 +352,7 @@ class ExecState
             } else {
                 cptype_map[cpair] = cptype;
             }
+            cerr << "XXX: " << this->_get_cptype_name( cptype_map[cpair] ) << endl;
         }
         
         // Get the context pair type for a given context pair
@@ -365,8 +366,7 @@ class ExecState
             }
         }
 
-        char get_cptype_name( ContextPair cpair ) {
-            CPairType cptype = this->get_cptype(cpair);
+        static char _get_cptype_name( CPairType cptype ) {
             switch (cptype) {
                 case CPairType::CP_Call:
                     return 'C';
@@ -378,6 +378,11 @@ class ExecState
                     // None
                     return 'N';
             }
+        }
+
+        char get_cptype_name( ContextPair cpair ) {
+            CPairType cptype = this->get_cptype(cpair);
+            return this->_get_cptype_name(cptype);
         }
 
         // Update the Object pointer to simple context pair map
