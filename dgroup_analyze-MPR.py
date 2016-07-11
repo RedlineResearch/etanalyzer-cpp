@@ -18,6 +18,7 @@ import socket
 from collections import defaultdict
 from multiprocessing import Process
 from itertools import repeat
+import networkx as nx
 
 # TODO from itertools import combinations
 
@@ -688,6 +689,7 @@ def get_key_object_types( gnum = None,
                           dumpall = False,
                           logger = None,
                           writer = None,
+                          dgraph = None,
                           ignore_died_at_end = True ):
     if gnum in dgroups.group2list:
         group = dgroups.group2list[gnum] 
@@ -706,12 +708,16 @@ def get_key_object_types( gnum = None,
     # Check to see if the key object is a primitive type array
     total_cc = 0
     err_cc = 0
+    # ======================================================================
     if all_primitive_types( group, objinfo ):
         print " - all primitive types."
         # All are a group unto themselves
         for obj in group:
+            # NOTE: Ignoring objects that died at end (ie IMMORTAL)
+            # TODO: We may not want this behavior for the graph...
+            # TODO: ...or even for everything? -RLV
             if objinfo.died_at_end(obj):
-                continue
+                continue # TODO Is this what we want in the analysis?
             tmptype = objinfo.get_type(obj)
             result = update_keytype_dict( ktdict = ktdict,
                                           objId = obj,
@@ -725,12 +731,14 @@ def get_key_object_types( gnum = None,
                                           dumpall = dumpall,
                                           writer = writer,
                                           logger = logger )
+            dgraph.add_node( gnum, { "size" : 1, "keytype" : tmptype } )
             total_cc += 1
             err_cc = ((err_cc + 1) if (not result) else err_cc)
         # print "BY STACK - all primitive" # TODO Make into a logging statement
         contextresult["total"] = contextresult["total"] + total_cc
         contextresult["error"] = contextresult["error"] + err_cc
         return DIEDBYSTACK # TODO This does not seem right.
+    # ======================================================================
     if len(key_objects) == 1:
         # Found key objects
         found_key = True
@@ -741,6 +749,7 @@ def get_key_object_types( gnum = None,
             return DIEDATEND
         mytype = objinfo.get_type(tgt)
     else:
+        # ======================================================================
         if len(key_objects) > 1:
             # Multiple keys?
             tgt = None
@@ -800,18 +809,7 @@ def get_key_object_types( gnum = None,
         mytype = curtydict[tgt]
         # TODO Make into a logging statement
         print "  - key among multiples - %d [ %s ][ dtime: %d ]" % (cur, curtype, cur_dtime)
-        # # First try the known groups
-        # key_objects = fixed_known_key_objects( group = group,
-        #                                        objinfo = objinfo,
-        #                                        logger = logger )
-        # if key_objects != None:
-        #     tgt = key_objects["obj"]
-        #     result = ONEKEY_KNOWNOBJ
-        #     print " - found known key object [%s]" % objinfo.get_type(tgt)
-        #     if objinfo.died_at_end(tgt):
-        #         return DIEDATEND
-        # else:
-        #     pass
+    # ----------------------------------------------------------------------------------
     group_types = frozenset( [ objinfo.get_type(x) for x in group if x != tgt ] )
     is_array_flag = is_array(mytype)
     is_primitive_key = is_primitive_array(mytype)
@@ -1015,6 +1013,7 @@ def death_group_analyze( bmark = None,
     # Output each death group
     dumpfile = os.path.join( workdir, "%s-DGROUPS-DUMP.csv" % bmark )
     dumpall = (main_config["dumpall"] == "True")
+    dgraph = nx.DiGraph()
     with open( dumpfile, "wb" ) as fptr:
         writer = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
         writer.writerow( [ "type", "time", "context1", "context2",
@@ -1031,6 +1030,7 @@ def death_group_analyze( bmark = None,
                                            contextresult = contextresult,
                                            dumpall = dumpall,
                                            writer = writer,
+                                           dgraph = dgraph,
                                            logger = logger )
             print "-------[ END group num: %d ]--------------------------------------------" % gnum
     contextinfo.fix_counts( objinfo )
