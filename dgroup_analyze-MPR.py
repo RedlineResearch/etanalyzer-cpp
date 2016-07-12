@@ -731,7 +731,7 @@ def get_key_object_types( gnum = None,
                                           dumpall = dumpall,
                                           writer = writer,
                                           logger = logger )
-            dgraph.add_node( gnum, { "size" : 1, "keytype" : tmptype } )
+            dgraph.add_node( gnum, { "size" : 1, "keytype" : str(tmptype) } )
             total_cc += 1
             err_cc = ((err_cc + 1) if (not result) else err_cc)
         # print "BY STACK - all primitive" # TODO Make into a logging statement
@@ -832,7 +832,7 @@ def get_key_object_types( gnum = None,
                                   writer = writer,
                                   logger = logger )
     # Add to graph
-    dgraph.add_node( gnum, { "size" : len(group), "keytype" : mytype } )
+    dgraph.add_node( gnum, { "size" : len(group), "keytype" : str(mytype) } )
     total_cc += 1
     err_cc = ((err_cc + 1) if not result else err_cc)
     # This looks like all debug.
@@ -1045,7 +1045,8 @@ def death_group_analyze( bmark = None,
             for tgtobj in edgeinfo.get_targets(srcobj):
                 # get the group that tgtobj belongs in
                 tgtgroup = dgroups.get_group_number(tgtobj)
-                dgraph.add_edge( gsrc, tgtgroup )
+                if tgtgroup != None:
+                    dgraph.add_edge( gsrc, tgtgroup )
     # ----------------------------------------
     # Save the graph
     gmlfile = os.path.join( workdir, "%s-DGROUPS-GRAPH.gml" % bmark )
