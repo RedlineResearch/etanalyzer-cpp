@@ -174,7 +174,7 @@ class ObjectInfoReader:
                     row = [ int(rec[ get_raw_index("ATIME") ]),
                             int(rec[ get_raw_index("DTIME") ]),
                             int(rec[ get_raw_index("SIZE") ]),
-                            rec[ get_raw_index("TYPE") ],
+                            self.get_typeId( rec[ get_raw_index("TYPE") ] ),
                             rec[ get_raw_index("DIEDBY") ],
                             rec[ get_raw_index("LASTUP") ],
                             rec[ get_raw_index("STATTR") ],
@@ -187,8 +187,7 @@ class ObjectInfoReader:
                             rec[ get_raw_index("ALLOC_CONTEXT_TYPE") ],
                             int(rec[ get_raw_index("ATIME_ALLOC") ]),
                             int(rec[ get_raw_index("DTIME_ALLOC") ]),
-                            # TODO TODO run with proper simulator output
-                            # rec[ get_raw_index("ALLOCSITE") ],
+                            rec[ get_raw_index("ALLOCSITE") ],
                             ]
                     if objId not in object_info:
                         object_info[objId] = tuple(row)
@@ -392,6 +391,8 @@ class ObjectInfoReader:
 
     def get_allocsite_using_record( self, rec = None ):
         return rec[ get_index("ALLOCSITE") ] if rec != None else "NONE"
+        # TODO TODO
+        # return rec[ get_index("ALLOC_CONTEXT1") ] if rec != None else "NONE"
 
     def get_stack_died_by_attr( self, objId = 0 ):
         rec = self.get_record(objId)
@@ -460,16 +461,10 @@ class EdgeInfoReader:
         assert(done)
 
     def get_targets( self, src = 0 ):
-        if src in self.srcdict:
-            return self.srcdict[src]
-        else:
-            return []
+        return self.srcdict[src] if (src in self.srcdict) else []
 
     def get_sources( self, tgt = 0 ):
-        if tgt in self.tgtdict:
-            return self.tgtdict[tgt]
-        else:
-            return []
+        return self.tgtdict[tgt] if (tgt in self.tgtdict) else []
 
     def edgedict_iteritems( self ):
         return self.edgedict.iteritems()
@@ -552,9 +547,23 @@ class DeathGroupsReader:
         ogroup = self.obj2group
         for obj in groupset:
             if obj in ogroup:
-                ogroup[obj].append( groupnum )
+                ogroup[obj].add( groupnum )
             else:
-                ogroup[obj] = [ groupnum ]
+                ogroup[obj] = set([ groupnum ])
+
+    def get_group( self, groupnum = 0 ):
+        return self.obj2group[groupnum] if groupnum in self.obj2group else []
+
+    def get_group_number( self, objId = 0 ):
+        def _group_len(objId):
+            return len(self.group2list[objId])
+        glist = list(self.obj2group[objId]) if (objId in self.obj2group) else []
+        if len(glist) > 1:
+            gmax = max( glist, key = _group_len )
+            self.logger.critical( "Multiple group numbers for objId[ %d ]: using %d"
+                                  % (objId, gmax) )
+            return gmax
+        return glist[0] if len(glist) == 1 else None
 
     def map_group2dtime( self,
                          groupnum = 0,
@@ -828,7 +837,7 @@ class ContextCountReader:
             # Update the missing if we're supposed to
             if not self.update_missing:
                 return False
-            cdict[cpair] = (1, key_count)
+            cdict[cpair] = (1, 1)
             self.missing_set.add( cpair )
         else:
             self.inc_key_count_no_check( cpair )

@@ -831,6 +831,8 @@ def get_key_object_types( gnum = None,
                                   dumpall = dumpall,
                                   writer = writer,
                                   logger = logger )
+    # Add to graph
+    dgraph.add_node( gnum, { "size" : len(group), "keytype" : mytype } )
     total_cc += 1
     err_cc = ((err_cc + 1) if not result else err_cc)
     # This looks like all debug.
@@ -1034,6 +1036,20 @@ def death_group_analyze( bmark = None,
                                            logger = logger )
             print "-------[ END group num: %d ]--------------------------------------------" % gnum
     contextinfo.fix_counts( objinfo )
+    # ----------------------------------------
+    # Add edges
+    for gsrc in nx.nodes(dgraph):
+        # for every object in gsrc
+        for srcobj in dgroups.get_group(gsrc):
+            # for every target object
+            for tgtobj in edgeinfo.get_targets(srcobj):
+                # get the group that tgtobj belongs in
+                tgtgroup = dgroups.get_group_number(tgtobj)
+                dgraph.add_edge( gsrc, tgtgroup )
+    # ----------------------------------------
+    # Save the graph
+    gmlfile = os.path.join( workdir, "%s-DGROUPS-GRAPH.gml" % bmark )
+    nx.write_gml(dgraph, gmlfile)
     # ----------------------------------------
     logger.debug( "[%s]: Total: %d" % (bmark, len(dgroups.group2list)) )
     logger.debug( "[%s]: Tries: %d" % (bmark, debug_tries) )
