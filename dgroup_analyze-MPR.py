@@ -749,7 +749,7 @@ def get_key_object_types( gnum = None,
             return DIEDATEND
         mytype = objinfo.get_type(tgt)
         if mytype == "[C" and len(group) > 1:
-            print "X:", str(group)
+            print "X:", str([ objinfo.get_type(x) for x in group ])
             exit(100)
     else:
         # ======================================================================
