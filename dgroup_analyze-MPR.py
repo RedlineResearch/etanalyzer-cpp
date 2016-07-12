@@ -748,10 +748,14 @@ def get_key_object_types( gnum = None,
         if objinfo.died_at_end(tgt):
             return DIEDATEND
         mytype = objinfo.get_type(tgt)
-        if ( (mytype == "[C") and
-             ("Ljava/lang/String;" in group) and
-             (len(group) == 2) ):
-             mytype = "Ljava/lang/String;"
+        if mytype == "[C":
+            tylist = [ objinfo.get_type(x) for x in group ]
+            if ( ("Ljava/lang/String;" in tylist) and
+                 (len(group) == 2) ):
+                mytype = "Ljava/lang/String;"
+            else:
+                print "Y:", str(tylist)
+                return NOTFOUND
     else:
         # ======================================================================
         if len(key_objects) > 1:
@@ -813,10 +817,14 @@ def get_key_object_types( gnum = None,
         mytype = curtydict[tgt]
         # TODO Make into a logging statement
         print "  - key among multiples - %d [ %s ][ dtime: %d ]" % (cur, curtype, cur_dtime)
-        if ( (mytype == "[C") and
-             ("Ljava/lang/String;" in group) and
-             (len(group) == 2) ):
-             mytype = "Ljava/lang/String;"
+        if mytype == "[C":
+            tylist = [ objinfo.get_type(x) for x in group ]
+            if ( ("Ljava/lang/String;" in tylist) and
+                 (len(group) == 2) ):
+                mytype = "Ljava/lang/String;"
+            else:
+                print "Y:", str(tylist)
+                return NOTFOUND
     # ----------------------------------------------------------------------------------
     group_types = frozenset( [ objinfo.get_type(x) for x in group if x != tgt ] )
     is_array_flag = is_array(mytype)
