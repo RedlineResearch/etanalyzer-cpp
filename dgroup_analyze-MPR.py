@@ -813,7 +813,7 @@ def get_key_object_types( gnum = None,
         # TODO Make into a logging statement
         print "  - key among multiples - %d [ %s ][ dtime: %d ]" % (cur, curtype, cur_dtime)
         if mytype == "[C" and len(group) > 1:
-            print "X:", str(group)
+            print "X:", str([ objinfo.get_type(x) for x in group ])
             exit(100)
     # ----------------------------------------------------------------------------------
     group_types = frozenset( [ objinfo.get_type(x) for x in group if x != tgt ] )
