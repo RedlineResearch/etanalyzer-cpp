@@ -941,8 +941,8 @@ def __TODO_DELTE_LAST_EDGE():
 
 # Expects the dgraph to have the proper nodes in it because
 # of the death groups processing. Addes the edges from edgeinfo.
-# Then calculates the 5 largest strongly connected components.
-# TODO: This could be WEAKLY connected components.
+# Then calculates the 5 largest weakly connected components.
+# TODO: This could be STRONGLY connected components.
 # Writes the main graph, and the SCCs. Then returns the list
 # of SCCs.
 def build_and_save_graph( dgraph = None,
@@ -961,22 +961,24 @@ def build_and_save_graph( dgraph = None,
                 if tgtgroup != None:
                     dgraph.add_edge( gsrc, tgtgroup )
     # ----------------------------------------
-    # Get the top 5 largest strongly connected components
+    # Get the top 5 largest weakly connected components
     try:
-        scclist = [ Gc for Gc in sorted( nx.strongly_connected_component_subgraphs(dgraph),
-                                         key = len, reverse = True ) ][:5]
+        wcclist = sorted( nx.weakly_connected_component_subgraphs(dgraph),
+                          key = len,
+                          reverse = True )[:5]
     except:
-        scclist = [ Gc for Gc in sorted( nx.strongly_connected_component_subgraphs(dgraph),
-                                         key = len, reverse = True ) ]
+        wcclist = sorted( nx.weakly_connected_component_subgraphs(dgraph),
+                          key = len,
+                          reverse = True )
     # ----------------------------------------
     # Save the graph
     gmlfile = os.path.join( workdir, "%s-DGROUPS-GRAPH.gml" % bmark )
     nx.write_gml(dgraph, gmlfile)
-    for gindex in xrange(len(scclist)):
-        gtmp = scclist[gindex]
-        gmlfile = os.path.join( workdir, "%s-DGROUPS-GRAPH-%d.gml" % (bmark, gindex) )
+    for gindex in xrange(len(wcclist)):
+        gtmp = wcclist[gindex]
+        gmlfile = os.path.join( workdir, "%s-DGROUPS-GRAPH-%d.gml" % (bmark, gindex+1) )
         nx.write_gml(gtmp, gmlfile)
-    return scclist
+    return wcclist
 
 def death_group_analyze( bmark = None,
                          cycle_cpp_dir = "",
