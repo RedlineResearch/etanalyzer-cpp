@@ -939,6 +939,45 @@ def __TODO_DELTE_LAST_EDGE():
                                         "group_types" : Counter( [ frozenset([]) ] ) }
                 return DIEDBYSTACK
 
+# Expects the dgraph to have the proper nodes in it because
+# of the death groups processing. Addes the edges from edgeinfo.
+# Then calculates the 5 largest strongly connected components.
+# TODO: This could be WEAKLY connected components.
+# Writes the main graph, and the SCCs. Then returns the list
+# of SCCs.
+def build_and_save_graph( dgraph = None,
+                          edgeinfo = None,
+                          dgroups = None,
+                          bmark = None,
+                          workdir = None ):
+    # Add edges
+    for gsrc in nx.nodes(dgraph):
+        # for every object in gsrc
+        for srcobj in dgroups.get_group(gsrc):
+            # for every target object
+            for tgtobj in edgeinfo.get_targets(srcobj):
+                # get the group that tgtobj belongs in
+                tgtgroup = dgroups.get_group_number(tgtobj)
+                if tgtgroup != None:
+                    dgraph.add_edge( gsrc, tgtgroup )
+    # ----------------------------------------
+    # Get the top 5 largest strongly connected components
+    try:
+        scclist = [ Gc for Gc in sorted( nx.strongly_connected_component_subgraphs(dgraph),
+                                         key = len, reverse = True ) ][:5]
+    except:
+        scclist = [ Gc for Gc in sorted( nx.strongly_connected_component_subgraphs(dgraph),
+                                         key = len, reverse = True ) ]
+    # ----------------------------------------
+    # Save the graph
+    gmlfile = os.path.join( workdir, "%s-DGROUPS-GRAPH.gml" % bmark )
+    nx.write_gml(dgraph, gmlfile)
+    for gindex in xrange(len(scclist)):
+        gtmp = scclist[gindex]
+        gmlfile = os.path.join( workdir, "%s-DGROUPS-GRAPH-%d.gml" % (bmark, gindex) )
+        nx.write_gml(gtmp, gmlfile)
+    return scclist
+
 def death_group_analyze( bmark = None,
                          cycle_cpp_dir = "",
                          main_config = {},
@@ -1053,20 +1092,11 @@ def death_group_analyze( bmark = None,
             print "-------[ END group num: %d ]--------------------------------------------" % gnum
     contextinfo.fix_counts( objinfo )
     # ----------------------------------------
-    # Add edges
-    for gsrc in nx.nodes(dgraph):
-        # for every object in gsrc
-        for srcobj in dgroups.get_group(gsrc):
-            # for every target object
-            for tgtobj in edgeinfo.get_targets(srcobj):
-                # get the group that tgtobj belongs in
-                tgtgroup = dgroups.get_group_number(tgtobj)
-                if tgtgroup != None:
-                    dgraph.add_edge( gsrc, tgtgroup )
-    # ----------------------------------------
-    # Save the graph
-    gmlfile = os.path.join( workdir, "%s-DGROUPS-GRAPH.gml" % bmark )
-    nx.write_gml(dgraph, gmlfile)
+    scclist = build_and_save_graph( dgraph = dgraph,
+                                    edgeinfo = edgeinfo,
+                                    dgroups = dgroups,
+                                    bmark = bmark,
+                                    workdir = workdir )
     # ----------------------------------------
     logger.debug( "[%s]: Total: %d" % (bmark, len(dgroups.group2list)) )
     logger.debug( "[%s]: Tries: %d" % (bmark, debug_tries) )
