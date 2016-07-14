@@ -959,7 +959,12 @@ def build_and_save_graph( dgraph = None,
                 # get the group that tgtobj belongs in
                 tgtgroup = dgroups.get_group_number(tgtobj)
                 if tgtgroup != None:
-                    dgraph.add_edge( gsrc, tgtgroup )
+                    if tgtgroup not in dgraph[gsrc]:
+                        dgraph.add_edge( gsrc,
+                                         tgtgroup,
+                                         { "weight" : 1 } )
+                    else:
+                        dgraph[gsrc][tgtgroup]['weight'] += 1
     # ----------------------------------------
     # Get the top 5 largest weakly connected components
     try:
