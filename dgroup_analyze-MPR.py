@@ -1,3 +1,4 @@
+from __future__ import division
 # dgroup_analyze-MPR.py 
 #
 import argparse
@@ -950,6 +951,7 @@ def build_and_save_graph( dgraph = None,
                           dgroups = None,
                           bmark = None,
                           workdir = None ):
+    # ----------------------------------------
     # Add edges
     for gsrc in nx.nodes(dgraph):
         # for every object in gsrc
@@ -962,9 +964,16 @@ def build_and_save_graph( dgraph = None,
                     if tgtgroup not in dgraph[gsrc]:
                         dgraph.add_edge( gsrc,
                                          tgtgroup,
-                                         { "weight" : 1 } )
+                                         { "rawweight" : 1 } )
                     else:
-                        dgraph[gsrc][tgtgroup]['weight'] += 1
+                        dgraph[gsrc][tgtgroup]['rawweight'] += 1
+    # ----------------------------------------
+    # Get max edge weight 
+    weight_max = max( [ dgraph.edge[e[0]][e[1]]['rawweight'] for e in nx.edges(dgraph) ] )
+    # Assign the scaled weights as 'weight'
+    for e in dgraph.edges():
+        dgraph.edge[e[0]][e[1]]["weight"] = (dgraph.edge[e[0]][e[1]]['rawweight'] / weight_max) * 100.0
+        assert( type(dgraph.edge[e[0]][e[1]]["weight"]) == type(1.0) )
     # ----------------------------------------
     # Get the top 5 largest weakly connected components
     try:
