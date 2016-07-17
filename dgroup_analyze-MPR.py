@@ -969,11 +969,12 @@ def build_and_save_graph( dgraph = None,
                         dgraph[gsrc][tgtgroup]['rawweight'] += 1
     # ----------------------------------------
     # Get max edge weight 
-    weight_max = max( [ dgraph.edge[e[0]][e[1]]['rawweight'] for e in nx.edges(dgraph) ] )
-    # Assign the scaled weights as 'weight'
-    for e in dgraph.edges():
-        dgraph.edge[e[0]][e[1]]["weight"] = (dgraph.edge[e[0]][e[1]]['rawweight'] / weight_max) * 100.0
-        assert( type(dgraph.edge[e[0]][e[1]]["weight"]) == type(1.0) )
+    if dgraph.number_of_edges() > 0:
+        weight_max = max( [ dgraph.edge[e[0]][e[1]]['rawweight'] for e in nx.edges(dgraph) ] )
+        # Assign the scaled weights as 'weight'
+        for e in dgraph.edges():
+            dgraph.edge[e[0]][e[1]]["weight"] = (dgraph.edge[e[0]][e[1]]['rawweight'] / weight_max) * 100.0
+            assert( type(dgraph.edge[e[0]][e[1]]["weight"]) == type(1.0) )
     # ----------------------------------------
     # Get the top 5 largest weakly connected components
     try:
