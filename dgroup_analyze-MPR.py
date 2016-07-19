@@ -953,8 +953,13 @@ def build_and_save_graph( dgraph = None,
                           workdir = None ):
     # ----------------------------------------
     # Add edges
+    max_gsize = 0
     for gsrc in nx.nodes(dgraph):
         # for every object in gsrc
+        if "size" not in dgraph.node[gsrc]:
+            dgraph.node[gsrc]["size"] = 1
+        max_gsize = dgraph.node[gsrc]["size"] if dgraph.node[gsrc]["size"] > max_gsize \
+            else max_gsize
         for srcobj in dgroups.get_group(gsrc):
             # for every target object
             for tgtobj in edgeinfo.get_targets(srcobj):
@@ -967,6 +972,10 @@ def build_and_save_graph( dgraph = None,
                                          { "rawweight" : 1 } )
                     else:
                         dgraph[gsrc][tgtgroup]['rawweight'] += 1
+    for gsrc in nx.nodes(dgraph):
+        if "size" not in dgraph.node[gsrc]:
+            dgraph.node[gsrc]["size"] = 1
+        dgraph.node[gsrc]["weight"] = (dgraph.node[gsrc]["size"] / max_gsize) * 100.0
     # ----------------------------------------
     # Get max edge weight 
     if dgraph.number_of_edges() > 0:
@@ -974,7 +983,6 @@ def build_and_save_graph( dgraph = None,
         # Assign the scaled weights as 'weight'
         for e in dgraph.edges():
             dgraph.edge[e[0]][e[1]]["weight"] = (dgraph.edge[e[0]][e[1]]['rawweight'] / weight_max) * 100.0
-            assert( type(dgraph.edge[e[0]][e[1]]["weight"]) == type(1.0) )
     # ----------------------------------------
     # Get the top 5 largest weakly connected components
     try:
@@ -1030,8 +1038,11 @@ def death_group_analyze( bmark = None,
     # TODO sys.stdout.write(  "[%s]: DONE: %f\n" % (bmark, (oread_end - oread_start)) )
     # ----------------------------------------
     objectinfo_path = os.path.join(cycle_cpp_dir, objectinfo_config[bmark])
-    print "XXX:", objectinfo_path, os.path.isfile( objectinfo_path )
-    assert(os.path.isfile( objectinfo_path ))
+    if not os.path.isfile( objectinfo_path ):
+        logger.error( "Can not find file: %s" % str(objectinfo_path) )
+        print "Can not find file: %s" % str(objectinfo_path)
+        print "Exiting."
+        exit(1)
     objinfo = ObjectInfoReader( objectinfo_path, logger = logger )
     logger.debug( "[%s]: Reading OBJECTINFO file..." % bmark )
     sys.stdout.write(  "[%s]: Reading OBJECTINFO file...\n" % bmark )
