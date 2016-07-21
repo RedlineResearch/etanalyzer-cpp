@@ -732,7 +732,14 @@ def get_key_object_types( gnum = None,
                                           dumpall = dumpall,
                                           writer = writer,
                                           logger = logger )
-            dgraph.add_node( gnum, { "size" : 1, "keytype" : str(tmptype) } )
+            keyrec = objinfo.get_record(obj)
+            atime = objinfo.get_alloc_time_using_record( keyrec )
+            dtime = objinfo.get_death_time_using_record( keyrec )
+            dgraph.add_node( gnum, { "size" : 1,
+                                     "keytype" : str(tmptype),
+                                     "atime" : atime,
+                                     "ditme" : dtime, } )
+            # Get dtime and atime using objId
             total_cc += 1
             err_cc = ((err_cc + 1) if (not result) else err_cc)
         # print "BY STACK - all primitive" # TODO Make into a logging statement
@@ -849,7 +856,13 @@ def get_key_object_types( gnum = None,
                                   writer = writer,
                                   logger = logger )
     # Add to graph
-    dgraph.add_node( gnum, { "size" : len(group), "keytype" : str(mytype) } )
+    keyrec = objinfo.get_record(tgt)
+    atime = objinfo.get_alloc_time_using_record( keyrec )
+    dtime = objinfo.get_death_time_using_record( keyrec )
+    dgraph.add_node( gnum, { "size" : len(group),
+                             "keytype" : str(mytype) },
+                             "atime" : atime,
+                             "ditme" : dtime, } )
     total_cc += 1
     err_cc = ((err_cc + 1) if not result else err_cc)
     # This looks like all debug.
@@ -1003,13 +1016,24 @@ def build_and_save_graph( dgraph = None,
         nx.write_gml(gtmp, gmlfile)
     return wcclist
 
+def group_analysis_ONE( graph = None,
+                        root = None,
+                        dtree = None ):
+    pass
+    # Split into 2 groups:
+    # - died before source group
+    # - died after source group
+    # TODO root_dtime = 
+
 def analyze_graphs( scclist = [] ):
     slist = scclist
     for gind in xrange(len(slist)):
         # Get the largest death group
         # TODO: Maybe get the top N death groups?
-        tgt = max( [ x for x in nx.nodes(slist[gind]) ], key = lambda y: slist[gind].node[y]["size"] )
+        tgt = max( [ x for x in nx.nodes(slist[gind]) ],
+                   key = lambda y: slist[gind].node[y]["size"] )
         # Find the reachable nodes
+        dtree = nx.dfs_tree( slist[gind], tgt )
 
 def death_group_analyze( bmark = None,
                          cycle_cpp_dir = "",
