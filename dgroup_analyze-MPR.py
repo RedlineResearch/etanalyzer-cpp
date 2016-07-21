@@ -1008,7 +1008,7 @@ def analyze_graphs( scclist = [] ):
     for gind in xrange(len(slist)):
         # Get the largest death group
         # TODO: Maybe get the top N death groups?
-        tgt = max( [ x for x in nx.nodes(slist[gind]) ], key = lambda y: nx.node[y]["size"] )
+        tgt = max( [ x for x in nx.nodes(slist[gind]) ], key = lambda y: slist[gind].node[y]["size"] )
         # Find the reachable nodes
 
 def death_group_analyze( bmark = None,
