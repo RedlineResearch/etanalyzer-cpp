@@ -860,7 +860,7 @@ def get_key_object_types( gnum = None,
     atime = objinfo.get_alloc_time_using_record( keyrec )
     dtime = objinfo.get_death_time_using_record( keyrec )
     dgraph.add_node( gnum, { "size" : len(group),
-                             "keytype" : str(mytype) },
+                             "keytype" : str(mytype),
                              "atime" : atime,
                              "ditme" : dtime, } )
     total_cc += 1
