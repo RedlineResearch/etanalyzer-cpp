@@ -605,12 +605,11 @@ def update_keytype_dict( ktdict = {},
                          group_types = frozenset([]),
                          max_age = 0,
                          dumpall = False,
-                         filterflag = True,
+                         filterbytes = 8388608,
                          writer = None,
                          logger = None ):
 
     assert( objId >= 0 )
-    EIGHTMB = 8388608 # 8 megabytes (generous binary version)
     if dumpall:
         assert( writer != None )
     if objinfo.died_at_end(objId):
@@ -643,14 +642,13 @@ def update_keytype_dict( ktdict = {},
         # Header is [ "type", "time", "context1", "context2",
         #             "number of objects", "cause", "subcause",
         #             "allocsite", ]
-        rec = objinfo.get_record(objId)
-        dcause = objinfo.get_death_cause_using_record(rec)
-        subcause = ( objinfo.get_stack_died_by_attr_using_record(rec) if dcause == "S"
-                     else ( objinfo.get_last_heap_update_using_record(rec)
-                            if (dcause == "H" or dcause == "G") else "NONE" ) )
-        age = objinfo.get_age_using_record(rec)
-        # Filter here. Hardcoded 8 MB limit
-        if ( not filterflag or (max_age <= EIGHTMB) ):
+        if ( (filterbytes > 0) and (max_age <= filterbytes) ):
+            rec = objinfo.get_record(objId)
+            dcause = objinfo.get_death_cause_using_record(rec)
+            subcause = ( objinfo.get_stack_died_by_attr_using_record(rec) if dcause == "S"
+                         else ( objinfo.get_last_heap_update_using_record(rec)
+                                if (dcause == "H" or dcause == "G") else "NONE" ) )
+            age = objinfo.get_age_using_record(rec)
             writer.writerow( [ objType,
                                objinfo.get_death_time_using_record(rec),
                                cpair[0], # death context pair first element
@@ -688,6 +686,7 @@ def get_key_object_types( gnum = None,
                           contextinfo = None,
                           contextresult = {},
                           dumpall = False,
+                          filterbytes = 8388608,
                           logger = None,
                           writer = None,
                           dgraph = None,
@@ -728,7 +727,7 @@ def get_key_object_types( gnum = None,
                                           contextinfo = contextinfo,
                                           group_types = frozenset([]),
                                           max_age = max_age,
-                                          filterflag = True,
+                                          filterbytes = filterbytes,
                                           dumpall = dumpall,
                                           writer = writer,
                                           logger = logger )
@@ -850,7 +849,7 @@ def get_key_object_types( gnum = None,
                                   objinfo = objinfo,
                                   contextinfo = contextinfo,
                                   group_types = group_types,
-                                  filterflag = True,
+                                  filterbytes = filterbytes,
                                   max_age = max_age,
                                   dumpall = dumpall,
                                   writer = writer,
@@ -1118,6 +1117,10 @@ def death_group_analyze( bmark = None,
     # Output each death group
     dumpfile = os.path.join( workdir, "%s-DGROUPS-DUMP.csv" % bmark )
     dumpall = (main_config["dumpall"] == "True")
+    try:
+        filterbytes = int(main_config["filterbytes"])
+    except:
+        filterbytes = 8388608
     dgraph = nx.DiGraph()
     with open( dumpfile, "wb" ) as fptr:
         writer = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
@@ -1135,6 +1138,7 @@ def death_group_analyze( bmark = None,
                                            contextresult = contextresult,
                                            dumpall = dumpall,
                                            writer = writer,
+                                           filterbytes = filterbytes,
                                            dgraph = dgraph,
                                            logger = logger )
             print "-------[ END group num: %d ]--------------------------------------------" % gnum
