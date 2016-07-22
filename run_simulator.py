@@ -122,6 +122,9 @@ def backup_old_simulator_output( cycle_cpp_dir, backup_cycle_cpp_dir ):
         abs_fname = os.path.join( cycle_cpp_dir, fname )
         if os.path.isfile(abs_fname):
             # Move this file into backup directory
+            tgtfile = os.path.join( backup_cycle_cpp_dir, fname )
+            if os.path.isfile( tgtfile ):
+                os.remove( tgtfile )
             shutil.move( abs_fname, backup_cycle_cpp_dir )
 
 def is_specjvm( bmark ):
