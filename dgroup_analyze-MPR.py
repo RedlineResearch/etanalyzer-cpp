@@ -641,14 +641,15 @@ def update_keytype_dict( ktdict = {},
     if dumpall:
         # Header is [ "type", "time", "context1", "context2",
         #             "number of objects", "cause", "subcause",
-        #             "allocsite", ]
+        #             "allocsite", "age_methup", "age_alloc" ]
         if ( (filterbytes > 0) and (max_age <= filterbytes) ):
             rec = objinfo.get_record(objId)
             dcause = objinfo.get_death_cause_using_record(rec)
             subcause = ( objinfo.get_stack_died_by_attr_using_record(rec) if dcause == "S"
                          else ( objinfo.get_last_heap_update_using_record(rec)
                                 if (dcause == "H" or dcause == "G") else "NONE" ) )
-            age = objinfo.get_age_using_record(rec)
+            age_methup = objinfo.get_age_using_record(rec)
+            age_alloc = objinfo.get_age_using_record_ALLOC(rec)
             writer.writerow( [ objType,
                                objinfo.get_death_time_using_record(rec),
                                cpair[0], # death context pair first element
@@ -658,7 +659,9 @@ def update_keytype_dict( ktdict = {},
                                dcause,
                                subcause,
                                # TODO: Use a context pair for allocation site too?
-                               objinfo.get_allocsite_using_record(rec), ] )
+                               objinfo.get_allocsite_using_record(rec),
+                               age_methup,
+                               age_alloc, ] )
         else:
             logger.debug( "Object [%s](%d) IGNORED." % (objType, objId) )
     result = contextinfo.inc_key_count( context_pair = cpair,
@@ -1126,7 +1129,7 @@ def death_group_analyze( bmark = None,
         writer = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
         writer.writerow( [ "type", "time", "context1", "context2",
                            "number objects", "cause", "subcause",
-                          "allocsite", ] )
+                          "allocsite", "age_methup", "age_alloc" ] )
         for gnum in dgroups.group2list.keys():
             print "-------[ Group num: %d ]------------------------------------------------" % gnum
             result = get_key_object_types( gnum = gnum,
