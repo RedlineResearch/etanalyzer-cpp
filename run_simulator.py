@@ -193,7 +193,13 @@ def main_process( output = None,
     objdebug_flag = simulator_config["objdebug_flag"]
     # TODO Objdebug flag
     # Executable
-    simulator = simulator_config["simulator_exe"]
+    runtype = simulator_config["runtype"]
+    if runtype == "1":
+        simulator = simulator_config["simulator_exe_type1"]
+    elif runtype == "2":
+        simulator = simulator_config["simulator_exe"]
+    else:
+        logger.critical("Invalid runtype: %s - defaulting to 2" % str(runtype))
     # Create a directory
     # TODO Option: have a scratch test directory vs a date today directory
     # Currently have the date today
