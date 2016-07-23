@@ -11,6 +11,7 @@ import csv
 import datetime
 import subprocess
 from collections import defaultdict, Counter
+from functools import reduce
 
 pp = pprint.PrettyPrinter( indent = 4 )
 
@@ -125,6 +126,12 @@ def get_key_objects( idlist = [],
     return list(set(result))
 
 
+def __cumul_sum__( mysumpair = (0, 0),
+                   val = 0 ):
+    oldsum = mysumpair[0]
+    oldcount = mysumpair[1]
+    return (oldsum + val, oldcount + 1)
+
 # ----------------------------------------------------------------------------- 
 # ----------------------------------------------------------------------------- 
 class ObjectInfoReader:
@@ -137,6 +144,8 @@ class ObjectInfoReader:
         self.typedict = {}
         self.rev_typedict = {}
         self.keyset = set([])
+        self.alloc_age_list = []
+        self.methup_age_list = []
         self.logger = logger
 
     def is_key_object( self, objId = None ):
@@ -189,6 +198,10 @@ class ObjectInfoReader:
                             int(rec[ get_raw_index("DTIME_ALLOC") ]),
                             rec[ get_raw_index("ALLOCSITE") ],
                             ]
+                    self.alloc_age_list.append( ( row[get_index("ATIME_ALLOC")] -
+                                                  row[get_index("DTIME_ALLOC")] ) )
+                    self.methup_age_list.append( ( row[get_index("ATIME")] -
+                                                   row[get_index("DTIME")] ) )
                     if objId not in object_info:
                         object_info[objId] = tuple(row)
                         if self.is_key_object( objId ):
@@ -407,6 +420,12 @@ class ObjectInfoReader:
 
     def get_last_heap_update_using_record( self, rec = None ):
         return rec[ get_index("LASTUP") ] if rec != None else "NONE"
+
+    def get_alloc_age_list( self ):
+        return self.alloc_age_list
+
+    def get_methup_age_list( self ):
+        return self.methup_age_list
 
 # ----------------------------------------------------------------------------- 
 # ----------------------------------------------------------------------------- 

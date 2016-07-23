@@ -1028,6 +1028,8 @@ def group_analysis_ONE( graph = None,
     # TODO root_dtime = 
 
 def analyze_graphs( scclist = [] ):
+    # TODO TODO
+    return
     slist = scclist
     for gind in xrange(len(slist)):
         # Get the largest death group
@@ -1154,7 +1156,7 @@ def death_group_analyze( bmark = None,
                                     workdir = workdir )
     # ----------------------------------------
     # Analyze the graphs
-    analyze_graphs( scclist )
+    analyze_graphs( scclist ) # TODO TODO TODO TODO
     # ----------------------------------------
     logger.debug( "[%s]: Total: %d" % (bmark, len(dgroups.group2list)) )
     logger.debug( "[%s]: Tries: %d" % (bmark, debug_tries) )
@@ -1181,6 +1183,7 @@ def death_group_analyze( bmark = None,
                                rec["min"],
                                rec["true_key_count"],
                                len(rec["allocsites"]), ] )
+    # ----------------------------------------
     # Group types output
     outallfile = os.path.join( workdir, "%s-DGROUPS-ALL-TYPES.csv" % bmark )
     with open( outallfile, "wb" ) as fptr:
@@ -1191,6 +1194,7 @@ def death_group_analyze( bmark = None,
                 writer.writerow( [ mytype,
                                    "|".join( [ str(x) for x in typeset ] ),
                                    count ] )
+    # ----------------------------------------
     # Context csv reoutput
     contextfile = os.path.join( workdir, "%s-CONTEXT-DCOUNT-KEY.csv" % bmark )
     with open( contextfile, "wb" ) as fptr:
@@ -1214,7 +1218,27 @@ def death_group_analyze( bmark = None,
             row = [ cpair[0], cpair[1], rec[0], rec[1], ]
             row.extend(top5)
             writer.writerow( row )
-
+    # ----------------------------------------
+    # Summary output
+    summaryfile = os.path.join( workdir, "%s-SUMMARY.csv" % bmark )
+    with open( summaryfile, "wb" ) as fptr:
+        # Header
+        writer.writerow( [ "key", "min", "max", "mean", "stddev" ] )
+        writer = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
+        # Alloc age
+        alloc_age_list = objinfo.get_alloc_age_list()
+        writer.writerow( [ "alloc_age",
+                           min(alloc_age_list),
+                           max(alloc_age_list),
+                           mean(alloc_age_list),
+                           stdev(alloc_age_list), ] )
+        # Method + update age
+        methup_age_list = objinfo.get_methup_age_list()
+        writer.writerow( [ "method_update_age",
+                           min(methup_age_list),
+                           max(methup_age_list),
+                           mean(methup_age_list),
+                           stdev(methup_age_list), ] )
     sys.stdout.write(  "-----[ %s DONE ]---------------------------------------------------------------\n" % bmark )
     logger.debug( "-----[ %s DONE ]---------------------------------------------------------------"
                   % bmark )
