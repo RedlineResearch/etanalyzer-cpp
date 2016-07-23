@@ -1222,9 +1222,9 @@ def death_group_analyze( bmark = None,
     # Summary output
     summaryfile = os.path.join( workdir, "%s-SUMMARY.csv" % bmark )
     with open( summaryfile, "wb" ) as fptr:
+        writer = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
         # Header
         writer.writerow( [ "key", "min", "max", "mean", "stddev" ] )
-        writer = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
         # Alloc age
         alloc_age_list = objinfo.get_alloc_age_list()
         writer.writerow( [ "alloc_age",
