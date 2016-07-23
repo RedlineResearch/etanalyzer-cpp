@@ -1224,7 +1224,7 @@ def death_group_analyze( bmark = None,
     with open( summaryfile, "wb" ) as fptr:
         writer = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
         # Header
-        writer.writerow( [ "key", "value", ]
+        writer.writerow( [ "key", "value", ] )
         # Alloc age
         alloc_age_list = objinfo.get_alloc_age_list()
         writer.writerow( [ "alloc_age_min", min(alloc_age_list) ] )
@@ -1233,7 +1233,7 @@ def death_group_analyze( bmark = None,
         writer.writerow( [ "alloc_age_stdev", stdev(alloc_age_list) ] )
         # Method + update age
         methup_age_list = objinfo.get_methup_age_list()
-        writer.writerow( [ "method_update_age_min", min(methup_age_list),
+        writer.writerow( [ "method_update_age_min", min(methup_age_list) ] )
         writer.writerow( [ "method_update_age_min", max(methup_age_list) ] )
         writer.writerow( [ "method_update_age_min", mean(methup_age_list) ] )
         writer.writerow( [ "method_update_age_min", stdev(methup_age_list) ] )
