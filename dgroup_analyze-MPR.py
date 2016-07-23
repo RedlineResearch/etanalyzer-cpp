@@ -1224,21 +1224,19 @@ def death_group_analyze( bmark = None,
     with open( summaryfile, "wb" ) as fptr:
         writer = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
         # Header
-        writer.writerow( [ "key", "min", "max", "mean", "stddev" ] )
+        writer.writerow( [ "key", "value", ]
         # Alloc age
         alloc_age_list = objinfo.get_alloc_age_list()
-        writer.writerow( [ "alloc_age",
-                           min(alloc_age_list),
-                           max(alloc_age_list),
-                           mean(alloc_age_list),
-                           stdev(alloc_age_list), ] )
+        writer.writerow( [ "alloc_age_min", min(alloc_age_list) ] )
+        writer.writerow( [ "alloc_age_max", max(alloc_age_list) ] )
+        writer.writerow( [ "alloc_age_mean", mean(alloc_age_list) ] )
+        writer.writerow( [ "alloc_age_stdev", stdev(alloc_age_list) ] )
         # Method + update age
         methup_age_list = objinfo.get_methup_age_list()
-        writer.writerow( [ "method_update_age",
-                           min(methup_age_list),
-                           max(methup_age_list),
-                           mean(methup_age_list),
-                           stdev(methup_age_list), ] )
+        writer.writerow( [ "method_update_age_min", min(methup_age_list),
+        writer.writerow( [ "method_update_age_min", max(methup_age_list) ] )
+        writer.writerow( [ "method_update_age_min", mean(methup_age_list) ] )
+        writer.writerow( [ "method_update_age_min", stdev(methup_age_list) ] )
     sys.stdout.write(  "-----[ %s DONE ]---------------------------------------------------------------\n" % bmark )
     logger.debug( "-----[ %s DONE ]---------------------------------------------------------------"
                   % bmark )
