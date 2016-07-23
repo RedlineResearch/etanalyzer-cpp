@@ -198,10 +198,10 @@ class ObjectInfoReader:
                             int(rec[ get_raw_index("DTIME_ALLOC") ]),
                             rec[ get_raw_index("ALLOCSITE") ],
                             ]
-                    self.alloc_age_list.append( ( row[get_index("ATIME_ALLOC")] -
-                                                  row[get_index("DTIME_ALLOC")] ) )
-                    self.methup_age_list.append( ( row[get_index("ATIME")] -
-                                                   row[get_index("DTIME")] ) )
+                    self.alloc_age_list.append( ( row[get_index("DTIME_ALLOC")] -
+                                                  row[get_index("ATIME_ALLOC")] ) )
+                    self.methup_age_list.append( ( row[get_index("DTIME")] -
+                                                   row[get_index("ATIME")] ) )
                     if objId not in object_info:
                         object_info[objId] = tuple(row)
                         if self.is_key_object( objId ):
