@@ -61,6 +61,17 @@ string CCNode::stacktrace()
     return ss.str();
 }
 
+DequeId_t CCNode::stacktrace_using_id()
+{
+    DequeId_t result;
+    CCNode* cur = this;
+    while (cur) {
+        result.push_front(this->getMethodId());
+        cur = cur->getParent();
+    }
+    return  result;
+}
+
 // A version that returns a list/vector of
 // - method pointers
 deque<Method *> CCNode::simple_stacktrace()
@@ -262,6 +273,33 @@ string Thread::stacktrace()
 
     cout << "ERROR: Unkown mode " << m_kind << endl;
     return "ERROR";
+}
+
+// -- Get a stack trace in method ids
+DequeId_t Thread::stacktrace_using_id()
+{
+    if (m_kind == 1) {
+        return TopCC()->stacktrace_using_id();
+    }
+
+    if (m_kind == 2) {
+        assert(false);
+        // TODO  if ( ! m_methods.empty()) {
+        // TODO      stringstream ss;
+        // TODO      for ( auto p = m_methods.begin();
+        // TODO            p != m_methods.end();
+        // TODO            p++ ) {
+        // TODO          Method* m =*p;
+        // TODO          ss << m->info() << endl;
+        // TODO      }
+        // TODO      return ss.str();
+        // TODO  } else {
+        // TODO      return "<empty>";
+        // TODO  }
+        DequeId_t result;
+        return result;
+    }
+    assert(false);
 }
 
 // -- Object is a root

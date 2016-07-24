@@ -34,6 +34,8 @@ typedef deque<Thread *> ThreadDeque;
 typedef set<Object *> LocalVarSet;
 typedef deque<LocalVarSet *> LocalVarDeque;
 
+typedef deque<unsigned int> DequeId_t;
+
 // TODO typedef deque< pair<LastEvent, Object*> > LastEventDeque_t;
 // TODO typedef map<threadId_t, LastEventDeque_t> LastMap_t;
 
@@ -91,7 +93,10 @@ class CCNode
         }
 
         // -- Get method
-        Method* getMethod() const { return m_method; }
+        Method* getMethod() const { return this->m_method; }
+
+        // -- Get method
+        MethodId_t getMethodId() const { return this->getMethod()->getId(); }
 
         // -- Get parent context (if there is one)
         CCNode* getParent() const { return m_parent; }
@@ -107,6 +112,9 @@ class CCNode
 
         // -- Generate a stack trace
         string stacktrace();
+
+        // -- Generate a stack trace and return the DequeId_t of function ids
+        DequeId_t stacktrace_using_id();
 
         // Method name equality
         bool simple_cc_equal( CCNode &other );
@@ -208,6 +216,8 @@ class Thread
         LocalVarSet * TopLocalVarSet();
         // -- Get a stack trace
         string stacktrace();
+        // -- Get a stack trace with method ids
+        DequeId_t stacktrace_using_id();
         // -- Root event
         void objectRoot(Object * object);
         // -- Check dead object
@@ -352,9 +362,15 @@ class ExecState
             } else {
                 cptype_map[cpair] = cptype;
             }
+            // TODO DEBUG ONLY TODO
             cout << "XXX: " << this->_get_cptype_name( cptype_map[cpair] ) << endl;
         }
         
+        void DebugContextTypeMap() {
+            // TODO TODO TODO TODO
+        }
+
+
         // Get the context pair type for a given context pair
         CPairType get_cptype( ContextPair cpair ) {
             ContextTypeMap_t cptype_map = this->m_contextTypeMap;

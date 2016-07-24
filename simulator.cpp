@@ -42,10 +42,12 @@ HeapState Heap( whereis, keyset );
 
 // -- Execution state
 #ifdef ENABLE_TYPE1
-ExecState Exec(1); // Full calling context
+int cckind = 1; // Full calling cntext
 #else
-ExecState Exec(2); // Method-only context
+int cckind = 2; // Method-only context
 #endif // ENABLE_TYPE1
+
+ExecState Exec(cckind);
 
 // -- Turn on debugging
 bool debug = false;
@@ -191,8 +193,13 @@ unsigned int read_trace_file(FILE* f)
                                                                      : tokenizer.getInt(5);
                     AllocSite* as = ClassInfo::TheAllocSites[tokenizer.getInt(4)];
                     assert(thread);
+                    // Get context pair
                     ContextPair cpair = thread->getContextPair();
                     CPairType cptype = thread->getContextPairType();
+                    if (cckind == 2) {
+                        // Get full stacktrace
+                        DequeId_t strace = thread->stacktrace_using_id();
+                    }
                     // DEBUG
                     if (!as) {
                         cerr << "DBG: objId[ " << tokenizer.getInt(1) << " ] has no alloc site." << endl;
@@ -307,6 +314,10 @@ unsigned int read_trace_file(FILE* f)
                                                          cpair,
                                                          cptype );
                             topMethod = thread->TopMethod();
+                            if (cckind == 2) {
+                                // Get full stacktrace
+                                DequeId_t strace = thread->stacktrace_using_id();
+                            }
                             // Set the death site
                             if (topMethod) {
                                 obj->setDeathSite(topMethod);
