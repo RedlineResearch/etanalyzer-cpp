@@ -96,7 +96,10 @@ class CCNode
         Method* getMethod() const { return this->m_method; }
 
         // -- Get method
-        MethodId_t getMethodId() const { return this->getMethod()->getId(); }
+        MethodId_t getMethodId() const {
+            Method *m = this->getMethod();
+            return (m ? m->getId() : 0);
+        }
 
         // -- Get parent context (if there is one)
         CCNode* getParent() const { return m_parent; }
