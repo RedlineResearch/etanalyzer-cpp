@@ -196,7 +196,7 @@ unsigned int read_trace_file(FILE* f)
                     // Get context pair
                     ContextPair cpair = thread->getContextPair();
                     CPairType cptype = thread->getContextPairType();
-                    if (cckind == 2) {
+                    if (cckind == 1) {
                         // Get full stacktrace
                         DequeId_t strace = thread->stacktrace_using_id();
                     }
@@ -314,7 +314,7 @@ unsigned int read_trace_file(FILE* f)
                                                          cpair,
                                                          cptype );
                             topMethod = thread->TopMethod();
-                            if (cckind == 2) {
+                            if (cckind == 1) {
                                 // Get full stacktrace
                                 DequeId_t strace = thread->stacktrace_using_id();
                             }
