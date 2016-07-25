@@ -216,6 +216,7 @@ unsigned int read_trace_file(FILE* f)
                     if (cckind == ExecMode::Full) {
                         // Get full stacktrace
                         DequeId_t strace = thread->stacktrace_using_id();
+                        obj->setAllocContextList( strace );
                     }
                     total_objects++;
                 }
@@ -317,6 +318,7 @@ unsigned int read_trace_file(FILE* f)
                             if (cckind == ExecMode::Full) {
                                 // Get full stacktrace
                                 DequeId_t strace = thread->stacktrace_using_id();
+                                obj->setDeathContextList( strace );
                             }
                             // Set the death site
                             if (topMethod) {

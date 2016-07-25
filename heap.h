@@ -384,6 +384,11 @@ class Object
         // NOTE: This could have been made into a single class which felt like overkill.
         // The option is there if it seems better to do so, but chose to go the simpler route.
 
+        DequeId_t m_alloc_context;
+        // If ExecMode is Full, this contains the full list of the stack trace at allocation.
+        DequeId_t m_death_context;
+        // If ExecMode is Full, this contains the full list of the stack trace at death.
+
         // Who's my key object? 0 means unassigned.
         Object *m_death_root;
         KeyType m_key_type;
@@ -543,6 +548,19 @@ class Object
         // Get Death context type
         CPairType getDeathContextType() const { return this->m_death_cptype; }
 
+        // Set allocation context list
+        void setAllocContextList( DequeId_t acontext_list ) {
+            this->m_alloc_context = acontext_list;
+        }
+        // Get allocation context type
+        DequeId_t getAllocContextList() const { return this->m_alloc_context; }
+
+        // Set death context list
+        void setDeathContextList( DequeId_t dcontext_list ) {
+            this->m_alloc_context = dcontext_list;
+        }
+        // Get death context type
+        DequeId_t getDeathContextList() const { return this->m_death_context; }
 
 
         // -- Ref counting
