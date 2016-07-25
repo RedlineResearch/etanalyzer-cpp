@@ -34,7 +34,6 @@ typedef deque<Thread *> ThreadDeque;
 typedef set<Object *> LocalVarSet;
 typedef deque<LocalVarSet *> LocalVarDeque;
 
-typedef deque<unsigned int> DequeId_t;
 
 // TODO typedef deque< pair<LastEvent, Object*> > LastEventDeque_t;
 // TODO typedef map<threadId_t, LastEventDeque_t> LastMap_t;
@@ -42,15 +41,21 @@ typedef deque<unsigned int> DequeId_t;
 // ----------------------------------------------------------------------
 //   Calling context tree
 
+// This is used to indicate the stack bookkeeping mode of class ExecState
 enum class ExecMode {
-    CCMode = 1,
-    MethodMode = 2
+    Full = 1,
+    StackOnly = 2
 };
 
+std::ostream& operator << ( std::ostream &out, const ExecMode &value );
+
+
+// Self-explanatory
 enum class EventKind {
     Allocation = 1,
     Death = 2,
 };
+
 
 class CCNode
 {
@@ -154,7 +159,7 @@ class Thread
         // -- Thread ID
         unsigned int m_id;
         // -- Kind of stack
-        unsigned int m_kind;
+        ExecMode m_kind;
         // -- CC tree representation
         CCNode *m_curcc;
         // -- Stack of methods
@@ -182,7 +187,7 @@ class Thread
 
     public:
         Thread( unsigned int id,
-                unsigned int kind,
+                ExecMode kind,
                 ContextCountMap &allocCountmap,
                 ContextCountMap &deathCountmap,
                 ContextTypeMap_t &contextTypeMap,
@@ -263,7 +268,7 @@ class ExecState
 {
     private:
         // -- Stack kind (CC or methods)
-        unsigned int m_kind;
+        ExecMode m_kind;
         // -- Set of threads
         ThreadMap m_threads;
         // -- Time
@@ -280,7 +285,7 @@ class ExecState
         ThreadDeque m_thread_stack;
 
     public:
-        ExecState( unsigned int kind )
+        ExecState( ExecMode kind )
             : m_kind(kind)
             , m_threads()
             , m_meth_time(0)
@@ -458,7 +463,7 @@ class ExecState
                      : NULL );
         }
 
-        unsigned int get_kind() const { return m_kind; }
+        ExecMode get_kind() const { return m_kind; }
 
         // File to output the callstack
         ofstream *m_output;

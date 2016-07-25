@@ -13,6 +13,7 @@
 #include <set>
 #include <vector>
 #include <utility>
+#include <deque>
 
 using namespace std;
 
@@ -25,6 +26,8 @@ typedef map<unsigned int, Method*> MethodMap;
 typedef map<unsigned int, Field*> FieldMap;
 typedef map<unsigned int, Class*> ClassMap;
 typedef map<unsigned int, AllocSite*> AllocSiteMap;
+
+typedef deque<unsigned int> DequeId_t;
 
 // -- Global info, including the big routine to read the names file
 

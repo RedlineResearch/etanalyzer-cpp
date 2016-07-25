@@ -121,13 +121,13 @@ bool CCNode::simple_cc_equal( CCNode &other )
 // -- Call method m
 void Thread::Call(Method *m)
 {
-    if (m_kind == 1) {
+    if (this->m_kind == ExecMode::Full) {
         CCNode* cur = this->TopCC();
         this->m_curcc = cur->Call(m);
         // this->nodefile << child << "," << m->getName() << endl;
     }
 
-    if (m_kind == 2) {
+    if (this->m_kind == ExecMode::StackOnly) {
         // Save (old_top, new_top) of m_methods
         ContextPair cpair;
         if (m_methods.size() > 0) {
@@ -150,7 +150,7 @@ void Thread::Call(Method *m)
 // -- Return from method m
 void Thread::Return(Method* m)
 {
-    if (m_kind == 1) {
+    if (this->m_kind == ExecMode::Full) {
         CCNode* cur = this->TopCC();
         if (cur->getMethod()) {
             this->m_curcc = cur->Return(m);
@@ -160,7 +160,7 @@ void Thread::Return(Method* m)
         }
     }
 
-    if (m_kind == 2) {
+    if (this->m_kind == ExecMode::StackOnly) {
         if ( !m_methods.empty()) {
             Method *cur = m_methods.back();
             m_methods.pop_back();
@@ -199,7 +199,7 @@ void Thread::Return(Method* m)
 // -- Get current CC
 CCNode* Thread::TopCC()
 {
-    if (m_kind == 1) {
+    if (this->m_kind == ExecMode::Full) {
         assert(m_curcc);
         // TODO // -- Create a root context if necessary
         // TODO if (m_curcc == 0) {
@@ -208,23 +208,23 @@ CCNode* Thread::TopCC()
         return m_curcc;
     }
 
-    if (m_kind == 2) {
+    if (this->m_kind == ExecMode::StackOnly) {
         cout << "ERROR: Asking for calling context in stack mode" << endl;
         return 0;
     }
 
-    cout << "ERROR: Unkown mode " << m_kind << endl;
+    cout << "ERROR: Unkown mode " << this->m_kind << endl;
     return 0;
 }
 
 // -- Get current method
 Method* Thread::TopMethod()
 {
-    if (m_kind == 1) {
+    if (this->m_kind == ExecMode::Full) {
         return TopCC()->getMethod();
     }
 
-    if (m_kind == 2) {
+    if (this->m_kind == ExecMode::StackOnly) {
         if ( ! m_methods.empty()) {
             return m_methods.back();
         } else {
@@ -240,11 +240,11 @@ Method* Thread::TopMethod()
 // -- Get current dead locals
 LocalVarSet * Thread::TopLocalVarSet()
 {
-    if (m_kind == 1) {
+    if (this->m_kind == ExecMode::Full) {
         // TODO
         return NULL;
     }
-    else if (m_kind == 2) {
+    else if (this->m_kind == ExecMode::StackOnly) {
         return ((!m_deadlocals.empty()) ? m_deadlocals.back() : NULL);
     }
 }
@@ -252,11 +252,11 @@ LocalVarSet * Thread::TopLocalVarSet()
 // -- Get a stack trace
 string Thread::stacktrace()
 {
-    if (m_kind == 1) {
+    if (this->m_kind == ExecMode::Full) {
         return TopCC()->stacktrace();
     }
 
-    if (m_kind == 2) {
+    if (this->m_kind == ExecMode::StackOnly) {
         if ( ! m_methods.empty()) {
             stringstream ss;
             for ( auto p = m_methods.begin();
@@ -278,11 +278,11 @@ string Thread::stacktrace()
 // -- Get a stack trace in method ids
 DequeId_t Thread::stacktrace_using_id()
 {
-    if (m_kind == 1) {
+    if (this->m_kind == ExecMode::Full) {
         return TopCC()->stacktrace_using_id();
     }
 
-    if (m_kind == 2) {
+    if (this->m_kind == ExecMode::StackOnly) {
         assert(false);
         // TODO  if ( ! m_methods.empty()) {
         // TODO      stringstream ss;
@@ -384,3 +384,24 @@ CCNode* ExecState::TopCC(unsigned int threadid)
 {
     return getThread(threadid)->TopCC();
 }
+
+// -
+// Utility files
+//
+std::ostream& operator << ( std::ostream &out, const ExecMode &value )
+{
+    switch(value)
+    {
+        case ExecMode::Full:
+            out << "Full";
+            break;
+        case ExecMode::StackOnly:
+            out << "StackOnly";
+            break;
+        default:
+            out << "<UNKNOWN>";
+    }
+
+    return out;
+}
+

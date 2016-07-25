@@ -42,9 +42,9 @@ HeapState Heap( whereis, keyset );
 
 // -- Execution state
 #ifdef ENABLE_TYPE1
-int cckind = 1; // Full calling cntext
+ExecMode cckind = ExecMode::Full; // Full calling context
 #else
-int cckind = 2; // Method-only context
+ExecMode cckind = ExecMode::StackOnly; // Stack-only context
 #endif // ENABLE_TYPE1
 
 ExecState Exec(cckind);
@@ -196,10 +196,6 @@ unsigned int read_trace_file(FILE* f)
                     // Get context pair
                     ContextPair cpair = thread->getContextPair();
                     CPairType cptype = thread->getContextPairType();
-                    if (cckind == 1) {
-                        // Get full stacktrace
-                        DequeId_t strace = thread->stacktrace_using_id();
-                    }
                     // DEBUG
                     if (!as) {
                         cerr << "DBG: objId[ " << tokenizer.getInt(1) << " ] has no alloc site." << endl;
@@ -217,6 +213,10 @@ unsigned int read_trace_file(FILE* f)
                     Exec.UpdateObj2AllocContext( obj,
                                                  cpair,
                                                  cptype );
+                    if (cckind == ExecMode::Full) {
+                        // Get full stacktrace
+                        DequeId_t strace = thread->stacktrace_using_id();
+                    }
                     total_objects++;
                 }
                 break;
@@ -314,7 +314,7 @@ unsigned int read_trace_file(FILE* f)
                                                          cpair,
                                                          cptype );
                             topMethod = thread->TopMethod();
-                            if (cckind == 1) {
+                            if (cckind == ExecMode::Full) {
                                 // Get full stacktrace
                                 DequeId_t strace = thread->stacktrace_using_id();
                             }
