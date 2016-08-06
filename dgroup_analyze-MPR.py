@@ -1102,6 +1102,7 @@ def death_group_analyze( bmark = None,
     sys.stdout.write( "[%s]: Reading DGROUPS:\n" % bmark )
     dgread_start = time.clock()
     abs_filename = os.path.join(cycle_cpp_dir, dgroups_filename)
+    print "XXX:", abs_filename
     assert(os.path.isfile( abs_filename ))
     dgroups = DeathGroupsReader( abs_filename, logger = logger )
     dgroups.read_dgroup_file( objinfo )

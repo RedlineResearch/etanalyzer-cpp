@@ -137,6 +137,14 @@ def is_specjvm( bmark ):
             bmark == "_227_mtrt" or
             bmark == "_228_jack" )
 
+def is_dacapo( bmark ):
+    return bmark in [ "avrora", "batik", "eclipse", "fop", "h2", "jython",
+                      "luindex", "lusearch", "pmd", "specjbb", "sunflow",
+                      "tomcat", "tradebeans", "tradesoap", "xalan", ]
+
+def is_minibench( bmark ):
+    return bmark in [ "simplelist1", "simplelist2", "simplelist3", "simplelist4", ]
+
 def run_subprocess( cmd = None,
                     stdout = None,
                     stdin = None,
@@ -188,9 +196,6 @@ def main_process( output = None,
                   debugflag = None,
                   logger = None ):
     global pp
-    # Directories
-    specdir = global_config["specjvm_dir"]
-    capodir = global_config["dacapo_dir"]
     # Flags
     cycle_flag = simulator_config["cycle_flag"]
     objdebug_flag = simulator_config["objdebug_flag"]
@@ -203,6 +208,7 @@ def main_process( output = None,
         simulator = simulator_config["simulator_exe"]
     else:
         logger.critical("Invalid runtype: %s - defaulting to 2" % str(runtype))
+    assert(os.path.isfile(simulator))
     # Create a directory
     # TODO Option: have a scratch test directory vs a date today directory
     # Currently have the date today
@@ -218,6 +224,7 @@ def main_process( output = None,
     # Get the benchmark directories
     specjvm_dir = global_config["specjvm_dir"]
     dacapo_dir = global_config["dacapo_dir"]
+    minibench_dir = global_config["minibench_dir"]
     # Trace drop location for simulator output
     cycle_cpp_dir = global_config["cycle_cpp_dir"]
     backup_cycle_cpp_dir = global_config["backup_cycle_cpp_dir"]
@@ -237,18 +244,32 @@ def main_process( output = None,
             continue
         # -----------------------------------------------------------------------
         # Then spawn using multiprocessing
-        tracefile = (specdir + bmark_config[bmark]) if is_specjvm(bmark) else \
-            (dacapo_dir + bmark_config[bmark])
-        namesfile = (specdir + names_config[bmark]) if is_specjvm(bmark) else \
-            (dacapo_dir + names_config[bmark])
+        if is_specjvm(bmark):
+            tracefile = specdir + bmark_config[bmark] 
+            namesfile = specdir + names_config[bmark]
+        elif is_dacapo(bmark):
+            tracefile = dacapo_dir + bmark_config[bmark]
+            namesfile = dacapo_dir + names_config[bmark]
+        elif is_minibench(bmark):
+            tracefile = minibench_dir + bmark_config[bmark]
+            namesfile = minibench_dir + names_config[bmark]
+        else:
+            print "Benchmark not found: %s" % bmark
+            assert(False)
+        assert(os.path.isfile(tracefile))
+        assert(os.path.isfile(namesfile))
         basename = bmark + "-cpp-" + str(datestr)
         output_name = os.path.join( cycle_cpp_dir, basename + "-OUTPUT.txt" )
         # ./simulator xalan.names xalan-cpp-2016-0129 CYCLE OBJDEBUG
         myargs = [ namesfile, basename, cycle_flag, objdebug_flag ]
         fp = get_trace_fp( tracefile, logger )
         outfptr = open( output_name, "wb" )
+        logger.debug( "Tracefile: %s" % tracefile )
+        logger.debug( "Output name: %s" % output_name )
+        logger.debug( "Working directory: %s" % cycle_cpp_dir )
         timenow = time.asctime()
         cmd = [ simulator ] + myargs
+        logger.debug( "Command: [ %s ]" % str(cmd) )
         logger.debug( "[%s] - starting at %s" % (bmark, timenow) )
         p = Process( target = run_subprocess,
                      args = ( cmd,     # simulator command
@@ -535,7 +556,9 @@ def process_sim_config( args ):
              "dacapo" : config_section_map( "dacapo", simconfig_parser ),
              "dacapo_names" : config_section_map( "dacapo_names", simconfig_parser ),
              "specjvm" : config_section_map( "specjvm", simconfig_parser ),
-             "specjvm_names" : config_section_map( "specjvm_names", simconfig_parser ), }
+             "specjvm_names" : config_section_map( "specjvm_names", simconfig_parser ),
+             "minibench" : config_section_map( "minibench", simconfig_parser ),
+             "minibench_names" : config_section_map( "minibench_names", simconfig_parser ), }
 
 def main():
     global pp
@@ -556,6 +579,8 @@ def main():
     dacapo_names = sim_result["dacapo_names"]
     specjvm_config = sim_result["specjvm"]
     specjvm_names = sim_result["specjvm_names"]
+    minibench_config = sim_result["minibench"]
+    minibench_names = sim_result["minibench_names"]
 
     debugflag = global_config["debug"]
     # logging
@@ -568,8 +593,8 @@ def main():
                          worklist = worklist,
                          output = args.output,
                          global_config = global_config,
-                         bmark_config = dict(specjvm_config, **dacapo_config),
-                         names_config = dict(specjvm_names, **dacapo_names),
+                         bmark_config = dict( dict(specjvm_config, **dacapo_config), **minibench_config ),
+                         names_config = dict( dict(specjvm_names, **dacapo_names), **minibench_names ),
                          simulator_config = simulator_config,
                          host_config = host_config,
                          logger = logger )
