@@ -1100,73 +1100,37 @@ def main_process( output = None,
                   logger = None ):
     global pp
     # HERE: TODO 2016 August 7 TODO
-    print "GLOBAL:"
-    pp.pprint(global_config)
+    # This is where the summary CSV files are
     cycle_cpp_dir = global_config["cycle_cpp_dir"]
-    # TODO: Not used? 
-    # TODO: work_dir = main_config["directory"]
-    # In my config this is: '/data/rveroy/pulsrc/etanalyzer/MYWORK/z-SUMMARY/DGROUPS'
-    # Change in basic_merge_summary.ini, under the [dgroups-analyze] section.
-    # Setup stdout to file redirect
-    thishost = get_actual_hostname( hostname = socket.gethostname().lower(),
-                                    host_config = host_config )
-    assert( thishost != None )
-    thishost = thishost.upper()
+    # Setup stdout to file redirect TODO: Where should this comment be placed?
+    # TODO: Eventually remove the following commented code related to hosts.
+    # Since we're not doing mutiprocessing, we don't need this. But keep
+    # it here until absolutely sure.
+    # TODO: thishost = get_actual_hostname( hostname = socket.gethostname().lower(),
+    # TODO:                                 host_config = host_config )
+    # TODO: assert( thishost != None )
+    # TODO: thishost = thishost.upper()
+    # Get the date and time to label the work directory.
     today = date.today()
     today = today.strftime("%Y-%m%d")
     timenow = datetime.now().time().strftime("%H-%M-%S")
     olddir = os.getcwd()
     os.chdir( main_config["output"] )
     workdir = create_work_directory( work_dir = main_config["output"],
-                                     thishost = thishost,
                                      today = today,
                                      timenow = timenow,
                                      logger = logger,
                                      interactive = False )
-    # TODO What is key -> value in the following dictionaries?
-    results = {}
-    # TODO What is the results structure?
-    # benchark key -> TODO
-
-    # TODO probably need a summary
-    # summary = {}
-
     count = 0
     # Take benchmarks to process from etanalyze_config
-    procs = {}
-    for bmark, filename in etanalyze_config.iteritems():
-        # if skip_benchmark(bmark):
-        if ( ((benchmark != "_ALL_") and
-              (bmark != benchmark)) or 
-             (not check_host( benchmark = bmark,
-                              worklist_config = worklist_config,
-                              host_config = host_config )) ):
-            print "SKIP:", bmark
-            continue
-        print "=======[ Spawning %s ]================================================" \
-            % bmark
-        p = Process( target = death_group_analyze,
-                     args = ( bmark,
-                              cycle_cpp_dir,
-                              main_config,
-                              filename,
-                              contextcount_config,
-                              objectinfo_config,
-                              edge_config,
-                              host_config,
-                              logger ) )
-        p.start()
-        procs[bmark] = p
-    done = False
-    while not done:
-        done = True
-        for bmark in procs.keys():
-            proc = procs[bmark]
-            proc.join(60)
-            if proc.is_alive():
-                done = False
-            else:
-                del procs[bmark]
+    # The benchmarks are:
+    #     BENCHMARK   |   CREATE  |  DELETE   |
+    #     simplelist1 |    seq    |    seq    |
+    #     simplelist2 |   rand    |    seq    |
+    #     simplelist3 |    seq    |    at end |
+    #     simplelist4 |   rand    |    at end |
+
+    print "================================================================================"
     print "DONE."
     os.chdir( olddir )
     exit(0)
