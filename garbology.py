@@ -936,11 +936,10 @@ class SummaryReader:
                         done = True
                         break
                 if start:
-                    rowtmp = line.split(",")
+                    row = line.split(",")
                     # 0 - key
                     # 1 - value
-                    row = [ int(x) for x in rowtmp ]
-                    sdict[row[0]] = row[1]
+                    sdict[row[0]] = int(row[1])
         assert(done)
 
     def edgedict_iteritems( self ):
@@ -975,6 +974,10 @@ class SummaryReader:
 
     def items( self ):
         return self.summarydict.items()
+
+    def __get_summarydict__( self ):
+        # The __ means only call if you know what you're doing, eh?
+        return self.summarydict
 
     def print_out( self ):
         for key, val in self.summarydict.iteritems():

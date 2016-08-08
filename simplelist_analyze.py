@@ -181,24 +181,11 @@ def output_R( benchmark = None ):
     # TODO: Do we need this?
 
 def create_work_directory( work_dir,
-                           thishost = "",
                            today = "",
                            timenow = "",
-                           logger = None, interactive = False ):
+                           logger = None,
+                           interactive = False ):
     os.chdir( work_dir )
-    # Check to see host name directory ----------------------------------------
-    if os.path.isfile(thishost):
-        print "%s is a file, NOT a directory." % thishost
-        exit(11)
-    if not os.path.isdir( thishost ):
-        os.mkdir( thishost )
-        print "WARNING: %s directory does not exist. Creating it" % thishost
-        logger.warning( "WARNING: %s directory exists." % thishost )
-        if interactive:
-            raw_input("Press ENTER to continue:")
-        else:
-            print "....continuing!!!"
-    os.chdir( thishost )
     # Check today directory ---------------------------------------------------
     if os.path.isfile(today):
         print "Can not create %s as directory." % today
@@ -755,347 +742,10 @@ def get_actual_hostname( hostname = "",
             return key
     return None
 
-def __TODO_DELTE_LAST_EDGE():
-    lastrec = get_last_edge_record( group, edgeinfo, objinfo )
-    # print "%d @ %d : %d -> %s" % ( gnum,
-    #                                lastrec["dtime"],
-    #                                lastrec["target"],
-    #                                str(lastrec["lastsources"]) )
-    if len(lastrec["lastsources"]) == 1:
-        # Get the type
-        used_last_edge = True
-        tgt = lastrec["target"]
-        print " - last edge successful [%s]" % objinfo.get_type(tgt)
-        if objinfo.died_at_end(tgt):
-            return DIEDATEND
-    elif len(lastrec["lastsources"]) > 1:
-        print " - last edge has too many candidates. NO KEY OBJECT FOUND."
-        return NOTFOUND
-        # No need to do anything becuase this isn't a key object?
-        # But DO we need to update the counts of the death groups above TODO
-    elif len(lastrec["lastsources"]) == 0:
-        # Means stack object?
-        stackflag = objinfo.group_died_by_stack(group)
-        if not stackflag:
-            print "   -X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-"
-            print "   No last edge but group didn't die by stack as a whole:"
-            for obj in group:
-                rec = objinfo.get_record( obj )
-                print "       [%d] : %s -> %s (%s)" % ( obj,
-                                                        rec[ get_index("TYPE") ],
-                                                        rec[ get_index("DIEDBY") ],
-                                                        "DAE" if objinfo.died_at_end(obj) else "---" )
-            print "   -X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-X-"
-        else:
-            print "   died by stack. Making each object its own key object."
-            # Died by stack. Each object is its own key object
-            for obj in group:
-                if objinfo.died_at_end(obj):
-                    print " - ignoring DIED AT END."
-                    continue
-                tmptype = objinfo.get_type(obj)
-                if tmptype in ktdict:
-                    ktdict[tmptype]["max"] = max( len(group), ktdict[tmptype]["max"] )
-                    ktdict[tmptype]["total"] += 1
-                    ktdict[mytype]["group_types"].update( [ frozenset([])] )
-                else:
-                    is_array_flag = is_array(tmptype)
-                    ktdict[tmptype] = { "total" : 1,
-                                        "max" : len(group),
-                                        "is_array": is_array_flag,
-                                        "group_types" : Counter( [ frozenset([]) ] ) }
-                return DIEDBYSTACK
-
-# Expects the dgraph to have the proper nodes in it because
-# of the death groups processing. Addes the edges from edgeinfo.
-# Then calculates the 5 largest weakly connected components.
-# TODO: This could be STRONGLY connected components.
-# Writes the main graph, and the SCCs. Then returns the list
-# of SCCs.
-def build_and_save_graph( dgraph = None,
-                          edgeinfo = None,
-                          dgroups = None,
-                          bmark = None,
-                          workdir = None ):
-    # ----------------------------------------
-    # Add edges
-    max_gsize = 0
-    for gsrc in nx.nodes(dgraph):
-        # for every object in gsrc
-        if "size" not in dgraph.node[gsrc]:
-            dgraph.node[gsrc]["size"] = 1
-        max_gsize = dgraph.node[gsrc]["size"] if dgraph.node[gsrc]["size"] > max_gsize \
-            else max_gsize
-        for srcobj in dgroups.get_group(gsrc):
-            # for every target object
-            for tgtobj in edgeinfo.get_targets(srcobj):
-                # get the group that tgtobj belongs in
-                tgtgroup = dgroups.get_group_number(tgtobj)
-                if tgtgroup != None:
-                    if tgtgroup not in dgraph[gsrc]:
-                        dgraph.add_edge( gsrc,
-                                         tgtgroup,
-                                         { "rawweight" : 1 } )
-                    else:
-                        dgraph[gsrc][tgtgroup]['rawweight'] += 1
-    for gsrc in nx.nodes(dgraph):
-        if "size" not in dgraph.node[gsrc]:
-            dgraph.node[gsrc]["size"] = 1
-        dgraph.node[gsrc]["weight"] = (dgraph.node[gsrc]["size"] / max_gsize) * 100.0
-    # ----------------------------------------
-    # Get max edge weight 
-    if dgraph.number_of_edges() > 0:
-        weight_max = max( [ dgraph.edge[e[0]][e[1]]['rawweight'] for e in nx.edges(dgraph) ] )
-        # Assign the scaled weights as 'weight'
-        for e in dgraph.edges():
-            dgraph.edge[e[0]][e[1]]["weight"] = (dgraph.edge[e[0]][e[1]]['rawweight'] / weight_max) * 100.0
-    # ----------------------------------------
-    # Get the top 5 largest weakly connected components
-    try:
-        wcclist = sorted( nx.weakly_connected_component_subgraphs(dgraph),
-                          key = len,
-                          reverse = True )[:5]
-    except:
-        wcclist = sorted( nx.weakly_connected_component_subgraphs(dgraph),
-                          key = len,
-                          reverse = True )
-    # ----------------------------------------
-    # Save the graph
-    gmlfile = os.path.join( workdir, "%s-DGROUPS-GRAPH.gml" % bmark )
-    nx.write_gml(dgraph, gmlfile)
-    for gindex in xrange(len(wcclist)):
-        gtmp = wcclist[gindex]
-        gmlfile = os.path.join( workdir, "%s-DGROUPS-GRAPH-%d.gml" % (bmark, gindex+1) )
-        nx.write_gml(gtmp, gmlfile)
-    return wcclist
-
-def group_analysis_ONE( graph = None,
-                        root = None,
-                        dtree = None ):
-    pass
-    # Split into 2 groups:
-    # - died before source group
-    # - died after source group
-    # TODO root_dtime = 
-
-def analyze_graphs( scclist = [] ):
-    # TODO TODO
-    return
-    slist = scclist
-    for gind in xrange(len(slist)):
-        # Get the largest death group
-        # TODO: Maybe get the top N death groups?
-        tgt = max( [ x for x in nx.nodes(slist[gind]) ],
-                   key = lambda y: slist[gind].node[y]["size"] )
-        # Find the reachable nodes
-        dtree = nx.dfs_tree( slist[gind], tgt )
-
-def death_group_analyze( bmark = None,
-                         cycle_cpp_dir = "",
-                         main_config = {},
-                         dgroups_filename = "",
-                         contextcount_config = {},
-                         objectinfo_config = {},
-                         edge_config = {},
-                         host_config = {},
-                         logger = None ):
-    logger.debug( "[%s]:================================================================"
-                  % bmark )
-    # TODO TODO 
-    workdir = os.getcwd()
-    outputfile = os.path.join( workdir,
-                               "%s-OUTPUT.txt" % bmark )
-    sys.stdout = open( outputfile, "wb" )
-    # Get object dictionary information that has types and sizes
-    # TODO
-    # typedict = {}
-    # rev_typedict = {}
-    # ----------------------------------------
-    # ----------------------------------------
-    objectinfo_path = os.path.join(cycle_cpp_dir, objectinfo_config[bmark])
-    if not os.path.isfile( objectinfo_path ):
-        logger.error( "Can not find file: %s" % str(objectinfo_path) )
-        print "Can not find file: %s" % str(objectinfo_path)
-        print "Exiting."
-        exit(1)
-    objinfo = ObjectInfoReader( objectinfo_path, logger = logger )
-    logger.debug( "[%s]: Reading OBJECTINFO file..." % bmark )
-    sys.stdout.write(  "[%s]: Reading OBJECTINFO file...\n" % bmark )
-    oread_start = time.clock()
-    objinfo.read_objinfo_file()
-    oread_end = time.clock()
-    logger.debug( "[%s]: DONE: %f" % (bmark, (oread_end - oread_start)) )
-    sys.stdout.write(  "[%s]: DONE: %f\n" % (bmark, (oread_end - oread_start)) )
-    # ----------------------------------------
-    contextinfo = ContextCountReader( context_file = None,
-                                      logger = logger,
-                                      update_missing = True )
-    logger.debug( "[%s]: Processing CONTEXT-DCOUNT..." % bmark )
-    sys.stdout.write(  "[%s]: Processing CONTEXT-DCOUNT...\n" % bmark )
-    oread_start = time.clock()
-    contextinfo.process_object_info( object_info = objinfo )
-    oread_end = time.clock()
-    logger.debug( "[%s]: DONE: %f" % (bmark, (oread_end - oread_start)) )
-    sys.stdout.write(  "[%s]: DONE: %f\n" % (bmark, (oread_end - oread_start)) )
-    # ----------------------------------------
-    logger.debug( "[%s]: Reading EDGEINFO file..." % bmark )
-    sys.stdout.write(  "[%s]: Reading EDGEINFO file...\n" % bmark )
-    edgeinfo_path = os.path.join( cycle_cpp_dir, edge_config[bmark] )
-    assert(os.path.isfile( edgeinfo_path ))
-    edgeinfo = EdgeInfoReader( edgeinfo_path, logger = logger )
-    eread_start = time.clock()
-    edgeinfo.read_edgeinfo_file()
-    eread_end = time.clock()
-    logger.debug( "[%s]: DONE: %f" % (bmark, (eread_end - eread_start)) )
-    sys.stdout.write(  "[%s]: DONE: %f\n" % (bmark, (eread_end - eread_start)) )
-    # ----------------------------------------
-    logger.debug( "[%s]: Reading DGROUPS:" % bmark )
-    sys.stdout.write( "[%s]: Reading DGROUPS:\n" % bmark )
-    dgread_start = time.clock()
-    abs_filename = os.path.join(cycle_cpp_dir, dgroups_filename)
-    print "XXX:", abs_filename
-    assert(os.path.isfile( abs_filename ))
-    dgroups = DeathGroupsReader( abs_filename, logger = logger )
-    dgroups.read_dgroup_file( objinfo )
-    dgroups.clean_deathgroups()
-    dupes = find_dupes( dgroups )
-    dgread_end = time.clock()
-    logger.debug( "[%s]: DONE: %f" % (bmark, (dgread_end - dgread_start)) )
-    sys.stdout.write(  "[%s]: DONE: %f\n" % (bmark, (dgread_end - dgread_start)) )
-    # ----------------------------------------
-    # for tgt, data in edgeinfo.lastedge_iteritems():
-    #     sys.stdout.write(  "%d -> [%d] : %s" % (tgt, data["dtime"], str(data["lastsources"])) )
-    ktdict = {}
-    debug_count = 0
-    debug_tries = 0
-    died_at_end_count = 0
-    contextresult = { "total" : 0, "error" : 0 }
-    # ----------------------------------------
-    # Output each death group
-    dumpfile = os.path.join( workdir, "%s-DGROUPS-DUMP.csv" % bmark )
-    dumpall = (main_config["dumpall"] == "True")
-    try:
-        filterbytes = int(main_config["filterbytes"])
-    except:
-        filterbytes = 8388608
-    dgraph = nx.DiGraph()
-    with open( dumpfile, "wb" ) as fptr:
-        writer = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
-        writer.writerow( [ "type", "time", "context1", "context2",
-                           "number objects", "cause", "subcause",
-                          "allocsite", "age_methup", "age_alloc" ] )
-        for gnum in dgroups.group2list.keys():
-            print "-------[ Group num: %d ]------------------------------------------------" % gnum
-            result = get_key_object_types( gnum = gnum,
-                                           ktdict = ktdict,
-                                           dgroups = dgroups,
-                                           edgeinfo = edgeinfo,
-                                           objinfo = objinfo,
-                                           contextinfo = contextinfo,
-                                           contextresult = contextresult,
-                                           dumpall = dumpall,
-                                           writer = writer,
-                                           filterbytes = filterbytes,
-                                           dgraph = dgraph,
-                                           logger = logger )
-            print "-------[ END group num: %d ]--------------------------------------------" % gnum
-    contextinfo.fix_counts( objinfo )
-    # ----------------------------------------
-    scclist = build_and_save_graph( dgraph = dgraph,
-                                    edgeinfo = edgeinfo,
-                                    dgroups = dgroups,
-                                    bmark = bmark,
-                                    workdir = workdir )
-    # ----------------------------------------
-    # Analyze the graphs
-    analyze_graphs( scclist ) # TODO TODO TODO TODO
-    # ----------------------------------------
-    logger.debug( "[%s]: Total: %d" % (bmark, len(dgroups.group2list)) )
-    logger.debug( "[%s]: Tries: %d" % (bmark, debug_tries) )
-    logger.debug( "[%s]: Error: %d" % (bmark, debug_count) )
-    logger.debug( "[%s]: Died at end: %d" % (bmark, died_at_end_count) )
-    sys.stdout.write(  "[%s]: Total: %d\n" % (bmark, len(dgroups.group2list)) )
-    sys.stdout.write(  "[%s]: Tries: %d\n" % (bmark, debug_tries) )
-    sys.stdout.write(  "[%s]: Error: %d\n" % (bmark, debug_count) )
-    sys.stdout.write(  "[%s]: Died at end: %d\n" % (bmark, died_at_end_count) )
-    sys.stdout.write( "-------[ CONTEXT RESULTS ]----------------------------------------------\n" )
-    sys.stdout.write( "Total: %d\n" % contextresult["total"] )
-    sys.stdout.write( "Error: %d\n" % contextresult["error"] )
-    sys.stdout.write( "-------[ END CONTEXT RESULTS ]------------------------------------------\n" )
-    # ----------------------------------------
-    # Output death groups statistics by type
-    outfile = os.path.join( workdir, "%s-DGROUPS-TYPES.csv" % bmark )
-    with open( outfile, "wb" ) as fptr:
-        writer = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
-        writer.writerow( [ "type", "number groups", "maximum", "minimum", "true key count", "number alloc sites" ] )
-        for mytype, rec in ktdict.iteritems():
-            writer.writerow( [ mytype,
-                               rec["total"],
-                               rec["max"],
-                               rec["min"],
-                               rec["true_key_count"],
-                               len(rec["allocsites"]), ] )
-    # ----------------------------------------
-    # Group types output
-    outallfile = os.path.join( workdir, "%s-DGROUPS-ALL-TYPES.csv" % bmark )
-    with open( outallfile, "wb" ) as fptr:
-        writer = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
-        writer.writerow( [ "type", "set_types", "count", ] )
-        for mytype, rec in ktdict.iteritems():
-            for typeset, count in rec["group_types"].iteritems():
-                writer.writerow( [ mytype,
-                                   "|".join( [ str(x) for x in typeset ] ),
-                                   count ] )
-    # ----------------------------------------
-    # Context csv reoutput
-    contextfile = os.path.join( workdir, "%s-CONTEXT-DCOUNT-KEY.csv" % bmark )
-    with open( contextfile, "wb" ) as fptr:
-        writer = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
-        writer.writerow( [ "funcsrc", "functarget", "total", "keyobject_count",
-                           "topclass1", "topclass2", "topclass3", "topclass4", "topclass5", ] )
-        for cpair, rec in contextinfo.context_iteritems():
-            top5 = [ x[0] for x in contextinfo.get_top(cpair, 5) ]
-            # max_group_size = ktdict[]
-            if (len(top5) < 5):
-                top5.extend( [ x for x in repeat("NONE", times = (5 - len(top5))) ] )
-            # maxlist = []
-            # for x in top5:
-            #     if (x in ktdict) and (x != "NONE"):
-            #         maxlist.append( ktdict[x]["max"] )
-            #     elif x != "NONE":
-            #         maxlist.append( 1 )
-            #     else:
-            #         maxlist.append( 0 )
-            # top5 = zip(top5, maxlist)
-            row = [ cpair[0], cpair[1], rec[0], rec[1], ]
-            row.extend(top5)
-            writer.writerow( row )
-    # ----------------------------------------
-    # Summary output
-    summaryfile = os.path.join( workdir, "%s-SUMMARY.csv" % bmark )
-    with open( summaryfile, "wb" ) as fptr:
-        writer = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
-        # Header
-        writer.writerow( [ "key", "value", ] )
-        # Alloc age
-        alloc_age_list = objinfo.get_alloc_age_list()
-        writer.writerow( [ "alloc_age_min", min(alloc_age_list) ] )
-        writer.writerow( [ "alloc_age_max", max(alloc_age_list) ] )
-        writer.writerow( [ "alloc_age_mean", mean(alloc_age_list) ] )
-        writer.writerow( [ "alloc_age_stdev", stdev(alloc_age_list) ] )
-        # Method + update age
-        methup_age_list = objinfo.get_methup_age_list()
-        writer.writerow( [ "method_update_age_min", min(methup_age_list) ] )
-        writer.writerow( [ "method_update_age_min", max(methup_age_list) ] )
-        writer.writerow( [ "method_update_age_min", mean(methup_age_list) ] )
-        writer.writerow( [ "method_update_age_min", stdev(methup_age_list) ] )
-    sys.stdout.write(  "-----[ %s DONE ]---------------------------------------------------------------\n" % bmark )
-    logger.debug( "-----[ %s DONE ]---------------------------------------------------------------"
-                  % bmark )
-
 def main_process( output = None,
                   global_config = {},
                   summary_config = {},
+                  main_config = {},
                   debugflag = False,
                   logger = None ):
     global pp
@@ -1121,7 +771,6 @@ def main_process( output = None,
                                      timenow = timenow,
                                      logger = logger,
                                      interactive = False )
-    count = 0
     # Take benchmarks to process from etanalyze_config
     # The benchmarks are:
     #     BENCHMARK   |   CREATE  |  DELETE   |
@@ -1129,9 +778,39 @@ def main_process( output = None,
     #     simplelist2 |   rand    |    seq    |
     #     simplelist3 |    seq    |    at end |
     #     simplelist4 |   rand    |    at end |
+    # Where to get file?
+    # Filename is in "summary_config"
+    # Directory is in "global_config"
+    #     Make sure everything is honky-dory.
+    assert( "cycle_cpp_dir" in global_config )
+    assert( "simplelist1" in summary_config )
+    assert( "simplelist2" in summary_config )
+    assert( "simplelist3" in summary_config )
+    assert( "simplelist4" in summary_config )
+    # Give simplelist? more descriptive names
+    slist = { "SEQ-SEQ" : {}, # simplelist1
+              "RAND-SEQ" : {}, # simplelist2
+              "SEQ-ATEND" : {}, # simplelist3
+              "RAND-ATEND" : {}, } # simplelist4
+    cycle_cpp_dir = global_config["cycle_cpp_dir"]
+    print "XXX:", os.path.join( cycle_cpp_dir, summary_config["simplelist1"] )
+    slist["SEQ-SEQ"]["sreader"] = SummaryReader( os.path.join( cycle_cpp_dir,
+                                                               summary_config["simplelist1"] ) )
+    slist["RAND-SEQ"]["sreader"] = SummaryReader( os.path.join( cycle_cpp_dir,
+                                                                summary_config["simplelist2"] ) )
+    slist["SEQ-ATEND"]["sreader"] = SummaryReader( os.path.join( cycle_cpp_dir,
+                                                                 summary_config["simplelist3"] ) )
+    slist["RAND-ATEND"]["sreader"] = SummaryReader( os.path.join( cycle_cpp_dir,
+                                                                  summary_config["simplelist4"] ) )
 
+    print "====[ Reading in the summaries ]================================================"
+    for skind, mydict in slist.iteritems():
+        sreader = mydict["sreader"]
+        sreader.read_summary_file()
+        pp.pprint( sreader.__get_summarydict__() )
+    print "DONE reading all 4."
     print "================================================================================"
-    print "DONE."
+    print "simplelist_analyze.py - DONE."
     os.chdir( olddir )
     exit(0)
 
@@ -1152,14 +831,14 @@ def process_config( args ):
     config_parser.read( args.config )
     global_config = config_section_map( "global", config_parser )
     summary_config = config_section_map( "summary_cpp", config_parser )
-    # PROBABALY NOT: main_config = config_section_map( "dgroups-analyze", config_parser )
+    main_config = config_section_map( "simplelist-analyze", config_parser )
     # MAYBE: objectinfo_config = config_section_map( "objectinfo", config_parser )
     # DON'T KNOW: contextcount_config = config_section_map( "contextcount", config_parser )
     # PROBABLY NOT:  host_config = config_section_map( "hosts", config_parser )
     # PROBABLY NOT: worklist_config = config_section_map( "dgroups-worklist", config_parser )
     return { "global" : global_config,
              "summary" : summary_config,
-             # "main" : main_config,
+             "main" : main_config,
              # "objectinfo" : objectinfo_config,
              # "contextcount" : contextcount_config,
              # "host" : host_config,
@@ -1211,6 +890,7 @@ def main():
     configdict = process_config( args )
     global_config = configdict["global"]
     summary_config = configdict["summary"]
+    main_config = configdict["main"]
     # PROBABLY DELETE:
     # contextcount_config = configdict["contextcount"]
     # objectinfo_config = configdict["objectinfo"]
@@ -1226,6 +906,7 @@ def main():
                          output = args.output,
                          global_config = global_config,
                          summary_config = summary_config,
+                         main_config = main_config,
                          # contextcount_config = contextcount_config,
                          # objectinfo_config = objectinfo_config,
                          # host_config = host_config,
