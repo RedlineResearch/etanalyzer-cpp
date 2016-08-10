@@ -6,6 +6,16 @@ import smtplib
 import subprocess
 import StringIO
 
+# for get_file_fp
+import re
+import subprocess
+import os
+
+# For timestamping directories and files.
+from datetime import datetime, date
+import time
+
+
 def merge_two_dicts(x, y):
     '''Given two dicts, merge them into a new dict as a shallow copy.'''
     z = x.copy()
@@ -134,7 +144,85 @@ def XXXX_email_message( message = "",
     server.send( from_email, [ to_email ], msg )
     server.quit()
 
-__all__ = [ "mean", "merge_two_dicts", "stdev", "variance", "email_message" ]
+def get_file_fp( myfile = None,
+                 logger = None ):
+    if not os.path.isfile( myfile ) and not os.path.islink( myfile ):
+        # File does not exist
+        if logger != None:
+            logger.error( "Unable to open %s" % str(myfile) )
+        print "Unable to open %s" % str(myfile)
+        exit(21)
+    bz2re = re.compile( "(.*)\.bz2$", re.IGNORECASE )
+    gzre = re.compile( "(.*)\.gz$", re.IGNORECASE )
+    bz2match = bz2re.search( myfile )
+    gzmatch = gzre.search( myfile )
+    if bz2match: 
+        # bzip2 file
+        fp = subprocess.Popen( [ "bzcat", myfile ],
+                               stdout = subprocess.PIPE,
+                               stderr = subprocess.PIPE ).stdout
+    elif gzmatch: 
+        # gz file
+        fp = subprocess.Popen( [ "zcat", myfile ],
+                               stdout = subprocess.PIPE,
+                               stderr = subprocess.PIPE ).stdout
+    else:
+        fp = open( myfile, "r")
+    return fp
+
+# TODO TODO TODO 
+# HERE TODO TODO
+# TODO TODO TODO 
+# TODO: Import time/date related libraries
+def create_work_directory( work_dir,
+                           today = "",
+                           timenow = "",
+                           logger = None,
+                           interactive = False ):
+    os.chdir( work_dir )
+    # Check today directory ---------------------------------------------------
+    if os.path.isfile(today):
+        if logger != None:
+            pass # TODO
+        else:
+            print "Can not create %s as directory." % today
+        exit(11)
+    if not os.path.isdir( today ):
+        os.mkdir( today )
+    else:
+        if logger != None:
+            logger.warning( "WARNING: %s directory exists." % today )
+        else:
+            print "WARNING: %s directory exists." % today
+        if interactive:
+            raw_input("Press ENTER to continue:")
+        else:
+            print "....continuing!!!"
+    os.chdir( today )
+    # Check timenow directory -------------------------------------------------
+    if os.path.isfile(timenow):
+        if logger != None:
+            pass # TODO
+        else:
+            print "Can not create %s as directory." % timenow
+        exit(11)
+    if not os.path.isdir( timenow ):
+        os.mkdir( timenow )
+    else:
+        if logger != None:
+            logger.warning( "WARNING: %s directory exists." % timenow )
+        else:
+            print "WARNING: %s directory exists." % timenow
+        if interactive:
+            raw_input("Press ENTER to continue:")
+        else:
+            print "....continuing!!!"
+    os.chdir( timenow )
+    return str(os.getcwd())
+
+
+__all__ = [ "mean", "merge_two_dicts", "stdev", "variance", "email_message",
+            "get_file_fp" ]
 
 if __name__ == "__main__":
     import doctest
