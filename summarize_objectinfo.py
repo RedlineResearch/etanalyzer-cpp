@@ -9,9 +9,10 @@ import logging
 import pprint
 import re
 import ConfigParser
+from collections import Counter
+
 # Possible useful libraries, classes and functions:
 # from operator import itemgetter
-# from collections import Counter
 # from collections import defaultdict
 #   - This one is my own library:
 # from mypytools import mean, stdev, variance
@@ -152,30 +153,35 @@ def main_process( output = None,
     assert( "simplelist3" in objectinfo_config )
     assert( "simplelist4" in objectinfo_config )
     # Give simplelist? more descriptive names
-    sdict = { "SEQ-SEQ" : {}, # simplelist1
+    objdict = { "SEQ-SEQ" : {}, # simplelist1
               "RAND-SEQ" : {}, # simplelist2
               "SEQ-ATEND" : {}, # simplelist3
               "RAND-ATEND" : {}, } # simplelist4
     cycle_cpp_dir = global_config["cycle_cpp_dir"]
-    sdict["SEQ-SEQ"]["objreader"] = ObjectInfoReader( os.path.join( cycle_cpp_dir,
-                                                                    objectinfo_config["simplelist1"] ) )
-    sdict["RAND-SEQ"]["objreader"] = ObjectInfoReader( os.path.join( cycle_cpp_dir,
-                                                                     objectinfo_config["simplelist2"] ) )
-    sdict["SEQ-ATEND"]["objreader"] = ObjectInfoReader( os.path.join( cycle_cpp_dir,
-                                                                      objectinfo_config["simplelist3"] ) )
-    sdict["RAND-ATEND"]["objreader"] = ObjectInfoReader( os.path.join( cycle_cpp_dir,
-                                                                       objectinfo_config["simplelist4"] ) )
-    pp.pprint(sdict)
-    exit(100)
-    print "====[ Reading in the summaries ]================================================"
-    for skind, mydict in sdict.iteritems():
-        sreader = mydict["sreader"]
-        sreader.read_summary_file()
-        pp.pprint( sreader.__get_summarydict__() )
+    objdict["SEQ-SEQ"]["objreader"] = ObjectInfoReader( os.path.join( cycle_cpp_dir,
+                                                                      objectinfo_config["simplelist1"] ),
+                                                        logger = logger )
+    objdict["RAND-SEQ"]["objreader"] = ObjectInfoReader( os.path.join( cycle_cpp_dir,
+                                                                       objectinfo_config["simplelist2"] ),
+                                                         logger = logger )
+    objdict["SEQ-ATEND"]["objreader"] = ObjectInfoReader( os.path.join( cycle_cpp_dir,
+                                                                        objectinfo_config["simplelist3"] ),
+                                                          logger = logger )
+    objdict["RAND-ATEND"]["objreader"] = ObjectInfoReader( os.path.join( cycle_cpp_dir,
+                                                                         objectinfo_config["simplelist4"] ),
+                                                           logger = logger )
+    print "====[ Reading in the OBJECTINFO file ]=========================================="
+    for skind, mydict in objdict.iteritems():
+        objreader = mydict["objreader"]
+        objreader.read_objinfo_file()
     print "DONE reading all 4."
     print "================================================================================"
     # Get summary table 1
-    table1 = make_summary_table_1( sdict )
+    result = calculate_counts( objdict )
+    for key, mydict in result.iteritems():
+        print "=======[ %s ]===================================================================" % key
+        pp.pprint( mydict)
+    exit(100)
     with open( os.path.join( workdir, "simplelist-analyze.csv" ), "wb" ) as fptr:
         writer = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
         for row in table1:
@@ -251,27 +257,35 @@ def create_parser():
                          config = None )
     return parser
 
-def make_summary_table_1( sdict = None ):
-    header = [ "pattern", "percent stack", "percent heap", "percent stack after heap", "percent stack only" ]
-    print header
-    result = [ header, ]
-    for skind, mydict in sdict.iteritems():
-        summary = mydict["sreader"].__get_summarydict__()
-        stack = summary["died_by_stack"]
-        stack_after_heap = summary["died_by_stack_after_heap"]
-        stack_only = summary["died_by_stack_only"]
-        heap = summary["died_by_heap"]
-        total_objects = summary["number_of_objects"]
-        row = [ skind, # pattern
-                (stack / total_objects) * 100.0, # percent stack
-                (heap / total_objects) * 100.0, # percent heap
-                (stack_after_heap / total_objects) * 100.0, # percent stack after heap
-                (stack_only / total_objects) * 100.0, # percent stack only
-                ]
-        print row
-        result.append(row)
-    print "DONE: make_summary_table_1"
-    return result
+def calculate_counts( objdict = None ):
+    stack_only = Counter()
+    stack_after_heap = Counter()
+    stack_all = Counter()
+    heap = Counter()
+    # TODO At end, and global result dictionaries?
+    DIEDBY = get_index( "DIEDBY" ) # died by index
+    ATTR = get_index( "STATTR" ) # stack attribute index
+    TYPE = get_index( "TYPE" ) # type index
+    for skind, mydict in objdict.iteritems():
+        objreader = mydict["objreader"]
+        for tup in objreader.iterrecs():
+            objId, rec = tup
+            reason = rec[DIEDBY]
+            stack_attr = rec[ATTR]
+            mytype = rec[TYPE]
+            if reason == "S":
+                stack_only[mytype] += 1
+                if stack_attr == "SHEAP":
+                    stack_after_heap[mytype] += 1
+                elif stack_attr == "SONLY":
+                    stack_only[mytype] += 1
+            elif reason == "H":
+                heap[mytype] += 1
+    print "DONE: calculate_counts"
+    return { "stack" : stack_all,
+             "stack_only" : stack_only,
+             "stack_after_heap" : stack_after_heap,
+             "heap" : heap }
 
 def main():
     parser = create_parser()
