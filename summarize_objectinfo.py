@@ -178,9 +178,11 @@ def main_process( output = None,
     print "================================================================================"
     # Get summary table 1
     result = calculate_counts( objdict )
-    for key, mydict in result.iteritems():
-        print "=======[ %s ]===================================================================" % key
-        pp.pprint( mydict)
+    for skind, mydict in result.iteritems():
+        print "=======[ %s ]===================================================================" % skind
+        for dtype, mycounter in mydict.iteritems():
+            print "    -----[ %s ]----------------------------------------------------" % dtype
+            pp.pprint( dict(mycounter) )
     exit(100)
     with open( os.path.join( workdir, "simplelist-analyze.csv" ), "wb" ) as fptr:
         writer = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
@@ -258,34 +260,35 @@ def create_parser():
     return parser
 
 def calculate_counts( objdict = None ):
-    stack_only = Counter()
-    stack_after_heap = Counter()
-    stack_all = Counter()
-    heap = Counter()
     # TODO At end, and global result dictionaries?
+    result = {}
     DIEDBY = get_index( "DIEDBY" ) # died by index
     ATTR = get_index( "STATTR" ) # stack attribute index
     TYPE = get_index( "TYPE" ) # type index
     for skind, mydict in objdict.iteritems():
         objreader = mydict["objreader"]
+        result[skind] = {}
+        rtmp = result[skind]
+        rtmp["stack_after_heap"] = Counter()
+        rtmp["heap"] = Counter()
+        rtmp["stack_only"] = Counter()
+        # TODO rtmp["stack_all"] = Counter()
         for tup in objreader.iterrecs():
+            # TODO: Refactor this
             objId, rec = tup
             reason = rec[DIEDBY]
             stack_attr = rec[ATTR]
-            mytype = rec[TYPE]
+            mytype = objreader.get_type_using_typeId( rec[TYPE] )
             if reason == "S":
-                stack_only[mytype] += 1
+                # TODO: rtmp["stack_all"][mytype] += 1
                 if stack_attr == "SHEAP":
-                    stack_after_heap[mytype] += 1
+                    rtmp["stack_after_heap"][mytype] += 1
                 elif stack_attr == "SONLY":
-                    stack_only[mytype] += 1
+                    rtmp["stack_only"][mytype] += 1
             elif reason == "H":
-                heap[mytype] += 1
+                rtmp["heap"][mytype] += 1
     print "DONE: calculate_counts"
-    return { "stack" : stack_all,
-             "stack_only" : stack_only,
-             "stack_after_heap" : stack_after_heap,
-             "heap" : heap }
+    return result
 
 def main():
     parser = create_parser()
