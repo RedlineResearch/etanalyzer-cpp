@@ -354,28 +354,38 @@ def main_process( output = None,
     assert( "simplelist3" in summary_config )
     assert( "simplelist4" in summary_config )
     # Give simplelist? more descriptive names
-    slist = { "SEQ-SEQ" : {}, # simplelist1
+    sdict = { "SEQ-SEQ" : {}, # simplelist1
               "RAND-SEQ" : {}, # simplelist2
               "SEQ-ATEND" : {}, # simplelist3
               "RAND-ATEND" : {}, } # simplelist4
     cycle_cpp_dir = global_config["cycle_cpp_dir"]
     print "XXX:", os.path.join( cycle_cpp_dir, summary_config["simplelist1"] )
-    slist["SEQ-SEQ"]["sreader"] = SummaryReader( os.path.join( cycle_cpp_dir,
-                                                               summary_config["simplelist1"] ) )
-    slist["RAND-SEQ"]["sreader"] = SummaryReader( os.path.join( cycle_cpp_dir,
-                                                                summary_config["simplelist2"] ) )
-    slist["SEQ-ATEND"]["sreader"] = SummaryReader( os.path.join( cycle_cpp_dir,
-                                                                 summary_config["simplelist3"] ) )
-    slist["RAND-ATEND"]["sreader"] = SummaryReader( os.path.join( cycle_cpp_dir,
-                                                                  summary_config["simplelist4"] ) )
+    sdict["SEQ-SEQ"]["sreader"] = SummaryReader( os.path.join( cycle_cpp_dir,
+                                                               summary_config["simplelist1"] ),
+                                                 logger = logger )
+    sdict["RAND-SEQ"]["sreader"] = SummaryReader( os.path.join( cycle_cpp_dir,
+                                                                summary_config["simplelist2"] ),
+                                                  logger = logger )
+    sdict["SEQ-ATEND"]["sreader"] = SummaryReader( os.path.join( cycle_cpp_dir,
+                                                                 summary_config["simplelist3"] ),
+                                                   logger = logger )
+    sdict["RAND-ATEND"]["sreader"] = SummaryReader( os.path.join( cycle_cpp_dir,
+                                                                  summary_config["simplelist4"] ),
+                                                    logger = logger )
 
     print "====[ Reading in the summaries ]================================================"
-    for skind, mydict in slist.iteritems():
+    for skind, mydict in sdict.iteritems():
         sreader = mydict["sreader"]
         sreader.read_summary_file()
         pp.pprint( sreader.__get_summarydict__() )
     print "DONE reading all 4."
     print "================================================================================"
+    # Get summary table 1
+    table1 = make_summary_table_1( sdict )
+    with open( os.path.join( workdir, "simplelist-analyze.csv" ), "wb" ) as fptr:
+        writer = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
+        for row in table1:
+            writer.writerow(row)
     print "simplelist_analyze.py - DONE."
     os.chdir( olddir )
     exit(0)
@@ -446,6 +456,28 @@ def create_parser():
                          debugflag = False,
                          config = None )
     return parser
+
+def make_summary_table_1( sdict = None ):
+    header = [ "pattern", "percent stack", "percent heap", "percent stack after heap", "percent stack only" ]
+    print header
+    result = [ header, ]
+    for skind, mydict in sdict.iteritems():
+        summary = mydict["sreader"].__get_summarydict__()
+        stack = summary["died_by_stack"]
+        stack_after_heap = summary["died_by_stack_after_heap"]
+        stack_only = summary["died_by_stack_only"]
+        heap = summary["died_by_heap"]
+        total_objects = summary["number_of_objects"]
+        row = [ skind, # pattern
+                (stack / total_objects) * 100.0, # percent stack
+                (heap / total_objects) * 100.0, # percent heap
+                (stack_after_heap / total_objects) * 100.0, # percent stack after heap
+                (stack_only / total_objects) * 100.0, # percent stack only
+                ]
+        print row
+        result.append(row)
+    print "DONE: make_summary_table_1"
+    return result
 
 def main():
     parser = create_parser()
