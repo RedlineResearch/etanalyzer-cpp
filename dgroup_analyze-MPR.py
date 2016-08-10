@@ -28,12 +28,6 @@ from garbology import EdgeInfoReader, ObjectInfoReader, DeathGroupsReader, Conte
 
 pp = pprint.PrettyPrinter( indent = 4 )
 
-ATIME = 0
-DTIME = 1
-SIZE = 2
-TYPE = 3
-REASON = 4
-
 def setup_logger( targetdir = ".",
                   filename = "dgroup_analyze-MPR.log",
                   logger_name = 'dgroup_analyze-MPR',
@@ -90,19 +84,6 @@ def get_trace_fp( tracefile = None,
 #
 # Main processing
 #
-
-def create_edge_dictionary( edges = None ):
-    edgedict = {}
-    for edge in edges:
-        src = edge[0]
-        tgt = edge[1]
-        if src not in edgedict:
-            edgedict[src] = [ tgt ]
-        else:
-            edgedict[src].append(tgt)
-    for src, tgtlist in edgedict.iteritems():
-        edgedict[src] = set(tgtlist)
-    return edgedict
 
 def get_types( G, cycle ):
     return [ G.node[x]["type"] for x in cycle ]
@@ -197,32 +178,6 @@ def get_cycles( tgtpath ):
                 cycles.append(row)
     assert(done) 
     return cycles
-
-
-def get_cycle_info_list( cycle = None,
-                         objinfo_dict = None,
-                         # objdb = None,
-                         logger = None ):
-    cycle_info_list = []
-    odict = objinfo_dict
-    for node in cycle:
-        try:
-            # rec = objdb.get_record(node)
-            rec = odict[node]
-            mytype = rec[TYPE]
-            mysize = rec[SIZE]
-            atime = rec[ATIME]
-            dtime = rec[DTIME]
-            lifetime = (dtime - atime) if ((dtime > atime) and  (dtime != 0)) \
-                else 0
-            cycle_info_list.append( (node, mytype, mysize, lifetime) )
-        except:
-            logger.critical("Missing node[ %s ]" % str(node))
-            mytype = "<NONE>"
-            mysize = 0
-            lifetime = 0
-            cycle_info_list.append( (node, mytype, mysize, lifetime) )
-    return cycle_info_list
 
 g_regex = re.compile( "([^\$]+)\$(.*)" )
 def is_inner_class( mytype ):
@@ -642,7 +597,8 @@ def update_keytype_dict( ktdict = {},
         # Header is [ "type", "time", "context1", "context2",
         #             "number of objects", "cause", "subcause",
         #             "allocsite", "age_methup", "age_alloc" ]
-        if ( (filterbytes > 0) and (max_age <= filterbytes) ):
+        if ( (filterbytes == 0) or 
+             (filterbytes > 0) and (max_age <= filterbytes) ):
             rec = objinfo.get_record(objId)
             dcause = objinfo.get_death_cause_using_record(rec)
             subcause = ( objinfo.get_stack_died_by_attr_using_record(rec) if dcause == "S"
