@@ -127,23 +127,44 @@ def backup_old_simulator_output( cycle_cpp_dir, backup_cycle_cpp_dir ):
                 os.remove( tgtfile )
             shutil.move( abs_fname, backup_cycle_cpp_dir )
 
+# TODO TODO TODO
+# These is_***** benchmark functions should be one of the following:
+#  1- Dynamically constructed from the config file
+#  2- In mypytools?
+#  3- In garbology.py?
+#   
+#  Number 1 seems the best.
+#  TODO: For now just hardcode here.
 def is_specjvm( bmark ):
-   return ( bmark == "_201_compress" or
-            bmark == "_202_jess" or
-            bmark == "_205_raytrace" or
-            bmark == "_209_db" or
-            bmark == "_213_javac" or
-            bmark == "_222_mpegaudio" or
-            bmark == "_227_mtrt" or
-            bmark == "_228_jack" )
+    print "================================================================================"
+    print "  TODO: Fix to dynamically populate is_***** benchmark functions from"
+    print "        configuration files."
+    print "================================================================================"
+    return ( bmark == "_201_compress" or
+             bmark == "_202_jess" or
+             bmark == "_205_raytrace" or
+             bmark == "_209_db" or
+             bmark == "_213_javac" or
+             bmark == "_222_mpegaudio" or
+             bmark == "_227_mtrt" or
+             bmark == "_228_jack" )
 
 def is_dacapo( bmark ):
+    print "================================================================================"
+    print "  TODO: Fix to dynamically populate is_***** benchmark functions from"
+    print "        configuration files."
+    print "================================================================================"
     return bmark in [ "avrora", "batik", "eclipse", "fop", "h2", "jython",
                       "luindex", "lusearch", "pmd", "specjbb", "sunflow",
                       "tomcat", "tradebeans", "tradesoap", "xalan", ]
 
 def is_minibench( bmark ):
-    return bmark in [ "simplelist1", "simplelist2", "simplelist3", "simplelist4", ]
+    print "================================================================================"
+    print "  TODO: Fix to dynamically populate is_***** benchmark functions from"
+    print "        configuration files."
+    print "================================================================================"
+    return bmark in [ "seq-seqdel", "seq-enddel", "rand-seqdel", "rand-enddel", ]
+
 
 def run_subprocess( cmd = None,
                     stdout = None,

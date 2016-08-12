@@ -139,37 +139,38 @@ def main_process( output = None,
     # Take benchmarks to process from etanalyze_config
     # The benchmarks are:
     #     BENCHMARK   |   CREATE  |  DELETE   |
-    #     simplelist1 |    seq    |    seq    |
-    #     simplelist2 |   rand    |    seq    |
-    #     simplelist3 |    seq    |    at end |
-    #     simplelist4 |   rand    |    at end |
+    #     seq-seqdel  |    seq    |    seq    |
+    #     seq-enddel  |    seq    |    at end |
+    #     rand-seqdel |   rand    |    seq    |
+    #     rand-enddel |   rand    |    at end |
     # Where to get file?
     # Filename is in "objectinfo_config"
     # Directory is in "global_config"
     #     Make sure everything is honky-dory.
     assert( "cycle_cpp_dir" in global_config )
-    assert( "simplelist1" in objectinfo_config )
-    assert( "simplelist2" in objectinfo_config )
-    assert( "simplelist3" in objectinfo_config )
-    assert( "simplelist4" in objectinfo_config )
+    assert( "seq-seqdel" in objectinfo_config )
+    assert( "seq-enddel" in objectinfo_config )
+    # assert( "rand-seqdel" in objectinfo_config )
+    # assert( "rand-enddel" in objectinfo_config )
     # Give simplelist? more descriptive names
-    objdict = { "SEQ-SEQ" : {}, # simplelist1
-              "RAND-SEQ" : {}, # simplelist2
-              "SEQ-ATEND" : {}, # simplelist3
-              "RAND-ATEND" : {}, } # simplelist4
+    objdict = { "SEQ-SEQ" : {}, # seq-seqdel
+                "SEQ-ATEND" : {}, # seq-enddel
+              #   "RAND-SEQ" : {}, # rand-seqdel
+              #   "RAND-ATEND" : {}, # rand-enddel
+              }
     cycle_cpp_dir = global_config["cycle_cpp_dir"]
     objdict["SEQ-SEQ"]["objreader"] = ObjectInfoReader( os.path.join( cycle_cpp_dir,
-                                                                      objectinfo_config["simplelist1"] ),
+                                                                      objectinfo_config["seq-seqdel"] ),
                                                         logger = logger )
-    objdict["RAND-SEQ"]["objreader"] = ObjectInfoReader( os.path.join( cycle_cpp_dir,
-                                                                       objectinfo_config["simplelist2"] ),
-                                                         logger = logger )
     objdict["SEQ-ATEND"]["objreader"] = ObjectInfoReader( os.path.join( cycle_cpp_dir,
-                                                                        objectinfo_config["simplelist3"] ),
+                                                                        objectinfo_config["seq-enddel"] ),
                                                           logger = logger )
-    objdict["RAND-ATEND"]["objreader"] = ObjectInfoReader( os.path.join( cycle_cpp_dir,
-                                                                         objectinfo_config["simplelist4"] ),
-                                                           logger = logger )
+    # objdict["RAND-SEQ"]["objreader"] = ObjectInfoReader( os.path.join( cycle_cpp_dir,
+    #                                                                    objectinfo_config["rand-seqdel"] ),
+    #                                                      logger = logger )
+    # objdict["RAND-ATEND"]["objreader"] = ObjectInfoReader( os.path.join( cycle_cpp_dir,
+    #                                                                      objectinfo_config["rand-enddel"] ),
+    #                                                        logger = logger )
     print "====[ Reading in the OBJECTINFO file ]=========================================="
     for skind, mydict in objdict.iteritems():
         objreader = mydict["objreader"]
