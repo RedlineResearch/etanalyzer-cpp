@@ -86,7 +86,7 @@ def __parse_line_nocheck( line = None,
     ret = {}
     a = line.split()
     # Get object Id
-    if ( a[0] in heap_alloc_list[version] or
+    if ( a[0] in heap_alloc_list or
          a[0] == "D" or a[0] == "R" ):
         objId = hex2dec(a[1])
     elif ( a[0] == "H" ):
@@ -143,9 +143,6 @@ def __parse_line_nocheck( line = None,
         raise ValueError( "Unknown record type: %s" % a[0] )
     assert( ret != None )
     return ret
-
-def is_valid_version( version = None ):
-    return version in version_list
 
 __all__ = [ heap_entry_fields, is_valid_op, is_heap_alloc_op, is_heap_op, parse_line, \
             is_method_op, ]

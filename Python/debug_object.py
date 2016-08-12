@@ -1,5 +1,4 @@
 # debug_object.py 
-# version 3 of heapsim-ref.py
 #
 import csv
 import os
@@ -16,7 +15,7 @@ import pprint
 
 
 from etparse import is_valid_op, is_heap_alloc_op, is_heap_op, parse_line, \
-                    heap_entry_fields, is_valid_version
+                    is_method_op, heap_entry_fields
 from strace import STrace, StatClass
 from mypytools import get_file_fp
 # Ref counting not needed
@@ -522,8 +521,7 @@ def debug_process_heap_event( heap = None,
     logger.error( "rec[ %s ] strace[ %d ]" %
                   (str(rec), strace.get_number_of_threads()) )
 
-def process_heap_event( version = None,
-                        heap = None,
+def process_heap_event( heap = None,
                         deadhash = None,
                         ignored_alloc = None,
                         rec = None,
@@ -679,6 +677,7 @@ def dump_summary( summary = None ):
     print "TODO"
 
 def process_input( myfp = None,
+                   tgtId = None,
                    logger = None ):
     heap = {}
     deadhash = {}
@@ -692,59 +691,39 @@ def process_input( myfp = None,
         rec = parse_line( line = x,
                           logger = logger )
         cur = cur + 1
-        time_by_method = process_heap_event( version = version,
-                                             recursive_decrement = recursive_decrement,
-                                             heap = heap,
-                                             deadhash = deadhash,
-                                             ignored_alloc = ignored_alloc,
-                                             rec = rec,
-                                             strace = strace,
-                                             # TODO REF summary = summary,
-                                             time_by_method = time_by_method,
-                                             logger = logger )
-        if stopline > 0 and stopline == cur:
-            break
+        op = rec["rectype"]
+        if is_method_op(op):
+            time_by_methup += 1
+        elif is_heap_alloc_op(op):
+            time_by_alloc += rec["size"]
+        for field in [ "objId", "newTgtId", "oldTgtId", ]:
+            if (field in rec) and (tgtId == rec[field]):
+                print "[%s]: %s" % (op, str(rec))
 
+        
     print "======================================================================"
-    for key, value in negrc_dict.iteritems():
-        print "objId %d" % key
-        # if key in heap:
-        #     pp.pprint( heap[key]["hist"] )
-        # else:
-        #     print "NOT FOUND."
-        print "======================================================================"
-    cyclelist = scan_queue( heap )
-    pp.pprint( cyclelist )
-    print "Cycle count: %d" % cycle_count
-    print "Non cycle count: %d" % noncycle_count
-    print "======================================================================"
-    pickle_all( heap = heap,
-                # TODO REF summary = summary,
-                outpickle = outpickle,
-                ref_output = ref_output,
-                benchmark = benchmark,
-                logger = logger,
-                gml_filename = gml_filename )
 
-def deathtime_label( rec = None ):
-    return None
 
 def main_process( tgtpath = None,
+                  tgtId = None,
                   debugflag = False,
                   logger = None ):
-    fp = get_file_fp( tracefile = tgtpath,
+    fp = get_file_fp( myfile = tgtpath,
                       logger = logger )
     process_input( myfp = fp,
+                   tgtId = tgtId,
                    logger = logger )
     print "=====[ DONE ]========================================"
     logger.error( "=====[ DONE ]========================================" )
     # Just a debugging output. Make sure it's logged by marking it critical.
     logger.critical( "###: %s" % time.strftime("%c") )
-    close_connection( conn )
+    fp.close()
 
 def setup_options( parser = None ):
     parser.add_argument( "tracefile",
                           help = "Set name of raw input Elephant Tracks file" )
+    parser.add_argument( "objId",
+                          help = "Object ID to debug" )
     parser.add_argument( "--logfile",
                           help = "filename to use for log file" )
     # set logging to debug level
@@ -766,13 +745,19 @@ def main():
     args = parser.parse_args()
     #
     # Get input filename
-    #
     tgtpath = args.tracefile
     try:
         if not os.path.exists( tgtpath ):
             parser.error( tgtpath + " does not exist." )
     except:
         parser.error( "invalid path name : " + tgtpath )
+    
+    # Get object Id
+    objId = args.objId
+    try:
+        objId = int(objId)
+    except:
+        parser.error( "Invalid object Id: %s" % str(objId) )
     # Actually open the input db/file in main_process()
     # 
     # Get logfile
@@ -788,6 +773,7 @@ def main():
     # Main processing
     #
     return main_process( tgtpath = tgtpath,
+                         tgtId = objId,
                          debugflag = debugflag,
                          logger = logger )
 
