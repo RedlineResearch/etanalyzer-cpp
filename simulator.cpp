@@ -238,7 +238,7 @@ unsigned int read_trace_file(FILE* f)
                     obj = Heap.getObject(objId);
                     target = ((tgtId > 0) ? Heap.getObject(tgtId) : NULL);
                     // TODO last_map.setLast( threadId, LastEvent::UPDATE, obj );
-                    if (obj) {
+                    if (target) {
                         obj->setPointedAtByHeap();
                     }
                     if (oldObj) {
@@ -775,6 +775,94 @@ void output_context_summary( string &context_death_count_filename,
     context_death_count_file.close();
 }
 
+// Output the map of type ID -> type name
+// TODO TODO TODO TODO
+void output_type_table( string &context_death_count_filename,
+                        ExecState &exstate )
+{ // TODO TODO TODO TODO - THIS DOESN"T COMPILE. copy pasta code
+    ofstream object_info_file(objectinfo_filename);
+    object_info_file << "---------------[ OBJECT INFO ]--------------------------------------------------" << endl;
+    const vector<string> header( { "objId", "createTime", "deathTime", "size", "type",
+                                   "diedBy", "lastUpdate", "subCause", "clumpKind",
+                                   "deathContext1", "deathContext2", "deathContextType",
+                                   "allocContext1", "allocContext2", "allocContextType",
+                                   "createTime_alloc", "deathTime_alloc",
+                                   "allocSiteName", } );
+
+    for ( ObjectMap::iterator it = myheap.begin();
+          it != myheap.end();
+          ++it ) {
+        Object *object = it->second;
+        ObjectId_t objId = object->getId();
+        KeyType ktype = object->getKeyType();
+        string dgroup_kind;
+        if (ktype == KeyType::CYCLE) {
+            dgroup_kind = "CYC";
+        } else if (ktype == KeyType::CYCLEKEY) {
+            dgroup_kind = "CYCKEY";
+        } else if (ktype == KeyType::DAG) {
+            dgroup_kind = "DAG";
+        } else if (ktype == KeyType::DAGKEY) {
+            dgroup_kind = "DAGKEY";
+        } else {
+            dgroup_kind = "CYC";
+        }
+        string dtype;
+        if (object->getDiedByStackFlag()) {
+            dtype = "S"; // by stack
+        } else if (object->getDiedByHeapFlag()) {
+            if (object->wasLastUpdateFromStatic()) {
+                dtype = "G"; // by static global
+            } else {
+                dtype = "H"; // by heap
+            }
+        } else {
+            dtype = "E"; // program end
+        }
+        // Get the context pair and type for the allocation event
+        ContextPair allocCpair = object->getAllocContextPair();
+        Method *alloc_meth_ptr1 = std::get<0>(allocCpair);
+        Method *alloc_meth_ptr2 = std::get<1>(allocCpair);
+        string alloc_method1 = (alloc_meth_ptr1 ? alloc_meth_ptr1->getName() : "NONAME");
+        string alloc_method2 = (alloc_meth_ptr2 ? alloc_meth_ptr2->getName() : "NONAME");
+        // Get the context pair and type for the death event
+        ContextPair deathCpair = object->getDeathContextPair();
+        Method *death_meth_ptr1 = std::get<0>(deathCpair);
+        Method *death_meth_ptr2 = std::get<1>(deathCpair);
+        string death_method1 = (death_meth_ptr1 ? death_meth_ptr1->getName() : "NONAME");
+        string death_method2 = (death_meth_ptr2 ? death_meth_ptr2->getName() : "NONAME");
+        string allocsite_name = object->getAllocSiteName();
+        object_info_file << objId
+            << "," << object->getCreateTime()
+            << "," << object->getDeathTime()
+            << "," << object->getSize()
+            << "," << object->getType()
+            << "," << dtype
+            << "," << (object->wasLastUpdateNull() ? "NULL" : "VAL")
+            << "," << (object->getDiedByStackFlag() ? (object->wasPointedAtByHeap() ? "SHEAP" : "SONLY")
+                                                    : "H")
+            << "," << dgroup_kind
+            << "," << death_method1 // Part 1 of simple context pair - death site
+            << "," << death_method2 // part 2 of simple context pair - death site
+            << "," << (object->getDeathContextType() == CPairType::CP_Call ? "C" : "R") // C is call. R is return.
+            << "," << alloc_method1 // Part 1 of simple context pair - alloc site
+            << "," << alloc_method2 // part 2 of simple context pair - alloc site
+            << "," << (object->getAllocContextType() == CPairType::CP_Call ? "C" : "R") // C is call. R is return.
+            << "," << object->getCreateTimeAlloc()
+            << "," << object->getDeathTimeAlloc()
+            << "," << allocsite_name
+            << endl;
+            // TODO: The following can be made into a lookup table:
+            //       method names
+            //       allocsite names
+            //       type names
+            // May only be necessary for performance reasons (ie, simulator eats up too much RAM 
+            // on the larger benchmarks/programs.)
+    }
+    object_info_file << "---------------[ OBJECT INFO END ]----------------------------------------------" << endl;
+    object_info_file.close();
+}
+
 // ----------------------------------------------------------------------
 
 int main(int argc, char* argv[])
@@ -794,6 +882,7 @@ int main(int argc, char* argv[])
     // string edge_filename( basename + "-EDGES.txt" );
     string objectinfo_filename( basename + "-OBJECTINFO.txt" );
     string edgeinfo_filename( basename + "-EDGEINFO.txt" );
+    string typeinfo_filename( basename + "-TYPEINFO.txt" );
     string summary_filename( basename + "-SUMMARY.csv" );
     string dsite_filename( basename + "-DSITES.csv" );
 
