@@ -10,10 +10,10 @@ import pprint
 import re
 import ConfigParser
 from collections import Counter
+from collections import defaultdict
 
 # Possible useful libraries, classes and functions:
 # from operator import itemgetter
-# from collections import defaultdict
 #   - This one is my own library:
 # from mypytools import mean, stdev, variance
 from mypytools import create_work_directory
@@ -117,6 +117,7 @@ def get_actual_hostname( hostname = "",
 def main_process( output = None,
                   global_config = {},
                   objectinfo_config = {},
+                  worklist_config = {},
                   main_config = {},
                   debugflag = False,
                   logger = None ):
@@ -136,46 +137,28 @@ def main_process( output = None,
                                      timenow = timenow,
                                      logger = logger,
                                      interactive = False )
-    # Take benchmarks to process from etanalyze_config
-    # The benchmarks are:
-    #     BENCHMARK   |   CREATE  |  DELETE   |
-    #     seq-seqdel  |    seq    |    seq    |
-    #     seq-enddel  |    seq    |    at end |
-    #     rand-seqdel |   rand    |    seq    |
-    #     rand-enddel |   rand    |    at end |
+    # Take benchmarks to process from summarize-objectinfo-worklist 
+    #     in ?????? configuration file.
     # Where to get file?
     # Filename is in "objectinfo_config"
     # Directory is in "global_config"
     #     Make sure everything is honky-dory.
     assert( "cycle_cpp_dir" in global_config )
-    assert( "seq-seqdel" in objectinfo_config )
-    assert( "seq-enddel" in objectinfo_config )
-    # assert( "rand-seqdel" in objectinfo_config )
-    # assert( "rand-enddel" in objectinfo_config )
+    # TODO: Go through the worklist and check to see in if objectinfo_config.
+    # assert( "seq-seqdel" in objectinfo_config )
     # Give simplelist? more descriptive names
-    objdict = { "SEQ-SEQ" : {}, # seq-seqdel
-                "SEQ-ATEND" : {}, # seq-enddel
-              #   "RAND-SEQ" : {}, # rand-seqdel
-              #   "RAND-ATEND" : {}, # rand-enddel
-              }
     cycle_cpp_dir = global_config["cycle_cpp_dir"]
-    objdict["SEQ-SEQ"]["objreader"] = ObjectInfoReader( os.path.join( cycle_cpp_dir,
-                                                                      objectinfo_config["seq-seqdel"] ),
+    objdict = { bmark : {} for bmark in worklist_config.keys() }
+    pp.pprint(objdict)
+    for bmark in objdict.keys():
+        objdict[bmark]["objreader"] = ObjectInfoReader( os.path.join( cycle_cpp_dir,
+                                                                      objectinfo_config[bmark] ),
                                                         logger = logger )
-    objdict["SEQ-ATEND"]["objreader"] = ObjectInfoReader( os.path.join( cycle_cpp_dir,
-                                                                        objectinfo_config["seq-enddel"] ),
-                                                          logger = logger )
-    # objdict["RAND-SEQ"]["objreader"] = ObjectInfoReader( os.path.join( cycle_cpp_dir,
-    #                                                                    objectinfo_config["rand-seqdel"] ),
-    #                                                      logger = logger )
-    # objdict["RAND-ATEND"]["objreader"] = ObjectInfoReader( os.path.join( cycle_cpp_dir,
-    #                                                                      objectinfo_config["rand-enddel"] ),
-    #                                                        logger = logger )
     print "====[ Reading in the OBJECTINFO file ]=========================================="
     for skind, mydict in objdict.iteritems():
         objreader = mydict["objreader"]
         objreader.read_objinfo_file()
-    print "DONE reading all 4."
+    print "DONE reading all benchmarks."
     print "================================================================================"
     # Get summary table 1
     result = calculate_counts( objdict )
@@ -185,6 +168,9 @@ def main_process( output = None,
             print "    -----[ %s ]----------------------------------------------------" % dtype
             pp.pprint( dict(mycounter) )
     exit(100)
+    # TODO TODO TODO
+    # Is more needed afer this?
+    # TODO TODO TODO
     with open( os.path.join( workdir, "simplelist-analyze.csv" ), "wb" ) as fptr:
         writer = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
         for row in table1:
@@ -211,17 +197,17 @@ def process_config( args ):
     global_config = config_section_map( "global", config_parser )
     main_config = config_section_map( "summarize-objectinfo", config_parser )
     objectinfo_config = config_section_map( "objectinfo", config_parser )
+    worklist_config = config_section_map( "summarize-objectinfo-worklist", config_parser )
     # DON'T KNOW: contextcount_config = config_section_map( "contextcount", config_parser )
     # PROBABLY NOT:  host_config = config_section_map( "hosts", config_parser )
-    # PROBABLY NOT: worklist_config = config_section_map( "dgroups-worklist", config_parser )
     # PROBABLY NOT: summary_config = config_section_map( "summary_cpp", config_parser )
     return { "global" : global_config,
              "main" : main_config,
              "objectinfo" : objectinfo_config,
+             "worklist" : worklist_config
              # "summary" : summary_config,
              # "contextcount" : contextcount_config,
              # "host" : host_config,
-             # "worklist" : worklist_config
              }
 
 def process_host_config( host_config = {} ):
@@ -266,10 +252,10 @@ def calculate_counts( objdict = None ):
     DIEDBY = get_index( "DIEDBY" ) # died by index
     ATTR = get_index( "STATTR" ) # stack attribute index
     TYPE = get_index( "TYPE" ) # type index
-    for skind, mydict in objdict.iteritems():
+    for bmark, mydict in objdict.iteritems():
         objreader = mydict["objreader"]
-        result[skind] = {}
-        rtmp = result[skind]
+        result[bmark] = {}
+        rtmp = result[bmark]
         rtmp["stack_after_heap"] = Counter()
         rtmp["heap"] = Counter()
         rtmp["stack_only"] = Counter()
@@ -301,10 +287,11 @@ def main():
     global_config = configdict["global"]
     main_config = configdict["main"]
     objectinfo_config = configdict["objectinfo"]
+    worklist_config = process_worklist_config( configdict["worklist"] )
+    pp.pprint(worklist_config)
     # PROBABLY DELETE:
     # contextcount_config = configdict["contextcount"]
     # host_config = process_host_config( configdict["host"] )
-    # worklist_config = process_worklist_config( configdict["worklist"] )
     # Set up logging
     logger = setup_logger( filename = args.logfile,
                            debugflag = global_config["debug"] )
@@ -316,9 +303,9 @@ def main():
                          global_config = global_config,
                          main_config = main_config,
                          objectinfo_config = objectinfo_config,
+                         worklist_config = worklist_config,
                          # contextcount_config = contextcount_config,
                          # host_config = host_config,
-                         # worklist_config = worklist_config,
                          logger = logger )
 
 if __name__ == "__main__":
