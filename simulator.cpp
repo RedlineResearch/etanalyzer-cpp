@@ -239,7 +239,7 @@ unsigned int read_trace_file(FILE* f)
                     target = ((tgtId > 0) ? Heap.getObject(tgtId) : NULL);
                     // TODO last_map.setLast( threadId, LastEvent::UPDATE, obj );
                     if (target) {
-                        obj->setPointedAtByHeap();
+                        target->setPointedAtByHeap();
                     }
                     if (oldObj) {
                         if (target) {
