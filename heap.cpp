@@ -78,7 +78,7 @@ Edge* HeapState::make_edge( Object* source,
                                target, cur_time );
     m_edges.insert(new_edge);
     assert(target != NULL);
-    target->setPointedAtByHeap();
+    // TODO target->setPointedAtByHeap();
 
     if (m_edges.size() % 100000 == 0) {
         cout << "EDGES: " << m_edges.size() << endl;
@@ -250,7 +250,9 @@ void HeapState::end_of_program(unsigned int cur_time)
             obj->setReason( Reason::END_OF_PROGRAM_REASON, cur_time );
             obj->setLastEvent( LastEvent::END_OF_PROGRAM_EVENT );
         } else {
-            if (obj->getReason() == HEAP) {
+            if (obj->wasRoot()) {
+                obj->setDiedByStackFlag();
+            } else if (obj->getReason() == HEAP) {
                 // if (obj->) // TODO TODO GLOBAL type
                 obj->setDiedByHeapFlag();
             } else {
@@ -825,7 +827,7 @@ void Object::decrementRefCountReal( unsigned int cur_time,
             m_methodRCtoZero = method;
             this->g_counter++;
         }
-        if (reason == STACK) {
+        if (this->wasRoot() || (reason == STACK)) {
             this->setDiedByStackFlag();
         } else {
             this->setDiedByHeapFlag();
