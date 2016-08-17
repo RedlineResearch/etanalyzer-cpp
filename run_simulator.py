@@ -163,7 +163,8 @@ def is_minibench( bmark ):
     print "  TODO: Fix to dynamically populate is_***** benchmark functions from"
     print "        configuration files."
     print "================================================================================"
-    return bmark in [ "seq-seqdel", "seq-enddel", "rand-seqdel", "rand-enddel", "stackonly", ]
+    return bmark in [ "seq-seqdel", "seq-enddel", "rand-seqdel", "rand-enddel", "stackonly",
+                      "seq-use", "seq-dontuse", ]
 
 
 def run_subprocess( cmd = None,
