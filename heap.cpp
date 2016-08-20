@@ -144,7 +144,8 @@ void HeapState::update_death_counters( Object *obj )
         }
     } else if ( obj->getDiedByHeapFlag() ||
                 (obj->getReason() == Reason::HEAP) ||
-                (obj->getLastEvent() == LastEvent::UPDATE) ||
+                (obj->getLastEvent() == LastEvent::UPDATE_AWAY_TO_NULL) ||
+                (obj->getLastEvent() == LastEvent::UPDATE_AWAY_TO_VALID) ||
                 obj->wasPointedAtByHeap() ) {
         if (m_obj_debug_flag) {
             cout << "H> " << obj->info2();
@@ -250,14 +251,17 @@ void HeapState::end_of_program(unsigned int cur_time)
             obj->setReason( Reason::END_OF_PROGRAM_REASON, cur_time );
             obj->setLastEvent( LastEvent::END_OF_PROGRAM_EVENT );
         } else {
-            if (obj->wasRoot()) {
-                obj->setDiedByStackFlag();
-            } else if (obj->getReason() == HEAP) {
-                // if (obj->) // TODO TODO GLOBAL type
-                obj->setDiedByHeapFlag();
+            if (obj->getRefCount() == 0) {
             } else {
-                obj->setDiedByStackFlag();
             }
+            // TODO: if (obj->wasRoot()) {
+            // TODO:     obj->setDiedByStackFlag();
+            // TODO: } else if (obj->getReason() == HEAP) {
+            // TODO:     // if (obj->) // TODO TODO GLOBAL type
+            // TODO:     obj->setDiedByHeapFlag();
+            // TODO: } else {
+            // TODO:     obj->setDiedByStackFlag();
+            // TODO: }
         }
         // Do the count of heap vs stack loss here.
         this->update_death_counters(obj);
@@ -812,11 +816,14 @@ void Object::decrementRefCountReal( unsigned int cur_time,
 {
     this->decrementRefCount();
     this->m_lastMethodDecRC = method;
-    if (reason == STACK) {
-        this->setLastEvent( LastEvent::ROOT );
-    } else if (reason == HEAP) {
-        this->setLastEvent( LastEvent::UPDATE);
-    }
+    // Originally this is what happened here:
+    // if (reason == STACK) {
+    //     this->setLastEvent( LastEvent::ROOT );
+    // } else if (reason == HEAP) {
+    //     this->setLastEvent( LastEvent::UPDATE);
+    // }
+    // NOW: We simply propagate the 'last_event' as it is passed to us.
+    this->setLastEvent( last_event );
     if (this->m_refCount == 0) {
         ObjectPtrMap_t& whereis = this->m_heapptr->get_whereis();
         KeySet_t& keyset = this->m_heapptr->get_keyset();
@@ -859,7 +866,8 @@ void Object::decrementRefCountReal( unsigned int cur_time,
         keyset[my_death_root]->insert( this );
 
         // Set key type based on last event
-        if (last_event == UPDATE) {
+        if ( (last_event == LastEvent::UPDATE_AWAY_TO_NULL) ||
+             (last_event == LastEvent::UPDATE_AWAY_TO_VALID) ) {
             // This is a DAGKEY
             this->setKeyType(KeyType::DAGKEY);
         } else if (last_event == DECRC) {

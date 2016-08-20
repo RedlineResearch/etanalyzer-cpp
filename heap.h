@@ -29,8 +29,10 @@ enum Reason {
 
 enum LastEvent {
     ROOT = 1,
-    UPDATE = 2,
+    UPDATE_UNKNOWN = 2,
     DECRC = 3,
+    UPDATE_AWAY_TO_NULL = 4,
+    UPDATE_AWAY_TO_VALID = 4,
     OBJECT_DEATH = 10,
     END_OF_PROGRAM_EVENT = 11,
     UNKNOWN_EVENT = 99,
@@ -344,6 +346,8 @@ class Object
         bool m_diedByStack;
         // Did this object die because the program ended?
         bool m_diedAtEnd;
+        // Has the diedBy***** flag been set?
+        bool m_diedFlagSet;
         // Reason for death
         Reason m_reason;
         // Time that m_reason happened
@@ -424,6 +428,7 @@ class Object
             , m_diedByHeap(false)
             , m_diedByStack(false)
             , m_diedAtEnd(false)
+            , m_diedFlagSet(false)
             , m_reason(UNKNOWN_REASON)
             , m_last_action_time(0)
             , m_last_update_null(indeterminate)
@@ -472,16 +477,36 @@ class Object
             m_reason = STACK;
             m_last_action_time = t;
         }
+
+        // ==================================================
+        // The diedBy***** flags
         bool getDiedByStackFlag() const { return m_diedByStack; }
-        void setDiedByStackFlag() { m_diedByStack = true; m_reason = STACK; }
+        void setDiedByStackFlag() {
+            assert(!this->m_diedFlagSet);
+            this->m_diedByStack = true;
+            this->m_reason = STACK;
+            this->m_diedFlagSet = true;
+        }
         void unsetDiedByStackFlag() { m_diedByStack = false; }
         void setStackReason( unsigned int t ) { m_reason = STACK; m_last_action_time = t; }
         bool getDiedByHeapFlag() const { return m_diedByHeap; }
-        void setDiedByHeapFlag() { m_diedByHeap = true; m_reason = HEAP; }
+        void setDiedByHeapFlag() {
+            assert(!this->m_diedFlagSet);
+            this->m_diedByHeap = true;
+            this->m_reason = HEAP;
+            this->m_diedFlagSet = true;
+        }
         void unsetDiedByHeapFlag() { m_diedByHeap = false; }
         bool getDiedAtEndFlag() const { return m_diedAtEnd; }
-        void setDiedAtEndFlag() { m_diedAtEnd = true; m_reason = END_OF_PROGRAM_REASON; }
+        void setDiedAtEndFlag() {
+            assert(!this->m_diedFlagSet);
+            this->m_diedAtEnd = true;
+            this->m_reason = END_OF_PROGRAM_REASON;
+            this->m_diedFlagSet = true;
+        }
         void unsetDiedAtEndFlag() { m_diedAtEnd = false; }
+        bool isDiedFlagSet() { return this->m_diedFlagSet; }
+
         void setHeapReason( unsigned int t ) { m_reason = HEAP; m_last_action_time = t; }
         Reason setReason( Reason r, unsigned int t ) { m_reason = r; m_last_action_time = t; }
         Reason getReason() const { return m_reason; }

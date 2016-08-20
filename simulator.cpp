@@ -156,9 +156,9 @@ unsigned int read_trace_file(FILE* f)
     unsigned int field_id;
     unsigned int thread_id;
     unsigned int exception_id;
-    Object* obj;
-    Object* target;
-    Method* method;
+    Object *obj;
+    Object *target;
+    Method *method;
     unsigned int total_objects;
 
     // DEBUG
@@ -234,10 +234,12 @@ unsigned int read_trace_file(FILE* f)
                     unsigned int field = tokenizer.getInt(4);
                     Thread *thread = Exec.getThread(threadId);
                     Object *oldObj = Heap.getObject(oldTgtId);
+                    LastEvent lastevent = LastEvent::UPDATE_UNKNOWN;
                     Exec.IncUpdateTime();
                     obj = Heap.getObject(objId);
                     target = ((tgtId > 0) ? Heap.getObject(tgtId) : NULL);
                     // TODO last_map.setLast( threadId, LastEvent::UPDATE, obj );
+                    // Set lastEvent and heap/stack flags for new target
                     if (target) {
                         if ( obj && 
                              obj != target &&
@@ -245,11 +247,19 @@ unsigned int read_trace_file(FILE* f)
                             target->setPointedAtByHeap();
                         }
                     }
+                    // Set lastEvent and heap/stack flags for old target
                     if (oldObj) {
                         if (target) {
                             oldObj->unsetLastUpdateNull();
+                            if (oldTgtId != tgtId) {
+                                lastevent = LastEvent::UPDATE_AWAY_TO_VALID;
+                                oldObj->setLastEvent( lastevent  );
+                            }
                         } else {
                             oldObj->setLastUpdateNull();
+                            // There's no need to check for oldTgtId == tgtId here.
+                            lastevent = LastEvent::UPDATE_AWAY_TO_NULL;
+                            oldObj->setLastEvent( lastevent );
                         }
                         if (field == 0) {
                             oldObj->setLastUpdateFromStatic();
@@ -277,7 +287,7 @@ unsigned int read_trace_file(FILE* f)
                                               topMethod, // for death site info
                                               HEAP, // reason
                                               NULL, // death root 0 because may not be a root
-                                              UPDATE ); // last event to determine cause
+                                              lastevent ); // last event to determine cause
                             // NOTE: topMethod COULD be NULL here.
                         }
                         // DEBUG ONLY IF NEEDED
@@ -328,24 +338,28 @@ unsigned int read_trace_file(FILE* f)
                             if (topMethod) {
                                 obj->setDeathSite(topMethod);
                             } 
+                            Reason myreason;
                             if (thread->isLocalVariable(obj)) {
-                                // Recursively make the edges dead and assign the proper death cause
-                                for ( EdgeMap::iterator p = obj->getEdgeMapBegin();
-                                      p != obj->getEdgeMapEnd();
-                                      ++p ) {
-                                    Edge* target_edge = p->second;
-                                    if (target_edge) {
-                                        unsigned int fieldId = target_edge->getSourceField();
-                                        obj->updateField( NULL,
-                                                          fieldId,
-                                                          Exec.NowUp(),
-                                                          topMethod,
-                                                          STACK,
-                                                          obj,
-                                                          OBJECT_DEATH );
-                                        // NOTE: STACK is used because the object that died,
-                                        // died by STACK.
-                                    }
+                                myreason = STACK;
+                            } else {
+                                myreason = HEAP;
+                            }
+                            // Recursively make the edges dead and assign the proper death cause
+                            for ( EdgeMap::iterator p = obj->getEdgeMapBegin();
+                                  p != obj->getEdgeMapEnd();
+                                  ++p ) {
+                                Edge* target_edge = p->second;
+                                if (target_edge) {
+                                    unsigned int fieldId = target_edge->getSourceField();
+                                    obj->updateField( NULL,
+                                                      fieldId,
+                                                      Exec.NowUp(),
+                                                      topMethod,
+                                                      myreason,
+                                                      obj,
+                                                      OBJECT_DEATH );
+                                    // NOTE: STACK is used because the object that died,
+                                    // died by STACK.
                                 }
                             }
                         } // if (thread)
@@ -403,6 +417,7 @@ unsigned int read_trace_file(FILE* f)
                     // cout << "objId: " << objId << "     threadId: " << threadId << endl;
                     if (object) {
                         object->setRootFlag(Exec.NowUp());
+                        object->setLastEvent( LastEvent::ROOT );
                         Thread *thread = Exec.getThread(threadId);
                         if (thread) {
                             thread->objectRoot(object);

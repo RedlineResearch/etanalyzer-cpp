@@ -371,7 +371,7 @@ class ExecState
                 cptype_map[cpair] = cptype;
             }
             // TODO DEBUG ONLY TODO
-            cout << "XXX: " << this->_get_cptype_name( cptype_map[cpair] ) << endl;
+            // cout << "XXX: " << this->_get_cptype_name( cptype_map[cpair] ) << endl;
         }
         
         void DebugContextTypeMap() {
