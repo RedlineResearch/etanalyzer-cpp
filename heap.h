@@ -43,6 +43,7 @@ enum LastEvent {
     UNKNOWN_EVENT = 99,
 };
 
+string lastevent2str( LastEvent le );
 bool is_object_death( LastEvent le );
 
 enum DecRCReason {
@@ -491,7 +492,13 @@ class Object
         // The diedBy***** flags
         bool getDiedByStackFlag() const { return m_diedByStack; }
         void setDiedByStackFlag() {
-            assert(!this->m_diedFlagSet);
+            if (!this->m_diedFlagSet) {
+                // Check to see if different
+                if (this->m_diedByHeap) {
+                    cerr << "Object[" << this->m_id << "]"
+                         << " was originally died by heap. Overriding." << endl;
+                }
+            }
             this->m_diedByStack = true;
             this->m_reason = STACK;
             this->m_diedFlagSet = true;
@@ -500,7 +507,13 @@ class Object
         void setStackReason( unsigned int t ) { m_reason = STACK; m_last_action_time = t; }
         bool getDiedByHeapFlag() const { return m_diedByHeap; }
         void setDiedByHeapFlag() {
-            assert(!this->m_diedFlagSet);
+            if (!this->m_diedFlagSet) {
+                // Check to see if different
+                if (this->m_diedByStack) {
+                    cerr << "Object[" << this->m_id << "]"
+                         << " was originally died by stack. Overriding." << endl;
+                }
+            }
             this->m_diedByHeap = true;
             this->m_reason = HEAP;
             this->m_diedFlagSet = true;
@@ -508,7 +521,12 @@ class Object
         void unsetDiedByHeapFlag() { m_diedByHeap = false; }
         bool getDiedAtEndFlag() const { return m_diedAtEnd; }
         void setDiedAtEndFlag() {
-            assert(!this->m_diedFlagSet);
+            if (!this->m_diedFlagSet) {
+                // Check to see if different
+                cerr << "Object[" << this->m_id << "]"
+                     << " was has died by flag set. NOT Overriding." << endl;
+                return;
+            }
             this->m_diedAtEnd = true;
             this->m_reason = END_OF_PROGRAM_REASON;
             this->m_diedFlagSet = true;

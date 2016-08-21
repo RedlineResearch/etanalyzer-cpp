@@ -352,13 +352,26 @@ unsigned int read_trace_file(FILE* f)
                                 Edge* target_edge = p->second;
                                 if (target_edge) {
                                     unsigned int fieldId = target_edge->getSourceField();
+                                    LastEvent newevent;
+                                    if ( (lastevent == UPDATE_AWAY_TO_NULL) ||
+                                         (lastevent == UPDATE_AWAY_TO_VALID) ||
+                                         (lastevent == UPDATE_UNKNOWN) ) {
+                                        newevent = OBJECT_DEATH_AFTER_UPDATE;
+                                    } else if (lastevent == ROOT) {
+                                        newevent = OBJECT_DEATH_AFTER_ROOT;
+                                    } else if ( (lastevent == OBJECT_DEATH_AFTER_ROOT_DECRC) ||
+                                                (lastevent == OBJECT_DEATH_AFTER_UPDATE_DECRC) ) {
+                                        newevent = lastevent;
+                                    } else {
+                                        cerr << "Unhandled event: " << lastevent2str(lastevent) << endl;
+                                    }
                                     obj->updateField( NULL,
                                                       fieldId,
                                                       Exec.NowUp(),
                                                       topMethod,
                                                       myreason,
                                                       obj,
-                                                      OBJECT_DEATH_AFTER_UPDATE  );
+                                                      newevent );
                                     // NOTE: STACK is used because the object that died,
                                     // died by STACK.
                                 }

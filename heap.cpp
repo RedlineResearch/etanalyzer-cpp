@@ -21,6 +21,39 @@ string keytype2str( KeyType ktype )
     assert(0); // Shouldn't make it here.
 }
 
+string lastevent2str( LastEvent le )
+{
+    if (le == NEWOBJECT) {
+        return "NEWOBJECT";
+    } else if (le == ROOT) {
+        return "ROOT";
+    } else if (le == DECRC) {
+        return "DECRC";
+    } else if (le == UPDATE_UNKNOWN) {
+        return "UPDATE_UNKNOWN";
+    } else if (le == UPDATE_AWAY_TO_NULL) {
+        return "UPDATE_AWAY_TO_NULL";
+    } else if (le == UPDATE_AWAY_TO_VALID) {
+        return "UPDATE_AWAY_TO_VALID";
+    } else if (le == OBJECT_DEATH_AFTER_ROOT) {
+        return "OBJECT_DEATH_AFTER_ROOT";
+    } else if (le == OBJECT_DEATH_AFTER_UPDATE) {
+        return "OBJECT_DEATH_AFTER_UPDATE";
+    } else if (le == OBJECT_DEATH_AFTER_ROOT_DECRC) {
+        return "OBJECT_DEATH_AFTER_ROOT_DECRC";
+    } else if (le == OBJECT_DEATH_AFTER_UPDATE_DECRC) {
+        return "OBJECT_DEATH_AFTER_UPDATE_DECRC";
+    } else if (le == OBJECT_DEATH_AFTER_UNKNOWN) {
+        return "OBJECT_DEATH_AFTER_UNKNOWN";
+    } else if (le == END_OF_PROGRAM_EVENT) {
+        return "END_OF_PROGRAM_EVENT";
+    } else if (le == UNKNOWN_EVENT) {
+        return "UNKNOWN_EVENT";
+    }
+    assert(0); // Shouldn't make it here.
+}
+
+
 bool is_object_death( LastEvent le )
 {
     return ( (le == OBJECT_DEATH_AFTER_ROOT) || 
@@ -821,7 +854,7 @@ void Object::decrementRefCountReal( unsigned int cur_time,
                                     Method *method,
                                     Reason reason,
                                     Object *death_root,
-                                    LastEvent last_event )
+                                    LastEvent lastevent )
 {
     this->decrementRefCount();
     this->m_lastMethodDecRC = method;
@@ -833,7 +866,7 @@ void Object::decrementRefCountReal( unsigned int cur_time,
     // }
     // NOW: Our reason is clearly because of the DECRC.
     // TODO TODO TODO TODO TODO TODO
-    this->setLastEvent( last_event );
+    this->setLastEvent( lastevent );
     if (this->m_refCount == 0) {
         ObjectPtrMap_t& whereis = this->m_heapptr->get_whereis();
         KeySet_t& keyset = this->m_heapptr->get_keyset();
@@ -875,18 +908,28 @@ void Object::decrementRefCountReal( unsigned int cur_time,
         }
         keyset[my_death_root]->insert( this );
 
+        LastEvent newevent;
         // Set key type based on last event
-        if ( (last_event == LastEvent::UPDATE_AWAY_TO_NULL) ||
-             (last_event == LastEvent::UPDATE_AWAY_TO_VALID) ) {
+        if ( (lastevent == LastEvent::UPDATE_AWAY_TO_NULL) ||
+             (lastevent == LastEvent::UPDATE_AWAY_TO_VALID) ||
+             (lastevent == LastEvent::UPDATE_UNKNOWN) ||
+             (lastevent == LastEvent::ROOT) ) {
             // This is a DAGKEY
             this->setKeyType(KeyType::DAGKEY);
-        } else if ( (last_event == LastEvent::DECRC) ||
-                    is_object_death(last_event) ) {
-            // This is a DAGKEY
+            newevent = ((lastevent == LastEvent::ROOT) ? OBJECT_DEATH_AFTER_ROOT_DECRC
+                                                       : OBJECT_DEATH_AFTER_UPDATE_DECRC);
+        } else if ( (lastevent == LastEvent::DECRC) ||
+                    is_object_death(lastevent) ||
+                    (lastevent == LastEvent::END_OF_PROGRAM_EVENT) ||
+                    (lastevent == LastEvent::UNKNOWN_EVENT) ) {
+            // This is a DAG
             this->setKeyType(KeyType::DAG);
+            newevent = lastevent;
         } else {
             // This isn't possible.
-            assert(0);
+            cerr << "DEBUG: DECRC ERROR. Continuing." << endl;
+            this->setKeyType(KeyType::DAG);
+            newevent = lastevent;
         }
         // Edges are now dead.
         for ( EdgeMap::iterator p = this->m_fields.begin();
@@ -901,7 +944,7 @@ void Object::decrementRefCountReal( unsigned int cur_time,
                                    method,
                                    reason,
                                    this->getDeathRoot(),
-                                   DECRC );
+                                   newevent );
             }
         }
         // DEBUG
