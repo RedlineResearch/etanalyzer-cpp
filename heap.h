@@ -28,15 +28,22 @@ enum Reason {
 };
 
 enum LastEvent {
-    ROOT = 1,
-    UPDATE_UNKNOWN = 2,
-    DECRC = 3,
-    UPDATE_AWAY_TO_NULL = 4,
-    UPDATE_AWAY_TO_VALID = 4,
-    OBJECT_DEATH = 10,
-    END_OF_PROGRAM_EVENT = 11,
+    NEWOBJECT = 1,
+    ROOT = 2,
+    DECRC = 6,
+    UPDATE_UNKNOWN = 89,
+    UPDATE_AWAY_TO_NULL = 7,
+    UPDATE_AWAY_TO_VALID = 8,
+    OBJECT_DEATH_AFTER_ROOT = 9,
+    OBJECT_DEATH_AFTER_UPDATE = 10,
+    OBJECT_DEATH_AFTER_ROOT_DECRC = 11, // from OBJECT_DEATH_AFTER_ROOT
+    OBJECT_DEATH_AFTER_UPDATE_DECRC = 12, // from OBJECT_DEATH_AFTER_UPDATE
+    OBJECT_DEATH_AFTER_UNKNOWN = 13,
+    END_OF_PROGRAM_EVENT = 21,
     UNKNOWN_EVENT = 99,
 };
+
+bool is_object_death( LastEvent le );
 
 enum DecRCReason {
     UPDATE_DEC = 2,
@@ -52,6 +59,8 @@ enum class KeyType {
     CYCLEKEY = 4,
     UNKNOWN_KEYTYPE = 99,
 };
+
+string keytype2str( KeyType ktype );
 
 enum class CPairType {
     CP_Call = 1,
@@ -549,6 +558,17 @@ class Object
         Object * getDeathRoot() const { return this->m_death_root; }
         // Set and get key type 
         void setKeyType( KeyType newtype ) { this->m_key_type = newtype; }
+        void setKeyTypeIfNotKnown( KeyType newtype ) {
+            if (this->m_key_type == KeyType::UNKNOWN_KEYTYPE) {
+                this->m_key_type = newtype;
+            } else {
+                // TODO: Log some debugging.
+                cerr << "Object[ " << this->m_id
+                     << "] keytype prev[ " << keytype2str(this->m_key_type)
+                     << "] new [ " << keytype2str(newtype) << "]"
+                     << endl;
+            }
+        }
         KeyType getKeyType() const { return this->m_key_type; }
 
         // Get Allocation context pair. Note that if <NULL, NULL> then none yet assigned.
@@ -667,6 +687,5 @@ class Edge
         void setEndTime(unsigned int end) { m_endTime = end; }
 };
 
-string keytype2str( KeyType ktype );
 
 #endif

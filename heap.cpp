@@ -21,6 +21,15 @@ string keytype2str( KeyType ktype )
     assert(0); // Shouldn't make it here.
 }
 
+bool is_object_death( LastEvent le )
+{
+    return ( (le == OBJECT_DEATH_AFTER_ROOT) || 
+             (le == OBJECT_DEATH_AFTER_UPDATE) ||
+             (le == OBJECT_DEATH_AFTER_ROOT_DECRC) ||
+             (le == OBJECT_DEATH_AFTER_UPDATE_DECRC) ||
+             (le == OBJECT_DEATH_AFTER_UNKNOWN) );
+}
+
 // =================================================================
 
 Object* HeapState::allocate( unsigned int id,
@@ -462,11 +471,11 @@ void HeapState::scan_queue2( EdgeList& edgelist,
                 if (keysetit == keyset.end()) {
                     keyset[root] = new std::set< Object * >();
                 }
-                root->setKeyType( KeyType::CYCLEKEY ); // Note: root == object
+                root->setKeyTypeIfNotKnown( KeyType::CYCLEKEY ); // Note: root == object
             } else {
                 // So-called root isn't one because we have an entry in 'whereis'
                 // and root != whereis[object]
-                object->setKeyType( KeyType::CYCLE ); // object is a CYCLE object
+                object->setKeyTypeIfNotKnown( KeyType::CYCLE ); // object is a CYCLE object
                 root = whereis[object]; // My real root.
                 auto obj_it = keyset.find(object);
                 if (obj_it != keyset.end()) {
@@ -822,7 +831,8 @@ void Object::decrementRefCountReal( unsigned int cur_time,
     // } else if (reason == HEAP) {
     //     this->setLastEvent( LastEvent::UPDATE);
     // }
-    // NOW: We simply propagate the 'last_event' as it is passed to us.
+    // NOW: Our reason is clearly because of the DECRC.
+    // TODO TODO TODO TODO TODO TODO
     this->setLastEvent( last_event );
     if (this->m_refCount == 0) {
         ObjectPtrMap_t& whereis = this->m_heapptr->get_whereis();
@@ -870,11 +880,10 @@ void Object::decrementRefCountReal( unsigned int cur_time,
              (last_event == LastEvent::UPDATE_AWAY_TO_VALID) ) {
             // This is a DAGKEY
             this->setKeyType(KeyType::DAGKEY);
-        } else if (last_event == DECRC) {
+        } else if ( (last_event == LastEvent::DECRC) ||
+                    is_object_death(last_event) ) {
             // This is a DAGKEY
             this->setKeyType(KeyType::DAG);
-        } else if (last_event == OBJECT_DEATH) {
-            this->setKeyType(KeyType::DAGKEY);
         } else {
             // This isn't possible.
             assert(0);

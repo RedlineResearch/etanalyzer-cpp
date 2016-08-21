@@ -308,6 +308,7 @@ unsigned int read_trace_file(FILE* f)
                     obj = Heap.getObject(objId);
                     if (obj) {
                         unsigned int threadId = tokenizer.getInt(2);
+                        LastEvent lastevent = obj->getLastEvent();
                         Heap.makeDead(obj, Exec.NowUp());
                         // Get the current method
                         Method *topMethod = NULL;
@@ -357,7 +358,7 @@ unsigned int read_trace_file(FILE* f)
                                                       topMethod,
                                                       myreason,
                                                       obj,
-                                                      OBJECT_DEATH );
+                                                      OBJECT_DEATH_AFTER_UPDATE  );
                                     // NOTE: STACK is used because the object that died,
                                     // died by STACK.
                                 }
