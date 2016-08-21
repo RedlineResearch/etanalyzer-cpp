@@ -267,8 +267,8 @@ def main_process( output = None,
         # -----------------------------------------------------------------------
         # Then spawn using multiprocessing
         if is_specjvm(bmark):
-            tracefile = specdir + bmark_config[bmark] 
-            namesfile = specdir + names_config[bmark]
+            tracefile = specjvm_dir + bmark_config[bmark] 
+            namesfile = specjvm_dir + names_config[bmark]
         elif is_dacapo(bmark):
             tracefile = dacapo_dir + bmark_config[bmark]
             namesfile = dacapo_dir + names_config[bmark]
