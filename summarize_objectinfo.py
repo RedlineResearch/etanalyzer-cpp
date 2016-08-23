@@ -55,24 +55,6 @@ def setup_logger( targetdir = ".",
 #
 # Main processing
 #
-
-def skip_benchmark(bmark):
-    return ( bmark == "tradebeans" or # Permanent ignore
-             bmark == "tradesoap" or # Permanent ignore
-             bmark != "xalan"
-             # bmark == "lusearch" or
-             # ( bmark != "batik" and
-             #   bmark != "lusearch" and
-             #   bmark != "luindex" and
-             #   bmark != "specjbb" and
-             #   bmark != "avrora" and
-             #   bmark != "tomcat" and
-             #   bmark != "pmd" and
-             #   bmark != "fop"
-             # )
-           )
-
-
 def is_array( mytype ):
     return (len(mytype) > 0) and (mytype[0] == "[")
 
@@ -167,7 +149,7 @@ def main_process( output = None,
         for dtype, mycounter in mydict.iteritems():
             print "    -----[ %s ]----------------------------------------------------" % dtype
             pp.pprint( dict(mycounter) )
-    exit(100)
+    exit(0)
     # TODO TODO TODO
     # Is more needed afer this?
     # TODO TODO TODO
@@ -253,12 +235,15 @@ def calculate_counts( objdict = None ):
     ATTR = get_index( "STATTR" ) # stack attribute index
     TYPE = get_index( "TYPE" ) # type index
     for bmark, mydict in objdict.iteritems():
+        print "XXX:", bmark, mydict
         objreader = mydict["objreader"]
         result[bmark] = {}
         rtmp = result[bmark]
         rtmp["stack_after_heap"] = Counter()
         rtmp["heap"] = Counter()
         rtmp["stack_only"] = Counter()
+        rtmp["end_of_prog"] = Counter()
+        rtmp["others"] = Counter()
         # TODO rtmp["stack_all"] = Counter()
         for tup in objreader.iterrecs():
             # TODO: Refactor this
@@ -274,6 +259,10 @@ def calculate_counts( objdict = None ):
                     rtmp["stack_only"][mytype] += 1
             elif reason == "H":
                 rtmp["heap"][mytype] += 1
+            elif reason == "E":
+                rtmp["end_of_prog"][mytype] += 1
+            else:
+                rtmp["others"][mytype] += 1
     print "DONE: calculate_counts"
     return result
 

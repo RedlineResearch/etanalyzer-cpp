@@ -164,7 +164,7 @@ def is_minibench( bmark ):
     print "        configuration files."
     print "================================================================================"
     return bmark in [ "seq-seqdel", "seq-enddel", "rand-seqdel", "rand-enddel", "stackonly",
-                      "seq-use", "seq-dontuse", ]
+                      "seq-use", "seq-dontuse", "static-use", "static-dontuse", ]
 
 
 def run_subprocess( cmd = None,
