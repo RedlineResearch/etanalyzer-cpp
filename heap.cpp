@@ -292,10 +292,6 @@ void HeapState::end_of_program(unsigned int cur_time)
           i != m_objects.end();
           ++i ) {
         Object* obj = i->second;
-        if (obj->getId() == 12012) {
-            cerr << "XXX[12012]: dtime = " << obj->getDeathTime()
-                 << "|| cur_time = " << cur_time << " ---- ";
-        }
         if (obj->isLive(cur_time)) {
             cerr << "ALIVE" << endl;
             // Go ahead and ignore the call to HeapState::makeDead
@@ -311,9 +307,6 @@ void HeapState::end_of_program(unsigned int cur_time)
             obj->setReason( Reason::END_OF_PROGRAM_REASON, cur_time );
             obj->setLastEvent( LastEvent::END_OF_PROGRAM_EVENT );
         } else {
-            if (obj->getId() == 12012) {
-                cerr << "DEAD" << endl;
-            }
             if (obj->getRefCount() == 0) {
             } else {
             }
