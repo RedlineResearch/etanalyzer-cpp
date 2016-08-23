@@ -153,8 +153,13 @@ void HeapState::update_death_counters( Object *obj )
     // VERSION 1
     // TODO: This could use some refactoring.
     //
+    // TODO TODO TODO DEBUG
+    // TODO TODO TODO DEBUG
+    // TODO TODO TODO DEBUG
+    // TODO TODO TODO END DEBUG
     // Check for end of program kind first.
-    if ( obj->getReason() ==  Reason::END_OF_PROGRAM_REASON ) {
+    if ( (obj->getReason() ==  Reason::END_OF_PROGRAM_REASON) ||
+         obj->getDiedAtEndFlag() ) {
         this->m_totalDiedAtEnd++;
         this->m_sizeDiedAtEnd += obj_size;
     } else if ( obj->getDiedByStackFlag() ||
@@ -188,11 +193,14 @@ void HeapState::update_death_counters( Object *obj )
                 (obj->getReason() == Reason::HEAP) ||
                 (obj->getLastEvent() == LastEvent::UPDATE_AWAY_TO_NULL) ||
                 (obj->getLastEvent() == LastEvent::UPDATE_AWAY_TO_VALID) ||
-                obj->wasPointedAtByHeap() ) {
+                obj->wasPointedAtByHeap() ||
+                obj->getDiedByGlobalFlag() ) {
+        // TODO: If we decide that Died By GLOBAL is a separate category from
+        //       died by HEAP, we will need to change the code in this block.
+        //       - RLV 2016-0803
         if (m_obj_debug_flag) {
             cout << "H> " << obj->info2();
         }
-        // Check to see if the last update was from global
         this->m_totalDiedByHeap_ver2++;
         this->m_sizeDiedByHeap += obj_size;
         obj->setDiedByHeapFlag();
@@ -206,6 +214,11 @@ void HeapState::update_death_counters( Object *obj )
             if (m_obj_debug_flag) {
                 cout << " VA>" << endl;
             }
+        }
+        // Check to see if the last update was from global
+        if (obj->getDiedByGlobalFlag()) {
+            this->m_totalDiedByGlobal++;
+            this->m_sizeDiedByGlobal += obj_size;
         }
     } else {
         // cout << "X: ObjectID [" << obj->getId() << "][" << obj->getType()
@@ -279,7 +292,12 @@ void HeapState::end_of_program(unsigned int cur_time)
           i != m_objects.end();
           ++i ) {
         Object* obj = i->second;
+        if (obj->getId() == 12012) {
+            cerr << "XXX[12012]: dtime = " << obj->getDeathTime()
+                 << "|| cur_time = " << cur_time << " ---- ";
+        }
         if (obj->isLive(cur_time)) {
+            cerr << "ALIVE" << endl;
             // Go ahead and ignore the call to HeapState::makeDead
             // as we won't need to update maxLiveSize here anymore.
             if (!obj->isDead()) {
@@ -293,6 +311,9 @@ void HeapState::end_of_program(unsigned int cur_time)
             obj->setReason( Reason::END_OF_PROGRAM_REASON, cur_time );
             obj->setLastEvent( LastEvent::END_OF_PROGRAM_EVENT );
         } else {
+            if (obj->getId() == 12012) {
+                cerr << "DEAD" << endl;
+            }
             if (obj->getRefCount() == 0) {
             } else {
             }

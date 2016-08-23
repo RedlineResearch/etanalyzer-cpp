@@ -246,6 +246,10 @@ unsigned int read_trace_file(FILE* f)
                              !(obj->wasRoot()) ) {
                             target->setPointedAtByHeap();
                         }
+                        // TODO: Maybe LastUpdateFromStatic isn't the most descriptive
+                        // So since target has an incoming edge, LastUpdateFromStatic
+                        //    should be FALSE.
+                        target->unsetLastUpdateFromStatic();
                     }
                     // Set lastEvent and heap/stack flags for old target
                     if (oldObj) {
@@ -309,6 +313,23 @@ unsigned int read_trace_file(FILE* f)
                     if (obj) {
                         unsigned int threadId = tokenizer.getInt(2);
                         LastEvent lastevent = obj->getLastEvent();
+                        // Set the died by flags
+                        if ( (lastevent == UPDATE_AWAY_TO_NULL) ||
+                             (lastevent == UPDATE_AWAY_TO_VALID) ||
+                             (lastevent == UPDATE_UNKNOWN) ) {
+                            if (obj->wasLastUpdateFromStatic()) {
+                                obj->setDiedByGlobalFlag();
+                            }
+                            // Design decision: all died by globals are
+                            // also died by heap.
+                            obj->setDiedByHeapFlag();
+                        } else if ( (lastevent == ROOT) ||
+                                    (lastevent == OBJECT_DEATH_AFTER_ROOT_DECRC) ||
+                                    (lastevent == OBJECT_DEATH_AFTER_UPDATE_DECRC) ) {
+                            obj->setDiedByStackFlag();
+                        } else {
+                            cerr << "Unhandled event: " << lastevent2str(lastevent) << endl;
+                        }
                         Heap.makeDead(obj, Exec.NowUp());
                         // Get the current method
                         Method *topMethod = NULL;
@@ -352,26 +373,13 @@ unsigned int read_trace_file(FILE* f)
                                 Edge* target_edge = p->second;
                                 if (target_edge) {
                                     unsigned int fieldId = target_edge->getSourceField();
-                                    LastEvent newevent;
-                                    if ( (lastevent == UPDATE_AWAY_TO_NULL) ||
-                                         (lastevent == UPDATE_AWAY_TO_VALID) ||
-                                         (lastevent == UPDATE_UNKNOWN) ) {
-                                        newevent = OBJECT_DEATH_AFTER_UPDATE;
-                                    } else if (lastevent == ROOT) {
-                                        newevent = OBJECT_DEATH_AFTER_ROOT;
-                                    } else if ( (lastevent == OBJECT_DEATH_AFTER_ROOT_DECRC) ||
-                                                (lastevent == OBJECT_DEATH_AFTER_UPDATE_DECRC) ) {
-                                        newevent = lastevent;
-                                    } else {
-                                        cerr << "Unhandled event: " << lastevent2str(lastevent) << endl;
-                                    }
                                     obj->updateField( NULL,
                                                       fieldId,
                                                       Exec.NowUp(),
                                                       topMethod,
                                                       myreason,
                                                       obj,
-                                                      newevent );
+                                                      lastevent );
                                     // NOTE: STACK is used because the object that died,
                                     // died by STACK.
                                 }
@@ -952,7 +960,7 @@ int main(int argc, char* argv[])
     cout << "Total objects: " << total_objects << endl;
     cout << "Heap.size:     " << Heap.size() << endl;
     // assert( total_objects == Heap.size() );
-    Heap.end_of_program(Exec.NowUp());
+    Heap.end_of_program(Exec.NowUp() + 1);
 
     if (cycle_flag) {
         std::deque< pair<int,int> > edgelist; // TODO Do we need the edgelist?
@@ -1066,7 +1074,7 @@ int main(int argc, char* argv[])
                  << "number_of_edges," << Heap.numberEdges() << endl
                  << "died_by_stack," << Heap.getTotalDiedByStack2() << endl
                  << "died_by_heap," << Heap.getTotalDiedByHeap2() << endl
-                 << "died_by_global," << Heap.getTotalDiedByHeap2() << endl
+                 << "died_by_global," << Heap.getTotalDiedByGlobal() << endl
                  << "died_at_end," << Heap.getTotalDiedAtEnd() << endl
                  << "last_update_null," << Heap.getTotalLastUpdateNull() << endl
                  << "last_update_null_heap," << Heap.getTotalLastUpdateNullHeap() << endl

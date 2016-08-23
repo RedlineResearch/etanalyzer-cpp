@@ -23,6 +23,7 @@ class Edge;
 enum Reason {
     STACK = 1,
     HEAP = 2,
+    GLOBAL = 3,
     END_OF_PROGRAM_REASON = 8,
     UNKNOWN_REASON = 99,
 };
@@ -154,6 +155,8 @@ class HeapState
         unsigned int m_totalDiedUnknown_ver2;
         // Size of objects that died by loss of heap reference
         unsigned int m_sizeDiedByHeap;
+        // Size of objects that died by loss of global heap reference
+        unsigned int m_sizeDiedByGlobal;
         // Size of objects that died by stack frame going out of scope
         unsigned int m_sizeDiedByStack;
         // Size of objects that live till the end of the program
@@ -218,6 +221,7 @@ class HeapState
             , m_totalDiedByGlobal(0)
             , m_totalDiedAtEnd(0)
             , m_sizeDiedByHeap(0)
+            , m_sizeDiedByGlobal(0)
             , m_sizeDiedByStack(0)
             , m_sizeDiedAtEnd(0)
             , m_totalDiedUnknown_ver2(0)
@@ -356,6 +360,8 @@ class Object
         bool m_diedByStack;
         // Did this object die because the program ended?
         bool m_diedAtEnd;
+        // Did this object die because of an update away from a global/static variable?
+        bool m_diedByGlobal;
         // Has the diedBy***** flag been set?
         bool m_diedFlagSet;
         // Reason for death
@@ -438,6 +444,7 @@ class Object
             , m_diedByHeap(false)
             , m_diedByStack(false)
             , m_diedAtEnd(false)
+            , m_diedByGlobal(false)
             , m_diedFlagSet(false)
             , m_reason(UNKNOWN_REASON)
             , m_last_action_time(0)
@@ -490,24 +497,27 @@ class Object
 
         // ==================================================
         // The diedBy***** flags
+        // - died by STACK
         bool getDiedByStackFlag() const { return m_diedByStack; }
         void setDiedByStackFlag() {
-            if (!this->m_diedFlagSet) {
+            if (this->m_diedFlagSet) {
                 // Check to see if different
-                if (this->m_diedByHeap) {
+                if ( this->m_diedByHeap || this->m_diedByGlobal) {
                     cerr << "Object[" << this->m_id << "]"
                          << " was originally died by heap. Overriding." << endl;
                 }
             }
             this->m_diedByStack = true;
-            this->m_reason = STACK;
+            this->m_reason = Reason::STACK;
             this->m_diedFlagSet = true;
         }
         void unsetDiedByStackFlag() { m_diedByStack = false; }
         void setStackReason( unsigned int t ) { m_reason = STACK; m_last_action_time = t; }
+        // -----------------------------------------------------------------
+        // - died by HEAP 
         bool getDiedByHeapFlag() const { return m_diedByHeap; }
         void setDiedByHeapFlag() {
-            if (!this->m_diedFlagSet) {
+            if (this->m_diedFlagSet) {
                 // Check to see if different
                 if (this->m_diedByStack) {
                     cerr << "Object[" << this->m_id << "]"
@@ -515,24 +525,55 @@ class Object
                 }
             }
             this->m_diedByHeap = true;
-            this->m_reason = HEAP;
+            this->m_reason = Reason::HEAP;
             this->m_diedFlagSet = true;
         }
         void unsetDiedByHeapFlag() { m_diedByHeap = false; }
+        // -----------------------------------------------------------------
+        // - died by GLOBAL
+        bool getDiedByGlobalFlag() const { return m_diedByGlobal; }
+        void setDiedByGlobalFlag() {
+            if (this->m_diedFlagSet) {
+                // Check to see if different
+                if ( this->m_diedByHeap ) {
+                    cerr << "Object[" << this->m_id << "]"
+                         << " was originally died by heap but trying to set diedByGlobal. Overriding."
+                         << endl;
+                } else if (this->m_diedByStack) {
+                    cerr << "Object[" << this->m_id << "]"
+                         << " was originally died by stack but setting to by GLOBAL. Overriding."
+                         << endl;
+                }
+            }
+            this->m_diedByGlobal = true;
+            this->m_reason = Reason::GLOBAL;
+            this->m_diedFlagSet = true;
+        }
+        void unsetDiedByGlobalFlag() { m_diedByGlobal = false; }
+        // -----------------------------------------------------------------
+        // - died at END
         bool getDiedAtEndFlag() const { return m_diedAtEnd; }
         void setDiedAtEndFlag() {
-            if (!this->m_diedFlagSet) {
-                // Check to see if different
+            if (this->m_diedFlagSet) {
                 cerr << "Object[" << this->m_id << "]"
-                     << " was has died by flag set. NOT Overriding." << endl;
+                     << " was has died by " << this->flagName()
+                     <<  "flag set. NOT overriding." << endl;
                 return;
             }
             this->m_diedAtEnd = true;
-            this->m_reason = END_OF_PROGRAM_REASON;
+            this->m_reason = Reason::END_OF_PROGRAM_REASON;
             this->m_diedFlagSet = true;
         }
         void unsetDiedAtEndFlag() { m_diedAtEnd = false; }
         bool isDiedFlagSet() { return this->m_diedFlagSet; }
+        // -----------------------------------------------------------------
+        string flagName() {
+            return ( this->getDiedByHeapFlag() ? "HEAP" : 
+                     ( this->getDiedByStackFlag() ? "STACK" :
+                       ( this->getDiedAtEndFlag() ? "END" :
+                         "OTHER" ) ) );
+        }
+        // -----------------------------------------------------------------
 
         void setHeapReason( unsigned int t ) { m_reason = HEAP; m_last_action_time = t; }
         Reason setReason( Reason r, unsigned int t ) { m_reason = r; m_last_action_time = t; }
@@ -644,7 +685,9 @@ class Object
         // -- Get a string representation for a dead object
         string info2();
         // -- Check live
-        bool isLive(unsigned int tm) const { return (tm < m_deathTime); }
+        bool isLive(unsigned int tm) const {
+            return (this->m_deathTime >= tm);
+        }
         // -- Update a field
         void updateField( Edge* edge,
                           FieldId_t fieldId,

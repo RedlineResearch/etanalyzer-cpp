@@ -301,10 +301,10 @@ class ExecState
         }
 
         // -- Get the current time
-        unsigned int MethNow() const { return m_meth_time; }
+        unsigned int MethNow() const { return this->m_meth_time; }
 
         // -- Get the current update time
-        unsigned int NowUp() const { return m_uptime + m_meth_time; }
+        unsigned int NowUp() const { return this->m_uptime + this->m_meth_time; }
 
         // -- Get the current allocation time
         unsigned int NowAlloc() const { return m_alloc_time; }
@@ -319,6 +319,11 @@ class ExecState
         // -- Increment the current update time
         inline unsigned int IncUpdateTime() {
             return this->m_uptime++;
+        }
+
+        // -- Increment the current update time
+        inline unsigned int IncMethodTime() {
+            return this->m_meth_time++;
         }
 
         // -- Look up or create a thread

@@ -355,7 +355,7 @@ Thread* ExecState::getThread(unsigned int threadid)
 // -- Call method m in thread t
 void ExecState::Call(Method* m, unsigned int threadid)
 {
-    m_meth_time++;
+    this->m_meth_time++;
     Thread *t = getThread(threadid);
     if (t) {
         t->Call(m);
@@ -366,7 +366,7 @@ void ExecState::Call(Method* m, unsigned int threadid)
 // -- Return from method m in thread t
 void ExecState::Return(Method* m, unsigned int threadid)
 {
-    m_meth_time++;
+    this->m_meth_time++;
     if (this->m_thread_stack.size() > 0) {
         this->m_thread_stack.pop_back();
     }
