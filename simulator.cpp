@@ -861,7 +861,7 @@ void output_referece_summary( string &reference_summary_filename,
                               Object2RefMap_t my_obj2ref )
 {
     ofstream ref_summary_file(reference_summary_filename);
-    ofstream reverse_summary_file(reference_summary_filename);
+    ofstream reverse_summary_file(ref_reverse_summary_filename);
     for ( auto it = my_refsum.begin();
           it != my_refsum.end();
           ++it ) {
