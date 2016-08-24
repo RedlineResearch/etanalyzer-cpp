@@ -29,6 +29,16 @@ typedef std::map< string, std::vector< Summary * > > GroupSum_t;
 typedef std::map< string, Summary * > TypeTotalSum_t;
 typedef std::map< unsigned int, Summary * > SizeSum_t;
 
+// A reference is an object and it's specific field.
+// Global references have a NULL object pointer.
+typedef std::pair< Object *, FieldId_t > Reference_t; 
+// We then map References to a vector/list of Object pointers.
+// For every reference, we keep a list of all the objects (pointers)
+// it has ever pointed to.
+typedef std::map< Reference_t, std::vector< Object * > > RefSummary_t;
+// We need a reverse map from object pointer to the references that ever
+// pointed to that object.
+typedef std::map< Object *, std::vector< Reference_t > > Object2RefMap_t;
 // ----------------------------------------------------------------------
 //   Globals
 
@@ -64,6 +74,11 @@ set<unsigned int> root_set;
 map<unsigned int, unsigned int> deathrc_map;
 map<unsigned int, bool> not_candidate_map;
 
+RefSummary_t ref_summary;
+Object2RefMap_t obj2ref_map;
+
+
+// ----------------------------------------------------------------------
 void sanity_check()
 {
 /*
@@ -140,6 +155,27 @@ unsigned int count_live( ObjectSet & objects, unsigned int at_time )
     }
 
     return count;
+}
+
+void update_reference_summaries( Object *src,
+                                 FieldId_t fieldId,
+                                 Object *tgt )
+{
+    // ref_summary : RefSummary_t is a global
+    // obj2ref_map : Object2RefMap_t is a global
+    Reference_t ref = std::make_pair( src, fieldId );
+    // The reference 'ref' points to the new target
+    auto iter = ref_summary.find(ref);
+    if (iter == ref_summary.end()) {
+        ref_summary[ref] = std::vector< Object * >();
+    }
+    ref_summary[ref].push_back(tgt);
+    // Do the reverse mapping
+    auto rev = obj2ref_map.find(tgt);
+    if (rev == obj2ref_map.end()) {
+        obj2ref_map[tgt] = std::vector< Reference_t >();
+    }
+    obj2ref_map[tgt].push_back(ref);
 }
 
 
@@ -250,6 +286,9 @@ unsigned int read_trace_file(FILE* f)
                         // So since target has an incoming edge, LastUpdateFromStatic
                         //    should be FALSE.
                         target->unsetLastUpdateFromStatic();
+                        // NOTE that we don't need to check for non-NULL source object 'obj'
+                        // here. NULL means that it's a global/static reference.
+                        update_reference_summaries( obj, field, target );
                     }
                     // Set lastEvent and heap/stack flags for old target
                     if (oldObj) {
@@ -816,6 +855,32 @@ void output_context_summary( string &context_death_count_filename,
     context_death_count_file.close();
 }
 
+void output_referece_summary( string &reference_summary_filename,
+                              RefSummary_t my_refsum,
+                              Object2RefMap_t my_obj2ref )
+{
+    ofstream ref_summary_file(reference_summary_filename);
+    for ( auto it = my_refsum.begin();
+          it != my_refsum.end();
+          ++it ) {
+        Reference_t ref = it->first;
+        Object *obj = std::get<0>(ref); 
+        FieldId_t fieldId = std::get<1>(ref); 
+        std::vector< Object * > objlist = it->second;
+        ObjectId_t objId = (obj ? obj->getId() : 0);
+        ref_summary_file << objId << "," 
+                         << fieldId;
+        for ( auto vecit = objlist.begin();
+              vecit != objlist.end();
+              ++vecit ) {
+            ref_summary_file << "," << *vecit ;
+        }
+        ref_summary_file << endl;
+    }
+    ref_summary_file.close();
+}
+
+
 // Output the map of type ID -> type name
 // TODO TODO TODO TODO
 // void output_type_table( string &context_death_count_filename,
@@ -930,6 +995,7 @@ int main(int argc, char* argv[])
     string dgroups_filename( basename + "-DGROUPS.csv" );
     string dgroups_by_type_filename( basename + "-DGROUPS-BY-TYPE.csv" );
     string context_death_count_filename( basename + "-CONTEXT-DCOUNT.csv" );
+    string reference_summary_filename( basename + "-REF-SUMMARY.csv" );
 
     string call_context_filename( basename + "-CALL-CONTEXT.csv" );
     ofstream call_context_file(call_context_filename);
@@ -1055,6 +1121,9 @@ int main(int argc, char* argv[])
                              all_keys );
         output_context_summary( context_death_count_filename,
                                 Exec );
+        output_referece_summary( reference_summary_filename,
+                                 ref_summary,
+                                 obj2ref_map );
         // TODO: What next? 
         // Output cycles
         set<int> node_set;
