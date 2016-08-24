@@ -856,10 +856,12 @@ void output_context_summary( string &context_death_count_filename,
 }
 
 void output_referece_summary( string &reference_summary_filename,
+                              string &ref_reverse_summary_filename,
                               RefSummary_t my_refsum,
                               Object2RefMap_t my_obj2ref )
 {
     ofstream ref_summary_file(reference_summary_filename);
+    ofstream reverse_summary_file(reference_summary_filename);
     for ( auto it = my_refsum.begin();
           it != my_refsum.end();
           ++it ) {
@@ -877,7 +879,31 @@ void output_referece_summary( string &reference_summary_filename,
         }
         ref_summary_file << endl;
     }
+    for ( auto it = my_obj2ref.begin();
+          it != my_obj2ref.end();
+          ++it ) {
+        Object *obj = it->first;
+        std::vector< Reference_t > reflist = it->second;
+        if (!obj) {
+            continue;
+        }
+        // obj is not NULL.
+        ObjectId_t objId = obj->getId();
+        reverse_summary_file << objId << "," 
+                             << reflist.size();
+        for ( auto vecit = reflist.begin();
+              vecit != reflist.end();
+              ++vecit ) {
+            Object *srcObj = std::get<0>(*vecit); 
+            FieldId_t fieldId = std::get<1>(*vecit); 
+            ObjectId_t srcId = (srcObj ? srcObj->getId() : 0);
+            reverse_summary_file << ",(" << srcId << "," << fieldId << ")";
+        }
+        reverse_summary_file << endl;
+    }
+    // Close the files.
     ref_summary_file.close();
+    reverse_summary_file.close();
 }
 
 
@@ -996,6 +1022,7 @@ int main(int argc, char* argv[])
     string dgroups_by_type_filename( basename + "-DGROUPS-BY-TYPE.csv" );
     string context_death_count_filename( basename + "-CONTEXT-DCOUNT.csv" );
     string reference_summary_filename( basename + "-REF-SUMMARY.csv" );
+    string ref_reverse_summary_filename( basename + "-REF-REVERSE-SUMMARY.csv" );
 
     string call_context_filename( basename + "-CALL-CONTEXT.csv" );
     ofstream call_context_file(call_context_filename);
@@ -1122,6 +1149,7 @@ int main(int argc, char* argv[])
         output_context_summary( context_death_count_filename,
                                 Exec );
         output_referece_summary( reference_summary_filename,
+                                 ref_reverse_summary_filename,
                                  ref_summary,
                                  obj2ref_map );
         // TODO: What next? 
