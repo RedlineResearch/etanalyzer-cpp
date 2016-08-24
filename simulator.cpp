@@ -871,11 +871,14 @@ void output_referece_summary( string &reference_summary_filename,
         std::vector< Object * > objlist = it->second;
         ObjectId_t objId = (obj ? obj->getId() : 0);
         ref_summary_file << objId << "," 
-                         << fieldId;
+                         << fieldId << ","
+                         << objlist.size();
         for ( auto vecit = objlist.begin();
               vecit != objlist.end();
               ++vecit ) {
-            ref_summary_file << "," << *vecit ;
+            if (*vecit) {
+                ref_summary_file << "," << (*vecit)->getId() ;
+            }
         }
         ref_summary_file << endl;
     }
