@@ -53,6 +53,19 @@ enum class RefType {
     UNKNOWN = 1024
 };
 
+string reftype2str( RefType r)
+{
+    if (r == RefType::STABLE) {
+        return "STABLE";
+    } else if (r == RefType::SERIAL_STABLE) {
+        return "SERIAL_STABLE";
+    } else if (r == RefType::UNSTABLE) {
+        return "UNSTABLE";
+    } else {
+        return "UNKNOWN";
+    }
+}
+
 // Map a reference to its type
 typedef std::map< Reference_t, RefType > Ref2Type_t;
 // Map an object to its type
@@ -955,6 +968,7 @@ void output_reference_summary( string &reference_summary_filename,
 {
     ofstream ref_summary_file(reference_summary_filename);
     ofstream reverse_summary_file(ref_reverse_summary_filename);
+    ofstream stability_summary_file(stability_summary_filename);
     for ( auto it = my_refsum.begin();
           it != my_refsum.end();
           ++it ) {
@@ -996,6 +1010,18 @@ void output_reference_summary( string &reference_summary_filename,
             reverse_summary_file << ",(" << srcId << "," << fieldId << ")"; // 3+ - list of incoming references
         }
         reverse_summary_file << endl;
+    }
+    for ( auto it = stability.begin();
+          it != stability.end();
+          ++it ) {
+        Reference_t ref = it->first;
+        RefType reftype = it->second;
+        Object *obj = std::get<0>(ref); 
+        FieldId_t fieldId = std::get<1>(ref); 
+        ObjectId_t objId = (obj ? obj->getId() : 0);
+        stability_summary_file << objId << ","            // 1 - object Id
+                               << fieldId << ","          // 2 - field Id
+                               << reftype2str(reftype);   // 3 - reference
     }
     // Close the files.
     ref_summary_file.close();
