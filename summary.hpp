@@ -4,11 +4,7 @@
 // ----------------------------------------------------------------------
 //  Summary of key object statistics
 //
-//    - Using struct to simplify things. If need be this can be converted
-//      into a class with all the OO insanity. Note that structs are classes
-//      in C++ with everything public by default.
-
-class Summary
+struct Summary
 {
 public:
     unsigned int num_objects;
