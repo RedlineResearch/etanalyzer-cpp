@@ -319,6 +319,14 @@ enum Color {
     GREEN = 5,
 };
 
+enum class RefTargetType {
+    STABLE = 1, // Only one incoming reference ever which 
+                // makes the reference RefType::SERIAL_STABLE
+    UNSTABLE = 2, // Gets passed around to difference references
+    UNKNOWN = 1024
+};
+
+
 class Object
 {
     private:
@@ -413,6 +421,9 @@ class Object
         Object *m_death_root;
         KeyType m_key_type;
 
+        // Stability type
+        RefTargetType m_reftarget_type;
+
     public:
         Object( unsigned int id,
                 unsigned int size,
@@ -460,6 +471,7 @@ class Object
             , m_last_object(NULL)
             , m_key_type(KeyType::UNKNOWN_KEYTYPE)
             , m_death_cpair(NULL, NULL)
+            , m_reftarget_type(RefTargetType::UNKNOWN)
         {
             if (m_site) {
                 Method *mymeth = m_site->getMethod();
@@ -629,6 +641,10 @@ class Object
             }
         }
         KeyType getKeyType() const { return this->m_key_type; }
+
+        // Set and get stability taret types
+        void setRefTargetType( RefTargetType newtype ) { this->m_reftarget_type = newtype; }
+        RefTargetType getRefTargetType() const { return this->m_reftarget_type; }
 
         // Get Allocation context pair. Note that if <NULL, NULL> then none yet assigned.
         ContextPair getAllocContextPair() const { return this->m_alloc_cpair; }

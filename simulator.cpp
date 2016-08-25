@@ -41,12 +41,7 @@ typedef std::map< Reference_t, std::vector< Object * > > RefSummary_t;
 typedef std::map< Object *, std::vector< Reference_t > > Object2RefMap_t;
 // RefSummary_t and Object2RefMap_t contain the raw data. We need some
 // summaries.
-enum class RefTargetType {
-    STABLE = 1, // Only one incoming reference ever which 
-                // makes the reference RefType::SERIAL_STABLE
-    UNSTABLE = 2, // Gets passed around to difference references
-    UNKNOWN = 1024
-};
+// enum class RefTargetType moved to heap.h - RLV
 
 enum class RefType {
     STABLE = 1, // Like True Love. Only one target ever.
@@ -628,8 +623,22 @@ void update_summary_from_keyset( KeySet_t &keyset,
 
 void summarize_reference_stability( Ref2Type_t &stability,
                                     RefSummary_t &my_refsum,
-                                    Object2RefMap_t &myobj2ref )
+                                    Object2RefMap_t &my_obj2ref )
 {
+    // Check each object for stability
+    for ( auto it = my_obj2ref.begin();
+          it != my_obj2ref.end();
+          ++it ) {
+        Object *obj = it->first;
+        std::vector< Reference_t > reflist = it->second;
+        if (!obj) {
+            continue;
+        }
+        // obj is not NULL.
+        // TODO: Do we need object Id? 
+        // ObjectId_t objId = obj->getId();
+
+    }
     // Check each reference to see if its stable...(see RefType)
     for ( auto it = my_refsum.begin();
           it != my_refsum.end();
@@ -644,7 +653,10 @@ void summarize_reference_stability( Ref2Type_t &stability,
         if (size == 1) {
             // Check to see if that target is 'loyal'
             Object *obj = objlist[0];
-            if (myobj2ref[obj].size() == 1) {
+            if (my_obj2ref[obj].size() == 1) {
+                stability[ref] = RefType::UNSTABLE;
+            } else {
+                assert(my_obj2ref[obj].size() > 1);
                 stability[ref] = RefType::UNSTABLE;
             }
         }
