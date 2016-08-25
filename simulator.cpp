@@ -946,10 +946,12 @@ void output_context_summary( string &context_death_count_filename,
     context_death_count_file.close();
 }
 
-void output_referece_summary( string &reference_summary_filename,
-                              string &ref_reverse_summary_filename,
-                              RefSummary_t my_refsum,
-                              Object2RefMap_t my_obj2ref )
+void output_reference_summary( string &reference_summary_filename,
+                               string &ref_reverse_summary_filename,
+                               string &stability_summary_filename,
+                               RefSummary_t &my_refsum,
+                               Object2RefMap_t &my_obj2ref,
+                               Ref2Type_t &stability )
 {
     ofstream ref_summary_file(reference_summary_filename);
     ofstream reverse_summary_file(ref_reverse_summary_filename);
@@ -1029,6 +1031,7 @@ int main(int argc, char* argv[])
     string context_death_count_filename( basename + "-CONTEXT-DCOUNT.csv" );
     string reference_summary_filename( basename + "-REF-SUMMARY.csv" );
     string ref_reverse_summary_filename( basename + "-REF-REVERSE-SUMMARY.csv" );
+    string stability_summary_filename( basename + "-STABILITY-SUMMARY.csv" );
 
     string call_context_filename( basename + "-CALL-CONTEXT.csv" );
     ofstream call_context_file(call_context_filename);
@@ -1163,10 +1166,12 @@ int main(int argc, char* argv[])
                              all_keys );
         output_context_summary( context_death_count_filename,
                                 Exec );
-        output_referece_summary( reference_summary_filename,
-                                 ref_reverse_summary_filename,
-                                 ref_summary,
-                                 obj2ref_map );
+        output_reference_summary( reference_summary_filename,
+                                  ref_reverse_summary_filename,
+                                  stability_summary_filename,
+                                  ref_summary,
+                                  obj2ref_map,
+                                  stability_summary );
         // TODO: What next? 
         // Output cycles
         set<int> node_set;
