@@ -1022,6 +1022,7 @@ void output_reference_summary( string &reference_summary_filename,
         stability_summary_file << objId << ","            // 1 - object Id
                                << fieldId << ","          // 2 - field Id
                                << reftype2str(reftype);   // 3 - reference
+                               << endl;
     }
     // Close the files.
     ref_summary_file.close();
