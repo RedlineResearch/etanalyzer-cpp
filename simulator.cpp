@@ -39,6 +39,30 @@ typedef std::map< Reference_t, std::vector< Object * > > RefSummary_t;
 // We need a reverse map from object pointer to the references that ever
 // pointed to that object.
 typedef std::map< Object *, std::vector< Reference_t > > Object2RefMap_t;
+// RefSummary_t and Object2RefMap_t contain the raw data. We need some
+// summaries.
+enum class RefTargetType {
+    STABLE = 1, // Only one incoming reference ever which 
+                // makes the reference RefType::SERIAL_STABLE
+    UNSTABLE = 2, // Gets passed around to difference references
+    UNKNOWN = 1024
+};
+
+enum class RefType {
+    STABLE = 1, // Like True Love. Only one target ever.
+    SERIAL_STABLE = 2, // Kind of like a serial monogamist.
+                       // Can point to different objects but never shares the
+                       // target object
+    UNSTABLE = 4, // Points to differenct objects and
+                  // shares objects with other references
+    UNKNOWN = 1024
+};
+
+// Map a reference to its type
+typedef std::map< Reference_t, RefType > Ref2Type_t;
+// Map an object to its type
+typedef std::map< Object *, RefTargetType > Object2Type_t;
+
 // ----------------------------------------------------------------------
 //   Globals
 
@@ -601,6 +625,36 @@ void update_summary_from_keyset( KeySet_t &keyset,
     }
 }
 
+
+void summarize_reference_stability( Ref2Type_t &stability,
+                                    RefSummary_t &my_refsum,
+                                    Object2RefMap_t &myobj2ref )
+{
+    // Check each reference to see if its stable...(see RefType)
+    for ( auto it = my_refsum.begin();
+          it != my_refsum.end();
+          ++it ) {
+        Reference_t ref = it->first;
+        Object *obj = std::get<0>(ref); 
+        FieldId_t fieldId = std::get<1>(ref); 
+        std::vector< Object * > objlist = it->second;
+        // TODO: Do we need the Object Id?
+        // ObjectId_t objId = (obj ? obj->getId() : 0);
+        unsigned int size = objlist.size();
+        if (size == 1) {
+            // Check to see if that target is 'loyal'
+            Object *obj = objlist[0];
+            if (myobj2ref[obj].size() == 1) {
+                stability[ref] = RefType::UNSTABLE;
+            }
+        }
+    }
+    // Check each object to see if it's stable...(see RefTargetType)
+}
+
+// ---------------------------------------------------------------------------
+// ------[ OUTPUT FUNCTIONS ]-------------------------------------------------
+// ---------------------------------------------------------------------------
 void output_size_summary( string &dgroups_filename,
                           SizeSum_t &size_summary )
 {
@@ -870,14 +924,14 @@ void output_referece_summary( string &reference_summary_filename,
         FieldId_t fieldId = std::get<1>(ref); 
         std::vector< Object * > objlist = it->second;
         ObjectId_t objId = (obj ? obj->getId() : 0);
-        ref_summary_file << objId << "," 
-                         << fieldId << ","
-                         << objlist.size();
+        ref_summary_file << objId << ","      // 1 - object Id
+                         << fieldId << ","    // 2 - field Id
+                         << objlist.size();   // 3 - number of objects pointed at
         for ( auto vecit = objlist.begin();
               vecit != objlist.end();
               ++vecit ) {
             if (*vecit) {
-                ref_summary_file << "," << (*vecit)->getId() ;
+                ref_summary_file << "," << (*vecit)->getId() ; // 4+ - objects pointed at
             }
         }
         ref_summary_file << endl;
@@ -892,15 +946,15 @@ void output_referece_summary( string &reference_summary_filename,
         }
         // obj is not NULL.
         ObjectId_t objId = obj->getId();
-        reverse_summary_file << objId << "," 
-                             << reflist.size();
+        reverse_summary_file << objId << ","     // 1 - object Id
+                             << reflist.size();  // 2 - number of references in lifetime
         for ( auto vecit = reflist.begin();
               vecit != reflist.end();
               ++vecit ) {
             Object *srcObj = std::get<0>(*vecit); 
             FieldId_t fieldId = std::get<1>(*vecit); 
             ObjectId_t srcId = (srcObj ? srcObj->getId() : 0);
-            reverse_summary_file << ",(" << srcId << "," << fieldId << ")";
+            reverse_summary_file << ",(" << srcId << "," << fieldId << ")"; // 3+ - list of incoming references
         }
         reverse_summary_file << endl;
     }
@@ -982,6 +1036,8 @@ int main(int argc, char* argv[])
         // Remember the key objects for non-cyclic death groups.
         set<ObjectId_t> dag_keys;
         deque<ObjectId_t> dag_all;
+        // Reference stability summary
+        Ref2Type_t stability_summary;
         // Lambdas for utility
         auto lfn = [](Object *ptr) -> unsigned int { return ((ptr) ? ptr->getId() : 0); };
         auto ifNull = [](Object *ptr) -> bool { return (ptr == NULL); };
@@ -1049,6 +1105,13 @@ int main(int argc, char* argv[])
             // we can simply test against dag_all_set to see if it's a DAG
             // object. If not in dag_all_set, then it's a CYC object.
         }
+
+        // Analyze the edge summaries
+        summarize_reference_stability( stability_summary,
+                                       ref_summary,
+                                       obj2ref_map );
+        // ----------------------------------------------------------------------
+        // OUTPUT THE SUMMARIES
         // By size summary of death groups
         output_size_summary( dgroups_filename,
                              size_summary );
