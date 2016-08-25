@@ -625,7 +625,7 @@ void summarize_reference_stability( Ref2Type_t &stability,
                                     RefSummary_t &my_refsum,
                                     Object2RefMap_t &my_obj2ref )
 {
-    // Check each object for stability
+    // Check each object to see if it's stable...(see RefTargetType)
     for ( auto it = my_obj2ref.begin();
           it != my_obj2ref.end();
           ++it ) {
@@ -637,7 +637,12 @@ void summarize_reference_stability( Ref2Type_t &stability,
         // obj is not NULL.
         // TODO: Do we need object Id? 
         // ObjectId_t objId = obj->getId();
-
+        if (reflist.size() == 1) {
+            obj->setRefTargetType( RefTargetType::STABLE );
+        } else {
+            assert(reflist.size() > 1);
+            obj->setRefTargetType( RefTargetType::UNSTABLE );
+        }
     }
     // Check each reference to see if its stable...(see RefType)
     for ( auto it = my_refsum.begin();
@@ -654,14 +659,34 @@ void summarize_reference_stability( Ref2Type_t &stability,
             // Check to see if that target is 'loyal'
             Object *obj = objlist[0];
             if (my_obj2ref[obj].size() == 1) {
-                stability[ref] = RefType::UNSTABLE;
+                stability[ref] = RefType::STABLE;
             } else {
                 assert(my_obj2ref[obj].size() > 1);
                 stability[ref] = RefType::UNSTABLE;
             }
+        } else {
+            // objlist is of length > 1
+            // This may still be stable if all objects in
+            // the list are STABLE. Assume they're all stable unless
+            // otherwise proven.
+            stability[ref] = RefType::SERIAL_STABLE; // aka serial monogamist
+            for ( auto objit = objlist.begin();
+                  objit != objlist.end();
+                  ++objit ) {
+                RefTargetType objtype = (*objit)->getRefTargetType();
+                if (objtype == RefTargetType::UNSTABLE) {
+                    stability[ref] = RefType::UNSTABLE;
+                    break;
+                } else if (objtype == RefTargetType::UNKNOWN) {
+                    // Not sure if this is even possible.
+                    // TODO: Make this an assertion?
+                    // Let's assume that UNKNOWNs make it UNSTABLE.
+                    stability[ref] = RefType::UNSTABLE;
+                    break;
+                } // else continue
+            }
         }
     }
-    // Check each object to see if it's stable...(see RefTargetType)
 }
 
 // ---------------------------------------------------------------------------
