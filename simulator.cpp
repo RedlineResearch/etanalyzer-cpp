@@ -199,13 +199,14 @@ void update_reference_summaries( Object *src,
     // The reference 'ref' points to the new target
     auto iter = ref_summary.find(ref);
     if (iter == ref_summary.end()) {
-        ref_summary[ref] = std::vector< Object * >();
+        // Not found. Create a new vector of Object pointers
+        ref_summary[ref] = std::move(std::vector< Object * >());
     }
     ref_summary[ref].push_back(tgt);
     // Do the reverse mapping
     auto rev = obj2ref_map.find(tgt);
     if (rev == obj2ref_map.end()) {
-        obj2ref_map[tgt] = std::vector< Reference_t >();
+        obj2ref_map[tgt] = std::move(std::vector< Reference_t >());
     }
     obj2ref_map[tgt].push_back(ref);
 }
@@ -585,7 +586,7 @@ void update_summaries( Object *key,
     // per group summary
     auto git = pgs.find(mytype);
     if (git == pgs.end()) {
-        pgs[mytype] = std::vector< Summary * >();
+        pgs[mytype] = std::move(std::vector< Summary * >());
     }
     unsigned int total_size = sumSize( tgtSet );
     Summary *s = new Summary( gsize, total_size, 1 );
@@ -643,7 +644,7 @@ void summarize_reference_stability( Ref2Type_t &stability,
           it != my_obj2ref.end();
           ++it ) {
         Object *obj = it->first;
-        std::vector< Reference_t > reflist = it->second;
+        std::vector< Reference_t > reflist = std::move(it->second);
         if (!obj) {
             continue;
         }
@@ -664,19 +665,18 @@ void summarize_reference_stability( Ref2Type_t &stability,
         Reference_t ref = it->first;
         Object *obj = std::get<0>(ref); 
         FieldId_t fieldId = std::get<1>(ref); 
-        std::vector< Object * > objlist = it->second;
+        std::vector< Object * > objlist = std::move(it->second);
         // TODO: Do we need the Object Id?
         // ObjectId_t objId = (obj ? obj->getId() : 0);
         unsigned int size = objlist.size();
         if (size == 1) {
             // Check to see if that target is 'loyal'
             Object *obj = objlist[0];
-            if (my_obj2ref[obj].size() == 1) {
+            if (my_obj2ref[obj].size() <= 1) {
                 stability[ref] = RefType::STABLE;
-            } else {
-                assert(my_obj2ref[obj].size() > 1);
+            } else if (my_obj2ref[obj].size() > 1) {
                 stability[ref] = RefType::UNSTABLE;
-            }
+            } 
         } else {
             // objlist is of length > 1
             // This may still be stable if all objects in
@@ -975,7 +975,7 @@ void output_reference_summary( string &reference_summary_filename,
         Reference_t ref = it->first;
         Object *obj = std::get<0>(ref); 
         FieldId_t fieldId = std::get<1>(ref); 
-        std::vector< Object * > objlist = it->second;
+        std::vector< Object * > objlist = std::move(it->second);
         ObjectId_t objId = (obj ? obj->getId() : 0);
         ref_summary_file << objId << ","      // 1 - object Id
                          << fieldId << ","    // 2 - field Id
@@ -993,7 +993,7 @@ void output_reference_summary( string &reference_summary_filename,
           it != my_obj2ref.end();
           ++it ) {
         Object *obj = it->first;
-        std::vector< Reference_t > reflist = it->second;
+        std::vector< Reference_t > reflist = std::move(it->second);
         if (!obj) {
             continue;
         }
