@@ -792,7 +792,7 @@ void output_all_objects2( string &objectinfo_filename,
                                    "deathContext1", "deathContext2", "deathContextType",
                                    "allocContext1", "allocContext2", "allocContextType",
                                    "createTime_alloc", "deathTime_alloc",
-                                   "allocSiteName", } );
+                                   "allocSiteName", "stability" } );
 
     for ( ObjectMap::iterator it = myheap.begin();
           it != myheap.end();
@@ -837,6 +837,12 @@ void output_all_objects2( string &objectinfo_filename,
         string death_method1 = (death_meth_ptr1 ? death_meth_ptr1->getName() : "NONAME");
         string death_method2 = (death_meth_ptr2 ? death_meth_ptr2->getName() : "NONAME");
         string allocsite_name = object->getAllocSiteName();
+        RefTargetType objstability = object->getRefTargetType();
+        // S -> Stable
+        // U -> Unstable
+        // X -> Unknown
+        string stability = ( (objstability == RefTargetType::STABLE) ? "S"
+                                   : (objstability == RefTargetType::UNSTABLE ? "U" : "X") );
         object_info_file << objId
             << "," << object->getCreateTime()
             << "," << object->getDeathTime()
@@ -856,6 +862,7 @@ void output_all_objects2( string &objectinfo_filename,
             << "," << object->getCreateTimeAlloc()
             << "," << object->getDeathTimeAlloc()
             << "," << allocsite_name
+            << "," << stability  // S, U, or X
             << endl;
             // TODO: The following can be made into a lookup table:
             //       method names
@@ -969,6 +976,8 @@ void output_reference_summary( string &reference_summary_filename,
     ofstream ref_summary_file(reference_summary_filename);
     ofstream reverse_summary_file(ref_reverse_summary_filename);
     ofstream stability_summary_file(stability_summary_filename);
+    //
+    // Summarizes the objects pointed at by the reference (object Id + field Id)
     for ( auto it = my_refsum.begin();
           it != my_refsum.end();
           ++it ) {
@@ -989,6 +998,9 @@ void output_reference_summary( string &reference_summary_filename,
         }
         ref_summary_file << endl;
     }
+    //
+    // Summarizes the reverse, which is for each object (using its Id), give
+    // the references that point to it.
     for ( auto it = my_obj2ref.begin();
           it != my_obj2ref.end();
           ++it ) {
@@ -1011,6 +1023,8 @@ void output_reference_summary( string &reference_summary_filename,
         }
         reverse_summary_file << endl;
     }
+    //
+    // Summarize the stability attributes of features.
     for ( auto it = stability.begin();
           it != stability.end();
           ++it ) {
@@ -1021,12 +1035,13 @@ void output_reference_summary( string &reference_summary_filename,
         ObjectId_t objId = (obj ? obj->getId() : 0);
         stability_summary_file << objId << ","            // 1 - object Id
                                << fieldId << ","          // 2 - field Id
-                               << reftype2str(reftype)    // 3 - reference
+                               << reftype2str(reftype)    // 3 - reference stability type
                                << endl;
     }
     // Close the files.
     ref_summary_file.close();
     reverse_summary_file.close();
+    stability_summary_file.close();
 }
 
 
