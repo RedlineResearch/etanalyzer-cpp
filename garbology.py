@@ -1099,13 +1099,20 @@ class ReverseRefReader:
         with get_trace_fp( self.reverseref_file_name, self.logger ) as fp:
             for line in fp:
                 line = line.rstrip()
+                line = line.replace("(","")
+                line = line.replace(")","")
                 row = line.split(",")
                 # 0 - object Id
                 # 1 - Number of references pointing at this object
+                # The original text list of pairs looks like this:
+                # (0,1),(2,3),(4,5)
+                # So we remove the parentheses, and get a list of pairs.
+                # 0, 1, 2, 3, 4, 5
                 objId = row[0]
                 num = row[1]
                 if objId not in sdict:
-                    sdict[objId] = { fieldId : row[3:] }
+                    it = iter(row[3:])
+                    sdict[objId] = zip(it, it)
                 else:
                     self.logger.critical( "Duplicate object Id [%d]" % fieldId )
                     print "Duplicate object Id [%d]" % fieldId
@@ -1113,11 +1120,6 @@ class ReverseRefReader:
                     exit(1)
                 # TODO: Parse the (objId, fieldId) reference pairs
                 # TODO
-
-    def parse_reference_pairs( self, plist = [] ):
-        pass
-        # TODO: Parse the (objId, fieldId) reference pairs
-        # TODO: Do it here.
 
     def iteritems( self ):
         return self.reverserefdict.iteritems()
