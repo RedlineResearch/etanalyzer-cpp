@@ -66,6 +66,19 @@ string reftype2str( RefType r)
     }
 }
 
+string reftype2shortstr( RefType r)
+{
+    if (r == RefType::STABLE) {
+        return "S"; // STABLE
+    } else if (r == RefType::SERIAL_STABLE) {
+        return "ST"; // SERIAL_STABLE
+    } else if (r == RefType::UNSTABLE) {
+        return "U"; // UNSTABLE
+    } else {
+        return "X"; // UNKNOWN
+    }
+}
+
 // Map a reference to its type
 typedef std::map< Reference_t, RefType > Ref2Type_t;
 // Map an object to its type
@@ -644,7 +657,7 @@ void summarize_reference_stability( Ref2Type_t &stability,
           it != my_obj2ref.end();
           ++it ) {
         Object *obj = it->first;
-        std::vector< Reference_t > reflist = std::move(it->second);
+        std::vector< Reference_t > reflist = it->second;
         if (!obj) {
             continue;
         }
@@ -665,7 +678,7 @@ void summarize_reference_stability( Ref2Type_t &stability,
         Reference_t ref = it->first;
         Object *obj = std::get<0>(ref); 
         FieldId_t fieldId = std::get<1>(ref); 
-        std::vector< Object * > objlist = std::move(it->second);
+        std::vector< Object * > objlist = it->second;
         // TODO: Do we need the Object Id?
         // ObjectId_t objId = (obj ? obj->getId() : 0);
         unsigned int size = objlist.size();
@@ -984,7 +997,7 @@ void output_reference_summary( string &reference_summary_filename,
         Reference_t ref = it->first;
         Object *obj = std::get<0>(ref); 
         FieldId_t fieldId = std::get<1>(ref); 
-        std::vector< Object * > objlist = std::move(it->second);
+        std::vector< Object * > objlist = it->second;
         ObjectId_t objId = (obj ? obj->getId() : 0);
         ref_summary_file << objId << ","      // 1 - object Id
                          << fieldId << ","    // 2 - field Id
@@ -1005,7 +1018,7 @@ void output_reference_summary( string &reference_summary_filename,
           it != my_obj2ref.end();
           ++it ) {
         Object *obj = it->first;
-        std::vector< Reference_t > reflist = std::move(it->second);
+        std::vector< Reference_t > reflist = it->second;
         if (!obj) {
             continue;
         }
@@ -1035,7 +1048,7 @@ void output_reference_summary( string &reference_summary_filename,
         ObjectId_t objId = (obj ? obj->getId() : 0);
         stability_summary_file << objId << ","            // 1 - object Id
                                << fieldId << ","          // 2 - field Id
-                               << reftype2str(reftype)    // 3 - reference stability type
+                               << reftype2shortstr(reftype)    // 3 - reference stability type
                                << endl;
     }
     // Close the files.

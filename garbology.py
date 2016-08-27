@@ -983,6 +983,159 @@ class SummaryReader:
         for key, val in self.summarydict.iteritems():
             print "%s -> %d" % (key, val)
 
+# ----------------------------------------------------------------------------- 
+# ----------------------------------------------------------------------------- 
+class StabilityReader:
+    def __init__( self,
+                  stability_file = None,
+                  logger = None ):
+        self.stability_file_name = stability_file
+        self.stabilitydict = {}
+        self.logger = logger
+
+    def read_stability_file( self ):
+        start = False
+        sdict = self.stabilitydict
+        with get_trace_fp( self.stability_file_name, self.logger ) as fp:
+            for line in fp:
+                line = line.rstrip()
+                row = line.split(",")
+                # 0 - object Id
+                # 1 - field Id
+                # 2 - Stability type
+                #       * S  = Stable
+                #       * ST = Serial stable
+                #       * U  = Unstable
+                #       * X  = Unknown
+                objId = row[0]
+                fieldId = row[1]
+                stype = row[2]
+                if objId not in sdict:
+                    sdict[objId] = { fieldId : stype }
+                else:
+                    if fieldId in sdict[objId]:
+                        self.logger.error( "Duplicate field Id [%d]" % fieldId )
+                        if sdict[objId] != stype:
+                            self.logger.critical( "Mismatch [%s] != [%s]" % (sdict[objId][fieldId], stype) )
+                sdict[objId][fieldId] = stype
+
+    def iteritems( self ):
+        return self.stabilitydict.iteritems()
+
+    def keys( self ):
+        return self.stabilitydict.keys()
+
+    def items( self ):
+        return self.stabilitydict.items()
+
+    def __get_stabilitydict__( self ):
+        # The __ means only call if you know what you're doing, eh?
+        return self.stabilitydict
+
+    def print_out( self ):
+        for key, fdict in self.stabilitydict.iteritems():
+            print "%d -> %s" % (key, str(fdict))
+
+# ----------------------------------------------------------------------------- 
+# ----------------------------------------------------------------------------- 
+class ReferenceReader:
+    def __init__( self,
+                  reference_file = None,
+                  logger = None ):
+        self.reference_filename = reference_file
+        self.referencedict = {}
+        self.logger = logger
+
+    def read_reference_file( self ):
+        start = False
+        sdict = self.referencedict
+        with get_trace_fp( self.reference_file_name, self.logger ) as fp:
+            for line in fp:
+                line = line.rstrip()
+                row = line.split(",")
+                # 0 - object Id
+                # 1 - field Id
+                # 2 - Number of objects pointed at, following
+                objId = row[0]
+                fieldId = row[1]
+                num = row[2]
+                if objId not in sdict:
+                    sdict[objId] = { fieldId : row[3:] }
+                else:
+                    if fieldId in sdict[objId]:
+                        self.logger.error( "Duplicate field Id [%d]" % fieldId )
+                sdict[objId][fieldId] =  row[3:]
+
+    def iteritems( self ):
+        return self.referencedict.iteritems()
+
+    def keys( self ):
+        return self.referencedict.keys()
+
+    def items( self ):
+        return self.referencedict.items()
+
+    def __get_referencedict__( self ):
+        # The __ means only call if you know what you're doing, eh?
+        return self.referencedict
+
+    def print_out( self ):
+        for key, fdict in self.referencedict.iteritems():
+            print "%d -> %s" % (key, str(fdict))
+
+# ----------------------------------------------------------------------------- 
+# ----------------------------------------------------------------------------- 
+class ReverseRefReader:
+    def __init__( self,
+                  reverseref_file = None,
+                  logger = None ):
+        self.reverseref_filename = reverseref_file
+        self.reverserefdict = {}
+        self.logger = logger
+
+    def read_reverseref_file( self ):
+        start = False
+        sdict = self.reverserefdict
+        with get_trace_fp( self.reverseref_file_name, self.logger ) as fp:
+            for line in fp:
+                line = line.rstrip()
+                row = line.split(",")
+                # 0 - object Id
+                # 1 - Number of references pointing at this object
+                objId = row[0]
+                num = row[1]
+                if objId not in sdict:
+                    sdict[objId] = { fieldId : row[3:] }
+                else:
+                    self.logger.critical( "Duplicate object Id [%d]" % fieldId )
+                    print "Duplicate object Id [%d]" % fieldId
+                    print "Exiting."
+                    exit(1)
+                # TODO: Parse the (objId, fieldId) reference pairs
+                # TODO
+
+    def parse_reference_pairs( self, plist = [] ):
+        pass
+        # TODO: Parse the (objId, fieldId) reference pairs
+        # TODO: Do it here.
+
+    def iteritems( self ):
+        return self.reverserefdict.iteritems()
+
+    def keys( self ):
+        return self.reverserefdict.keys()
+
+    def items( self ):
+        return self.reverserefdict.items()
+
+    def __get_reverserefdict__( self ):
+        # The __ means only call if you know what you're doing, eh?
+        return self.reverserefdict
+
+    def print_out( self ):
+        for key, fdict in self.referencedict.iteritems():
+            print "%d -> %s" % (key, str(fdict))
+
 
 # ----------------------------------------------------------------------------- 
 # ----------------------------------------------------------------------------- 
