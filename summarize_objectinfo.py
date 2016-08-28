@@ -1,5 +1,5 @@
 from __future__ import division
-# skeleton.py 
+# summarize_objectinfo.py 
 #
 import argparse
 import os
@@ -34,8 +34,8 @@ import time
 pp = pprint.PrettyPrinter( indent = 4 )
 
 def setup_logger( targetdir = ".",
-                  filename = "skeleton.log",
-                  logger_name = 'skeleton',
+                  filename = "summarize_objectinfo.log",
+                  logger_name = 'summarize_objectinfo',
                   debugflag = 0 ):
     # Set up main logger
     logger = logging.getLogger( logger_name )
@@ -157,7 +157,7 @@ def main_process( output = None,
         writer = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
         for row in table1:
             writer.writerow(row)
-    print "skeleton.py - DONE."
+    print "summarize_objectinfo.py - DONE."
     os.chdir( olddir )
     exit(0)
 
@@ -223,7 +223,7 @@ def create_parser():
     parser.add_argument( "--logfile",
                          help = "Specify logfile name.",
                          action = "store" )
-    parser.set_defaults( logfile = "skeleton.log",
+    parser.set_defaults( logfile = "summarize_objectinfo.log",
                          debugflag = False,
                          config = None )
     return parser
@@ -235,7 +235,6 @@ def calculate_counts( objdict = None ):
     ATTR = get_index( "STATTR" ) # stack attribute index
     TYPE = get_index( "TYPE" ) # type index
     for bmark, mydict in objdict.iteritems():
-        print "XXX:", bmark, mydict
         objreader = mydict["objreader"]
         result[bmark] = {}
         rtmp = result[bmark]
@@ -263,7 +262,6 @@ def calculate_counts( objdict = None ):
                 rtmp["end_of_prog"][mytype] += 1
             else:
                 rtmp["others"][mytype] += 1
-    print "DONE: calculate_counts"
     return result
 
 def main():

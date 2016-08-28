@@ -1212,11 +1212,13 @@ def create_work_directory( work_dir, logger = None, interactive = False ):
 
 def main_process( logger = None,
                   gconfig = None,
+                  checkFiles_flag = True,
                   debugflag = False,
                   verbose = False ):
     global pp
     gconfig.print_all_config( pp )
-    gconfig.verify_all_exist( printflag = verbose )
+    if checkFiles_flag:
+        gconfig.verify_all_exist( printflag = verbose )
     print "===========[ DONE ]==================================================="
 
 def create_parser():
@@ -1224,6 +1226,13 @@ def create_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument( "config",
                          help = "Specify configuration filename." )
+    parser.add_argument( "benchmark",
+                         help = "Perform action for this benchmark.",
+                         action = "store_true" )
+    parser.add_argument( "--check-files",
+                         dest = "check_files",
+                         help = "Check if files exist.",
+                         action = "store_true" )
     parser.add_argument( "--verbose",
                          dest = "verbose",
                          help = "Enable verbose output.",
@@ -1232,6 +1241,7 @@ def create_parser():
                          help = "Specify logfile name.",
                          action = "store" )
     parser.set_defaults( logfile = "garbology.log",
+                         check_files = False,
                          verbose = False,
                          config = None )
     return parser
@@ -1242,6 +1252,7 @@ def main():
     assert( args.config != None )
     assert( os.path.isfile( args.config ) )
     gconfig = GarbologyConfig( args.config )
+    checkFiles_flag = args.check_files
     debugflag = gconfig.global_cfg["debug"]
     # logging
     logger = setup_logger( filename = args.logfile,
@@ -1251,11 +1262,15 @@ def main():
     #
     return main_process( logger = logger,
                          gconfig = gconfig,
+                         checkFiles_flag = checkFiles_flag,
+                         benchmark = benchmark,
                          debugflag = debugflag,
                          verbose = args.verbose )
 
 __all__ = [ "EdgeInfoReader", "GarbologyConfig", "ObjectInfoReader",
-            "ContextCountReader", "is_key_object", "get_index", ]
+            "ContextCountReader", "ReferenceReader", "ReverseRefReader",
+            "StabilityReader",
+            "is_key_object", "get_index", ]
 
 if __name__ == "__main__":
     main()
