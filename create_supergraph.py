@@ -11,6 +11,7 @@ import re
 import ConfigParser
 from collections import Counter
 from collections import defaultdict
+import networkx as nx
 
 # Possible useful libraries, classes and functions:
 # from operator import itemgetter
@@ -97,7 +98,20 @@ def get_actual_hostname( hostname = "",
     return None
 
 def create_supergraph( datadict = {} ):
-    return {}
+    # Get all the objects and add as a node to the graph
+    result = {}
+    TYPE = get_index( "TYPE" ) # type index
+    for bmark, mydict in datadict.iteritems():
+        dgraph = nx.DiGraph()
+        objreader = mydict["objreader"]
+        for tup in objreader.iterrecs():
+            objId, rec = tup
+            mytype = objreader.get_type_using_typeId( rec[TYPE] )
+            dgraph.add_node( objId, { "type" : mytype } )
+        # TODO: Add the stable edges only
+        # Save the directed graph in the result dictionary
+        result[bmark] = dgraph
+    return result
 
 def main_process( output = None,
                   global_config = {},
