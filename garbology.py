@@ -1049,7 +1049,7 @@ class ReferenceReader:
     def read_reference_file( self ):
         start = False
         sdict = self.referencedict
-        with get_trace_fp( self.reference_file_name, self.logger ) as fp:
+        with get_trace_fp( self.reference_filename, self.logger ) as fp:
             for line in fp:
                 line = line.rstrip()
                 row = line.split(",")
@@ -1096,7 +1096,7 @@ class ReverseRefReader:
     def read_reverseref_file( self ):
         start = False
         sdict = self.reverserefdict
-        with get_trace_fp( self.reverseref_file_name, self.logger ) as fp:
+        with get_trace_fp( self.reverseref_filename, self.logger ) as fp:
             for line in fp:
                 line = line.rstrip()
                 line = line.replace("(","")

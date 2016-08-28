@@ -20,7 +20,8 @@ from mypytools import create_work_directory
 
 # The garbology related library. Import as follows.
 # Check garbology.py for other imports
-from garbology import ObjectInfoReader, get_index
+from garbology import ObjectInfoReader, StabilityReader, ReferenceReader, \
+         ReverseRefReader, get_index 
 
 # Needed to read in *-OBJECTINFO.txt and other files from 
 # the simulator run
@@ -95,6 +96,8 @@ def get_actual_hostname( hostname = "",
             return key
     return None
 
+def create_supergraph( datadict = {} ):
+    return {}
 
 def main_process( output = None,
                   global_config = {},
@@ -107,59 +110,65 @@ def main_process( output = None,
                   debugflag = False,
                   logger = None ):
     global pp
-    # This is where the OBJECTINFO files are
+    # This is where the simulator output files are
     cycle_cpp_dir = global_config["cycle_cpp_dir"]
-    # Setup stdout to file redirect TODO: Where should this comment be placed?
     # Get the date and time to label the work directory.
     today = date.today()
     today = today.strftime("%Y-%m%d")
     timenow = datetime.now().time().strftime("%H-%M-%S")
     olddir = os.getcwd()
-    print main_config["output"]
+    # TODO delete old debug: print main_config["output"]
     os.chdir( main_config["output"] )
     workdir = create_work_directory( work_dir = main_config["output"],
                                      today = today,
                                      timenow = timenow,
                                      logger = logger,
                                      interactive = False )
-    # Take benchmarks to process from summarize-objectinfo-worklist 
-    #     in ?????? configuration file.
+    # Take benchmarks to process from create-supergraph-worklist 
+    #     in basic_merge_summary configuration file.
     # Where to get file?
-    # Filename is in "objectinfo_config"
+    # Filenames are in
+    #   - objectinfo_config, reference_config, reverse_ref_config, stability_config
     # Directory is in "global_config"
     #     Make sure everything is honky-dory.
     assert( "cycle_cpp_dir" in global_config )
-    # TODO: Go through the worklist and check to see in if objectinfo_config.
-    # assert( "seq-seqdel" in objectinfo_config )
-    # Give simplelist? more descriptive names
     cycle_cpp_dir = global_config["cycle_cpp_dir"]
-    objdict = { bmark : {} for bmark in worklist_config.keys() }
-    pp.pprint(objdict)
-    for bmark in objdict.keys():
-        objdict[bmark]["objreader"] = ObjectInfoReader( os.path.join( cycle_cpp_dir,
-                                                                      objectinfo_config[bmark] ),
+    datadict = { bmark : {} for bmark in worklist_config.keys() }
+    for bmark in datadict.keys():
+        datadict[bmark]["objreader"] = ObjectInfoReader( os.path.join( cycle_cpp_dir,
+                                                                       objectinfo_config[bmark] ),
+                                                         logger = logger )
+        datadict[bmark]["stability"] = StabilityReader( os.path.join( cycle_cpp_dir,
+                                                                      stability_config[bmark] ),
                                                         logger = logger )
-    print "====[ Reading in the OBJECTINFO file ]=========================================="
-    for skind, mydict in objdict.iteritems():
+        datadict[bmark]["reference"] = ReferenceReader( os.path.join( cycle_cpp_dir,
+                                                                      reference_config[bmark] ),
+                                                        logger = logger )
+        datadict[bmark]["reverse-ref"] = ReverseRefReader( os.path.join( cycle_cpp_dir,
+                                                                         reverse_ref_config[bmark] ),
+                                                           logger = logger )
+    for bmark, mydict in datadict.iteritems():
+        # Read in OBJECTINFO
+        print "Reading in the OBJECTINFO file for benchmark:", bmark
         objreader = mydict["objreader"]
         objreader.read_objinfo_file()
+        # Read in STABILITY
+        print "Reading in the STABILITY file for benchmark:", bmark
+        stabreader = mydict["stability"]
+        stabreader.read_stability_file()
+        # Read in REFERENCE
+        print "Reading in the REFERENCE file for benchmark:", bmark
+        refreader = mydict["reference"]
+        refreader.read_reference_file()
+        # Read in REVERSE-REFERENCE
+        print "Reading in the REVERSE-REFERENCE file for benchmark:", bmark
+        reversereader = mydict["reverse-ref"]
+        reversereader.read_reverseref_file()
     print "DONE reading all benchmarks."
     print "================================================================================"
-    # Get summary table 1
-    result = calculate_counts( objdict )
-    for skind, mydict in result.iteritems():
-        print "=======[ %s ]===================================================================" % skind
-        for dtype, mycounter in mydict.iteritems():
-            print "    -----[ %s ]----------------------------------------------------" % dtype
-            pp.pprint( dict(mycounter) )
-    exit(0)
-    # TODO TODO TODO
-    # Is more needed afer this?
-    # TODO TODO TODO
-    with open( os.path.join( workdir, "simplelist-analyze.csv" ), "wb" ) as fptr:
-        writer = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
-        for row in table1:
-            writer.writerow(row)
+    print "Creating the supergraph..."
+    supergraph = create_supergraph( datadict = datadict )
+    print "================================================================================"
     print "create_supergraph.py - DONE."
     os.chdir( olddir )
     exit(0)
@@ -237,13 +246,13 @@ def create_parser():
                          config = None )
     return parser
 
-def calculate_counts( objdict = None ):
+def calculate_counts( datadict = None ):
     # TODO At end, and global result dictionaries?
     result = {}
     DIEDBY = get_index( "DIEDBY" ) # died by index
     ATTR = get_index( "STATTR" ) # stack attribute index
     TYPE = get_index( "TYPE" ) # type index
-    for bmark, mydict in objdict.iteritems():
+    for bmark, mydict in datadict.iteritems():
         objreader = mydict["objreader"]
         result[bmark] = {}
         rtmp = result[bmark]
@@ -287,7 +296,7 @@ def main():
     reverse_ref_config = configdict["reverse-reference"]
     stability_config = configdict["stability"]
     worklist_config = process_worklist_config( configdict["worklist"] )
-    pp.pprint(worklist_config)
+    # pp.pprint(worklist_config)
     # PROBABLY DELETE:
     # contextcount_config = configdict["contextcount"]
     # host_config = process_host_config( configdict["host"] )
