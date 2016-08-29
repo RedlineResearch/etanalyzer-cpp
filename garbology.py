@@ -125,12 +125,16 @@ def get_key_objects( idlist = [],
             result.append(rec)
     return list(set(result))
 
-
 def __cumul_sum__( mysumpair = (0, 0),
                    val = 0 ):
     oldsum = mysumpair[0]
     oldcount = mysumpair[1]
     return (oldsum + val, oldcount + 1)
+
+STABLE = "S"
+SERIAL_STABLE = "ST"
+def is_stable( attr = "" ):
+    return ( (attr == STABLE) or (attr == SERIAL_STABLE) )
 
 # ----------------------------------------------------------------------------- 
 # ----------------------------------------------------------------------------- 
@@ -147,6 +151,9 @@ class ObjectInfoReader:
         self.alloc_age_list = []
         self.methup_age_list = []
         self.logger = logger
+
+    def __len__( self ):
+        return len(self.objdict)
 
     def is_key_object( self, objId = None ):
         assert(type(objId) == type(1))
@@ -1064,7 +1071,7 @@ class ReferenceReader:
                 else:
                     if fieldId in sdict[objId]:
                         self.logger.error( "Duplicate field Id [%d]" % fieldId )
-                sdict[objId][fieldId] =  row[3:]
+                sdict[objId][fieldId] = row[3:]
 
     def iteritems( self ):
         return self.referencedict.iteritems()
@@ -1078,6 +1085,20 @@ class ReferenceReader:
     def __get_referencedict__( self ):
         # The __ means only call if you know what you're doing, eh?
         return self.referencedict
+
+    def __getitem__( self, key ):
+        """Returns the list at key where key is a reference - (object Id, field Id) tuple."""
+        objId = key[0]
+        fieldId = key[1]
+        rdict = self.referencedict
+        if (objId in rdict):
+            if (fieldId in rdict[objId]):
+                return rdict[objId][fieldId]
+            else:
+                raise ValueError("Field Id[%s] not found." % str(fieldId))
+        else:
+            raise ValueError("Object Id[%s] not found." % str(objId))
+        assert(False) # Shouldn't reach here.
 
     def print_out( self ):
         for key, fdict in self.referencedict.iteritems():
@@ -1270,7 +1291,7 @@ def main():
 __all__ = [ "EdgeInfoReader", "GarbologyConfig", "ObjectInfoReader",
             "ContextCountReader", "ReferenceReader", "ReverseRefReader",
             "StabilityReader",
-            "is_key_object", "get_index", ]
+            "is_key_object", "get_index", "is_stable", ]
 
 if __name__ == "__main__":
     main()

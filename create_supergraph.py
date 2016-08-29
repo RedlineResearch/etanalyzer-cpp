@@ -22,7 +22,7 @@ from mypytools import create_work_directory
 # The garbology related library. Import as follows.
 # Check garbology.py for other imports
 from garbology import ObjectInfoReader, StabilityReader, ReferenceReader, \
-         ReverseRefReader, get_index 
+         ReverseRefReader, get_index, is_stable
 
 # Needed to read in *-OBJECTINFO.txt and other files from 
 # the simulator run
@@ -97,7 +97,7 @@ def get_actual_hostname( hostname = "",
             return key
     return None
 
-def create_supergraph( datadict = {} ):
+def create_supergraph_all( datadict = {} ):
     # Get all the objects and add as a node to the graph
     result = {}
     TYPE = get_index( "TYPE" ) # type index
@@ -108,7 +108,22 @@ def create_supergraph( datadict = {} ):
             objId, rec = tup
             mytype = objreader.get_type_using_typeId( rec[TYPE] )
             dgraph.add_node( objId, { "type" : mytype } )
-        # TODO: Add the stable edges only
+        # Add the stable edges only
+        stability = mydict["stability"]
+        reference = mydict["reference"]
+        for objId, fdict in stability.iteritems():
+            for fieldId, sattr in fdict.iteritems():
+                if is_stable(sattr):
+                    # Add the edge
+                    try:
+                        objlist = reference[ (objId, fieldId) ]
+                    except:
+                        print "ERROR: Not found (%s, %s)" % (str(objId), str(fieldId))
+                        logger.error("ERROR: Not found (%s, %s)" % (str(objId), str(fieldId)))
+                        print "EXITING."
+                        exit(10)
+                    for tgtId in objlist:
+                        dgraph.add_edge( objId, tgtId )
         # Save the directed graph in the result dictionary
         result[bmark] = dgraph
     return result
@@ -181,7 +196,16 @@ def main_process( output = None,
     print "DONE reading all benchmarks."
     print "================================================================================"
     print "Creating the supergraph..."
-    supergraph = create_supergraph( datadict = datadict )
+    supergraph = create_supergraph_all( datadict = datadict )
+    for bmark, graph in supergraph.iteritems():
+        wcclist = sorted( nx.weakly_connected_component_subgraphs(graph),
+                          key = len,
+                          reverse = True )
+        print "[%s] -> # of objects = %d" % (bmark, len(objreader))
+        print "     -> nodes = %d  edges = %d  - WCC = %d" % \
+            ( graph.number_of_nodes(),
+              graph.number_of_edges(),
+              len(wcclist) )
     print "================================================================================"
     print "create_supergraph.py - DONE."
     os.chdir( olddir )
