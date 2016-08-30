@@ -97,36 +97,73 @@ def get_actual_hostname( hostname = "",
             return key
     return None
 
-def create_supergraph_all( datadict = {} ):
+def create_supergraph_all( datadict = {},
+                           bmark = "",
+                           supergraph = {} ):
     # Get all the objects and add as a node to the graph
     result = {}
     TYPE = get_index( "TYPE" ) # type index
-    for bmark, mydict in datadict.iteritems():
-        dgraph = nx.DiGraph()
-        objreader = mydict["objreader"]
-        for tup in objreader.iterrecs():
-            objId, rec = tup
-            mytype = objreader.get_type_using_typeId( rec[TYPE] )
+    mydict = datadict[bmark]
+    print "======[ %s ]====================================================================" % bmark
+    dgraph = nx.DiGraph()
+    objreader = mydict["objreader"]
+    objnode_list =  set([])
+    for tup in objreader.iterrecs():
+        objId, rec = tup
+        mytype = objreader.get_type_using_typeId( rec[TYPE] )
+        if objId not in objnode_list:
             dgraph.add_node( objId, { "type" : mytype } )
-        # Add the stable edges only
-        stability = mydict["stability"]
-        reference = mydict["reference"]
-        for objId, fdict in stability.iteritems():
-            for fieldId, sattr in fdict.iteritems():
-                if is_stable(sattr):
-                    # Add the edge
-                    try:
-                        objlist = reference[ (objId, fieldId) ]
-                    except:
-                        print "ERROR: Not found (%s, %s)" % (str(objId), str(fieldId))
-                        logger.error("ERROR: Not found (%s, %s)" % (str(objId), str(fieldId)))
-                        print "EXITING."
-                        exit(10)
-                    for tgtId in objlist:
+            objnode_list.add( objId )
+        else:
+            logger.critical( "Multiple add for object Id [ %s ]" % str(objId) )
+    # Add the stable edges only
+    stability = mydict["stability"]
+    reference = mydict["reference"]
+    for objId, fdict in stability.iteritems():
+        for fieldId, sattr in fdict.iteritems():
+            if is_stable(sattr):
+                # Add the edge
+                try:
+                    objlist = reference[ (objId, fieldId) ]
+                except:
+                    print "ERROR: Not found (%s, %s)" % (str(objId), str(fieldId))
+                    logger.error("ERROR: Not found (%s, %s)" % (str(objId), str(fieldId)))
+                    print "EXITING."
+                    exit(10)
+                if objId != 0:
+                    if objId not in objnode_list:
+                        print "=========[ ERROR ]=============================================================="
+                        pp.pprint( objnode_list )
+                        print "=========[ ERROR ]=============================================================="
+                        print "ObjId [ %s ] of type [ %s ]" % (str(objId), str(type(objId)))
+                        assert(False)
+                        # continue # TODO TODO TODO
+                else:
+                    continue
+                missing = set([])
+                for tgtId in objlist:
+                    if tgtId != 0:
+                        if tgtId in missing:
+                            continue
+                        elif tgtId not in objnode_list:
+                            missing.add( tgtId )
+                            print "=========[ ERROR ]=============================================================="
+                            print "Missing objId [ %s ] of type [ %s ]" % (str(tgtId), str(type(tgtId)))
+                            continue # For now. TODO TODO TODO
                         dgraph.add_edge( objId, tgtId )
-        # Save the directed graph in the result dictionary
-        result[bmark] = dgraph
-    return result
+    wcclist = sorted( nx.weakly_connected_component_subgraphs(dgraph),
+                      key = len,
+                      reverse = True )
+    print "[%s] -> # of objects = %d" % (bmark, len(objreader))
+    print "     -> nodes = %d  edges = %d  - WCC = %d" % \
+        ( dgraph.number_of_nodes(),
+          dgraph.number_of_edges(),
+          len(wcclist) )
+    print "     -> 3 largest WCC = %d, %d, %d" % \
+        ( len(wcclist[0]), len(wcclist[1]), len(wcclist[2]) )
+    # Save the directed graph in the result (supergraph) dictionary
+    supergraph[bmark] = { "graph" : dgraph, "wcclist" : wcclist }
+    print "------[ %s DONE ]---------------------------------------------------------------" % bmark
 
 def main_process( output = None,
                   global_config = {},
@@ -163,7 +200,9 @@ def main_process( output = None,
     assert( "cycle_cpp_dir" in global_config )
     cycle_cpp_dir = global_config["cycle_cpp_dir"]
     datadict = { bmark : {} for bmark in worklist_config.keys() }
+    supergraph = {}
     for bmark in datadict.keys():
+        print "[%s]" % str(bmark)
         datadict[bmark]["objreader"] = ObjectInfoReader( os.path.join( cycle_cpp_dir,
                                                                        objectinfo_config[bmark] ),
                                                          logger = logger )
@@ -176,36 +215,69 @@ def main_process( output = None,
         datadict[bmark]["reverse-ref"] = ReverseRefReader( os.path.join( cycle_cpp_dir,
                                                                          reverse_ref_config[bmark] ),
                                                            logger = logger )
-    for bmark, mydict in datadict.iteritems():
+    for bmark in datadict.keys():
+        mydict = datadict[bmark]
         # Read in OBJECTINFO
         print "Reading in the OBJECTINFO file for benchmark:", bmark
         objreader = mydict["objreader"]
-        objreader.read_objinfo_file()
+        try:
+            objreader.read_objinfo_file()
+        except:
+            print "Ignoring [ %s ] and continue." % bmark
+            if bmark in datadict:
+                del datadict[bmark]
+            sys.stdout.flush()
+            continue
         # Read in STABILITY
         print "Reading in the STABILITY file for benchmark:", bmark
-        stabreader = mydict["stability"]
-        stabreader.read_stability_file()
+        try:
+            stabreader = mydict["stability"]
+            stabreader.read_stability_file()
+        except:
+            print "Ignoring [ %s ] and continue." % bmark
+            if bmark in datadict:
+                del datadict[bmark]
+            sys.stdout.flush()
+            continue
         # Read in REFERENCE
         print "Reading in the REFERENCE file for benchmark:", bmark
-        refreader = mydict["reference"]
-        refreader.read_reference_file()
+        try:
+            refreader = mydict["reference"]
+            refreader.read_reference_file()
+        except:
+            print "Ignoring [ %s ] and continue." % bmark
+            if bmark in datadict:
+                del datadict[bmark]
+            sys.stdout.flush()
+            continue
         # Read in REVERSE-REFERENCE
         print "Reading in the REVERSE-REFERENCE file for benchmark:", bmark
-        reversereader = mydict["reverse-ref"]
-        reversereader.read_reverseref_file()
+        try:
+            reversereader = mydict["reverse-ref"]
+            reversereader.read_reverseref_file()
+        except:
+            print "Ignoring [ %s ] and continue." % bmark
+            if bmark in datadict:
+                del datadict[bmark]
+            sys.stdout.flush()
+            continue
+        sys.stdout.flush()
+        print "================================================================================"
+        print "Creating the supergraph..."
+        create_supergraph_all( datadict = datadict,
+                               bmark = bmark,
+                               supergraph = supergraph )
+        sys.stdout.flush()
     print "DONE reading all benchmarks."
-    print "================================================================================"
-    print "Creating the supergraph..."
-    supergraph = create_supergraph_all( datadict = datadict )
-    for bmark, graph in supergraph.iteritems():
-        wcclist = sorted( nx.weakly_connected_component_subgraphs(graph),
-                          key = len,
-                          reverse = True )
-        print "[%s] -> # of objects = %d" % (bmark, len(objreader))
-        print "     -> nodes = %d  edges = %d  - WCC = %d" % \
-            ( graph.number_of_nodes(),
-              graph.number_of_edges(),
-              len(wcclist) )
+    # TODO for bmark, graph in supergraph.iteritems():
+    # TODO     wcclist = sorted( nx.weakly_connected_component_subgraphs(graph),
+    # TODO                       key = len,
+    # TODO                       reverse = True )
+    # TODO     print "[%s] -> # of objects = %d" % (bmark, len(objreader))
+    # TODO     print "     -> nodes = %d  edges = %d  - WCC = %d" % \
+    # TODO         ( graph.number_of_nodes(),
+    # TODO           graph.number_of_edges(),
+    # TODO           len(wcclist) )
     print "================================================================================"
     print "create_supergraph.py - DONE."
     os.chdir( olddir )
@@ -229,7 +301,7 @@ def process_config( args ):
     global_config = config_section_map( "global", config_parser )
     main_config = config_section_map( "summarize-objectinfo", config_parser )
     objectinfo_config = config_section_map( "objectinfo", config_parser )
-    worklist_config = config_section_map( "summarize-objectinfo-worklist", config_parser )
+    worklist_config = config_section_map( "create-supergraph-worklist", config_parser )
     reference_config = config_section_map( "reference", config_parser )
     reverse_ref_config = config_section_map( "reverse-reference", config_parser )
     stability_config = config_section_map( "stability-summary", config_parser )
@@ -239,7 +311,7 @@ def process_config( args ):
     return { "global" : global_config,
              "main" : main_config,
              "objectinfo" : objectinfo_config,
-             "worklist" : worklist_config,
+             "create-supergraph-worklist" : worklist_config,
              "reference" : reference_config,
              "reverse-reference" : reverse_ref_config,
              "stability" : stability_config,
@@ -333,7 +405,7 @@ def main():
     reference_config = configdict["reference"]
     reverse_ref_config = configdict["reverse-reference"]
     stability_config = configdict["stability"]
-    worklist_config = process_worklist_config( configdict["worklist"] )
+    worklist_config = process_worklist_config( configdict["create-supergraph-worklist"] )
     # pp.pprint(worklist_config)
     # PROBABLY DELETE:
     # contextcount_config = configdict["contextcount"]

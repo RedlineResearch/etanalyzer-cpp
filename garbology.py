@@ -1014,8 +1014,8 @@ class StabilityReader:
                 #       * ST = Serial stable
                 #       * U  = Unstable
                 #       * X  = Unknown
-                objId = row[0]
-                fieldId = row[1]
+                objId = int(row[0])
+                fieldId = int(row[1])
                 stype = row[2]
                 if objId not in sdict:
                     sdict[objId] = { fieldId : stype }
@@ -1063,15 +1063,15 @@ class ReferenceReader:
                 # 0 - object Id
                 # 1 - field Id
                 # 2 - Number of objects pointed at, following
-                objId = row[0]
-                fieldId = row[1]
+                objId = int(row[0])
+                fieldId = int(row[1])
                 num = row[2]
                 if objId not in sdict:
-                    sdict[objId] = { fieldId : row[3:] }
+                    sdict[objId] = { fieldId : [ int(x) for x in row[3:] ] }
                 else:
                     if fieldId in sdict[objId]:
                         self.logger.error( "Duplicate field Id [%d]" % fieldId )
-                sdict[objId][fieldId] = row[3:]
+                sdict[objId][fieldId] = [ int(x) for x in row[3:] ]
 
     def iteritems( self ):
         return self.referencedict.iteritems()
@@ -1129,10 +1129,10 @@ class ReverseRefReader:
                 # (0,1),(2,3),(4,5)
                 # So we remove the parentheses, and get a list of pairs.
                 # 0, 1, 2, 3, 4, 5
-                objId = row[0]
-                num = row[1]
+                objId = int(row[0])
+                num = int(row[1])
                 if objId not in sdict:
-                    it = iter(row[3:])
+                    it = iter( [ int(x) for x in row[3:] ] )
                     sdict[objId] = zip(it, it)
                 else:
                     self.logger.critical( "Duplicate object Id [%d]" % fieldId )
