@@ -165,8 +165,7 @@ def create_supergraph_all( datadict = {},
     supergraph[bmark] = { "graph" : dgraph, "wcclist" : wcclist }
     print "------[ %s DONE ]---------------------------------------------------------------" % bmark
 
-def main_process( output = None,
-                  global_config = {},
+def main_process( global_config = {},
                   objectinfo_config = {},
                   worklist_config = {},
                   main_config = {},
@@ -336,7 +335,6 @@ def process_worklist_config( worklist_config = {} ):
 def create_parser():
     # set up arg parser
     parser = argparse.ArgumentParser()
-    parser.add_argument( "output", help = "Target output filename." )
     parser.add_argument( "--config",
                          help = "Specify configuration filename.",
                          action = "store" )
@@ -417,7 +415,6 @@ def main():
     # Main processing
     #
     return main_process( debugflag = global_config["debug"],
-                         output = args.output,
                          global_config = global_config,
                          main_config = main_config,
                          objectinfo_config = objectinfo_config,
