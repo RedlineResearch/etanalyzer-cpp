@@ -108,6 +108,7 @@ def create_supergraph_all( datadict = {},
     dgraph = nx.DiGraph()
     objreader = mydict["objreader"]
     objnode_list =  set([])
+    # Read through OBJECTINFO using ObjectReader
     for tup in objreader.iterrecs():
         objId, rec = tup
         mytype = objreader.get_type_using_typeId( rec[TYPE] )
@@ -119,6 +120,7 @@ def create_supergraph_all( datadict = {},
     # Add the stable edges only
     stability = mydict["stability"]
     reference = mydict["reference"]
+    # Read through the STABILITY file using StabilityReader
     for objId, fdict in stability.iteritems():
         for fieldId, sattr in fdict.iteritems():
             if is_stable(sattr):
@@ -218,6 +220,7 @@ def main_process( global_config = {},
         mydict = datadict[bmark]
         # Read in OBJECTINFO
         print "Reading in the OBJECTINFO file for benchmark:", bmark
+        sys.stdout.flush()
         objreader = mydict["objreader"]
         try:
             objreader.read_objinfo_file()
@@ -229,6 +232,7 @@ def main_process( global_config = {},
             continue
         # Read in STABILITY
         print "Reading in the STABILITY file for benchmark:", bmark
+        sys.stdout.flush()
         try:
             stabreader = mydict["stability"]
             stabreader.read_stability_file()
@@ -240,6 +244,7 @@ def main_process( global_config = {},
             continue
         # Read in REFERENCE
         print "Reading in the REFERENCE file for benchmark:", bmark
+        sys.stdout.flush()
         try:
             refreader = mydict["reference"]
             refreader.read_reference_file()
@@ -251,6 +256,7 @@ def main_process( global_config = {},
             continue
         # Read in REVERSE-REFERENCE
         print "Reading in the REVERSE-REFERENCE file for benchmark:", bmark
+        sys.stdout.flush()
         try:
             reversereader = mydict["reverse-ref"]
             reversereader.read_reverseref_file()
@@ -263,6 +269,7 @@ def main_process( global_config = {},
         sys.stdout.flush()
         print "================================================================================"
         print "Creating the supergraph..."
+        sys.stdout.flush()
         create_supergraph_all( datadict = datadict,
                                bmark = bmark,
                                supergraph = supergraph )
