@@ -12,12 +12,12 @@ import ConfigParser
 from collections import Counter
 from collections import defaultdict
 import networkx as nx
+import shutil
 
 # Possible useful libraries, classes and functions:
 # from operator import itemgetter
 #   - This one is my own library:
 # from mypytools import mean, stdev, variance
-from mypytools import create_work_directory
 
 # The garbology related library. Import as follows.
 # Check garbology.py for other imports
@@ -97,9 +97,38 @@ def get_actual_hostname( hostname = "",
             return key
     return None
 
+def output_graph_and_summary( bmark = "",
+                              objreader = {},
+                              dgraph = {},
+                              wcclist = [],
+                              backupdir = None,
+                              logger = None ):
+    # Print to standard output
+    print "[%s] -> # of objects = %d" % (bmark, len(objreader))
+    print "     -> nodes = %d  edges = %d  - WCC = %d" % \
+        ( dgraph.number_of_nodes(),
+          dgraph.number_of_edges(),
+          len(wcclist) )
+    print "     -> 3 largest WCC = %d, %d, %d" % \
+        ( len(wcclist[0]), len(wcclist[1]), len(wcclist[2]) )
+    target = "%s-stable_graph.gml" % bmark
+    # Backup the old gml file if it exists
+    if os.path.isfile(target):
+        # Move this file into backup directory
+        bakfile = os.path.join( backupdir, target )
+        if os.path.isfile( bakfile ):
+            os.remove( bakfile )
+        shutil.move( target, backupdir )
+    nx.write_gml(dgraph, target)
+        
+
 def create_supergraph_all( datadict = {},
                            bmark = "",
-                           supergraph = {} ):
+                           supergraph = {},
+                           backupdir = "",
+                           logger = None ):
+    """Assumes that we are in the desired working directory.
+    """
     # Get all the objects and add as a node to the graph
     result = {}
     TYPE = get_index( "TYPE" ) # type index
@@ -108,7 +137,6 @@ def create_supergraph_all( datadict = {},
     dgraph = nx.DiGraph()
     objreader = mydict["objreader"]
     objnode_list =  set([])
-    # Read through OBJECTINFO using ObjectReader
     for tup in objreader.iterrecs():
         objId, rec = tup
         mytype = objreader.get_type_using_typeId( rec[TYPE] )
@@ -120,9 +148,8 @@ def create_supergraph_all( datadict = {},
     # Add the stable edges only
     stability = mydict["stability"]
     reference = mydict["reference"]
-    # Read through the STABILITY file using StabilityReader
-    for objId, fdict in stability.iteritems():
-        for fieldId, sattr in fdict.iteritems():
+    for objId, fdict in stability.iteritems(): # for each object
+        for fieldId, sattr in fdict.iteritems(): # for each field Id of each object
             if is_stable(sattr):
                 # Add the edge
                 try:
@@ -143,7 +170,7 @@ def create_supergraph_all( datadict = {},
                 else:
                     continue
                 missing = set([])
-                for tgtId in objlist:
+                for tgtId in objlist: # for each target object
                     if tgtId != 0:
                         if tgtId in missing:
                             continue
@@ -156,13 +183,12 @@ def create_supergraph_all( datadict = {},
     wcclist = sorted( nx.weakly_connected_component_subgraphs(dgraph),
                       key = len,
                       reverse = True )
-    print "[%s] -> # of objects = %d" % (bmark, len(objreader))
-    print "     -> nodes = %d  edges = %d  - WCC = %d" % \
-        ( dgraph.number_of_nodes(),
-          dgraph.number_of_edges(),
-          len(wcclist) )
-    print "     -> 3 largest WCC = %d, %d, %d" % \
-        ( len(wcclist[0]), len(wcclist[1]), len(wcclist[2]) )
+    output_graph_and_summary( bmark = bmark,
+                              objreader = objreader,
+                              dgraph = dgraph,
+                              wcclist = wcclist,
+                              backupdir = backupdir,
+                              logger = logger )
     # Save the directed graph in the result (supergraph) dictionary
     supergraph[bmark] = { "graph" : dgraph, "wcclist" : wcclist }
     print "------[ %s DONE ]---------------------------------------------------------------" % bmark
@@ -184,13 +210,8 @@ def main_process( global_config = {},
     today = today.strftime("%Y-%m%d")
     timenow = datetime.now().time().strftime("%H-%M-%S")
     olddir = os.getcwd()
-    # TODO delete old debug: print main_config["output"]
-    os.chdir( main_config["output"] )
-    workdir = create_work_directory( work_dir = main_config["output"],
-                                     today = today,
-                                     timenow = timenow,
-                                     logger = logger,
-                                     interactive = False )
+    workdir =  main_config["output"]
+    os.chdir( workdir )
     # Take benchmarks to process from create-supergraph-worklist 
     #     in basic_merge_summary configuration file.
     # Where to get file?
@@ -220,7 +241,6 @@ def main_process( global_config = {},
         mydict = datadict[bmark]
         # Read in OBJECTINFO
         print "Reading in the OBJECTINFO file for benchmark:", bmark
-        sys.stdout.flush()
         objreader = mydict["objreader"]
         try:
             objreader.read_objinfo_file()
@@ -232,7 +252,6 @@ def main_process( global_config = {},
             continue
         # Read in STABILITY
         print "Reading in the STABILITY file for benchmark:", bmark
-        sys.stdout.flush()
         try:
             stabreader = mydict["stability"]
             stabreader.read_stability_file()
@@ -244,7 +263,6 @@ def main_process( global_config = {},
             continue
         # Read in REFERENCE
         print "Reading in the REFERENCE file for benchmark:", bmark
-        sys.stdout.flush()
         try:
             refreader = mydict["reference"]
             refreader.read_reference_file()
@@ -256,7 +274,6 @@ def main_process( global_config = {},
             continue
         # Read in REVERSE-REFERENCE
         print "Reading in the REVERSE-REFERENCE file for benchmark:", bmark
-        sys.stdout.flush()
         try:
             reversereader = mydict["reverse-ref"]
             reversereader.read_reverseref_file()
@@ -268,11 +285,12 @@ def main_process( global_config = {},
             continue
         sys.stdout.flush()
         print "================================================================================"
-        print "Creating the supergraph..."
-        sys.stdout.flush()
+        print "   [%s]: Creating the supergraph..." % bmark
         create_supergraph_all( datadict = datadict,
                                bmark = bmark,
-                               supergraph = supergraph )
+                               supergraph = supergraph,
+                               backupdir = main_config["backup"],
+                               logger = logger )
         sys.stdout.flush()
     print "DONE reading all benchmarks."
     # TODO for bmark, graph in supergraph.iteritems():
@@ -305,7 +323,7 @@ def process_config( args ):
     config_parser = ConfigParser.ConfigParser()
     config_parser.read( args.config )
     global_config = config_section_map( "global", config_parser )
-    main_config = config_section_map( "summarize-objectinfo", config_parser )
+    main_config = config_section_map( "create-supergraph", config_parser )
     objectinfo_config = config_section_map( "objectinfo", config_parser )
     worklist_config = config_section_map( "create-supergraph-worklist", config_parser )
     reference_config = config_section_map( "reference", config_parser )
