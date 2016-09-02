@@ -214,6 +214,7 @@ def create_supergraph_MPR( bmark = "",
         logger.error( "Unable to read OBJECTINFO file for [ %s ]." % bmark )
         sys.stdout.flush()
         resultq.put( [ False, [] ] # 2nd item is list of summary TODO TODO
+        return
     # Read in STABILITY
     print "Reading in the STABILITY file for benchmark:", bmark
     mydict["stability"] = StabilityReader( os.path.join( cycle_cpp_dir,
@@ -223,11 +224,11 @@ def create_supergraph_MPR( bmark = "",
         stabreader = mydict["stability"]
         stabreader.read_stability_file()
     except:
-        print "Ignoring [ %s ] and continue." % bmark
-        if bmark in datadict:
-            del datadict[bmark]
+        print "ERROR: Unable to read STABILITY file for [ %s ]." % bmark
+        logger.error( "Unable to read STABILITY file for [ %s ]." % bmark )
         sys.stdout.flush()
-        continue
+        resultq.put( [ False, [] ] # 2nd item is list of summary TODO TODO
+        return
     # Read in REFERENCE
     print "Reading in the REFERENCE file for benchmark:", bmark
     mydict["reference"] = ReferenceReader( os.path.join( cycle_cpp_dir,
@@ -237,11 +238,11 @@ def create_supergraph_MPR( bmark = "",
         refreader = mydict["reference"]
         refreader.read_reference_file()
     except:
-        print "Ignoring [ %s ] and continue." % bmark
-        if bmark in datadict:
-            del datadict[bmark]
+        print "ERROR: Unable to read REFERENCE file for [ %s ]." % bmark
+        logger.error( "Unable to read REFERENCE file for [ %s ]." % bmark )
         sys.stdout.flush()
-        continue
+        resultq.put( [ False, [] ] # 2nd item is list of summary TODO TODO
+        return
     # Read in REVERSE-REFERENCE
     print "Reading in the REVERSE-REFERENCE file for benchmark:", bmark
     mydict["reverse-ref"] = ReverseRefReader( os.path.join( cycle_cpp_dir,
@@ -251,11 +252,11 @@ def create_supergraph_MPR( bmark = "",
         reversereader = mydict["reverse-ref"]
         reversereader.read_reverseref_file()
     except:
-        print "Ignoring [ %s ] and continue." % bmark
-        if bmark in datadict:
-            del datadict[bmark]
+        print "ERROR: Unable to read REVERSE-REF file for [ %s ]." % bmark
+        logger.error( "Unable to read REVERSE-REF file for [ %s ]." % bmark )
         sys.stdout.flush()
-        continue
+        resultq.put( [ False, [] ] # 2nd item is list of summary TODO TODO
+        return
     sys.stdout.flush()
     print "================================================================================"
     print "   [%s]: Creating the supergraph..." % bmark
@@ -265,6 +266,8 @@ def create_supergraph_MPR( bmark = "",
                            backupdir = main_config["backup"],
                            logger = logger )
     sys.stdout.flush()
+    resultq.put( [ True, [] ] # 2nd item is list of summary TODO TODO
+    return # TODO TODO
 
 
 def main_process( global_config = {},
