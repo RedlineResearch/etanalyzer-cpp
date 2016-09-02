@@ -197,6 +197,9 @@ def create_supergraph_all( datadict = {},
 def create_supergraph_MPR( bmark = "",
                            cycle_cpp_dir = "",
                            objectinfo_config = {},
+                           stability_config = {},
+                           reference_config = {},
+                           reverse_ref_config = {},
                            resultq = Queue(),
                            logger = None ):
     print "[%s]" % str(bmark)
@@ -218,8 +221,8 @@ def create_supergraph_MPR( bmark = "",
     # Read in STABILITY
     print "Reading in the STABILITY file for benchmark:", bmark
     mydict["stability"] = StabilityReader( os.path.join( cycle_cpp_dir,
-                                                                  stability_config[bmark] ),
-                                                    logger = logger )
+                                                         stability_config[bmark] ),
+                                           logger = logger )
     try:
         stabreader = mydict["stability"]
         stabreader.read_stability_file()
@@ -232,8 +235,8 @@ def create_supergraph_MPR( bmark = "",
     # Read in REFERENCE
     print "Reading in the REFERENCE file for benchmark:", bmark
     mydict["reference"] = ReferenceReader( os.path.join( cycle_cpp_dir,
-                                                                  reference_config[bmark] ),
-                                                    logger = logger )
+                                                         reference_config[bmark] ),
+                                           logger = logger )
     try:
         refreader = mydict["reference"]
         refreader.read_reference_file()
@@ -246,8 +249,8 @@ def create_supergraph_MPR( bmark = "",
     # Read in REVERSE-REFERENCE
     print "Reading in the REVERSE-REFERENCE file for benchmark:", bmark
     mydict["reverse-ref"] = ReverseRefReader( os.path.join( cycle_cpp_dir,
-                                                                     reverse_ref_config[bmark] ),
-                                                       logger = logger )
+                                                            reverse_ref_config[bmark] ),
+                                              logger = logger )
     try:
         reversereader = mydict["reverse-ref"]
         reversereader.read_reverseref_file()
@@ -260,11 +263,16 @@ def create_supergraph_MPR( bmark = "",
     sys.stdout.flush()
     print "================================================================================"
     print "   [%s]: Creating the supergraph..." % bmark
+    # TODO:
+    # 1- datadict isn't applicable to the MPR version
+    # 2- There is no supergraph for the MPR version.
+    # 3- Where should main_config come from?
     create_supergraph_all( datadict = datadict,
                            bmark = bmark,
                            supergraph = supergraph,
                            backupdir = main_config["backup"],
                            logger = logger )
+    # TODO END
     sys.stdout.flush()
     resultq.put( [ True, [] ] # 2nd item is list of summary TODO TODO
     return # TODO TODO
