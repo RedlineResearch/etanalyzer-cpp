@@ -13,6 +13,7 @@ from collections import Counter
 from collections import defaultdict
 import networkx as nx
 import shutil
+from multiprocessing import Process, Queue
 
 # Possible useful libraries, classes and functions:
 # from operator import itemgetter
@@ -194,26 +195,28 @@ def create_supergraph_all( datadict = {},
     print "------[ %s DONE ]---------------------------------------------------------------" % bmark
 
 def create_supergraph_MPR( bmark = "",
-                           bmark_dict = ):
+                           cycle_cpp_dir = "",
+                           objectinfo_config = {},
+                           resultq = Queue(),
+                           logger = None ):
     print "[%s]" % str(bmark)
-    mydict = datadict[bmark]
+    mydict = {}
     # Read in OBJECTINFO
     print "Reading in the OBJECTINFO file for benchmark:", bmark
-    datadict[bmark]["objreader"] = ObjectInfoReader( os.path.join( cycle_cpp_dir,
-                                                                   objectinfo_config[bmark] ),
-                                                     logger = logger )
+    mydict["objreader"] = ObjectInfoReader( os.path.join( cycle_cpp_dir,
+                                                          objectinfo_config[bmark] ),
+                                            logger = logger )
     objreader = mydict["objreader"]
     try:
         objreader.read_objinfo_file()
     except:
-        print "Ignoring [ %s ] and continue." % bmark
-        if bmark in datadict:
-            del datadict[bmark]
+        print "ERROR: Unable to read OBJECTINFO file for [ %s ]." % bmark
+        logger.error( "Unable to read OBJECTINFO file for [ %s ]." % bmark )
         sys.stdout.flush()
-        continue
+        resultq.put( [ False, [] ] # 2nd item is list of summary TODO TODO
     # Read in STABILITY
     print "Reading in the STABILITY file for benchmark:", bmark
-    datadict[bmark]["stability"] = StabilityReader( os.path.join( cycle_cpp_dir,
+    mydict["stability"] = StabilityReader( os.path.join( cycle_cpp_dir,
                                                                   stability_config[bmark] ),
                                                     logger = logger )
     try:
@@ -227,7 +230,7 @@ def create_supergraph_MPR( bmark = "",
         continue
     # Read in REFERENCE
     print "Reading in the REFERENCE file for benchmark:", bmark
-    datadict[bmark]["reference"] = ReferenceReader( os.path.join( cycle_cpp_dir,
+    mydict["reference"] = ReferenceReader( os.path.join( cycle_cpp_dir,
                                                                   reference_config[bmark] ),
                                                     logger = logger )
     try:
@@ -241,7 +244,7 @@ def create_supergraph_MPR( bmark = "",
         continue
     # Read in REVERSE-REFERENCE
     print "Reading in the REVERSE-REFERENCE file for benchmark:", bmark
-    datadict[bmark]["reverse-ref"] = ReverseRefReader( os.path.join( cycle_cpp_dir,
+    mydict["reverse-ref"] = ReverseRefReader( os.path.join( cycle_cpp_dir,
                                                                      reverse_ref_config[bmark] ),
                                                        logger = logger )
     try:
