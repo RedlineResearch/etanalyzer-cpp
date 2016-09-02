@@ -193,6 +193,77 @@ def create_supergraph_all( datadict = {},
     supergraph[bmark] = { "graph" : dgraph, "wcclist" : wcclist }
     print "------[ %s DONE ]---------------------------------------------------------------" % bmark
 
+def create_supergraph_MPR( bmark = "",
+                           bmark_dict = ):
+    print "[%s]" % str(bmark)
+    mydict = datadict[bmark]
+    # Read in OBJECTINFO
+    print "Reading in the OBJECTINFO file for benchmark:", bmark
+    datadict[bmark]["objreader"] = ObjectInfoReader( os.path.join( cycle_cpp_dir,
+                                                                   objectinfo_config[bmark] ),
+                                                     logger = logger )
+    objreader = mydict["objreader"]
+    try:
+        objreader.read_objinfo_file()
+    except:
+        print "Ignoring [ %s ] and continue." % bmark
+        if bmark in datadict:
+            del datadict[bmark]
+        sys.stdout.flush()
+        continue
+    # Read in STABILITY
+    print "Reading in the STABILITY file for benchmark:", bmark
+    datadict[bmark]["stability"] = StabilityReader( os.path.join( cycle_cpp_dir,
+                                                                  stability_config[bmark] ),
+                                                    logger = logger )
+    try:
+        stabreader = mydict["stability"]
+        stabreader.read_stability_file()
+    except:
+        print "Ignoring [ %s ] and continue." % bmark
+        if bmark in datadict:
+            del datadict[bmark]
+        sys.stdout.flush()
+        continue
+    # Read in REFERENCE
+    print "Reading in the REFERENCE file for benchmark:", bmark
+    datadict[bmark]["reference"] = ReferenceReader( os.path.join( cycle_cpp_dir,
+                                                                  reference_config[bmark] ),
+                                                    logger = logger )
+    try:
+        refreader = mydict["reference"]
+        refreader.read_reference_file()
+    except:
+        print "Ignoring [ %s ] and continue." % bmark
+        if bmark in datadict:
+            del datadict[bmark]
+        sys.stdout.flush()
+        continue
+    # Read in REVERSE-REFERENCE
+    print "Reading in the REVERSE-REFERENCE file for benchmark:", bmark
+    datadict[bmark]["reverse-ref"] = ReverseRefReader( os.path.join( cycle_cpp_dir,
+                                                                     reverse_ref_config[bmark] ),
+                                                       logger = logger )
+    try:
+        reversereader = mydict["reverse-ref"]
+        reversereader.read_reverseref_file()
+    except:
+        print "Ignoring [ %s ] and continue." % bmark
+        if bmark in datadict:
+            del datadict[bmark]
+        sys.stdout.flush()
+        continue
+    sys.stdout.flush()
+    print "================================================================================"
+    print "   [%s]: Creating the supergraph..." % bmark
+    create_supergraph_all( datadict = datadict,
+                           bmark = bmark,
+                           supergraph = supergraph,
+                           backupdir = main_config["backup"],
+                           logger = logger )
+    sys.stdout.flush()
+
+
 def main_process( global_config = {},
                   objectinfo_config = {},
                   worklist_config = {},
@@ -225,22 +296,12 @@ def main_process( global_config = {},
     supergraph = {}
     for bmark in datadict.keys():
         print "[%s]" % str(bmark)
-        datadict[bmark]["objreader"] = ObjectInfoReader( os.path.join( cycle_cpp_dir,
-                                                                       objectinfo_config[bmark] ),
-                                                         logger = logger )
-        datadict[bmark]["stability"] = StabilityReader( os.path.join( cycle_cpp_dir,
-                                                                      stability_config[bmark] ),
-                                                        logger = logger )
-        datadict[bmark]["reference"] = ReferenceReader( os.path.join( cycle_cpp_dir,
-                                                                      reference_config[bmark] ),
-                                                        logger = logger )
-        datadict[bmark]["reverse-ref"] = ReverseRefReader( os.path.join( cycle_cpp_dir,
-                                                                         reverse_ref_config[bmark] ),
-                                                           logger = logger )
-    for bmark in datadict.keys():
         mydict = datadict[bmark]
         # Read in OBJECTINFO
         print "Reading in the OBJECTINFO file for benchmark:", bmark
+        datadict[bmark]["objreader"] = ObjectInfoReader( os.path.join( cycle_cpp_dir,
+                                                                       objectinfo_config[bmark] ),
+                                                         logger = logger )
         objreader = mydict["objreader"]
         try:
             objreader.read_objinfo_file()
@@ -252,6 +313,9 @@ def main_process( global_config = {},
             continue
         # Read in STABILITY
         print "Reading in the STABILITY file for benchmark:", bmark
+        datadict[bmark]["stability"] = StabilityReader( os.path.join( cycle_cpp_dir,
+                                                                      stability_config[bmark] ),
+                                                        logger = logger )
         try:
             stabreader = mydict["stability"]
             stabreader.read_stability_file()
@@ -263,6 +327,9 @@ def main_process( global_config = {},
             continue
         # Read in REFERENCE
         print "Reading in the REFERENCE file for benchmark:", bmark
+        datadict[bmark]["reference"] = ReferenceReader( os.path.join( cycle_cpp_dir,
+                                                                      reference_config[bmark] ),
+                                                        logger = logger )
         try:
             refreader = mydict["reference"]
             refreader.read_reference_file()
@@ -274,6 +341,9 @@ def main_process( global_config = {},
             continue
         # Read in REVERSE-REFERENCE
         print "Reading in the REVERSE-REFERENCE file for benchmark:", bmark
+        datadict[bmark]["reverse-ref"] = ReverseRefReader( os.path.join( cycle_cpp_dir,
+                                                                         reverse_ref_config[bmark] ),
+                                                           logger = logger )
         try:
             reversereader = mydict["reverse-ref"]
             reversereader.read_reverseref_file()
