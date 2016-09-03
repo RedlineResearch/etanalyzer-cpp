@@ -128,8 +128,7 @@ def create_supergraph_all( datadict = {},
                            supergraph = {},
                            backupdir = "",
                            logger = None ):
-    """Assumes that we are in the desired working directory.
-    """
+    # Assumes that we are in the desired working directory.
     # Get all the objects and add as a node to the graph
     result = {}
     TYPE = get_index( "TYPE" ) # type index
@@ -194,6 +193,72 @@ def create_supergraph_all( datadict = {},
     supergraph[bmark] = { "graph" : dgraph, "wcclist" : wcclist }
     print "------[ %s DONE ]---------------------------------------------------------------" % bmark
 
+def create_supergraph_all_MPR( mydict = {},
+                               bmark = "",
+                               backupdir = "",
+                               logger = None ):
+    # Assumes that we are in the desired working directory.
+    # Get all the objects and add as a node to the graph
+    result = {}
+    TYPE = get_index( "TYPE" ) # type index
+    dgraph = nx.DiGraph()
+    objreader = mydict["objreader"]
+    objnode_list =  set([])
+    for tup in objreader.iterrecs():
+        objId, rec = tup
+        mytype = objreader.get_type_using_typeId( rec[TYPE] )
+        if objId not in objnode_list:
+            dgraph.add_node( objId, { "type" : mytype } )
+            objnode_list.add( objId )
+        else:
+            logger.critical( "%s: Multiple add for object Id [ %s ]" %
+                             (bmark, str(objId)) )
+    # Add the stable edges only
+    stability = mydict["stability"]
+    reference = mydict["reference"]
+    for objId, fdict in stability.iteritems(): # for each object
+        for fieldId, sattr in fdict.iteritems(): # for each field Id of each object
+            if is_stable(sattr):
+                # Add the edge
+                try:
+                    objlist = reference[ (objId, fieldId) ]
+                except:
+                    print "ERROR: Not found (%s, %s)" % (str(objId), str(fieldId))
+                    logger.error("ERROR: Not found (%s, %s)" % (str(objId), str(fieldId)))
+                    print "EXITING."
+                    exit(10)
+                if objId != 0:
+                    if objId not in objnode_list:
+                        print "=========[ ERROR ]=============================================================="
+                        pp.pprint( objnode_list )
+                        print "=========[ ERROR ]=============================================================="
+                        print "ObjId [ %s ] of type [ %s ]" % (str(objId), str(type(objId)))
+                        assert(False)
+                        # continue # TODO TODO TODO
+                else:
+                    continue
+                missing = set([])
+                for tgtId in objlist: # for each target object
+                    if tgtId != 0:
+                        if tgtId in missing:
+                            continue
+                        elif tgtId not in objnode_list:
+                            missing.add( tgtId )
+                            print "=========[ ERROR ]=============================================================="
+                            print "Missing objId [ %s ] of type [ %s ]" % (str(tgtId), str(type(tgtId)))
+                            continue # For now. TODO TODO TODO
+                        dgraph.add_edge( objId, tgtId )
+    wcclist = sorted( nx.weakly_connected_component_subgraphs(dgraph),
+                      key = len,
+                      reverse = True )
+    output_graph_and_summary( bmark = bmark,
+                              objreader = objreader,
+                              dgraph = dgraph,
+                              wcclist = wcclist,
+                              backupdir = backupdir,
+                              logger = logger )
+    return { "graph" : dgraph, "wcclist" : wcclist }
+
 def create_supergraph_MPR( bmark = "",
                            cycle_cpp_dir = "",
                            objectinfo_config = {},
@@ -217,7 +282,6 @@ def create_supergraph_MPR( bmark = "",
         logger.error( "Unable to read OBJECTINFO file for [ %s ]." % bmark )
         sys.stdout.flush()
         resultq.put( [ False, [] ] # 2nd item is list of summary TODO TODO
-        return
     # Read in STABILITY
     print "Reading in the STABILITY file for benchmark:", bmark
     mydict["stability"] = StabilityReader( os.path.join( cycle_cpp_dir,
@@ -227,11 +291,11 @@ def create_supergraph_MPR( bmark = "",
         stabreader = mydict["stability"]
         stabreader.read_stability_file()
     except:
-        print "ERROR: Unable to read STABILITY file for [ %s ]." % bmark
-        logger.error( "Unable to read STABILITY file for [ %s ]." % bmark )
+        print "Ignoring [ %s ] and continue." % bmark
+        if bmark in datadict:
+            del datadict[bmark]
         sys.stdout.flush()
-        resultq.put( [ False, [] ] # 2nd item is list of summary TODO TODO
-        return
+        continue
     # Read in REFERENCE
     print "Reading in the REFERENCE file for benchmark:", bmark
     mydict["reference"] = ReferenceReader( os.path.join( cycle_cpp_dir,
@@ -241,11 +305,11 @@ def create_supergraph_MPR( bmark = "",
         refreader = mydict["reference"]
         refreader.read_reference_file()
     except:
-        print "ERROR: Unable to read REFERENCE file for [ %s ]." % bmark
-        logger.error( "Unable to read REFERENCE file for [ %s ]." % bmark )
+        print "Ignoring [ %s ] and continue." % bmark
+        if bmark in datadict:
+            del datadict[bmark]
         sys.stdout.flush()
-        resultq.put( [ False, [] ] # 2nd item is list of summary TODO TODO
-        return
+        continue
     # Read in REVERSE-REFERENCE
     print "Reading in the REVERSE-REFERENCE file for benchmark:", bmark
     mydict["reverse-ref"] = ReverseRefReader( os.path.join( cycle_cpp_dir,
@@ -255,27 +319,28 @@ def create_supergraph_MPR( bmark = "",
         reversereader = mydict["reverse-ref"]
         reversereader.read_reverseref_file()
     except:
-        print "ERROR: Unable to read REVERSE-REF file for [ %s ]." % bmark
-        logger.error( "Unable to read REVERSE-REF file for [ %s ]." % bmark )
+        print "Ignoring [ %s ] and continue." % bmark
+        if bmark in datadict:
+            del datadict[bmark]
         sys.stdout.flush()
-        resultq.put( [ False, [] ] # 2nd item is list of summary TODO TODO
-        return
+        continue
     sys.stdout.flush()
     print "================================================================================"
     print "   [%s]: Creating the supergraph..." % bmark
-    # TODO:
-    # 1- datadict isn't applicable to the MPR version
-    # 2- There is no supergraph for the MPR version.
-    # 3- Where should main_config come from?
-    create_supergraph_all( datadict = datadict,
-                           bmark = bmark,
-                           supergraph = supergraph,
-                           backupdir = main_config["backup"],
-                           logger = logger )
-    # TODO END
+    if mprflag:
+        # Multiprocessing version
+        create_supergraph_all_MPR( mydict = mydict,
+                                   bmark = bmark,
+                                   backupdir = main_config["backup"],
+                                   logger = logger ):
+    else:
+        # Single thread version
+        create_supergraph_all( datadict = datadict,
+                               bmark = bmark,
+                               supergraph = supergraph,
+                               backupdir = main_config["backup"],
+                               logger = logger )
     sys.stdout.flush()
-    resultq.put( [ True, [] ] # 2nd item is list of summary TODO TODO
-    return # TODO TODO
 
 
 def main_process( global_config = {},
@@ -309,6 +374,30 @@ def main_process( global_config = {},
     datadict = { bmark : {} for bmark in worklist_config.keys() }
     supergraph = {}
     for bmark in datadict.keys():
+        # TODO START
+        procs = {}
+        for bmark, filename in etanalyze_config.iteritems():
+            # if skip_benchmark(bmark):
+            if ( ((benchmark != "_ALL_") and
+                  (bmark != benchmark)) or 
+                 (not check_host( benchmark = bmark,
+                                  worklist_config = worklist_config,
+                                  host_config = host_config )) ):
+                print "SKIP:", bmark
+                continue
+            print "=======[ Spawning %s ]================================================" \
+                % bmark
+            p = Process( target = create_supergraph_all_MPR,
+                         args = ( bmark,
+                                  main_config,
+                                  filename,
+                                  objectinfo_config,
+                                  edge_config,
+                                  host_config,
+                                  logger ) )
+            p.start()
+            procs[bmark] = p
+        # TODO END
         print "[%s]" % str(bmark)
         mydict = datadict[bmark]
         # Read in OBJECTINFO
