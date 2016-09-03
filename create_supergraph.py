@@ -123,14 +123,92 @@ def output_graph_and_summary( bmark = "",
     nx.write_gml(dgraph, target)
         
 
-def create_supergraph_all( datadict = {},
-                           bmark = "",
-                           supergraph = {},
-                           backupdir = "",
+def read_simulator_data( bmark = "",
+                         cycle_cpp_dir = "",
+                         objectinfo_config = {},
+                         stability_config = {},
+                         reference_config = {},
+                         reverse_ref_config = {},
+                         mydict = {},
+                         logger = None ):
+    # Read in OBJECTINFO
+    print "Reading in the OBJECTINFO file for benchmark:", bmark
+    mydict["objreader"] = ObjectInfoReader( os.path.join( cycle_cpp_dir,
+                                                          objectinfo_config[bmark] ),
+                                            logger = logger )
+    objreader = mydict["objreader"]
+    try:
+        objreader.read_objinfo_file()
+    except:
+        logger.error( "[ %s ] Unable to read objinfo file.." % bmark )
+        mydict.clear()
+        sys.stdout.flush()
+        return False
+    # Read in STABILITY
+    print "Reading in the STABILITY file for benchmark:", bmark
+    mydict["stability"] = StabilityReader( os.path.join( cycle_cpp_dir,
+                                                         stability_config[bmark] ),
+                                           logger = logger )
+    try:
+        stabreader = mydict["stability"]
+        stabreader.read_stability_file()
+    except:
+        logger.error( "[ %s ] Unable to read stability file.." % bmark )
+        mydict.clear()
+        sys.stdout.flush()
+        return False
+    # Read in REFERENCE
+    print "Reading in the REFERENCE file for benchmark:", bmark
+    mydict["reference"] = ReferenceReader( os.path.join( cycle_cpp_dir,
+                                                         reference_config[bmark] ),
+                                           logger = logger )
+    try:
+        refreader = mydict["reference"]
+        refreader.read_reference_file()
+    except:
+        logger.error( "[ %s ] Unable to read reference file.." % bmark )
+        mydict.clear()
+        sys.stdout.flush()
+        return False
+    # Read in REVERSE-REFERENCE
+    print "Reading in the REVERSE-REFERENCE file for benchmark:", bmark
+    mydict["reverse-ref"] = ReverseRefReader( os.path.join( cycle_cpp_dir,
+                                                            reverse_ref_config[bmark] ),
+                                              logger = logger )
+    try:
+        reversereader = mydict["reverse-ref"]
+        reversereader.read_reverseref_file()
+    except:
+        logger.error( "[ %s ] Unable to read reverse-reference file.." % bmark )
+        mydict.clear()
+        sys.stdout.flush()
+        continue
+    sys.stdout.flush()
+    return True
+
+
+def create_supergraph_all( bmark = "",
+                           cycle_cpp_dir = {},
+                           main_config = {},
+                           objectinfo_config = {},
+                           stability_config = {},
+                           reference_config = {},
+                           reverse_ref_config = {},
                            logger = None ):
     # Assumes that we are in the desired working directory.
     # Get all the objects and add as a node to the graph
-    result = {}
+    mydict = {}
+    backupdir = main_config["backup"],
+    read_result = read_simulator_data( bmark = bmark,
+                                       cycle_cpp_dir = cycle_cpp_dir,
+                                       objectinfo_config = objectinfo_config,
+                                       stability_config = stability_config,
+                                       reference_config = reference_config,
+                                       reverse_ref_config = reverse_ref_config,
+                                       mydict = mydict,
+                                       logger = logger )
+    if read_result == False:
+        return False
     TYPE = get_index( "TYPE" ) # type index
     mydict = datadict[bmark]
     print "======[ %s ]====================================================================" % bmark
@@ -189,17 +267,30 @@ def create_supergraph_all( datadict = {},
                               wcclist = wcclist,
                               backupdir = backupdir,
                               logger = logger )
-    # Save the directed graph in the result (supergraph) dictionary
-    supergraph[bmark] = { "graph" : dgraph, "wcclist" : wcclist }
     print "------[ %s DONE ]---------------------------------------------------------------" % bmark
 
-def create_supergraph_all_MPR( mydict = {},
-                               bmark = "",
-                               backupdir = "",
+def create_supergraph_all_MPR( bmark = "",
+                               cycle_cpp_dir = "",
+                               main_config = {},
+                               objectinfo_config = {},
+                               stability_config = {},
+                               reference_config = {},
+                               reverse_ref_config = {},
                                logger = None ):
     # Assumes that we are in the desired working directory.
     # Get all the objects and add as a node to the graph
-    result = {}
+    mydict = {}
+    backupdir = main_config["backup"],
+    read_result = read_simulator_data( bmark = bmark,
+                                       cycle_cpp_dir = cycle_cpp_dir,
+                                       objectinfo_config = objectinfo_config,
+                                       stability_config = stability_config,
+                                       reference_config = reference_config,
+                                       reverse_ref_config = reverse_ref_config,
+                                       mydict = mydict,
+                                       logger = logger )
+    if read_result == False:
+        return False
     TYPE = get_index( "TYPE" ) # type index
     dgraph = nx.DiGraph()
     objreader = mydict["objreader"]
@@ -259,87 +350,15 @@ def create_supergraph_all_MPR( mydict = {},
                               logger = logger )
     return { "graph" : dgraph, "wcclist" : wcclist }
 
-def create_supergraph_MPR( bmark = "",
-                           cycle_cpp_dir = "",
-                           objectinfo_config = {},
-                           stability_config = {},
-                           reference_config = {},
-                           reverse_ref_config = {},
-                           resultq = Queue(),
-                           logger = None ):
+def process_benchmark( bmark = "",
+                       resultq = Queue(),
+                       logger = None ):
     print "[%s]" % str(bmark)
-    mydict = {}
-    # Read in OBJECTINFO
-    print "Reading in the OBJECTINFO file for benchmark:", bmark
-    mydict["objreader"] = ObjectInfoReader( os.path.join( cycle_cpp_dir,
-                                                          objectinfo_config[bmark] ),
-                                            logger = logger )
-    objreader = mydict["objreader"]
-    try:
-        objreader.read_objinfo_file()
-    except:
-        print "ERROR: Unable to read OBJECTINFO file for [ %s ]." % bmark
-        logger.error( "Unable to read OBJECTINFO file for [ %s ]." % bmark )
-        sys.stdout.flush()
-        resultq.put( [ False, [] ] # 2nd item is list of summary TODO TODO
-    # Read in STABILITY
-    print "Reading in the STABILITY file for benchmark:", bmark
-    mydict["stability"] = StabilityReader( os.path.join( cycle_cpp_dir,
-                                                         stability_config[bmark] ),
-                                           logger = logger )
-    try:
-        stabreader = mydict["stability"]
-        stabreader.read_stability_file()
-    except:
-        print "Ignoring [ %s ] and continue." % bmark
-        if bmark in datadict:
-            del datadict[bmark]
-        sys.stdout.flush()
-        continue
-    # Read in REFERENCE
-    print "Reading in the REFERENCE file for benchmark:", bmark
-    mydict["reference"] = ReferenceReader( os.path.join( cycle_cpp_dir,
-                                                         reference_config[bmark] ),
-                                           logger = logger )
-    try:
-        refreader = mydict["reference"]
-        refreader.read_reference_file()
-    except:
-        print "Ignoring [ %s ] and continue." % bmark
-        if bmark in datadict:
-            del datadict[bmark]
-        sys.stdout.flush()
-        continue
-    # Read in REVERSE-REFERENCE
-    print "Reading in the REVERSE-REFERENCE file for benchmark:", bmark
-    mydict["reverse-ref"] = ReverseRefReader( os.path.join( cycle_cpp_dir,
-                                                            reverse_ref_config[bmark] ),
-                                              logger = logger )
-    try:
-        reversereader = mydict["reverse-ref"]
-        reversereader.read_reverseref_file()
-    except:
-        print "Ignoring [ %s ] and continue." % bmark
-        if bmark in datadict:
-            del datadict[bmark]
-        sys.stdout.flush()
-        continue
-    sys.stdout.flush()
     print "================================================================================"
     print "   [%s]: Creating the supergraph..." % bmark
-    if mprflag:
         # Multiprocessing version
-        create_supergraph_all_MPR( mydict = mydict,
-                                   bmark = bmark,
-                                   backupdir = main_config["backup"],
-                                   logger = logger ):
     else:
         # Single thread version
-        create_supergraph_all( datadict = datadict,
-                               bmark = bmark,
-                               supergraph = supergraph,
-                               backupdir = main_config["backup"],
-                               logger = logger )
     sys.stdout.flush()
 
 
@@ -350,6 +369,7 @@ def main_process( global_config = {},
                   reference_config = {},
                   reverse_ref_config = {},
                   stability_config = {},
+                  mprflag = False,
                   debugflag = False,
                   logger = None ):
     global pp
@@ -385,87 +405,33 @@ def main_process( global_config = {},
                                   host_config = host_config )) ):
                 print "SKIP:", bmark
                 continue
-            print "=======[ Spawning %s ]================================================" \
-                % bmark
-            p = Process( target = create_supergraph_all_MPR,
-                         args = ( bmark,
-                                  main_config,
-                                  filename,
-                                  objectinfo_config,
-                                  edge_config,
-                                  host_config,
-                                  logger ) )
-            p.start()
-            procs[bmark] = p
+            if mprflag:
+                print "=======[ Spawning %s ]================================================" \
+                    % bmark
+                p = Process( target = create_supergraph_all_MPR,
+                             args = ( bmark,
+                                      cycle_cpp_dir,
+                                      main_config,
+                                      objectinfo_config,
+                                      stability_config,
+                                      reference_config,
+                                      reverse_ref_config,
+                                      logger ) )
+                                   logger = logger):
+                p.start()
+                procs[bmark] = p
+            else:
+                create_supergraph_all( bmark = bmark,
+                                       cycle_cpp_dir = cycle_cpp_dir,
+                                       main_config = main_config,
+                                       objectinfo_config = objectinfo_config,
+                                       stability_config = stability_config,
+                                       reference_config = reference_config,
+                                       reverse_ref_config = reverse_ref_config,
+                                       logger = logger )
         # TODO END
         print "[%s]" % str(bmark)
-        mydict = datadict[bmark]
-        # Read in OBJECTINFO
-        print "Reading in the OBJECTINFO file for benchmark:", bmark
-        datadict[bmark]["objreader"] = ObjectInfoReader( os.path.join( cycle_cpp_dir,
-                                                                       objectinfo_config[bmark] ),
-                                                         logger = logger )
-        objreader = mydict["objreader"]
-        try:
-            objreader.read_objinfo_file()
-        except:
-            print "Ignoring [ %s ] and continue." % bmark
-            if bmark in datadict:
-                del datadict[bmark]
-            sys.stdout.flush()
-            continue
-        # Read in STABILITY
-        print "Reading in the STABILITY file for benchmark:", bmark
-        datadict[bmark]["stability"] = StabilityReader( os.path.join( cycle_cpp_dir,
-                                                                      stability_config[bmark] ),
-                                                        logger = logger )
-        try:
-            stabreader = mydict["stability"]
-            stabreader.read_stability_file()
-        except:
-            print "Ignoring [ %s ] and continue." % bmark
-            if bmark in datadict:
-                del datadict[bmark]
-            sys.stdout.flush()
-            continue
-        # Read in REFERENCE
-        print "Reading in the REFERENCE file for benchmark:", bmark
-        datadict[bmark]["reference"] = ReferenceReader( os.path.join( cycle_cpp_dir,
-                                                                      reference_config[bmark] ),
-                                                        logger = logger )
-        try:
-            refreader = mydict["reference"]
-            refreader.read_reference_file()
-        except:
-            print "Ignoring [ %s ] and continue." % bmark
-            if bmark in datadict:
-                del datadict[bmark]
-            sys.stdout.flush()
-            continue
-        # Read in REVERSE-REFERENCE
-        print "Reading in the REVERSE-REFERENCE file for benchmark:", bmark
-        datadict[bmark]["reverse-ref"] = ReverseRefReader( os.path.join( cycle_cpp_dir,
-                                                                         reverse_ref_config[bmark] ),
-                                                           logger = logger )
-        try:
-            reversereader = mydict["reverse-ref"]
-            reversereader.read_reverseref_file()
-        except:
-            print "Ignoring [ %s ] and continue." % bmark
-            if bmark in datadict:
-                del datadict[bmark]
-            sys.stdout.flush()
-            continue
-        sys.stdout.flush()
-        print "================================================================================"
-        print "   [%s]: Creating the supergraph..." % bmark
-        create_supergraph_all( datadict = datadict,
-                               bmark = bmark,
-                               supergraph = supergraph,
-                               backupdir = main_config["backup"],
-                               logger = logger )
-        sys.stdout.flush()
-    print "DONE reading all benchmarks."
+        # TODO HERE TODO
     # TODO for bmark, graph in supergraph.iteritems():
     # TODO     wcclist = sorted( nx.weakly_connected_component_subgraphs(graph),
     # TODO                       key = len,
@@ -536,6 +502,14 @@ def create_parser():
     parser.add_argument( "--config",
                          help = "Specify configuration filename.",
                          action = "store" )
+    parser.add_argument( "--mpr",
+                         dest = "mprflag",
+                         help = "Enable multiprocessing.",
+                         action = "store_true" )
+    parser.add_argument( "--single",
+                         dest = "mprflag",
+                         help = "Single threaded operation.",
+                         action = "store_false" )
     parser.add_argument( "--debug",
                          dest = "debugflag",
                          help = "Enable debug output.",
@@ -548,45 +522,10 @@ def create_parser():
                          help = "Specify logfile name.",
                          action = "store" )
     parser.set_defaults( logfile = "create_supergraph.log",
+                         mprflag = False,
                          debugflag = False,
                          config = None )
     return parser
-
-def calculate_counts( datadict = None ):
-    # TODO At end, and global result dictionaries?
-    result = {}
-    DIEDBY = get_index( "DIEDBY" ) # died by index
-    ATTR = get_index( "STATTR" ) # stack attribute index
-    TYPE = get_index( "TYPE" ) # type index
-    for bmark, mydict in datadict.iteritems():
-        objreader = mydict["objreader"]
-        result[bmark] = {}
-        rtmp = result[bmark]
-        rtmp["stack_after_heap"] = Counter()
-        rtmp["heap"] = Counter()
-        rtmp["stack_only"] = Counter()
-        rtmp["end_of_prog"] = Counter()
-        rtmp["others"] = Counter()
-        # TODO rtmp["stack_all"] = Counter()
-        for tup in objreader.iterrecs():
-            # TODO: Refactor this
-            objId, rec = tup
-            reason = rec[DIEDBY]
-            stack_attr = rec[ATTR]
-            mytype = objreader.get_type_using_typeId( rec[TYPE] )
-            if reason == "S":
-                # TODO: rtmp["stack_all"][mytype] += 1
-                if stack_attr == "SHEAP":
-                    rtmp["stack_after_heap"][mytype] += 1
-                elif stack_attr == "SONLY":
-                    rtmp["stack_only"][mytype] += 1
-            elif reason == "H":
-                rtmp["heap"][mytype] += 1
-            elif reason == "E":
-                rtmp["end_of_prog"][mytype] += 1
-            else:
-                rtmp["others"][mytype] += 1
-    return result
 
 def main():
     parser = create_parser()
@@ -612,7 +551,9 @@ def main():
     #
     # Main processing
     #
-    return main_process( debugflag = global_config["debug"],
+    config_debugflag = global_config["debug"]
+    return main_process( debugflag = (config_debugflag if config_debugflag else args.debugflag),
+                         mprflag = args.mprflag,
                          global_config = global_config,
                          main_config = main_config,
                          objectinfo_config = objectinfo_config,
