@@ -182,7 +182,7 @@ def read_simulator_data( bmark = "",
         logger.error( "[ %s ] Unable to read reverse-reference file.." % bmark )
         mydict.clear()
         sys.stdout.flush()
-        continue
+        return False
     sys.stdout.flush()
     return True
 
@@ -198,7 +198,7 @@ def create_supergraph_all( bmark = "",
     # Assumes that we are in the desired working directory.
     # Get all the objects and add as a node to the graph
     mydict = {}
-    backupdir = main_config["backup"],
+    backupdir = main_config["backup"]
     read_result = read_simulator_data( bmark = bmark,
                                        cycle_cpp_dir = cycle_cpp_dir,
                                        objectinfo_config = objectinfo_config,
@@ -210,7 +210,6 @@ def create_supergraph_all( bmark = "",
     if read_result == False:
         return False
     TYPE = get_index( "TYPE" ) # type index
-    mydict = datadict[bmark]
     print "======[ %s ]====================================================================" % bmark
     dgraph = nx.DiGraph()
     objreader = mydict["objreader"]
@@ -350,18 +349,6 @@ def create_supergraph_all_MPR( bmark = "",
                               logger = logger )
     return { "graph" : dgraph, "wcclist" : wcclist }
 
-def process_benchmark( bmark = "",
-                       resultq = Queue(),
-                       logger = None ):
-    print "[%s]" % str(bmark)
-    print "================================================================================"
-    print "   [%s]: Creating the supergraph..." % bmark
-        # Multiprocessing version
-    else:
-        # Single thread version
-    sys.stdout.flush()
-
-
 def main_process( global_config = {},
                   objectinfo_config = {},
                   worklist_config = {},
@@ -396,39 +383,29 @@ def main_process( global_config = {},
     for bmark in datadict.keys():
         # TODO START
         procs = {}
-        for bmark, filename in etanalyze_config.iteritems():
-            # if skip_benchmark(bmark):
-            if ( ((benchmark != "_ALL_") and
-                  (bmark != benchmark)) or 
-                 (not check_host( benchmark = bmark,
-                                  worklist_config = worklist_config,
-                                  host_config = host_config )) ):
-                print "SKIP:", bmark
-                continue
-            if mprflag:
-                print "=======[ Spawning %s ]================================================" \
-                    % bmark
-                p = Process( target = create_supergraph_all_MPR,
-                             args = ( bmark,
-                                      cycle_cpp_dir,
-                                      main_config,
-                                      objectinfo_config,
-                                      stability_config,
-                                      reference_config,
-                                      reverse_ref_config,
-                                      logger ) )
-                                   logger = logger):
-                p.start()
-                procs[bmark] = p
-            else:
-                create_supergraph_all( bmark = bmark,
-                                       cycle_cpp_dir = cycle_cpp_dir,
-                                       main_config = main_config,
-                                       objectinfo_config = objectinfo_config,
-                                       stability_config = stability_config,
-                                       reference_config = reference_config,
-                                       reverse_ref_config = reverse_ref_config,
-                                       logger = logger )
+        if mprflag:
+            print "=======[ Spawning %s ]================================================" \
+                % bmark
+            p = Process( target = create_supergraph_all_MPR,
+                         args = ( bmark,
+                                  cycle_cpp_dir,
+                                  main_config,
+                                  objectinfo_config,
+                                  stability_config,
+                                  reference_config,
+                                  reverse_ref_config,
+                                  logger ) )
+            p.start()
+            procs[bmark] = p
+        else:
+            create_supergraph_all( bmark = bmark,
+                                   cycle_cpp_dir = cycle_cpp_dir,
+                                   main_config = main_config,
+                                   objectinfo_config = objectinfo_config,
+                                   stability_config = stability_config,
+                                   reference_config = reference_config,
+                                   reverse_ref_config = reverse_ref_config,
+                                   logger = logger )
         # TODO END
         print "[%s]" % str(bmark)
         # TODO HERE TODO
