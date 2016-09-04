@@ -164,12 +164,14 @@ class ObjectInfoReader:
         else:
             return False
 
-    def read_objinfo_file( self ):
+    def read_objinfo_file( self, shared_list = None ):
         start = False
+        count = 0
         done = False
         object_info = self.objdict
         with get_trace_fp( self.objinfo_file_name, self.logger ) as fp:
             for line in fp:
+                count += 1
                 line = line.rstrip()
                 if line.find("---------------[ OBJECT INFO") == 0:
                     start = True if not start else False
@@ -215,6 +217,9 @@ class ObjectInfoReader:
                             self.keyset.add( objId )
                     else:
                         self.logger.error( "DUPE: %s" % str(objId) )
+                if ( (shared_list != None) and
+                     (count % 2500 >= 2499) ):
+                    shared_list.append( count )
         assert(done)
 
     def get_typeId( self, mytype ):

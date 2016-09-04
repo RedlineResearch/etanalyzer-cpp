@@ -289,6 +289,7 @@ def create_supergraph_all_MPR( bmark = "",
                                        reference_config = reference_config,
                                        reverse_ref_config = reverse_ref_config,
                                        mydict = mydict,
+                                       # shared_list = result,
                                        logger = logger )
     if read_result == False:
         return False
@@ -383,14 +384,14 @@ def main_process( global_config = {},
     datadict = { bmark : {} for bmark in worklist_config.keys() }
     supergraph = {}
     manager = Manager()
+    procs = {}
+    results = {}
     for bmark in datadict.keys():
         # TODO START
-        procs = {}
-        results = {}
         if mprflag:
             print "=======[ Spawning %s ]================================================" \
                 % bmark
-            results[bmark] = manager.list([])
+            results[bmark] = manager.list([ bmark, ])
             p = Process( target = create_supergraph_all_MPR,
                          args = ( bmark,
                                   cycle_cpp_dir,
@@ -401,8 +402,8 @@ def main_process( global_config = {},
                                   reverse_ref_config,
                                   results[bmark],
                                   logger ) )
-            p.start()
             procs[bmark] = p
+            p.start()
         else:
             wcclist = create_supergraph_all( bmark = bmark,
                                              cycle_cpp_dir = cycle_cpp_dir,
@@ -418,18 +419,24 @@ def main_process( global_config = {},
     if mprflag:
         # Poll the processes 
         done = False
-        while not done:
-            done = True
-            for bmark in procs.keys():
-                proc = procs[bmark]
-                proc.join(60)
+        expected = len(procs.keys())
+        numdone = 0
+        for bmark in procs.keys():
+            procs[bmark].join()
+        for bmark in procs.keys():
+            proc = procs[bmark]
+            done = False
+            while not done:
+                done = True
                 if proc.is_alive():
                     done = False
                 else:
-                    print "[%s] DONE." % bmark
+                    numdone += 1
+                    print "==============================> [%s] DONE." % bmark
                     print "     result length:", len(results[bmark])
+                    # print "     :", results[bmark]
                     del procs[bmark]
-                    sys.stdout.flush()
+            sys.stdout.flush()
         print "======[ Processes DONE ]========================================================"
     # TODO for bmark, graph in supergraph.iteritems():
     # TODO     wcclist = sorted( nx.weakly_connected_component_subgraphs(graph),
