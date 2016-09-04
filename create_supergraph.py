@@ -279,7 +279,7 @@ def create_supergraph_all_MPR( bmark = "",
     # Assumes that we are in the desired working directory.
     # Get all the objects and add as a node to the graph
     mydict = {}
-    backupdir = main_config["backup"],
+    backupdir = main_config["backup"]
     read_result = read_simulator_data( bmark = bmark,
                                        cycle_cpp_dir = cycle_cpp_dir,
                                        objectinfo_config = objectinfo_config,
@@ -409,6 +409,19 @@ def main_process( global_config = {},
         # TODO END
         print "[%s]" % str(bmark)
         # TODO HERE TODO
+    if mprflag:
+        # Poll the processes 
+        done = False
+        while not done:
+            done = True
+            for bmark in procs.keys():
+                proc = procs[bmark]
+                proc.join(60)
+                if proc.is_alive():
+                    done = False
+                else:
+                    del procs[bmark]
+        print "======[ Processes DONE ]========================================================"
     # TODO for bmark, graph in supergraph.iteritems():
     # TODO     wcclist = sorted( nx.weakly_connected_component_subgraphs(graph),
     # TODO                       key = len,
