@@ -23,7 +23,7 @@ from multiprocessing import Process, Manager
 # The garbology related library. Import as follows.
 # Check garbology.py for other imports
 from garbology import ObjectInfoReader, StabilityReader, ReferenceReader, \
-         ReverseRefReader, get_index, is_stable
+         ReverseRefReader, DeathGroupsReader, get_index, is_stable
 
 # Needed to read in *-OBJECTINFO.txt and other files from 
 # the simulator run
@@ -126,6 +126,7 @@ def output_graph_and_summary( bmark = "",
 def read_simulator_data( bmark = "",
                          cycle_cpp_dir = "",
                          objectinfo_config = {},
+                         dgroup_config = {},
                          stability_config = {},
                          reference_config = {},
                          reverse_ref_config = {},
@@ -133,6 +134,7 @@ def read_simulator_data( bmark = "",
                          logger = None ):
     # Read in OBJECTINFO
     print "Reading in the OBJECTINFO file for benchmark:", bmark
+    sys.stdout.flush()
     mydict["objreader"] = ObjectInfoReader( os.path.join( cycle_cpp_dir,
                                                           objectinfo_config[bmark] ),
                                             logger = logger )
@@ -144,8 +146,23 @@ def read_simulator_data( bmark = "",
         mydict.clear()
         sys.stdout.flush()
         return False
+    # Read in CYCLES (which contains the death groups)
+    print "Reading in the CYCLES (deathgroup) file for benchmark:", bmark
+    sys.stdout.flush()
+    mydict["dgroupreader"] = DeathGroupsReader( os.path.join( cycle_cpp_dir,
+                                                              dgroup_config[bmark] ),
+                                                logger = logger )
+    dgroupreader = mydict["dgroupreader"]
+    try:
+        dgroupreader.read_dgroup_file( objreader )
+    except:
+        logger.error( "[ %s ] Unable to read cycles (deathgroup) file.." % bmark )
+        mydict.clear()
+        sys.stdout.flush()
+        return False
     # Read in STABILITY
     print "Reading in the STABILITY file for benchmark:", bmark
+    sys.stdout.flush()
     mydict["stability"] = StabilityReader( os.path.join( cycle_cpp_dir,
                                                          stability_config[bmark] ),
                                            logger = logger )
@@ -159,6 +176,7 @@ def read_simulator_data( bmark = "",
         return False
     # Read in REFERENCE
     print "Reading in the REFERENCE file for benchmark:", bmark
+    sys.stdout.flush()
     mydict["reference"] = ReferenceReader( os.path.join( cycle_cpp_dir,
                                                          reference_config[bmark] ),
                                            logger = logger )
@@ -172,6 +190,7 @@ def read_simulator_data( bmark = "",
         return False
     # Read in REVERSE-REFERENCE
     print "Reading in the REVERSE-REFERENCE file for benchmark:", bmark
+    sys.stdout.flush()
     mydict["reverse-ref"] = ReverseRefReader( os.path.join( cycle_cpp_dir,
                                                             reverse_ref_config[bmark] ),
                                               logger = logger )
@@ -191,6 +210,7 @@ def create_supergraph_all( bmark = "",
                            cycle_cpp_dir = {},
                            main_config = {},
                            objectinfo_config = {},
+                           dgroup_config = {},
                            stability_config = {},
                            reference_config = {},
                            reverse_ref_config = {},
@@ -202,6 +222,7 @@ def create_supergraph_all( bmark = "",
     read_result = read_simulator_data( bmark = bmark,
                                        cycle_cpp_dir = cycle_cpp_dir,
                                        objectinfo_config = objectinfo_config,
+                                       dgroup_config = dgroup_config,
                                        stability_config = stability_config,
                                        reference_config = reference_config,
                                        reverse_ref_config = reverse_ref_config,
@@ -273,6 +294,7 @@ def create_supergraph_all_MPR( bmark = "",
                                cycle_cpp_dir = "",
                                main_config = {},
                                objectinfo_config = {},
+                               dgroup_config = {},
                                stability_config = {},
                                reference_config = {},
                                reverse_ref_config = {},
@@ -285,6 +307,7 @@ def create_supergraph_all_MPR( bmark = "",
     read_result = read_simulator_data( bmark = bmark,
                                        cycle_cpp_dir = cycle_cpp_dir,
                                        objectinfo_config = objectinfo_config,
+                                       dgroup_config = dgroup_config,
                                        stability_config = stability_config,
                                        reference_config = reference_config,
                                        reverse_ref_config = reverse_ref_config,
@@ -354,6 +377,7 @@ def create_supergraph_all_MPR( bmark = "",
 
 def main_process( global_config = {},
                   objectinfo_config = {},
+                  dgroup_config = {},
                   worklist_config = {},
                   main_config = {},
                   reference_config = {},
@@ -397,6 +421,7 @@ def main_process( global_config = {},
                                   cycle_cpp_dir,
                                   main_config,
                                   objectinfo_config,
+                                  dgroup_config,
                                   stability_config,
                                   reference_config,
                                   reverse_ref_config,
@@ -409,6 +434,7 @@ def main_process( global_config = {},
                                              cycle_cpp_dir = cycle_cpp_dir,
                                              main_config = main_config,
                                              objectinfo_config = objectinfo_config,
+                                             dgroup_config = dgroup_config,
                                              stability_config = stability_config,
                                              reference_config = reference_config,
                                              reverse_ref_config = reverse_ref_config,
@@ -433,8 +459,6 @@ def main_process( global_config = {},
                 else:
                     numdone += 1
                     print "==============================> [%s] DONE." % bmark
-                    print "     result length:", len(results[bmark])
-                    # print "     :", results[bmark]
                     del procs[bmark]
             sys.stdout.flush()
         print "======[ Processes DONE ]========================================================"
@@ -470,6 +494,7 @@ def process_config( args ):
     global_config = config_section_map( "global", config_parser )
     main_config = config_section_map( "create-supergraph", config_parser )
     objectinfo_config = config_section_map( "objectinfo", config_parser )
+    dgroup_config = config_section_map( "etanalyze-output", config_parser )
     worklist_config = config_section_map( "create-supergraph-worklist", config_parser )
     reference_config = config_section_map( "reference", config_parser )
     reverse_ref_config = config_section_map( "reverse-reference", config_parser )
@@ -480,6 +505,7 @@ def process_config( args ):
     return { "global" : global_config,
              "main" : main_config,
              "objectinfo" : objectinfo_config,
+             "dgroup" : dgroup_config,
              "create-supergraph-worklist" : worklist_config,
              "reference" : reference_config,
              "reverse-reference" : reverse_ref_config,
@@ -543,6 +569,7 @@ def main():
     global_config = configdict["global"]
     main_config = configdict["main"]
     objectinfo_config = configdict["objectinfo"]
+    dgroup_config = configdict["dgroup"]
     reference_config = configdict["reference"]
     reverse_ref_config = configdict["reverse-reference"]
     stability_config = configdict["stability"]
@@ -563,6 +590,7 @@ def main():
                          global_config = global_config,
                          main_config = main_config,
                          objectinfo_config = objectinfo_config,
+                         dgroup_config = dgroup_config,
                          worklist_config = worklist_config,
                          reference_config = reference_config,
                          reverse_ref_config = reverse_ref_config,

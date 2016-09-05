@@ -583,9 +583,11 @@ class DeathGroupsReader:
                 ogroup[obj] = set([ groupnum ])
 
     def get_group( self, groupnum = 0 ):
+        """Returns the group as a list for groupnum."""
         return self.obj2group[groupnum] if groupnum in self.obj2group else []
 
     def get_group_number( self, objId = 0 ):
+        """Returns the group number for a given object Id 'objId'"""
         def _group_len(objId):
             return len(self.group2list[objId])
         glist = list(self.obj2group[objId]) if (objId in self.obj2group) else []
@@ -620,6 +622,7 @@ class DeathGroupsReader:
     def read_dgroup_file( self,
                           object_info_reader = None ):
         # We don't know which are the key objects. TODO TODO TODO
+        assert(object_info_reader != None)
         with open(self.dgroup_file_name, "rb") as fptr:
             count = 0
             dupeset = set([])
