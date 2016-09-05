@@ -281,6 +281,18 @@ def create_supergraph_all( bmark = "",
     wcclist = sorted( nx.weakly_connected_component_subgraphs(dgraph),
                       key = len,
                       reverse = True )
+    # TODO: Here's where the stable groups are compared against the death groups
+    # 1 - For every stable group, determine the deathgroup number set
+    # 2 - For every death group, determine the stable group number set
+    #     TODO: Are there stable group numbers?
+    # Using the order of the sorted wcclist, let group 1 be at index 0 and so on.
+    # Therefore this means that the largest wcc is at index 0, and is called group 1.
+    # TEMP: Get the set of deathgroup numbers for every stable set
+    stable2dgroup = {}
+    s2d = stable2dgroup # Make it shorter
+    for sid in xrange(len(wcclist)):
+        for sobj in wcclist[sid]:
+            # Get the death group number from the dgroup reader TODO
     output_graph_and_summary( bmark = bmark,
                               objreader = objreader,
                               dgraph = dgraph,
