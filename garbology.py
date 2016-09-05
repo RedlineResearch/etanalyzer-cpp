@@ -348,6 +348,10 @@ class ObjectInfoReader:
         return (self.objdict[objId][get_index("DIEDBY")] == "G") if (objId in self.objdict) \
             else False
 
+    def died_by_program_end( self, objId = 0 ):
+        return (self.objdict[objId][get_index("DIEDBY")] == "E") if (objId in self.objdict) \
+            else False
+
     def group_died_by_stack( self, grouplist = [] ):
         for obj in grouplist:
             # Shortcircuits the evaluation
@@ -438,6 +442,10 @@ class ObjectInfoReader:
 
     def get_methup_age_list( self ):
         return self.methup_age_list
+
+    def __contains__( self, item ):
+        """Return if ObjectReader contains item (which is an object Id)"""
+        return item in self.objdict
 
 # ----------------------------------------------------------------------------- 
 # ----------------------------------------------------------------------------- 

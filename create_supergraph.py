@@ -205,6 +205,20 @@ def read_simulator_data( bmark = "",
     sys.stdout.flush()
     return True
 
+def debug_None_death_group( sobjId = None,
+                            counter = {},
+                            objreader = {} ):
+    if sobjId not in objreader:
+        counter["not_found"] += 1
+    else:
+        if objreader.died_by_program_end(sobjId):
+            counter["died_by_end"] += 1
+        elif objreader.died_by_stack(sobjId):
+            counter["died_by_stack"] += 1
+        elif objreader.died_by_heap(sobjId):
+            counter["died_by_heap"] += 1
+        elif objreader.died_by_global(sobjId):
+            counter["died_by_global"] += 1
 
 def create_supergraph_all( bmark = "",
                            cycle_cpp_dir = {},
@@ -288,11 +302,21 @@ def create_supergraph_all( bmark = "",
     # Using the order of the sorted wcclist, let group 1 be at index 0 and so on.
     # Therefore this means that the largest wcc is at index 0, and is called group 1.
     # TEMP: Get the set of deathgroup numbers for every stable set
+    dgreader = mydict["dgroupreader"]
     stable2dgroup = {}
     s2d = stable2dgroup # Make it shorter
-    for sid in xrange(len(wcclist)):
-        for sobj in wcclist[sid]:
-            # Get the death group number from the dgroup reader TODO
+    counter = Counter()
+    for stable_groupId in xrange(len(wcclist)):
+        for sobjId in wcclist[stable_groupId]:
+            # Get the death group number from the dgroup reader
+            dgroupId = dgreader.get_group_number(sobjId)
+            if dgroupId == None:
+                debug_None_death_group( sobjId = sobjId,
+                                        counter = counter,
+                                        objreader = objreader )
+    print "========[ NONE Death Group summary=============================================="
+    pp.pprint(counter)
+    print "================================================================================"
     output_graph_and_summary( bmark = bmark,
                               objreader = objreader,
                               dgraph = dgraph,
@@ -379,6 +403,28 @@ def create_supergraph_all_MPR( bmark = "",
     wcclist = sorted( nx.weakly_connected_component_subgraphs(dgraph),
                       key = len,
                       reverse = True )
+    # TODO: Here's where the stable groups are compared against the death groups
+    # 1 - For every stable group, determine the deathgroup number set
+    # 2 - For every death group, determine the stable group number set
+    #     TODO: Are there stable group numbers?
+    # Using the order of the sorted wcclist, let group 1 be at index 0 and so on.
+    # Therefore this means that the largest wcc is at index 0, and is called group 1.
+    # TEMP: Get the set of deathgroup numbers for every stable set
+    dgreader = mydict["dgroupreader"]
+    stable2dgroup = {}
+    s2d = stable2dgroup # Make it shorter
+    counter = Counter()
+    for stable_groupId in xrange(len(wcclist)):
+        for sobjId in wcclist[stable_groupId]:
+            # Get the death group number from the dgroup reader
+            dgroupId = dgreader.get_group_number(sobjId)
+            if dgroupId == None:
+                debug_None_death_group( sobjId = sobjId,
+                                        counter = counter,
+                                        objreader = objreader )
+    print "========[ NONE Death Group summary=============================================="
+    pp.pprint(counter)
+    print "================================================================================"
     output_graph_and_summary( bmark = bmark,
                               objreader = objreader,
                               dgraph = dgraph,
