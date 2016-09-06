@@ -668,6 +668,7 @@ class DeathGroupsReader:
                 self.logger.error( "Group number %d removed" % gnum )
         # Get the largest groupnumber in group2list
         last_gnum = max( self.group2list.keys() )
+        orig_last_gnum = last_gnum
         # Get the newgroup dictionary and reassign if needed
         for dt, myset in newgroup.iteritems():
             if dt in dtime2group:
@@ -680,12 +681,13 @@ class DeathGroupsReader:
             self.map_obj2group( gnum, self.group2list[gnum] ) 
             self.group2dtime[gnum] = dt
         # DEBUG statements. Keeping it here just in case. -RLV
-        # print "=======[ CLEAN DEBUG ]=========================================================="
-        # pp.pprint(counter)
-        # print "--------------------------------------------------------------------------------"
-        # pp.pprint(newgroup)
-        # print "NEW MAX", last_gnum
-        # print "=======[ END CLEAN DEBUG ]======================================================"
+        print "=======[ CLEAN DEBUG ]=========================================================="
+        pp.pprint(counter)
+        print "--------------------------------------------------------------------------------"
+        pp.pprint(newgroup)
+        print "NEW MAX", last_gnum
+        print "=======[ END CLEAN DEBUG ]======================================================"
+        return (len(counter) == 1)
 
     def merge_groups_with_same_dtime( self,
                                       objreader = {} ):
@@ -790,7 +792,13 @@ class DeathGroupsReader:
                             sys.stdout.write("#")
                             sys.stdout.flush()
                             sys.stdout.write(str(len(line)) + " | ")
-        self.clean_dtimes( objreader = oir )
+        passnum = 1
+        done = False
+        while not done:
+            print "Pass number: %d" % passnum
+            done = self.clean_dtimes( objreader = oir )
+            passnum += 1
+        print "====[ PASS DONE ]==============================================================="
         self.merge_groups_with_same_dtime( objreader = oir )
         #sys.stdout.write("\n")
         #sys.stdout.flush()
