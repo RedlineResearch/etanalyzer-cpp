@@ -690,38 +690,48 @@ class DeathGroupsReader:
         return (len(counter) == 1)
 
     def merge_groups_with_same_dtime( self,
-                                      objreader = {} ):
+                                      objreader = {},
+                                      verify = False ):
         # Rename into shorter aliases
-        o2g = self.obj2group
         oir = objreader
+        g2d = self.group2dtime
         counter = Counter()
-        for objId in o2g.keys():
-            groupnums = o2g[objId]
-            if len(groupnums) > 1:
-                # multiple groups
-                counter["multiple_groups"] += 1
-                dtimes = {}
-                for gnum in groupnums:
-                    if gnum in self.group2list:
-                        dtimes[gnum] = set( [ oir.get_death_time(x) for x in self.group2list[gnum] ] )
-                        if len(dtimes[gnum]) > 1:
-                            counter["multiple_dtimes"] += 1
-                            # TODO What do we do now?
-                        else:
-                            counter["single_dtimes"] += 1
-            elif len(groupnums) == 1:
-                # Only one group. It's all good.
-                counter["single_groups"] += 1
-            else:
-                # Doesn't belong to any group. Not good.
-                # ERROR for now. But we can recover from this if need be.
-                # assert(False)
-                print "ERROR: Object [ %d ] NO GROUPS." % str(objId)
-                self.logger.critical( "Object [ %d ] NO GROUPS." % str(objId) )
-                counter["NO_groups"] += 1
-        print "=======[ MERGE DEBUG ]=========================================================="
-        pp.pprint(counter)
-        print "=======[ END MERGE DEBUG ]======================================================"
+        dtime2group = defaultdict(set)
+        for gnum in g2d.keys():
+            dt = self.group2dtime[gnum]
+            dtime2group[dt].add(gnum)
+        for dtime, gset in dtime2group.iteritems():
+            if len(gset) > 1:
+                # Merge into the lower group number
+                # Sort the set into increasing group numbers
+                glist = sorted( list(gset) )
+                newgnum = glist[0]
+                for other in glist[1:]:
+                    # Save the list
+                    otherlist = self.group2list[other] 
+                    # Remove it
+                    del self.group2list[other]
+                    # Add to the target group
+                    self.group2list[newgnum].extend(otherlist)
+                    # Remove old group number
+                    del self.group2dtime[other]
+                    # Update the obj2group map
+                    for objId in otherlist:
+                        self.obj2group[objId] = set([ newgnum ])
+        if verify:
+            dtime2group = defaultdict(set)
+            for gnum in g2d.keys():
+                dt = self.group2dtime[gnum]
+                dtime2group[dt].add(gnum)
+            errorflag = False
+            for dtime, gnumset in dtime2group.iteritems():
+                if len(gnumset) > 1:
+                    errorflag = True
+                    print "Merge NOT successful -> group [%d] => %d" % (gnumset, len(gnumset))
+                    self.logger.critical( "Merge NOT successful -> group [%d] => %d" % (gnumset, len(gnumset)) )
+            if errorflag:
+                print "EXITING."
+                exit(1)
 
     def move_group( self,
                     src = None,
@@ -799,7 +809,7 @@ class DeathGroupsReader:
             done = self.clean_dtimes( objreader = oir )
             passnum += 1
         print "====[ PASS DONE ]==============================================================="
-        self.merge_groups_with_same_dtime( objreader = oir )
+        self.merge_groups_with_same_dtime( objreader = oir, verify = True )
         #sys.stdout.write("\n")
         #sys.stdout.flush()
         #print "DUPES:", len(dupeset)
