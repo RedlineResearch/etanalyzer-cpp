@@ -302,11 +302,14 @@ def create_supergraph_all( bmark = "",
     # Using the order of the sorted wcclist, let group 1 be at index 0 and so on.
     # Therefore this means that the largest wcc is at index 0, and is called group 1.
     # TEMP: Get the set of deathgroup numbers for every stable set
+    print "================================================================================"
     dgreader = mydict["dgroupreader"]
     stable2dgroup = {}
     s2d = stable2dgroup # Make it shorter
     counter = Counter()
+    no_dgroup_list = []
     for stable_groupId in xrange(len(wcclist)):
+        dgroups = set()
         for sobjId in wcclist[stable_groupId]:
             # Get the death group number from the dgroup reader
             dgroupId = dgreader.get_group_number(sobjId)
@@ -314,6 +317,13 @@ def create_supergraph_all( bmark = "",
                 debug_None_death_group( sobjId = sobjId,
                                         counter = counter,
                                         objreader = objreader )
+            else:
+                dgroups.add(dgroupId)
+        if len(dgroups) > 0:
+            sys.stdout.write( "[ Stable group %d ]: %s\n" % (stable_groupId, str(dgroups)) )
+        else:
+            no_dgroup_list.append(stable_groupId)
+    print "NO DGROUPS count:", len(no_dgroup_list)
     print "========[ NONE Death Group summary=============================================="
     pp.pprint(counter)
     print "================================================================================"

@@ -615,6 +615,112 @@ class DeathGroupsReader:
         # other things we wish to do with saving the sets of death
         # times.
 
+    def clean_dtimes( self,
+                      objreader = {} ):
+        # Rename into shorter aliases
+        o2g = self.obj2group
+        oir = objreader
+        counter = Counter()
+        dtimes = {}
+        newgroup = defaultdict(set)
+        dtime2group = {}
+        for gnum in self.group2list.keys():
+            origdtime = self.group2dtime[gnum]
+            dtimes[gnum] = set( [ oir.get_death_time(x) for x in self.group2list[gnum] ] )
+            dtime2group[origdtime] = gnum
+            if len(dtimes[gnum]) > 1:
+                counter[len(dtimes[gnum])] += 1
+                # Clean up aisle greater than 1. (Bad joke).
+                # We will let the original group number keep the dtime that has been
+                # assigned in group2dtime.
+                for objId in self.group2list[gnum]:
+                    dt = oir.get_death_time(objId)
+                    if dt != origdtime:
+                        # We need to either assign to an existing group that has
+                        # the same dtime, or create a new group. But we'll do that later
+                        newgroup[dt].add(objId)
+                        # 1- Remove from group2list
+                        self.group2list[gnum].remove( objId )
+                        # 2- Remove from obj2group
+                        if objId in self.obj2group:
+                            del self.obj2group[objId]
+                    else:
+                        # Object belongs to original group.
+                        # There's no need to move groups.
+                        pass
+                # What needs to be adjusted if we split the group?
+                # group2dtime
+                # group2list
+                # obj2group
+            else:
+                counter[1] += 1
+                newdtime = list(dtimes[gnum])[0]
+                if newdtime != origdtime:
+                    print "ERROR: Group num[ %d ] dtimes do not match  %d != %d" % \
+                        (gnum, newdtime, origdtime)
+                    self.logger.error( "Group num[ %d ] dtimes do not match  %d != %d" %
+                                       (gnum, newdtime, origdtime) )
+        # Remove empty lists in group2list
+        for gnum in self.group2list.keys():
+            if len(self.group2list[gnum]) == 0:
+                self.group2list[gnum].remove(gnum)
+                print "DEBUG: Group number %d removed" % gnum
+                self.logger.error( "Group number %d removed" % gnum )
+        # Get the largest groupnumber in group2list
+        last_gnum = max( self.group2list.keys() )
+        # Get the newgroup dictionary and reassign if needed
+        for dt, myset in newgroup.iteritems():
+            if dt in dtime2group:
+                gnum = dtime2group[dt]
+            else:
+                gnum = last_gnum + 1
+                last_gnum = gnum
+                dtime2group[dt] = gnum
+            self.group2list[gnum] = list(myset)
+            self.map_obj2group( gnum, self.group2list[gnum] ) 
+            self.group2dtime[gnum] = dt
+        # DEBUG statements. Keeping it here just in case. -RLV
+        # print "=======[ CLEAN DEBUG ]=========================================================="
+        # pp.pprint(counter)
+        # print "--------------------------------------------------------------------------------"
+        # pp.pprint(newgroup)
+        # print "NEW MAX", last_gnum
+        # print "=======[ END CLEAN DEBUG ]======================================================"
+
+    def merge_groups_with_same_dtime( self,
+                                      objreader = {} ):
+        # Rename into shorter aliases
+        o2g = self.obj2group
+        oir = objreader
+        counter = Counter()
+        for objId in o2g.keys():
+            groupnums = o2g[objId]
+            if len(groupnums) > 1:
+                # multiple groups
+                counter["multiple_groups"] += 1
+                dtimes = {}
+                for gnum in groupnums:
+                    if gnum in self.group2list:
+                        dtimes[gnum] = set( [ oir.get_death_time(x) for x in self.group2list[gnum] ] )
+                        if len(dtimes[gnum]) > 1:
+                            counter["multiple_dtimes"] += 1
+                            # TODO What do we do now?
+                        else:
+                            counter["single_dtimes"] += 1
+            elif len(groupnums) == 1:
+                # Only one group. It's all good.
+                counter["single_groups"] += 1
+            else:
+                # Doesn't belong to any group. Not good.
+                # ERROR for now. But we can recover from this if need be.
+                # assert(False)
+                print "ERROR: Object [ %d ] NO GROUPS." % str(objId)
+                self.logger.critical( "Object [ %d ] NO GROUPS." % str(objId) )
+                counter["NO_groups"] += 1
+        print "=======[ MERGE DEBUG ]=========================================================="
+        pp.pprint(counter)
+        print "=======[ END MERGE DEBUG ]======================================================"
+
     def move_group( self,
                     src = None,
                     tgt = None ):
@@ -660,10 +766,10 @@ class DeathGroupsReader:
                     dg = [ int(x) for x in line.split(",") if not oir.died_at_end(int(x))  ]
                     if len(dg) == 0:
                         continue
-                    # dtimes = list( set( [ oir.get_record(x)[dtind] for x in dg ] ) )
-                    # if (len(dtimes) > 1):
-                    #     # split into groups according to death times
-                    #     logger.debug( "Multiple death times: %s" % str(dtimes) )
+                    dtimes = list( set( [ oir.get_death_time(x) for x in dg ] ) )
+                    if (len(dtimes) > 1):
+                         # TODO: Should we split into groups according to death times?
+                         logger.debug( "Multiple death times: %s" % str(dtimes) )
                     # dglist = []
                     # for ind in xrange(len(dtimes)):
                     #     dtime = dtimes[ind]
@@ -684,16 +790,22 @@ class DeathGroupsReader:
                             sys.stdout.write("#")
                             sys.stdout.flush()
                             sys.stdout.write(str(len(line)) + " | ")
+        self.clean_dtimes( objreader = oir )
+        self.merge_groups_with_same_dtime( objreader = oir )
         #sys.stdout.write("\n")
         #sys.stdout.flush()
         #print "DUPES:", len(dupeset)
         #print "TOTAL:", len(seenset)
-        # TODO moved = {}
-        # TODO loopflag = True
-        # TODO while loopflag:
-        # TODO     loopflag = False
-        # TODO     for obj, groups in self.obj2group.iteritems():
-        # TODO         if len(groups) > 1:
+        # moved = {}
+        # loopflag = True
+        # while loopflag:
+        #     loopflag = False
+        #     for obj, groups in self.obj2group.iteritems():
+        #         if len(groups) > 1:
+        #             # TODO: These are the dictionaries that need fixing if we merge or break groups
+        #             # TODO self.map_obj2group( groupnum = groupnum, groupset = dg )
+        #             # TODO self.map_group2dtime( groupnum = groupnum, dtime = dtime )
+        #             # TODO self.group2list[groupnum] = dg
         # TODO             # an object is in multiple groups
         # TODO             # Merge into lower group number.
         # TODO             gsort = sorted( [ x for x in groups if (x not in moved and x in self.group2list) ] )
