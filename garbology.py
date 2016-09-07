@@ -246,9 +246,12 @@ class ObjectInfoReader:
             else "NONE"
 
     def iteritems( self ):
+        """Returns (objId, rec) where rec is the record for the object with that object id."""
         return self.objdict.iteritems()
 
     def iterrecs( self ):
+        """Returns (objId, rec) where rec is the record for the object with that object id."""
+        # TODO Is there any real difference between iteritems and iterrecs? TODO
         odict = self.objdict
         keys = odict.keys()
         for objId in keys:
@@ -691,12 +694,12 @@ class DeathGroupsReader:
             # Set the proper death time for the group
             self.group2dtime[gnum] = dt
         # DEBUG statements. Keeping it here just in case. -RLV
-        print "=======[ CLEAN DEBUG ]=========================================================="
-        pp.pprint(counter)
-        print "--------------------------------------------------------------------------------"
-        pp.pprint(newgroup)
-        print "NEW MAX", last_gnum
-        print "=======[ END CLEAN DEBUG ]======================================================"
+        # print "=======[ CLEAN DEBUG ]=========================================================="
+        # pp.pprint(counter)
+        # print "--------------------------------------------------------------------------------"
+        # pp.pprint(newgroup)
+        # print "NEW MAX", last_gnum
+        # print "=======[ END CLEAN DEBUG ]======================================================"
         return (len(counter) == 1)
 
     def merge_groups_with_same_dtime( self,

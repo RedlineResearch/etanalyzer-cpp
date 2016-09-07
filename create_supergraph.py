@@ -343,6 +343,7 @@ def create_supergraph_all_MPR( bmark = "",
     # Get all the objects and add as a node to the graph
     mydict = {}
     backupdir = main_config["backup"]
+    # Read all the data in.
     read_result = read_simulator_data( bmark = bmark,
                                        cycle_cpp_dir = cycle_cpp_dir,
                                        objectinfo_config = objectinfo_config,
@@ -356,6 +357,7 @@ def create_supergraph_all_MPR( bmark = "",
     if read_result == False:
         return False
     TYPE = get_index( "TYPE" ) # type index
+    # Start the graph by adding nodes
     dgraph = nx.DiGraph()
     objreader = mydict["objreader"]
     objnode_list =  set([])
@@ -417,29 +419,65 @@ def create_supergraph_all_MPR( bmark = "",
     stable2dgroup = {}
     s2d = stable2dgroup # Make it shorter
     counter = Counter()
+    # Maintain the results in 2 dictionaries:
+    # 'stable2deathset' which maps:
+    #     stable group num -> set of death group numbers
+    stable2deathset = defaultdict(set)
+    # 'death2stableset' which maps:
+    #     death group number -> set of stable group numbers
+    death2stableset = defaultdict(set)
+    # As a sanity check, we keep track of which object Ids we've seen:
+    objId_seen = set()
+    obj2stablegroup = {}
+    # Go through the stable weakly-connected list and find the death groups
+    # that the objects are in.
     for stable_groupId in xrange(len(wcclist)):
         dgroups = set()
         for sobjId in wcclist[stable_groupId]:
             # Get the death group number from the dgroup reader
             dgroupId = dgreader.get_group_number(sobjId)
-            if dgroupId == None:
-                debug_None_death_group( sobjId = sobjId,
-                                        counter = counter,
-                                        objreader = objreader )
+            assert(dgroupId != None)
+            # Save the death group Id
+            dgroups.add(dgroupId)
+            # Add to seen objects set
+            objId_seen.add(sobjId)
+            # Update the reverse mapping of 
+            if sobjId not in obj2stablegroup:
+                obj2stablegroup[sobjId] = stable_groupId
             else:
-                dgroups.add(dgroupId)
+                logger.critical( "Multiple stable groups for object Id [ %s ] -> %d | %d" %
+                                 (str(objId), stable_groupId, obj2stablegroup[sobjId]) )
+                print "ERROR: Multiple stable groups for object Id [ %s ] -> %d | %d" % \
+                                 (str(objId), stable_groupId, obj2stablegroup[sobjId])
+                assert(False) # For now. TODO TODO TODO
+                obj2stablegroup[sobjId] = stable_groupId
         # Save in a list, then print out.
         # IDEA: A bipartite graph???
         #       Connected component makes for GC region???
-        if len(dgroups) > 0:
-            sys.stdout.write( "[ Stable group %d ]: %s\n" % (stable_groupId, str(dgroups)) )
+        # DEBUG: keeping this here just in case
+        # if len(dgroups) > 0:
+        #     sys.stdout.write( "[ Stable group %d ]: %s\n" % (stable_groupId, str(dgroups)) )
+        # DEBUG END
+        stable2deathset[stable_groupId].update( dgroups )
+    # Do a reverse mapping from death group to stable
+    for sgroupId, dgset in stable2deathset.iteritems():
+        for dgroupId in dgset:
+            # The relationship is symmetric:
+            death2stableset[dgroupId].add(sgroupId)
+            for objId in dgreader.get_group(dgroupId):
+                # Are there any objects in our death groups that haven't been mapped?
+                if objId not in objId_seen:
+                    objId_seen.add(sobjId)
     output_graph_and_summary( bmark = bmark,
                               objreader = objreader,
                               dgraph = dgraph,
                               wcclist = wcclist,
                               backupdir = backupdir,
                               logger = logger )
-    result.append( { "graph" : dgraph, "wcclist" : wcclist } )
+    result.append( { "graph" : dgraph,
+                     "wcclist" : wcclist,
+                     "stable2deathset" : stable2deathset,
+                     "death2stableset" : death2stableset } )
 
 def main_process( global_config = {},
                   objectinfo_config = {},
