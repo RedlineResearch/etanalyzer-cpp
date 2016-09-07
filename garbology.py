@@ -254,6 +254,9 @@ class ObjectInfoReader:
         for objId in keys:
             yield (objId, odict[objId])
 
+    def keys( self ):
+        return self.objdict.keys()
+
     # If numlines == 0, print out all.
     def print_out( self, numlines = 30 ):
         count = 0
@@ -596,8 +599,8 @@ class DeathGroupsReader:
 
     def get_group_number( self, objId = 0 ):
         """Returns the group number for a given object Id 'objId'"""
-        def _group_len(objId):
-            return len(self.group2list[objId])
+        def _group_len(gnum):
+            return len(self.group2list[gnum])
         glist = list(self.obj2group[objId]) if (objId in self.obj2group) else []
         if len(glist) > 1:
             gmax = max( glist, key = _group_len )
@@ -667,18 +670,25 @@ class DeathGroupsReader:
                 print "DEBUG: Group number %d removed" % gnum
                 self.logger.error( "Group number %d removed" % gnum )
         # Get the largest groupnumber in group2list
-        last_gnum = max( self.group2list.keys() )
-        orig_last_gnum = last_gnum
+        last_gnum = max( self.group2list.keys() ) 
         # Get the newgroup dictionary and reassign if needed
         for dt, myset in newgroup.iteritems():
+            # Get the group number based on death time
             if dt in dtime2group:
                 gnum = dtime2group[dt]
             else:
                 gnum = last_gnum + 1
                 last_gnum = gnum
                 dtime2group[dt] = gnum
-            self.group2list[gnum] = list(myset)
-            self.map_obj2group( gnum, self.group2list[gnum] ) 
+            # Add 'myset' to group2list
+            if gnum in self.group2list:
+                self.group2list[gnum].extend(list(myset))
+            else:
+                self.group2list[gnum] = list(myset)
+            # Go through the new additions from 'myset' and set the proper obj2group
+            for objId in self.group2list[gnum]:
+                self.obj2group[objId] = [ gnum ]
+            # Set the proper death time for the group
             self.group2dtime[gnum] = dt
         # DEBUG statements. Keeping it here just in case. -RLV
         print "=======[ CLEAN DEBUG ]=========================================================="
@@ -700,6 +710,8 @@ class DeathGroupsReader:
         for gnum in g2d.keys():
             dt = self.group2dtime[gnum]
             dtime2group[dt].add(gnum)
+        # Start with known groups
+        new_dtime2group = {}
         for dtime, gset in dtime2group.iteritems():
             if len(gset) > 1:
                 # Merge into the lower group number
@@ -718,6 +730,46 @@ class DeathGroupsReader:
                     # Update the obj2group map
                     for objId in otherlist:
                         self.obj2group[objId] = set([ newgnum ])
+            else:
+                new_dtime2group[dtime] = list(gset)[0]
+        dtime2group = new_dtime2group
+        # Next clean the ones who don't belong to a group. Most of these (all?)
+        # are "died at end of program" objects.
+        # Get the largest known group number and start from there
+        last_gnum = max( self.group2list.keys() )
+        # Save a group number for all objects that died at end
+        atend_gnum = last_gnum + 1
+        last_gnum = atend_gnum
+        for objId in oir.keys():
+            if objId not in self.obj2group:
+                # A "no death group" object
+                dt = oir.get_death_time(objId)
+                if dt in dtime2group:
+                    # Known death time. Add it there
+                    gnum = dtime2group[dt]
+                    self.group2list[gnum].append(objId)
+                    self.obj2group[objId] = [ gnum ]
+                    self.logger.error( "Adding object [%d] to group [%d]" % (objId, gnum) )
+                else:
+                    # Alert: new death time. Create a new group.
+                    if oir.died_at_end(objId):
+                        # Adding to DIED AT END group
+                        dtime2group[dt] = atend_gnum
+                        if atend_gnum in self.group2list:
+                            self.group2list[atend_gnum].append( objId )
+                        else:
+                            self.group2list[atend_gnum] = [ objId ]
+                        self.obj2group[objId] = [ atend_gnum ]
+                        self.logger.error( "Adding object [%d] to AT END group [%d]" % (objId, atend_gnum) )
+                    else:
+                        # Add to a new group
+                        gnum = last_gnum + 1
+                        last_gnum = gnum
+                        dtime2group[dt] = gnum
+                        self.group2list[gnum] = [ objId ]
+                        self.obj2group[objId] = [ gnum ]
+                        self.logger.error( "Adding object [%d] to group [%d]" % (objId, gnum) )
+        # Do we need to verify?
         if verify:
             dtime2group = defaultdict(set)
             for gnum in g2d.keys():
@@ -812,44 +864,6 @@ class DeathGroupsReader:
         self.merge_groups_with_same_dtime( objreader = oir, verify = True )
         #sys.stdout.write("\n")
         #sys.stdout.flush()
-        #print "DUPES:", len(dupeset)
-        #print "TOTAL:", len(seenset)
-        # moved = {}
-        # loopflag = True
-        # while loopflag:
-        #     loopflag = False
-        #     for obj, groups in self.obj2group.iteritems():
-        #         if len(groups) > 1:
-        #             # TODO: These are the dictionaries that need fixing if we merge or break groups
-        #             # TODO self.map_obj2group( groupnum = groupnum, groupset = dg )
-        #             # TODO self.map_group2dtime( groupnum = groupnum, dtime = dtime )
-        #             # TODO self.group2list[groupnum] = dg
-        # TODO             # an object is in multiple groups
-        # TODO             # Merge into lower group number.
-        # TODO             gsort = sorted( [ x for x in groups if (x not in moved and x in self.group2list) ] )
-        # TODO             if len(gsort) < 2:
-        # TODO                 logger.debug( "Continuing on length < 2 for objId[ %d ]." % obj )
-        # TODO                 continue
-        # TODO             stackflag =  True
-        # TODO             for gtmp in gsort:
-        # TODO                 stackflag = stackflag and oir.verify_died_by( grouplist = self.group2list[gtmp],
-        # TODO                                                               died_by = "S" )
-        # TODO             if stackflag:
-        # TODO                 logger.debug( "Continuing on BY STACK for objId[ %d ]." % obj )
-        # TODO                 continue
-        # TODO             tgt = gsort[0]
-        # TODO             logger.debug( "Merging into group %d for objId[ %d ]." % (tgt, obj) )
-        # TODO             for gtmp in gsort[1:]:
-        # TODO                 # Add to target group
-        # TODO                 if gtmp in self.group2list:
-        # TODO                     loopflag = True
-        # TODO                     self.group2list[tgt].extend( self.group2list[gtmp] )
-        # TODO                     moved[gtmp] = tgt
-        # TODO                     # Remove the merged group
-        # TODO                     del self.group2list[gtmp]
-        # TODO                     # TODO TODO TODO
-        # TODO                     # Fix the obj2group when we delete from group2list
-        # TODO                 # TODO Should we remove from other dictionaries?
         print "----------------------------------------------------------------------"
         # TODO grlen = sorted( [ len(mylist) for group, mylist in self.group2list.iteritems() if len(mylist) > 0 ],
         #                       reverse = True )

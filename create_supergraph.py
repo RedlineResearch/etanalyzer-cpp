@@ -307,7 +307,6 @@ def create_supergraph_all( bmark = "",
     stable2dgroup = {}
     s2d = stable2dgroup # Make it shorter
     counter = Counter()
-    no_dgroup_list = []
     for stable_groupId in xrange(len(wcclist)):
         dgroups = set()
         for sobjId in wcclist[stable_groupId]:
@@ -321,12 +320,6 @@ def create_supergraph_all( bmark = "",
                 dgroups.add(dgroupId)
         if len(dgroups) > 0:
             sys.stdout.write( "[ Stable group %d ]: %s\n" % (stable_groupId, str(dgroups)) )
-        else:
-            no_dgroup_list.append(stable_groupId)
-    print "NO DGROUPS count:", len(no_dgroup_list)
-    print "========[ NONE Death Group summary=============================================="
-    pp.pprint(counter)
-    print "================================================================================"
     output_graph_and_summary( bmark = bmark,
                               objreader = objreader,
                               dgraph = dgraph,
@@ -425,6 +418,7 @@ def create_supergraph_all_MPR( bmark = "",
     s2d = stable2dgroup # Make it shorter
     counter = Counter()
     for stable_groupId in xrange(len(wcclist)):
+        dgroups = set()
         for sobjId in wcclist[stable_groupId]:
             # Get the death group number from the dgroup reader
             dgroupId = dgreader.get_group_number(sobjId)
@@ -432,9 +426,13 @@ def create_supergraph_all_MPR( bmark = "",
                 debug_None_death_group( sobjId = sobjId,
                                         counter = counter,
                                         objreader = objreader )
-    print "========[ NONE Death Group summary=============================================="
-    pp.pprint(counter)
-    print "================================================================================"
+            else:
+                dgroups.add(dgroupId)
+        # Save in a list, then print out.
+        # IDEA: A bipartite graph???
+        #       Connected component makes for GC region???
+        if len(dgroups) > 0:
+            sys.stdout.write( "[ Stable group %d ]: %s\n" % (stable_groupId, str(dgroups)) )
     output_graph_and_summary( bmark = bmark,
                               objreader = objreader,
                               dgraph = dgraph,
