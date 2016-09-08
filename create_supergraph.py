@@ -550,15 +550,15 @@ def create_supergraph_all_MPR( bmark = "",
                                                               death2stableset = death2stableset,
                                                               logger = logger )
     # TODO: This doesn't seem to give anything useful. TO DELETE TODO
-    # wcc_stable_death_list = sorted( nx.connected_component_subgraphs(stable_death_graph),
-    #                                 key = len,
-    #                                 reverse = True )
-    # print "============[ Stable <-> Death graph ]=========================================="
-    # print "Number of nodes: %d" % stable_death_graph.number_of_nodes()
-    # print "Number of edges: %d" % stable_death_graph.number_of_edges()
-    # print "Number of components: %d" % len(wcc_stable_death_list)
-    # print "Top 5 largest components:", str( [ len(x) for x in wcc_stable_death_list[:5] ] )
-    # print "================================================================================"
+    wcc_stable_death_list = sorted( nx.connected_component_subgraphs(stable_death_graph),
+                                    key = len,
+                                    reverse = True )
+    print "============[ %s :: Stable <-> Death graph ]=======================================" % bmark
+    print "[%s] Number of nodes: %d" % (bmark, stable_death_graph.number_of_nodes())
+    print "[%s] Number of edges: %d" % (bmark, stable_death_graph.number_of_edges())
+    print "[%s] Number of components: %d" % (bmark, len(wcc_stable_death_list))
+    print "[%s] Top 5 largest components:", (bmark, str( [ len(x) for x in wcc_stable_death_list[:5] ] ))
+    print "================================================================================"
     output_graph_and_summary( bmark = bmark,
                               objreader = objreader,
                               dgraph = dgraph,
