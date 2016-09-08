@@ -102,6 +102,8 @@ def output_graph_and_summary( bmark = "",
                               objreader = {},
                               dgraph = {},
                               wcclist = [],
+                              stable2deathset = {},
+                              death2stableset = {},
                               backupdir = None,
                               logger = None ):
     # Print to standard output
@@ -460,6 +462,7 @@ def create_supergraph_all_MPR( bmark = "",
         # DEBUG END
         stable2deathset[stable_groupId].update( dgroups )
     # Do a reverse mapping from death group to stable
+    not_seen = 0
     for sgroupId, dgset in stable2deathset.iteritems():
         for dgroupId in dgset:
             # The relationship is symmetric:
@@ -467,12 +470,20 @@ def create_supergraph_all_MPR( bmark = "",
             for objId in dgreader.get_group(dgroupId):
                 # Are there any objects in our death groups that haven't been mapped?
                 if objId not in objId_seen:
+                    # Note that this isn't expected.
+                    not_seen += 1
                     objId_seen.add(sobjId)
+                    dgroupId = dgreader.get_group_number(objId)
+                    new_sgroupId = obj2stablegroup[objId]
+                    death2stableset[dgroupId].add( new_sgroupId )
+    logger.error( "NOT SEEN: %d" % not_seen )
     output_graph_and_summary( bmark = bmark,
                               objreader = objreader,
                               dgraph = dgraph,
                               wcclist = wcclist,
                               backupdir = backupdir,
+                              stable2deathset = stable2deathset,
+                              death2stableset = death2stableset,
                               logger = logger )
     result.append( { "graph" : dgraph,
                      "wcclist" : wcclist,
