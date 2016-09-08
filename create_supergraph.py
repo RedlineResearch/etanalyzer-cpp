@@ -222,6 +222,33 @@ def debug_None_death_group( sobjId = None,
         elif objreader.died_by_global(sobjId):
             counter["died_by_global"] += 1
 
+def create_stable_death_bipartite_graph( stable2deathset = {},
+                                         death2stableset = {},
+                                         logger = None ):
+    digraph = nx.Graph()
+    skeys = stable2deathset.keys()
+    dkeys = death2stableset.keys()
+    for sgroup in skeys:
+        digraph.add_node( sgroup, gtype = "stable" )
+    for dgroup in dkeys:
+        digraph.add_node( dgroup, gtype = "death" )
+    done_edge = set()
+    for sgroup in skeys:
+        dset = stable2deathset[sgroup]
+        for dtgt in dset:
+            digraph.add_edge( sgroup, dtgt )
+            done_edge.add( (sgroup, dtgt) )
+    for dgroup in dkeys:
+        stable_set = death2stableset[dgroup]
+        for stgt in stable_set:
+            if (stgt, dgroup) not in done_edge:
+                digraph.add_edge( dgroup, stgt )
+                # When adding the edge, it really doesn't matter
+                # which way it goes.  But the done_edge set means
+                # that we use the stable group node first.
+                done_edge.add( (stgt, dgroup) )
+    return digraph
+
 def create_supergraph_all( bmark = "",
                            cycle_cpp_dir = {},
                            main_config = {},
@@ -453,13 +480,11 @@ def create_supergraph_all_MPR( bmark = "",
     wcclist = sorted( nx.weakly_connected_component_subgraphs(dgraph),
                       key = len,
                       reverse = True )
-    # TODO: Here's where the stable groups are compared against the death groups
+    # Here's where the stable groups are compared against the death groups
     # 1 - For every stable group, determine the deathgroup number set
     # 2 - For every death group, determine the stable group number set
-    #     TODO: Are there stable group numbers?
     # Using the order of the sorted wcclist, let group 1 be at index 0 and so on.
     # Therefore this means that the largest wcc is at index 0, and is called group 1.
-    # TEMP: Get the set of deathgroup numbers for every stable set
     dgreader = mydict["dgroupreader"]
     stable2dgroup = {}
     s2d = stable2dgroup # Make it shorter
@@ -520,6 +545,10 @@ def create_supergraph_all_MPR( bmark = "",
                     new_sgroupId = obj2stablegroup[objId]
                     death2stableset[dgroupId].add( new_sgroupId )
     logger.error( "NOT SEEN: %d" % not_seen )
+    # Make a bipartite stable <-> death group graph
+    stable_death_graph = create_stable_death_bipartite_graph( stable2deathset = stable2deathset,
+                                                              death2stableset = death2stableset,
+                                                              logger = logger )
     output_graph_and_summary( bmark = bmark,
                               objreader = objreader,
                               dgraph = dgraph,
