@@ -224,21 +224,29 @@ def debug_None_death_group( sobjId = None,
 
 def create_stable_death_bipartite_graph( stable2deathset = {},
                                          death2stableset = {},
+                                         DAE_groupnum = None,
                                          logger = None ):
+    # DAE_groupnum is the 'died at end' group number
+    assert(DAE_groupnum != None) # TODO: More checking needed?
     digraph = nx.Graph()
     skeys = stable2deathset.keys()
     dkeys = death2stableset.keys()
     for sgroup in skeys:
         digraph.add_node( sgroup, gtype = "stable" )
     for dgroup in dkeys:
-        digraph.add_node( dgroup, gtype = "death" )
+        if dgroup != DAE_groupnum:
+            digraph.add_node( dgroup, gtype = "death" )
     done_edge = set()
     for sgroup in skeys:
         dset = stable2deathset[sgroup]
         for dtgt in dset:
+            if dtgt == DAE_groupnum:
+                continue
             digraph.add_edge( sgroup, dtgt )
             done_edge.add( (sgroup, dtgt) )
     for dgroup in dkeys:
+        if dgroup == DAE_groupnum:
+            continue
         stable_set = death2stableset[dgroup]
         for stgt in stable_set:
             if (stgt, dgroup) not in done_edge:
@@ -499,6 +507,8 @@ def create_supergraph_all_MPR( bmark = "",
     # As a sanity check, we keep track of which object Ids we've seen:
     objId_seen = set()
     obj2stablegroup = {}
+    # Get the group number for 'died at end' group since we want to ignore that group
+    atend_gnum = dgreader.get_atend_group_number()
     # Go through the stable weakly-connected list and find the death groups
     # that the objects are in.
     for stable_groupId in xrange(len(wcclist)):
@@ -548,8 +558,8 @@ def create_supergraph_all_MPR( bmark = "",
     # Make a bipartite stable <-> death group graph
     stable_death_graph = create_stable_death_bipartite_graph( stable2deathset = stable2deathset,
                                                               death2stableset = death2stableset,
+                                                              DAE_groupnum = atend_gnum,
                                                               logger = logger )
-    # TODO: This doesn't seem to give anything useful. TO DELETE TODO
     wcc_stable_death_list = sorted( nx.connected_component_subgraphs(stable_death_graph),
                                     key = len,
                                     reverse = True )
@@ -557,7 +567,7 @@ def create_supergraph_all_MPR( bmark = "",
     print "[%s] Number of nodes: %d" % (bmark, stable_death_graph.number_of_nodes())
     print "[%s] Number of edges: %d" % (bmark, stable_death_graph.number_of_edges())
     print "[%s] Number of components: %d" % (bmark, len(wcc_stable_death_list))
-    print "[%s] Top 5 largest components:", (bmark, str( [ len(x) for x in wcc_stable_death_list[:5] ] ))
+    print "[%s] Top 5 largest components: %s" % (bmark, str( [ len(x) for x in wcc_stable_death_list[:5] ] ))
     print "================================================================================"
     output_graph_and_summary( bmark = bmark,
                               objreader = objreader,

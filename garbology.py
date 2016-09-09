@@ -573,6 +573,7 @@ class DeathGroupsReader:
         self.group2list= {}
         self.debugflag = debugflag
         self.logger = logger
+        self._atend_gnum = None
         
     def map_key2group( self,
                        groupnum = 0,
@@ -742,6 +743,7 @@ class DeathGroupsReader:
         last_gnum = max( self.group2list.keys() )
         # Save a group number for all objects that died at end
         atend_gnum = last_gnum + 1
+        self._atend_gnum = atend_gnum
         last_gnum = atend_gnum
         for objId in oir.keys():
             if objId not in self.obj2group:
@@ -886,6 +888,9 @@ class DeathGroupsReader:
 
     def iteritems( self ):
         return self.group2list.iteritems()
+
+    def get_atend_group_number( self ):
+        return self._atend_gnum
 
     def clean_deathgroups( self ):
         group2list = self.group2list
