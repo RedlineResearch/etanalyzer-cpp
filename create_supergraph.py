@@ -18,7 +18,7 @@ from multiprocessing import Process, Manager
 # Possible useful libraries, classes and functions:
 # from operator import itemgetter
 #   - This one is my own library:
-# from mypytools import mean, stdev, variance
+from mypytools import mean, stdev, variance
 
 # The garbology related library. Import as follows.
 # Check garbology.py for other imports
@@ -300,20 +300,33 @@ def summarize_wcc_stable_death_components( wcc_list = [],
         objset = get_objects_as_set( stable_list = stable,
                                      death_list = death )
         summary[index]["total_objects"] = len(objset)
+        alloc_time_list = [ objreader.get_alloc_time(x) for x in objset ]
+        death_time_list = [ objreader.get_death_time(x) for x in objset ]
         # 1. Get minimum-maximum alloc times
-        min_alloctime = min( [ objreader.get_alloc_time(x) for x in objset ] )
-        max_alloctime = max( [ objreader.get_alloc_time(x) for x in objset ] )
-        min_deathtime = min( [ objreader.get_death_time(x) for x in objset ] )
-        max_deathtime = max( [ objreader.get_death_time(x) for x in objset ] )
+        #      * Alloc time range
+        min_alloctime = min( alloc_time_list )
+        max_alloctime = max( alloc_time_list )
         summary[index]["atime"] = { "min" : min_alloctime, "max" : max_alloctime }
+        #      * Death time range
+        min_deathtime = min( death_time_list )
+        max_deathtime = max( death_time_list )
         summary[index]["dtime"] = { "min" : min_deathtime, "max" : max_deathtime }
+        #      * Death time statistics
+        mean_deathtime = mean( death_time_list  )
+        stdev_deathtime = stdev( death_time_list  )
+        mean_alloctime = mean( alloc_time_list  )
+        stdev_alloctime = stdev( alloc_time_list  )
+        summary[index]["dtime"]["mean"] = mean_deathtime
+        summary[index]["atime"]["mean"] = mean_alloctime
+        summary[index]["dtime"]["stdev"] = stdev_deathtime
+        summary[index]["atime"]["stdev"] = stdev_alloctime
         # 2. Get minimum-maximum death times
         #     - std deviation? median?
         #     - categorize according to death groups? or stable groups?
         #          or does it matter?
         # 3. Get total drag
     print "======[ %s ][ SUMMARY of components ]===========================================" % bmark
-    for index in sored(summary.keys()):
+    for index in sorted(summary.keys()):
         if index > to_number:
             break
         mydict = summary[index]
@@ -323,8 +336,10 @@ def summarize_wcc_stable_death_components( wcc_list = [],
                 print "    * %d objects" % val
             elif key == "atime":
                 print "    * alloc range - [ %d, %d ]" % (val["min"], val["max"])
+                print "    * mean = %d    stdev = %d" % (val["mean"], val["stdev"])
             elif key == "dtime":
                 print "    * death range - [ %d, %d ]" % (val["min"], val["max"])
+                print "    * mean = %d    stdev = %d" % (val["mean"], val["stdev"])
     print "======[ %s ][ END SUMMARY of components ]=======================================" % bmark
     return
 
