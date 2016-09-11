@@ -232,30 +232,101 @@ def create_stable_death_bipartite_graph( stable2deathset = {},
     skeys = stable2deathset.keys()
     dkeys = death2stableset.keys()
     for sgroup in skeys:
-        digraph.add_node( sgroup, gtype = "stable" )
+        digraph.add_node( "S%d" % sgroup )
     for dgroup in dkeys:
         if dgroup != DAE_groupnum:
-            digraph.add_node( dgroup, gtype = "death" )
+            digraph.add_node( "D%d" % dgroup )
     done_edge = set()
     for sgroup in skeys:
         dset = stable2deathset[sgroup]
         for dtgt in dset:
             if dtgt == DAE_groupnum:
                 continue
-            digraph.add_edge( sgroup, dtgt )
-            done_edge.add( (sgroup, dtgt) )
+            digraph.add_edge( "S%d" % sgroup, "D%d" % dtgt )
+            done_edge.add( ("S%d" % sgroup, "D%d" % dtgt) )
     for dgroup in dkeys:
         if dgroup == DAE_groupnum:
             continue
         stable_set = death2stableset[dgroup]
         for stgt in stable_set:
             if (stgt, dgroup) not in done_edge:
-                digraph.add_edge( dgroup, stgt )
+                digraph.add_edge( "D%d" % dgroup, "S%d" % stgt )
                 # When adding the edge, it really doesn't matter
                 # which way it goes.  But the done_edge set means
                 # that we use the stable group node first.
-                done_edge.add( (stgt, dgroup) )
+                done_edge.add( ("S%d" % stgt, "D%d" % dgroup) )
     return digraph
+
+def get_objects_as_set( stable_list = [],
+                        death_list = [] ):
+    objset = set()
+    for objId in stable_list:
+        objset.add(objId)
+    for objId in death_list:
+        objset.add(objId)
+    return objset
+
+def summarize_wcc_stable_death_components( wcc_list = [],
+                                           objreader = {} ,
+                                           dgroup_reader = {},
+                                           bmark = "" ):
+    summary = defaultdict(dict)
+    for index in xrange(len(wcc_list)):
+        graph = wcc_list[index]
+        summary[index]["stable"] = []
+        summary[index]["death"] = []
+        # Shorten the names
+        stable = summary[index]["stable"]
+        death = summary[index]["death"]
+        # Node ids in the graph are of the form of:
+        #     D123   or S456
+        # where D = death group
+        #       S = stable group
+        for node in graph.nodes():
+            gtype = node[:1]
+            gnum = int(node[1:])
+            if gtype == "S": # Stable group
+                stable.append(gnum)
+            elif gtype == "D": # Death group
+                death.append(gnum)
+            else:
+                raise ValueError( "Unexpected node type: %s for %s" % (gtype, node) )
+    to_number = 5 if len(summary) > 5 else len(summary)
+    assert(to_number > 0)
+    for index in xrange(to_number):
+        stable = summary[index]["stable"]
+        death = summary[index]["death"]
+        # Get total number of objects
+        objset = get_objects_as_set( stable_list = stable,
+                                     death_list = death )
+        summary[index]["total_objects"] = len(objset)
+        # 1. Get minimum-maximum alloc times
+        min_alloctime = min( [ objreader.get_alloc_time(x) for x in objset ] )
+        max_alloctime = max( [ objreader.get_alloc_time(x) for x in objset ] )
+        min_deathtime = min( [ objreader.get_death_time(x) for x in objset ] )
+        max_deathtime = max( [ objreader.get_death_time(x) for x in objset ] )
+        summary[index]["atime"] = { "min" : min_alloctime, "max" : max_alloctime }
+        summary[index]["dtime"] = { "min" : min_deathtime, "max" : max_deathtime }
+        # 2. Get minimum-maximum death times
+        #     - std deviation? median?
+        #     - categorize according to death groups? or stable groups?
+        #          or does it matter?
+        # 3. Get total drag
+    print "======[ %s ][ SUMMARY of components ]===========================================" % bmark
+    for index in sored(summary.keys()):
+        if index > to_number:
+            break
+        mydict = summary[index]
+        print "Component %d" % index
+        for key, val in mydict.iteritems():
+            if key == "total_objects":
+                print "    * %d objects" % val
+            elif key == "atime":
+                print "    * alloc range - [ %d, %d ]" % (val["min"], val["max"])
+            elif key == "dtime":
+                print "    * death range - [ %d, %d ]" % (val["min"], val["max"])
+    print "======[ %s ][ END SUMMARY of components ]=======================================" % bmark
+    return
 
 def create_supergraph_all( bmark = "",
                            cycle_cpp_dir = {},
@@ -563,11 +634,16 @@ def create_supergraph_all_MPR( bmark = "",
     wcc_stable_death_list = sorted( nx.connected_component_subgraphs(stable_death_graph),
                                     key = len,
                                     reverse = True )
+    summarize_wcc_stable_death_components( wcc_list = wcc_stable_death_list,
+                                           objreader = objreader,
+                                           dgroup_reader = dgreader,
+                                           bmark = bmark )
     print "============[ %s :: Stable <-> Death graph ]=======================================" % bmark
     print "[%s] Number of nodes: %d" % (bmark, stable_death_graph.number_of_nodes())
     print "[%s] Number of edges: %d" % (bmark, stable_death_graph.number_of_edges())
     print "[%s] Number of components: %d" % (bmark, len(wcc_stable_death_list))
     print "[%s] Top 5 largest components: %s" % (bmark, str( [ len(x) for x in wcc_stable_death_list[:5] ] ))
+    print "================================================================================"
     print "================================================================================"
     output_graph_and_summary( bmark = bmark,
                               objreader = objreader,
