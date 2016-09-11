@@ -301,7 +301,11 @@ def summarize_wcc_stable_death_components( wcc_list = [],
                                      death_list = death )
         summary[index]["total_objects"] = len(objset)
         alloc_time_list = [ objreader.get_alloc_time(x) for x in objset ]
+        alloc_time_set = set(alloc_time_list)
         death_time_list = [ objreader.get_death_time(x) for x in objset ]
+        death_time_set = set(death_time_list)
+        summary[index]["number_alloc_times"] = len(alloc_time_set)
+        summary[index]["number_death_times"] = len(death_time_set)
         # 1. Get minimum-maximum alloc times
         #      * Alloc time range
         min_alloctime = min( alloc_time_list )
@@ -334,6 +338,10 @@ def summarize_wcc_stable_death_components( wcc_list = [],
         for key, val in mydict.iteritems():
             if key == "total_objects":
                 print "    * %d objects" % val
+            elif key == "number_alloc_times":
+                print "    * %d unique allocation times" % val
+            elif key == "number_death_times":
+                print "    * %d unique death times" % val
             elif key == "atime":
                 print "    * alloc range - [ %d, %d ]" % (val["min"], val["max"])
                 print "    * mean = %d    stdev = %d" % (val["mean"], val["stdev"])
