@@ -98,6 +98,8 @@ def get_actual_hostname( hostname = "",
             return key
     return None
 
+#================================================================================
+#================================================================================
 def output_graph_and_summary( bmark = "",
                               objreader = {},
                               dgraph = {},
@@ -124,7 +126,6 @@ def output_graph_and_summary( bmark = "",
         shutil.move( target, backupdir )
     nx.write_gml(dgraph, target)
         
-
 def read_simulator_data( bmark = "",
                          cycle_cpp_dir = "",
                          objectinfo_config = {},
@@ -266,10 +267,23 @@ def get_objects_as_set( stable_list = [],
         objset.add(objId)
     return objset
 
+def output_each_object( objset = set(),
+                        seen_objects = set(),
+                        fptr = sys.stdout,
+                        objreader = {},
+                        bmark = "",
+                        logger = None ):
+    for objId in objset:
+        if objId in seen_objects:
+            logger.error( "[%s] Duplicate object - %d" % (bmark, objId) )
+            continue
+        seen_objects.add(objId)
+
 def summarize_wcc_stable_death_components( wcc_list = [],
                                            objreader = {} ,
                                            dgroup_reader = {},
-                                           bmark = "" ):
+                                           bmark = "",
+                                           output_filename = None ):
     summary = defaultdict(dict)
     for index in xrange(len(wcc_list)):
         graph = wcc_list[index]
@@ -293,42 +307,52 @@ def summarize_wcc_stable_death_components( wcc_list = [],
                 raise ValueError( "Unexpected node type: %s for %s" % (gtype, node) )
     to_number = 5 if len(summary) > 5 else len(summary)
     assert(to_number > 0)
-    for index in xrange(to_number):
-        stable = summary[index]["stable"]
-        death = summary[index]["death"]
-        # Get total number of objects
-        objset = get_objects_as_set( stable_list = stable,
-                                     death_list = death )
-        summary[index]["total_objects"] = len(objset)
-        alloc_time_list = [ objreader.get_alloc_time(x) for x in objset ]
-        alloc_time_set = set(alloc_time_list)
-        death_time_list = [ objreader.get_death_time(x) for x in objset ]
-        death_time_set = set(death_time_list)
-        summary[index]["number_alloc_times"] = len(alloc_time_set)
-        summary[index]["number_death_times"] = len(death_time_set)
-        # 1. Get minimum-maximum alloc times
-        #      * Alloc time range
-        min_alloctime = min( alloc_time_list )
-        max_alloctime = max( alloc_time_list )
-        summary[index]["atime"] = { "min" : min_alloctime, "max" : max_alloctime }
-        #      * Death time range
-        min_deathtime = min( death_time_list )
-        max_deathtime = max( death_time_list )
-        summary[index]["dtime"] = { "min" : min_deathtime, "max" : max_deathtime }
-        #      * Death time statistics
-        mean_deathtime = mean( death_time_list  )
-        stdev_deathtime = stdev( death_time_list  )
-        mean_alloctime = mean( alloc_time_list  )
-        stdev_alloctime = stdev( alloc_time_list  )
-        summary[index]["dtime"]["mean"] = mean_deathtime
-        summary[index]["atime"]["mean"] = mean_alloctime
-        summary[index]["dtime"]["stdev"] = stdev_deathtime
-        summary[index]["atime"]["stdev"] = stdev_alloctime
-        # 2. Get minimum-maximum death times
-        #     - std deviation? median?
-        #     - categorize according to death groups? or stable groups?
-        #          or does it matter?
-        # 3. Get total drag
+    with open(outputfilename, "wb") as fptr:
+        for index in xrange(to_number):
+            # Rename into shorter names
+            stable = summary[index]["stable"]
+            death = summary[index]["death"]
+            objset = get_objects_as_set( stable_list = stable,
+                                         death_list = death )
+            seen_objects = set()
+            # Output the per object row in the CSV
+            output_each_object( objset = objset,
+                                seen_objects = seen_objects,
+                                fptr = fptr )
+            #------------------------------------------------------------
+            # Get total number of objects
+            summary[index]["total_objects"] = len(objset)
+            alloc_time_list = [ objreader.get_alloc_time(x) for x in objset ]
+            alloc_time_set = set(alloc_time_list)
+            death_time_list = [ objreader.get_death_time(x) for x in objset ]
+            death_time_set = set(death_time_list)
+            summary[index]["number_alloc_times"] = len(alloc_time_set)
+            summary[index]["number_death_times"] = len(death_time_set)
+            #------------------------------------------------------------
+            # 1. Get minimum-maximum alloc times
+            #      * Alloc time range
+            min_alloctime = min( alloc_time_list )
+            max_alloctime = max( alloc_time_list )
+            summary[index]["atime"] = { "min" : min_alloctime, "max" : max_alloctime }
+            #      * Death time range
+            min_deathtime = min( death_time_list )
+            max_deathtime = max( death_time_list )
+            summary[index]["dtime"] = { "min" : min_deathtime, "max" : max_deathtime }
+            #      * Death time statistics
+            mean_deathtime = mean( death_time_list  )
+            stdev_deathtime = stdev( death_time_list  )
+            mean_alloctime = mean( alloc_time_list  )
+            stdev_alloctime = stdev( alloc_time_list  )
+            summary[index]["dtime"]["mean"] = mean_deathtime
+            summary[index]["atime"]["mean"] = mean_alloctime
+            summary[index]["dtime"]["stdev"] = stdev_deathtime
+            summary[index]["atime"]["stdev"] = stdev_alloctime
+            #------------------------------------------------------------
+            # 2. Get minimum-maximum death times
+            #     - std deviation? median?
+            #     - categorize according to death groups? or stable groups?
+            #          or does it matter?
+            # 3. Get total drag
     print "======[ %s ][ SUMMARY of components ]===========================================" % bmark
     for index in sorted(summary.keys()):
         if index > to_number:
@@ -660,7 +684,10 @@ def create_supergraph_all_MPR( bmark = "",
     summarize_wcc_stable_death_components( wcc_list = wcc_stable_death_list,
                                            objreader = objreader,
                                            dgroup_reader = dgreader,
-                                           bmark = bmark )
+                                           bmark = bmark,
+                                           output_filename = os.path.join( main_config["output"], 
+                                                                           "%s-stabledeath-object-summary.csv" % bmark )
+                                           )
     print "============[ %s :: Stable <-> Death graph ]=======================================" % bmark
     print "[%s] Number of nodes: %d" % (bmark, stable_death_graph.number_of_nodes())
     print "[%s] Number of edges: %d" % (bmark, stable_death_graph.number_of_edges())
