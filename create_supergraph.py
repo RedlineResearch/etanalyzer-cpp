@@ -564,6 +564,21 @@ def create_supergraph_all( bmark = "",
     print "------[ %s DONE ]---------------------------------------------------------------" % bmark
     return wcclist
 
+def add_nodes_to_graph( objreader = {},
+                        objnode_list = set(),
+                        logger = None ):
+    dgraph = nx.DiGraph()
+    for tup in objreader.iterrecs():
+        objId, rec = tup
+        mytype = objreader.get_type_using_typeId( rec[TYPE] )
+        if objId not in objnode_list:
+            dgraph.add_node( objId, { "type" : mytype } )
+            objnode_list.add( objId )
+        else:
+            logger.critical( "%s: Multiple add for object Id [ %s ]" %
+                             (bmark, str(objId)) )
+    return dgraph
+
 def create_supergraph_all_MPR( bmark = "",
                                cycle_cpp_dir = "",
                                main_config = {},
@@ -593,18 +608,11 @@ def create_supergraph_all_MPR( bmark = "",
         return False
     TYPE = get_index( "TYPE" ) # type index
     # Start the graph by adding nodes
-    dgraph = nx.DiGraph()
     objreader = mydict["objreader"]
     objnode_list =  set([])
-    for tup in objreader.iterrecs():
-        objId, rec = tup
-        mytype = objreader.get_type_using_typeId( rec[TYPE] )
-        if objId not in objnode_list:
-            dgraph.add_node( objId, { "type" : mytype } )
-            objnode_list.add( objId )
-        else:
-            logger.critical( "%s: Multiple add for object Id [ %s ]" %
-                             (bmark, str(objId)) )
+    dgraph = add_nodes_to_graph( objreader = objreader,
+                                 objnode_list = objnode_list,
+                                 logger = logger )
     # Add the stable edges only
     stability = mydict["stability"]
     reference = mydict["reference"]
