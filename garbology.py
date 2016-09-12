@@ -151,6 +151,9 @@ class ObjectInfoReader:
         self.alloc_age_list = []
         self.methup_age_list = []
         self.logger = logger
+        # These are computed later on and are simply set to None here
+        self.objId2stable_gnum = {}
+        self.objId2death_gnum = {}
 
     def __len__( self ):
         return len(self.objdict)
@@ -449,6 +452,24 @@ class ObjectInfoReader:
     def get_methup_age_list( self ):
         return self.methup_age_list
 
+    def set_stable_group_number( self,
+                                 objId = None,
+                                 gnum = None ):
+        self.objId2stable_gnum[objId] = gnum
+
+    def get_stable_group_number( self,
+                                 objId = None ):
+        return self.objId2stable_gnum[objId] if objId in self.objId2stable_gnum else None
+
+    def set_death_group_number( self,
+                                objId = None,
+                                gnum = None ):
+        self.objId2death_gnum[objId] = gnum
+
+    def get_death_group_number( self,
+                                objId = None ):
+        return self.objId2death_gnum[objId] if objId in self.objId2death_gnum else None
+
     def __contains__( self, item ):
         """Return if ObjectReader contains item (which is an object Id)"""
         return item in self.objdict
@@ -599,7 +620,7 @@ class DeathGroupsReader:
 
     def get_group( self, groupnum = 0 ):
         """Returns the group as a list for groupnum."""
-        return self.obj2group[groupnum] if groupnum in self.obj2group else []
+        return self.group2list[groupnum] if groupnum in self.group2list else []
 
     def get_group_number( self, objId = 0 ):
         """Returns the group number for a given object Id 'objId'"""

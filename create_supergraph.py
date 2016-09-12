@@ -259,17 +259,27 @@ def create_stable_death_bipartite_graph( stable2deathset = {},
     return digraph
 
 def get_objects_as_set( stable_list = [],
-                        death_list = [] ):
+                        death_list = [],
+                        stable2obj = {},
+                        dgroup_reader = {},
+                        objreader = {} ):
     objset = set()
-    for objId in stable_list:
-        objset.add(objId)
-    for objId in death_list:
-        objset.add(objId)
+    for sgnum in stable_list:
+        for objId in stable2obj[sgnum]:
+            objset.add(objId)
+            objreader.set_stable_group_number(objId, sgnum)
+    sgnum = None # To prevent dynamic PL problems
+    for dgnum in death_list:
+        for objId in dgroup_reader.get_group(dgnum):
+            objset.add(objId)
+            objreader.set_death_group_number(objId, dgnum)
     return objset
 
 def output_each_object( objset = set(),
                         seen_objects = set(),
-                        fptr = sys.stdout,
+                        writer = None,
+                        stable = {},
+                        death = {},
                         objreader = {},
                         bmark = "",
                         logger = None ):
@@ -278,17 +288,30 @@ def output_each_object( objset = set(),
             logger.error( "[%s] Duplicate object - %d" % (bmark, objId) )
             continue
         seen_objects.add(objId)
+        stable_gnum = objreader.get_stable_group_number(objId)
+        death_gnum = objreader.get_death_group_number(objId)
+        # object Id, stable group number, death group number, allocation time, death time
+        writer.writerow( [ objId,
+                           stable_gnum, death_gnum,
+                           objreader.get_alloc_time(objId),
+                           objreader.get_death_time(objId), ] )
 
-def summarize_wcc_stable_death_components( wcc_list = [],
+
+def summarize_wcc_stable_death_components( wcc_sd_list = [],
+                                           stable2obj = {},
                                            objreader = {} ,
                                            dgroup_reader = {},
                                            bmark = "",
-                                           output_filename = None ):
+                                           output_filename = None,
+                                           logger = None ):
     summary = defaultdict(dict)
-    for index in xrange(len(wcc_list)):
-        graph = wcc_list[index]
+    # Summary is indexed by JOINT stable/death group number
+    for index in xrange(len(wcc_sd_list)):
+        graph = wcc_sd_list[index]
+        # The lists for 'stable' and 'death' contain objectIds.
         summary[index]["stable"] = []
         summary[index]["death"] = []
+        summary[index]["objects"] = set()
         # Shorten the names
         stable = summary[index]["stable"]
         death = summary[index]["death"]
@@ -305,20 +328,33 @@ def summarize_wcc_stable_death_components( wcc_list = [],
                 death.append(gnum)
             else:
                 raise ValueError( "Unexpected node type: %s for %s" % (gtype, node) )
+        summary[index]["objects"] = get_objects_as_set( stable_list = stable,
+                                                        death_list = death,
+                                                        stable2obj = stable2obj,
+                                                        dgroup_reader = dgroup_reader,
+                                                        objreader = objreader )
     to_number = 5 if len(summary) > 5 else len(summary)
     assert(to_number > 0)
-    with open(outputfilename, "wb") as fptr:
+    with open(output_filename, "wb") as fptr:
+        seen_objects = set()
+        # Create the CSV writer and write the header row
+        writer = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
+        writer.writerow( [ "objectId", "stable group number", "death group number",
+                           "allocation time", "death time", ] )
         for index in xrange(to_number):
             # Rename into shorter names
             stable = summary[index]["stable"]
             death = summary[index]["death"]
-            objset = get_objects_as_set( stable_list = stable,
-                                         death_list = death )
-            seen_objects = set()
+            objset = summary[index]["objects"]
             # Output the per object row in the CSV
             output_each_object( objset = objset,
                                 seen_objects = seen_objects,
-                                fptr = fptr )
+                                writer = writer,
+                                stable = stable,
+                                death = death,
+                                objreader = objreader,
+                                bmark = bmark,
+                                logger = logger )
             #------------------------------------------------------------
             # Get total number of objects
             summary[index]["total_objects"] = len(objset)
@@ -520,6 +556,7 @@ def create_supergraph_all( bmark = "",
     logger.error( "NOT SEEN: %d" % not_seen )
     output_graph_and_summary( bmark = bmark,
                               objreader = objreader,
+                              obj2stablegroup = obj2stablegroup,
                               dgraph = dgraph,
                               wcclist = wcclist,
                               backupdir = backupdir,
@@ -629,9 +666,12 @@ def create_supergraph_all_MPR( bmark = "",
     atend_gnum = dgreader.get_atend_group_number()
     # Go through the stable weakly-connected list and find the death groups
     # that the objects are in.
-    for stable_groupId in xrange(len(wcclist)):
+    # Rename wcclist to a more appropriate name. stable2obj maps from
+    # stable group number to a list of object Ids.
+    stable2obj = wcclist
+    for stable_groupId in xrange(len(stable2obj)):
         dgroups = set()
-        for sobjId in wcclist[stable_groupId]:
+        for sobjId in stable2obj[stable_groupId]:
             # Get the death group number from the dgroup reader
             dgroupId = dgreader.get_group_number(sobjId)
             assert(dgroupId != None)
@@ -681,12 +721,14 @@ def create_supergraph_all_MPR( bmark = "",
     wcc_stable_death_list = sorted( nx.connected_component_subgraphs(stable_death_graph),
                                     key = len,
                                     reverse = True )
-    summarize_wcc_stable_death_components( wcc_list = wcc_stable_death_list,
+    summarize_wcc_stable_death_components( wcc_sd_list = wcc_stable_death_list,
+                                           stable2obj = stable2obj,
                                            objreader = objreader,
                                            dgroup_reader = dgreader,
                                            bmark = bmark,
                                            output_filename = os.path.join( main_config["output"], 
-                                                                           "%s-stabledeath-object-summary.csv" % bmark )
+                                                                           "%s-stabledeath-object-summary.csv" % bmark ),
+                                           logger = logger,
                                            )
     print "============[ %s :: Stable <-> Death graph ]=======================================" % bmark
     print "[%s] Number of nodes: %d" % (bmark, stable_death_graph.number_of_nodes())
