@@ -568,6 +568,7 @@ def add_nodes_to_graph( objreader = {},
                         objnode_list = set(),
                         logger = None ):
     dgraph = nx.DiGraph()
+    TYPE = get_index( "TYPE" ) # type index
     for tup in objreader.iterrecs():
         objId, rec = tup
         mytype = objreader.get_type_using_typeId( rec[TYPE] )
@@ -579,43 +580,11 @@ def add_nodes_to_graph( objreader = {},
                              (bmark, str(objId)) )
     return dgraph
 
-def create_supergraph_all_MPR( bmark = "",
-                               cycle_cpp_dir = "",
-                               main_config = {},
-                               objectinfo_config = {},
-                               dgroup_config = {},
-                               stability_config = {},
-                               reference_config = {},
-                               reverse_ref_config = {},
-                               result = [],
-                               logger = None ):
-    # Assumes that we are in the desired working directory.
-    # Get all the objects and add as a node to the graph
-    mydict = {}
-    backupdir = main_config["backup"]
-    # Read all the data in.
-    read_result = read_simulator_data( bmark = bmark,
-                                       cycle_cpp_dir = cycle_cpp_dir,
-                                       objectinfo_config = objectinfo_config,
-                                       dgroup_config = dgroup_config,
-                                       stability_config = stability_config,
-                                       reference_config = reference_config,
-                                       reverse_ref_config = reverse_ref_config,
-                                       mydict = mydict,
-                                       # shared_list = result,
-                                       logger = logger )
-    if read_result == False:
-        return False
-    TYPE = get_index( "TYPE" ) # type index
-    # Start the graph by adding nodes
-    objreader = mydict["objreader"]
-    objnode_list =  set([])
-    dgraph = add_nodes_to_graph( objreader = objreader,
-                                 objnode_list = objnode_list,
-                                 logger = logger )
-    # Add the stable edges only
-    stability = mydict["stability"]
-    reference = mydict["reference"]
+def add_stable_edges( dgraph = {},
+                      stability = {},
+                      reference = {},
+                      objnode_list = {},
+                      logger = None ):
     for objId, fdict in stability.iteritems(): # for each object
         for fieldId, sattr in fdict.iteritems(): # for each field Id of each object
             if is_stable(sattr):
@@ -648,35 +617,17 @@ def create_supergraph_all_MPR( bmark = "",
                             print "Missing objId [ %s ] of type [ %s ]" % (str(tgtId), str(type(tgtId)))
                             continue # For now. TODO TODO TODO
                         dgraph.add_edge( objId, tgtId )
-    wcclist = sorted( nx.weakly_connected_component_subgraphs(dgraph),
-                      key = len,
-                      reverse = True )
-    # Here's where the stable groups are compared against the death groups
-    # 1 - For every stable group, determine the deathgroup number set
-    # 2 - For every death group, determine the stable group number set
-    # Using the order of the sorted wcclist, let group 1 be at index 0 and so on.
-    # Therefore this means that the largest wcc is at index 0, and is called group 1.
-    dgreader = mydict["dgroupreader"]
-    stable2dgroup = {}
-    s2d = stable2dgroup # Make it shorter
-    counter = Counter()
-    # Maintain the results in 2 dictionaries:
-    # 'stable2deathset' which maps:
-    #     stable group num -> set of death group numbers
-    stable2deathset = defaultdict(set)
-    # 'death2stableset' which maps:
-    #     death group number -> set of stable group numbers
-    death2stableset = defaultdict(set)
-    # As a sanity check, we keep track of which object Ids we've seen:
-    objId_seen = set()
-    obj2stablegroup = {}
-    # Get the group number for 'died at end' group since we want to ignore that group
-    atend_gnum = dgreader.get_atend_group_number()
-    # Go through the stable weakly-connected list and find the death groups
-    # that the objects are in.
-    # Rename wcclist to a more appropriate name. stable2obj maps from
-    # stable group number to a list of object Ids.
-    stable2obj = wcclist
+
+# Go through the stable weakly-connected list and find the death groups
+# that the objects are in.
+def map_stable_to_deathgroups( stable2obj = {}, # input
+                               atend_gnum = {}, # input
+                               dgreader = {}, # input
+                               stable2deathset = {}, # output
+                               death2stableset = {}, # output
+                               objId_seen = {}, # output
+                               obj2stablegroup = {}, # output
+                               logger = None ):
     for stable_groupId in xrange(len(stable2obj)):
         dgroups = set()
         for sobjId in stable2obj[stable_groupId]:
@@ -705,7 +656,13 @@ def create_supergraph_all_MPR( bmark = "",
         #     sys.stdout.write( "[ Stable group %d ]: %s\n" % (stable_groupId, str(dgroups)) )
         # DEBUG END
         stable2deathset[stable_groupId].update( dgroups )
-    # Do a reverse mapping from death group to stable
+
+def map_death_to_stablegroups( stable2deathset = {},
+                               dgreader = {},
+                               objId_seen = {},
+                               obj2stablegroup = {},
+                               death2stableset = {},
+                               logger = None ):
     not_seen = 0
     for sgroupId, dgset in stable2deathset.iteritems():
         for dgroupId in dgset:
@@ -720,6 +677,98 @@ def create_supergraph_all_MPR( bmark = "",
                     dgroupId = dgreader.get_group_number(objId)
                     new_sgroupId = obj2stablegroup[objId]
                     death2stableset[dgroupId].add( new_sgroupId )
+    return not_seen
+
+def create_supergraph_all_MPR( bmark = "",
+                               cycle_cpp_dir = "",
+                               main_config = {},
+                               objectinfo_config = {},
+                               dgroup_config = {},
+                               stability_config = {},
+                               reference_config = {},
+                               reverse_ref_config = {},
+                               result = [],
+                               logger = None ):
+    # Assumes that we are in the desired working directory.
+    # Get all the objects and add as a node to the graph
+    mydict = {}
+    backupdir = main_config["backup"]
+    # Read all the data in.
+    read_result = read_simulator_data( bmark = bmark,
+                                       cycle_cpp_dir = cycle_cpp_dir,
+                                       objectinfo_config = objectinfo_config,
+                                       dgroup_config = dgroup_config,
+                                       stability_config = stability_config,
+                                       reference_config = reference_config,
+                                       reverse_ref_config = reverse_ref_config,
+                                       mydict = mydict,
+                                       # shared_list = result,
+                                       logger = logger )
+    if read_result == False:
+        return False
+    TYPE = get_index( "TYPE" ) # type index
+    # Start the graph by adding nodes
+    objreader = mydict["objreader"]
+    objnode_list =  set([])
+    # Add nodes to graph
+    dgraph = add_nodes_to_graph( objreader = objreader,
+                                 objnode_list = objnode_list,
+                                 logger = logger )
+    # Add the stable edges only
+    stability = mydict["stability"]
+    reference = mydict["reference"]
+    add_stable_edges( dgraph = dgraph,
+                      stability = stability,
+                      reference = reference,
+                      objnode_list = objnode_list,
+                      logger = logger )
+    # Get the weakly connected components
+    wcclist = sorted( nx.weakly_connected_component_subgraphs(dgraph),
+                      key = len,
+                      reverse = True )
+    # Here's where the stable groups are compared against the death groups
+    # 1 - For every stable group, determine the deathgroup number set
+    # 2 - For every death group, determine the stable group number set
+    # Using the order of the sorted wcclist, let group 1 be at index 0 and so on.
+    # Therefore this means that the largest wcc is at index 0, and is called group 1.
+    dgreader = mydict["dgroupreader"]
+    stable2dgroup = {}
+    s2d = stable2dgroup # Make it shorter
+    counter = Counter()
+    # Maintain the results in 2 dictionaries:
+    # 'stable2deathset' which maps:
+    #     stable group num -> set of death group numbers
+    stable2deathset = defaultdict(set)
+    # 'death2stableset' which maps:
+    #     death group number -> set of stable group numbers
+    death2stableset = defaultdict(set)
+    # As a sanity check, we keep track of which object Ids we've seen:
+    objId_seen = set()
+    obj2stablegroup = {}
+    # Get the group number for 'died at end' group since we want to ignore that group
+    atend_gnum = dgreader.get_atend_group_number()
+    # Rename wcclist to a more appropriate name. stable2obj maps from
+    #     stable group number to a list of object Ids.
+    stable2obj = wcclist
+
+    # Go through the stable weakly-connected list and find the death groups
+    # that the objects are in.
+    map_stable_to_deathgroups( stable2obj = stable2obj, # input
+                               atend_gnum = atend_gnum, # input
+                               dgreader = dgreader, # input
+                               stable2deathset = stable2deathset, # output
+                               death2stableset = death2stableset, # output
+                               objId_seen = objId_seen, # output
+                               obj2stablegroup = obj2stablegroup, # output
+                               logger = logger )
+
+    # Do a reverse mapping from death group to stable
+    not_seen = map_death_to_stablegroups( stable2deathset = stable2deathset, # input
+                                          dgreader = dgreader, # input
+                                          objId_seen = objId_seen, # input/output
+                                          obj2stablegroup = obj2stablegroup, # input
+                                          death2stableset = death2stableset, # output
+                                          logger = logger )
     logger.error( "NOT SEEN: %d" % not_seen )
     # Make a bipartite stable <-> death group graph
     stable_death_graph = create_stable_death_bipartite_graph( stable2deathset = stable2deathset,
