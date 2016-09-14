@@ -23,7 +23,7 @@ from mypytools import mean, stdev, variance
 # The garbology related library. Import as follows.
 # Check garbology.py for other imports
 from garbology import ObjectInfoReader, StabilityReader, ReferenceReader, \
-         ReverseRefReader, DeathGroupsReader, get_index, is_stable
+         ReverseRefReader, DeathGroupsReader, SummaryReader, get_index, is_stable
 
 # Needed to read in *-OBJECTINFO.txt and other files from 
 # the simulator run
@@ -133,6 +133,7 @@ def read_simulator_data( bmark = "",
                          stability_config = {},
                          reference_config = {},
                          reverse_ref_config = {},
+                         summary_config = {},
                          mydict = {},
                          logger = None ):
     # Read in OBJECTINFO
@@ -202,6 +203,20 @@ def read_simulator_data( bmark = "",
         reversereader.read_reverseref_file()
     except:
         logger.error( "[ %s ] Unable to read reverse-reference file.." % bmark )
+        mydict.clear()
+        sys.stdout.flush()
+        return False
+    # Read in SUMMARY
+    print "Reading in the SUMMARY file for benchmark:", bmark
+    sys.stdout.flush()
+    mydict["summary_reader"] = SummaryReader( os.path.join( cycle_cpp_dir,
+                                                     summary_config[bmark] ),
+                                       logger = logger )
+    try:
+        summary_reader = mydict["summary_reader"]
+        summary_reader.read_summary_file()
+    except:
+        logger.error( "[ %s ] Unable to read summary file.." % bmark )
         mydict.clear()
         sys.stdout.flush()
         return False
@@ -306,6 +321,7 @@ def summarize_wcc_stable_death_components( wcc_sd_list = [],
                                            stable2obj = {},
                                            objreader = {} ,
                                            dgroup_reader = {},
+                                           summary_reader = {},
                                            bmark = "",
                                            output_filename = None,
                                            logger = None ):
@@ -341,6 +357,9 @@ def summarize_wcc_stable_death_components( wcc_sd_list = [],
                                                         sd_combined_id = index )
     to_number = 5 if len(summary) > 5 else len(summary)
     assert(to_number > 0)
+    # Get the final time for the benchmark
+    final_time = summary_reader.get_final_garbology_time()
+    assert(final_time > 0)
     with open(output_filename, "wb") as fptr:
         seen_objects = set()
         # Create the CSV writer and write the header row
@@ -371,24 +390,41 @@ def summarize_wcc_stable_death_components( wcc_sd_list = [],
             summary[index]["number_alloc_times"] = len(alloc_time_set)
             summary[index]["number_death_times"] = len(death_time_set)
             #------------------------------------------------------------
+            # In the following the _sc suffix (as in X_sc) means it's scaled
+            # to the total time in percentage.
             # 1. Get minimum-maximum alloc times
             #      * Alloc time range
             min_alloctime = min( alloc_time_list )
             max_alloctime = max( alloc_time_list )
-            summary[index]["atime"] = { "min" : min_alloctime, "max" : max_alloctime }
+            summary[index]["atime"] = { "min" : min_alloctime,
+                                        "min_sc" : (min_alloctime / final_time) * 100.0, 
+                                        "max" : max_alloctime,
+                                        "max_sc" : (max_alloctime / final_time) * 100.0}
             #      * Death time range
             min_deathtime = min( death_time_list )
             max_deathtime = max( death_time_list )
-            summary[index]["dtime"] = { "min" : min_deathtime, "max" : max_deathtime }
-            #      * Death time statistics
+            summary[index]["dtime"] = { "min" : min_deathtime,
+                                        "min_sc" : (min_deathtime / final_time) * 100.0, 
+                                        "max" : max_deathtime,
+                                        "max_sc" : (max_deathtime / final_time) * 100.0}
+            #  Alloc and Death time statistics
             mean_deathtime = mean( death_time_list  )
             stdev_deathtime = stdev( death_time_list  )
             mean_alloctime = mean( alloc_time_list  )
             stdev_alloctime = stdev( alloc_time_list  )
-            summary[index]["dtime"]["mean"] = mean_deathtime
+            #     Allocation time
             summary[index]["atime"]["mean"] = mean_alloctime
-            summary[index]["dtime"]["stdev"] = stdev_deathtime
             summary[index]["atime"]["stdev"] = stdev_alloctime
+            #     Death time
+            summary[index]["dtime"]["mean"] = mean_deathtime
+            summary[index]["dtime"]["stdev"] = stdev_deathtime
+            # The scaled (_sc) quantities
+            #     Allocation time
+            summary[index]["atime"]["mean_sc"] = (mean_alloctime / final_time) * 100.0
+            summary[index]["atime"]["stdev_sc"] = (stdev_alloctime / final_time) * 100.0
+            #     Death time
+            summary[index]["dtime"]["mean_sc"] = (mean_deathtime / final_time) * 100.0
+            summary[index]["dtime"]["stdev_sc"] = (stdev_deathtime / final_time) * 100.0
             #------------------------------------------------------------
             # 2. Get minimum-maximum death times
             #     - std deviation? median?
@@ -409,11 +445,11 @@ def summarize_wcc_stable_death_components( wcc_sd_list = [],
             elif key == "number_death_times":
                 print "    * %d unique death times" % val
             elif key == "atime":
-                print "    * alloc range - [ %d, %d ]" % (val["min"], val["max"])
-                print "    * mean = %d    stdev = %d" % (val["mean"], val["stdev"])
+                print "    * alloc range - [ {:.2f}, {:.2f} ]".format(val["min_sc"], val["max_sc"])
+                print "    * mean = {:.2f}    stdev = {:.2f}".format(val["mean_sc"], val["stdev_sc"])
             elif key == "dtime":
-                print "    * death range - [ %d, %d ]" % (val["min"], val["max"])
-                print "    * mean = %d    stdev = %d" % (val["mean"], val["stdev"])
+                print "    * death range - [ {:.2f}, {:.2f} ]".format(val["min_sc"], val["max_sc"])
+                print "    * mean = {:.2f}    stdev = {:.2f}".format(val["mean_sc"], val["stdev_sc"])
     print "======[ %s ][ END SUMMARY of components ]=======================================" % bmark
     return
 
@@ -437,6 +473,7 @@ def create_supergraph_all( bmark = "",
                                        stability_config = stability_config,
                                        reference_config = reference_config,
                                        reverse_ref_config = reverse_ref_config,
+                                       summary_config = summary_config,
                                        mydict = mydict,
                                        logger = logger )
     if read_result == False:
@@ -703,6 +740,7 @@ def create_supergraph_all_MPR( bmark = "",
                                stability_config = {},
                                reference_config = {},
                                reverse_ref_config = {},
+                               summary_config = {},
                                result = [],
                                logger = None ):
     # Assumes that we are in the desired working directory.
@@ -717,22 +755,25 @@ def create_supergraph_all_MPR( bmark = "",
                                        stability_config = stability_config,
                                        reference_config = reference_config,
                                        reverse_ref_config = reverse_ref_config,
+                                       summary_config = summary_config,
                                        mydict = mydict,
                                        # shared_list = result,
                                        logger = logger )
     if read_result == False:
         return False
+    # Extract the important objects
+    objreader = mydict["objreader"]
+    stability = mydict["stability"]
+    reference = mydict["reference"]
+    summary_reader = mydict["summary_reader"]
     TYPE = get_index( "TYPE" ) # type index
     # Start the graph by adding nodes
-    objreader = mydict["objreader"]
     objnode_list =  set([])
     # Add nodes to graph
     dgraph = add_nodes_to_graph( objreader = objreader,
                                  objnode_list = objnode_list,
                                  logger = logger )
     # Add the stable edges only
-    stability = mydict["stability"]
-    reference = mydict["reference"]
     add_stable_edges( dgraph = dgraph,
                       stability = stability,
                       reference = reference,
@@ -797,6 +838,7 @@ def create_supergraph_all_MPR( bmark = "",
                                            stable2obj = stable2obj,
                                            objreader = objreader,
                                            dgroup_reader = dgreader,
+                                           summary_reader = summary_reader,
                                            bmark = bmark,
                                            output_filename = os.path.join( main_config["output"], 
                                                                            "%s-stabledeath-object-summary.csv" % bmark ),
@@ -830,6 +872,7 @@ def main_process( global_config = {},
                   reference_config = {},
                   reverse_ref_config = {},
                   stability_config = {},
+                  summary_config = {},
                   mprflag = False,
                   debugflag = False,
                   logger = None ):
@@ -872,6 +915,7 @@ def main_process( global_config = {},
                                   stability_config,
                                   reference_config,
                                   reverse_ref_config,
+                                  summary_config,
                                   results[bmark],
                                   logger ) )
             procs[bmark] = p
@@ -946,9 +990,9 @@ def process_config( args ):
     reference_config = config_section_map( "reference", config_parser )
     reverse_ref_config = config_section_map( "reverse-reference", config_parser )
     stability_config = config_section_map( "stability-summary", config_parser )
+    summary_config = config_section_map( "summary-cpp", config_parser )
     # DON'T KNOW: contextcount_config = config_section_map( "contextcount", config_parser )
     # PROBABLY NOT:  host_config = config_section_map( "hosts", config_parser )
-    # PROBABLY NOT: summary_config = config_section_map( "summary_cpp", config_parser )
     return { "global" : global_config,
              "main" : main_config,
              "objectinfo" : objectinfo_config,
@@ -957,7 +1001,7 @@ def process_config( args ):
              "reference" : reference_config,
              "reverse-reference" : reverse_ref_config,
              "stability" : stability_config,
-             # "summary" : summary_config,
+             "summary_config" : summary_config,
              # "contextcount" : contextcount_config,
              # "host" : host_config,
              }
@@ -1020,6 +1064,7 @@ def main():
     reference_config = configdict["reference"]
     reverse_ref_config = configdict["reverse-reference"]
     stability_config = configdict["stability"]
+    summary_config = configdict["summary_config"]
     worklist_config = process_worklist_config( configdict["create-supergraph-worklist"] )
     # pp.pprint(worklist_config)
     # PROBABLY DELETE:
@@ -1042,6 +1087,7 @@ def main():
                          reference_config = reference_config,
                          reverse_ref_config = reverse_ref_config,
                          stability_config = stability_config,
+                         summary_config = summary_config,
                          logger = logger )
 
 if __name__ == "__main__":
