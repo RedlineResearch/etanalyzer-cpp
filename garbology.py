@@ -154,6 +154,10 @@ class ObjectInfoReader:
         # These are computed later on and are simply set to None here
         self.objId2stable_gnum = {}
         self.objId2death_gnum = {}
+        # The following is the combined stable+death group numbers.
+        #    We have it returning None by default for anything that hasn't
+        #    been assigned yet.
+        self.objId2combined_gnum = defaultdict( lambda: None )
 
     def __len__( self ):
         return len(self.objdict)
@@ -457,9 +461,20 @@ class ObjectInfoReader:
                                  gnum = None ):
         self.objId2stable_gnum[objId] = gnum
 
+    def set_combined_sd_group_number( self,
+                                      objId = None,
+                                      gnum = None ):
+        self.objId2combined_gnum[objId] = gnum
+
     def get_stable_group_number( self,
                                  objId = None ):
         return self.objId2stable_gnum[objId] if objId in self.objId2stable_gnum else None
+
+    def get_comibined_sd_group_number( self,
+                                       objId = None ):
+        return self.objId2combined_gnum[objId]
+        # Note this is a default dict that returns None if it isn't in the dictionary.
+        # I don't know if this is better or if checking is better (see get_stable_group_number).
 
     def set_death_group_number( self,
                                 objId = None,

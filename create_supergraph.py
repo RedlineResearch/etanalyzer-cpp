@@ -262,17 +262,20 @@ def get_objects_as_set( stable_list = [],
                         death_list = [],
                         stable2obj = {},
                         dgroup_reader = {},
-                        objreader = {} ):
+                        objreader = {},
+                        sd_combined_id = None ):
     objset = set()
     for sgnum in stable_list:
         for objId in stable2obj[sgnum]:
             objset.add(objId)
             objreader.set_stable_group_number(objId, sgnum)
+            objreader.set_combined_sd_group_number(objId, sd_combined_id)
     sgnum = None # To prevent dynamic PL problems
     for dgnum in death_list:
         for objId in dgroup_reader.get_group(dgnum):
             objset.add(objId)
             objreader.set_death_group_number(objId, dgnum)
+            objreader.set_combined_sd_group_number(objId, sd_combined_id)
     return objset
 
 def output_each_object( objset = set(),
@@ -290,9 +293,11 @@ def output_each_object( objset = set(),
         seen_objects.add(objId)
         stable_gnum = objreader.get_stable_group_number(objId)
         death_gnum = objreader.get_death_group_number(objId)
-        # object Id, stable group number, death group number, allocation time, death time
+        combined_gnum = objreader.get_comibined_sd_group_number(objId)
+        # object Id, stable group number, death group number, combined stable+death group number,
+        #        allocation time, death time
         writer.writerow( [ objId,
-                           stable_gnum, death_gnum,
+                           stable_gnum, death_gnum, combined_gnum,
                            objreader.get_alloc_time(objId),
                            objreader.get_death_time(objId), ] )
 
@@ -332,7 +337,8 @@ def summarize_wcc_stable_death_components( wcc_sd_list = [],
                                                         death_list = death,
                                                         stable2obj = stable2obj,
                                                         dgroup_reader = dgroup_reader,
-                                                        objreader = objreader )
+                                                        objreader = objreader,
+                                                        sd_combined_id = index )
     to_number = 5 if len(summary) > 5 else len(summary)
     assert(to_number > 0)
     with open(output_filename, "wb") as fptr:
@@ -340,7 +346,7 @@ def summarize_wcc_stable_death_components( wcc_sd_list = [],
         # Create the CSV writer and write the header row
         writer = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
         writer.writerow( [ "objectId", "stable group number", "death group number",
-                           "allocation time", "death time", ] )
+                           "combined group number", "allocation time", "death time", ] )
         for index in xrange(to_number):
             # Rename into shorter names
             stable = summary[index]["stable"]
@@ -624,10 +630,15 @@ def map_stable_to_deathgroups( stable2obj = {}, # input
                                atend_gnum = {}, # input
                                dgreader = {}, # input
                                stable2deathset = {}, # output
-                               death2stableset = {}, # output
                                objId_seen = {}, # output
                                obj2stablegroup = {}, # output
                                logger = None ):
+    # stable2obj - stable group to object Id
+    # atend_gnum - the stable group number for programs that 'died at end'
+    # dgreader - DeathGroupReader for reading in death group data from simulator
+    # stable2deathset - map stable group to related death group
+    # objId_seen - remember all the objects we've seen
+    # obj2stablegroup - map object Id to the corresponding stable group
     for stable_groupId in xrange(len(stable2obj)):
         dgroups = set()
         for sobjId in stable2obj[stable_groupId]:
@@ -663,6 +674,11 @@ def map_death_to_stablegroups( stable2deathset = {},
                                obj2stablegroup = {},
                                death2stableset = {},
                                logger = None ):
+    # stable2deathset - map stable group to related death group
+    # dgreader - DeathGroupReader for reading in death group data from simulator
+    # objId_seen - remember all the objects we've seen
+    # obj2stablegroup - map object Id to the corresponding stable group
+    # death2stableset - map death group to related stable group
     not_seen = 0
     for sgroupId, dgset in stable2deathset.iteritems():
         for dgroupId in dgset:
@@ -757,7 +773,6 @@ def create_supergraph_all_MPR( bmark = "",
                                atend_gnum = atend_gnum, # input
                                dgreader = dgreader, # input
                                stable2deathset = stable2deathset, # output
-                               death2stableset = death2stableset, # output
                                objId_seen = objId_seen, # output
                                obj2stablegroup = obj2stablegroup, # output
                                logger = logger )
