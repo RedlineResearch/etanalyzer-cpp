@@ -1243,6 +1243,18 @@ class StabilityReader:
         # The __ means only call if you know what you're doing, eh?
         return self.stabilitydict
 
+    def get_fields_dict( self, objId = None ):
+        return self.stabilitydict[objId] if objId in self.stabilitydict else None
+
+    def get_stability_type( self,
+                            objId = None,
+                            fieldId = None ):
+        if objId in self.stabilitydict:
+            if fieldId in self.stabilitydict[objId]:
+                return self.stabilitydict[objId][fieldId]
+        # We get here if objId or fieldId aren't found
+        return None
+
     def print_out( self ):
         for key, fdict in self.stabilitydict.iteritems():
             print "%d -> %s" % (key, str(fdict))

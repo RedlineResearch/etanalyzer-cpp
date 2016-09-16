@@ -607,6 +607,8 @@ def create_supergraph_all( bmark = "",
     print "------[ %s DONE ]---------------------------------------------------------------" % bmark
     return wcclist
 
+#--------------------------------------------------------------------------------
+# Super graph ONE related functions
 def add_nodes_to_graph( objreader = {},
                         objnode_list = set(),
                         logger = None ):
@@ -628,6 +630,63 @@ def add_stable_edges( dgraph = {},
                       reference = {},
                       objnode_list = {},
                       logger = None ):
+    for objId, fdict in stability.iteritems(): # for each object
+        for fieldId, sattr in fdict.iteritems(): # for each field Id of each object
+            if is_stable(sattr):
+                # Add the edge
+                try:
+                    objlist = reference[ (objId, fieldId) ]
+                except:
+                    print "ERROR: Not found (%s, %s)" % (str(objId), str(fieldId))
+                    logger.error("ERROR: Not found (%s, %s)" % (str(objId), str(fieldId)))
+                    print "EXITING."
+                    exit(10)
+                if objId != 0:
+                    if objId not in objnode_list:
+                        print "=========[ ERROR ]=============================================================="
+                        pp.pprint( objnode_list )
+                        print "=========[ ERROR ]=============================================================="
+                        print "ObjId [ %s ] of type [ %s ]" % (str(objId), str(type(objId)))
+                        assert(False)
+                        # continue # TODO TODO TODO
+                else:
+                    continue
+                missing = set([])
+                for tgtId in objlist: # for each target object
+                    if tgtId != 0:
+                        if tgtId in missing:
+                            continue
+                        elif tgtId not in objnode_list:
+                            missing.add( tgtId )
+                            print "=========[ ERROR ]=============================================================="
+                            print "Missing objId [ %s ] of type [ %s ]" % (str(tgtId), str(type(tgtId)))
+                            continue # For now. TODO TODO TODO
+                        dgraph.add_edge( objId, tgtId )
+
+#--------------------------------------------------------------------------------
+# Super graph ONE related functions
+def add_nodes_to_graph_TWO( stable2obj = {},
+                            stnode_list = set(),
+                            logger = None ):
+    # TODO Do we need stnode_list? After all, we have all the stnodes here now
+    #      in stable2obj.
+    dgraph = nx.DiGraph()
+    for sgnum, objlist in stable2obj..iteritems():
+        if sgnum not in stnode_list:
+            dgraph.add_node( sgnum ) # TODO: What attributes do we add?
+            stnode_list.add( sgnum )
+        else:
+            logger.critical( "%s: Multiple add for stable group [ %s ]" %
+                             (bmark, str(stgnum)) )
+    return dgraph
+
+def add_unstable_edges( dgraph = {},
+                        stability = {},
+                        reference = {},
+                        obj2stablegroup = {},
+                        objnode_list = {},
+                        logger = None ):
+    # TODO HERE 2016-0915
     for objId, fdict in stability.iteritems(): # for each object
         for fieldId, sattr in fdict.iteritems(): # for each field Id of each object
             if is_stable(sattr):
@@ -783,6 +842,7 @@ def create_supergraph_all_MPR( bmark = "",
     wcclist = sorted( nx.weakly_connected_component_subgraphs(dgraph),
                       key = len,
                       reverse = True )
+    #---------------------------------------------------------------------------
     # Here's where the stable groups are compared against the death groups
     # 1 - For every stable group, determine the deathgroup number set
     # 2 - For every death group, determine the stable group number set
@@ -807,7 +867,7 @@ def create_supergraph_all_MPR( bmark = "",
     # Rename wcclist to a more appropriate name. stable2obj maps from
     #     stable group number to a list of object Ids.
     stable2obj = wcclist
-
+    #---------------------------------------------------------------------------
     # Go through the stable weakly-connected list and find the death groups
     # that the objects are in.
     map_stable_to_deathgroups( stable2obj = stable2obj, # input
@@ -851,6 +911,27 @@ def create_supergraph_all_MPR( bmark = "",
     print "[%s] Top 5 largest components: %s" % (bmark, str( [ len(x) for x in wcc_stable_death_list[:5] ] ))
     print "================================================================================"
     print "================================================================================"
+    #---------------------------------------------------------------------------
+    # Create the next super graph TWO. Which consists of stable groups + unstable edges.
+    # - Create new graph using stable groups as nodes.
+    #       Start the graph by adding nodes
+    stnode_list =  set([])
+    # Add nodes to graph
+    dgraph = add_nodes_to_graph_TWO( stable2obj = stable2obj,
+                                     stnode_list = stnode_list,
+                                     logger = logger )
+    # - Add the UNSTABLE edges.
+    add_unstable_edges( dgraph = dgraph,
+                        stability = stability,
+                        reference = reference,
+                        obj2stablegroup = obj2stablegroup,
+                        stnode_list = stnode_list,
+                        logger = logger )
+    # Get the weakly connected components
+    wcclist = sorted( nx.weakly_connected_component_subgraphs(dgraph),
+                      key = len,
+                      reverse = True )
+    #---------------------------------------------------------------------------
     output_graph_and_summary( bmark = bmark,
                               objreader = objreader,
                               dgraph = dgraph,
