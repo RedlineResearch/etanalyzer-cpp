@@ -103,13 +103,17 @@ def get_actual_hostname( hostname = "",
 def output_graph_and_summary( bmark = "",
                               objreader = {},
                               dgraph = {},
+                              dgraph_unstable = {},
                               wcclist = [],
                               stable2deathset = {},
                               death2stableset = {},
                               backupdir = None,
                               logger = None ):
     # Print to standard output
+    print "=======[ SUMMARY ]=============================================================="
     print "[%s] -> # of objects = %d" % (bmark, len(objreader))
+    # The first stable graph
+    print "=======[ STABLE GRAPH ]========================================================="
     print "     -> nodes = %d  edges = %d  - WCC = %d" % \
         ( dgraph.number_of_nodes(),
           dgraph.number_of_edges(),
@@ -125,6 +129,23 @@ def output_graph_and_summary( bmark = "",
             os.remove( bakfile )
         shutil.move( target, backupdir )
     nx.write_gml(dgraph, target)
+    # The second unstable graph
+    print "=======[ UNSTABLE GRAPH ]======================================================="
+    print "     -> nodes = %d  edges = %d  - WCC = %d" % \
+        ( dgraph_unstable.number_of_nodes(),
+          dgraph_unstable.number_of_edges(),
+          len(wcclist) )
+    print "     -> 3 largest WCC = %d, %d, %d" % \
+        ( len(wcclist[0]), len(wcclist[1]), len(wcclist[2]) )
+    target = "%s-UNstable_graph.gml" % bmark
+    # Backup the old gml file if it exists
+    if os.path.isfile(target):
+        # Move this file into backup directory
+        bakfile = os.path.join( backupdir, target )
+        if os.path.isfile( bakfile ):
+            os.remove( bakfile )
+        shutil.move( target, backupdir )
+    nx.write_gml(dgraph_unstable, target)
         
 def read_simulator_data( bmark = "",
                          cycle_cpp_dir = "",
@@ -275,13 +296,13 @@ def create_stable_death_bipartite_graph( stable2deathset = {},
 
 def get_objects_as_set( stable_list = [],
                         death_list = [],
-                        stable2obj = {},
+                        stable_grouplist = [],
                         dgroup_reader = {},
                         objreader = {},
                         sd_combined_id = None ):
     objset = set()
     for sgnum in stable_list:
-        for objId in stable2obj[sgnum]:
+        for objId in stable_grouplist[sgnum]:
             objset.add(objId)
             objreader.set_stable_group_number(objId, sgnum)
             objreader.set_combined_sd_group_number(objId, sd_combined_id)
@@ -318,7 +339,7 @@ def output_each_object( objset = set(),
 
 
 def summarize_wcc_stable_death_components( wcc_sd_list = [],
-                                           stable2obj = {},
+                                           stable_grouplist = [],
                                            objreader = {} ,
                                            dgroup_reader = {},
                                            summary_reader = {},
@@ -351,7 +372,7 @@ def summarize_wcc_stable_death_components( wcc_sd_list = [],
                 raise ValueError( "Unexpected node type: %s for %s" % (gtype, node) )
         summary[index]["objects"] = get_objects_as_set( stable_list = stable,
                                                         death_list = death,
-                                                        stable2obj = stable2obj,
+                                                        stable_grouplist = stable_grouplist,
                                                         dgroup_reader = dgroup_reader,
                                                         objreader = objreader,
                                                         sd_combined_id = index )
@@ -665,13 +686,14 @@ def add_stable_edges( dgraph = {},
 
 #--------------------------------------------------------------------------------
 # Super graph ONE related functions
-def add_nodes_to_graph_TWO( stable2obj = {},
+def add_nodes_to_graph_TWO( stable_grouplist = [],
                             stnode_list = set(),
                             logger = None ):
     # TODO Do we need stnode_list? After all, we have all the stnodes here now
-    #      in stable2obj.
+    #      in stable_grouplist.
     dgraph = nx.DiGraph()
-    for sgnum, objlist in stable2obj..iteritems():
+    for sgnum in xrange(len(stable_grouplist)):
+        objlist = stable_grouplist[sgnum]
         if sgnum not in stnode_list:
             dgraph.add_node( sgnum ) # TODO: What attributes do we add?
             stnode_list.add( sgnum )
@@ -684,60 +706,63 @@ def add_unstable_edges( dgraph = {},
                         stability = {},
                         reference = {},
                         obj2stablegroup = {},
+                        stable_grouplist = [],
+                        stnode_list = set(),
                         objnode_list = {},
                         logger = None ):
-    # TODO HERE 2016-0915
-    for objId, fdict in stability.iteritems(): # for each object
-        for fieldId, sattr in fdict.iteritems(): # for each field Id of each object
-            if is_stable(sattr):
-                # Add the edge
-                try:
-                    objlist = reference[ (objId, fieldId) ]
-                except:
-                    print "ERROR: Not found (%s, %s)" % (str(objId), str(fieldId))
-                    logger.error("ERROR: Not found (%s, %s)" % (str(objId), str(fieldId)))
-                    print "EXITING."
-                    exit(10)
-                if objId != 0:
-                    if objId not in objnode_list:
-                        print "=========[ ERROR ]=============================================================="
-                        pp.pprint( objnode_list )
-                        print "=========[ ERROR ]=============================================================="
-                        print "ObjId [ %s ] of type [ %s ]" % (str(objId), str(type(objId)))
-                        assert(False)
-                        # continue # TODO TODO TODO
-                else:
-                    continue
-                missing = set([])
-                for tgtId in objlist: # for each target object
-                    if tgtId != 0:
-                        if tgtId in missing:
+    edgeset = set()
+    for sgnum in xrange(len(stable_grouplist)): # for each stable group number
+        if sgnum not in stnode_list:
+            print "=========[ ERROR ]=============================================================="
+            pp.pprint( objnode_list )
+            print "=========[ ERROR ]=============================================================="
+            print "ObjId [ %s ] of type [ %s ]" % (str(objId), str(type(objId)))
+            assert(False)
+        objlist = stable_grouplist[sgnum]
+        for objId in objlist: # for each field Id of each object
+            fdict = stability[objId]
+            if fdict == None:
+                continue
+            for fieldId, sattr in fdict.iteritems(): # for each field Id of each object
+                if not is_stable(sattr):
+                    # Get the target object Ids
+                    try:
+                        tgt_objlist = reference[ (objId, fieldId) ]
+                    except:
+                        print "ERROR: Not found (%s, %s)" % (str(objId), str(fieldId))
+                        logger.error("ERROR: Not found (%s, %s)" % (str(objId), str(fieldId)))
+                        print "EXITING."
+                        exit(10)
+                    missing = set([])
+                    for tgtObjId in tgt_objlist: # for each target object
+                        # Look for the stable group number for tgtObjId
+                        tgt_sgnum = obj2stablegroup[tgtObjId]
+                        edge = (sgnum, tgt_sgnum)
+                        if edge in edgeset:
                             continue
-                        elif tgtId not in objnode_list:
-                            missing.add( tgtId )
-                            print "=========[ ERROR ]=============================================================="
-                            print "Missing objId [ %s ] of type [ %s ]" % (str(tgtId), str(type(tgtId)))
-                            continue # For now. TODO TODO TODO
-                        dgraph.add_edge( objId, tgtId )
+                        dgraph.add_edge( edge[0], edge[1] )
+                        edgeset.add( edge )
+                    # HERE
+    return dgraph
 
 # Go through the stable weakly-connected list and find the death groups
 # that the objects are in.
-def map_stable_to_deathgroups( stable2obj = {}, # input
+def map_stable_to_deathgroups( stable_grouplist = [], # input
                                atend_gnum = {}, # input
                                dgreader = {}, # input
                                stable2deathset = {}, # output
                                objId_seen = {}, # output
                                obj2stablegroup = {}, # output
                                logger = None ):
-    # stable2obj - stable group to object Id
+    # stable_grouplist - stable group list of object Ids
     # atend_gnum - the stable group number for programs that 'died at end'
     # dgreader - DeathGroupReader for reading in death group data from simulator
     # stable2deathset - map stable group to related death group
     # objId_seen - remember all the objects we've seen
     # obj2stablegroup - map object Id to the corresponding stable group
-    for stable_groupId in xrange(len(stable2obj)):
+    for stable_groupId in xrange(len(stable_grouplist)):
         dgroups = set()
-        for sobjId in stable2obj[stable_groupId]:
+        for sobjId in stable_grouplist[stable_groupId]:
             # Get the death group number from the dgroup reader
             dgroupId = dgreader.get_group_number(sobjId)
             assert(dgroupId != None)
@@ -864,13 +889,14 @@ def create_supergraph_all_MPR( bmark = "",
     obj2stablegroup = {}
     # Get the group number for 'died at end' group since we want to ignore that group
     atend_gnum = dgreader.get_atend_group_number()
-    # Rename wcclist to a more appropriate name. stable2obj maps from
-    #     stable group number to a list of object Ids.
-    stable2obj = wcclist
+    # Rename wcclist to a more appropriate name. stable_grouplist is a list of
+    #     object Ids. We use the list indices as a stable group number mapping to the 
+    #     object Ids.
+    stable_grouplist = wcclist
     #---------------------------------------------------------------------------
     # Go through the stable weakly-connected list and find the death groups
     # that the objects are in.
-    map_stable_to_deathgroups( stable2obj = stable2obj, # input
+    map_stable_to_deathgroups( stable_grouplist = stable_grouplist, # input
                                atend_gnum = atend_gnum, # input
                                dgreader = dgreader, # input
                                stable2deathset = stable2deathset, # output
@@ -895,7 +921,7 @@ def create_supergraph_all_MPR( bmark = "",
                                     key = len,
                                     reverse = True )
     summarize_wcc_stable_death_components( wcc_sd_list = wcc_stable_death_list,
-                                           stable2obj = stable2obj,
+                                           stable_grouplist = stable_grouplist,
                                            objreader = objreader,
                                            dgroup_reader = dgreader,
                                            summary_reader = summary_reader,
@@ -917,30 +943,33 @@ def create_supergraph_all_MPR( bmark = "",
     #       Start the graph by adding nodes
     stnode_list =  set([])
     # Add nodes to graph
-    dgraph = add_nodes_to_graph_TWO( stable2obj = stable2obj,
-                                     stnode_list = stnode_list,
-                                     logger = logger )
+    dgraph_unstable = add_nodes_to_graph_TWO( stable_grouplist = stable_grouplist,
+                                              stnode_list = stnode_list,
+                                              logger = logger )
     # - Add the UNSTABLE edges.
-    add_unstable_edges( dgraph = dgraph,
+    add_unstable_edges( dgraph = dgraph_unstable,
                         stability = stability,
                         reference = reference,
+                        stable_grouplist = stable_grouplist,
                         obj2stablegroup = obj2stablegroup,
                         stnode_list = stnode_list,
                         logger = logger )
     # Get the weakly connected components
-    wcclist = sorted( nx.weakly_connected_component_subgraphs(dgraph),
+    wcclist = sorted( nx.weakly_connected_component_subgraphs(dgraph_unstable),
                       key = len,
                       reverse = True )
     #---------------------------------------------------------------------------
     output_graph_and_summary( bmark = bmark,
                               objreader = objreader,
                               dgraph = dgraph,
+                              dgraph_unstable = dgraph_unstable,
                               wcclist = wcclist,
                               backupdir = backupdir,
                               stable2deathset = stable2deathset,
                               death2stableset = death2stableset,
                               logger = logger )
     result.append( { "graph" : dgraph,
+                     "graph_unstable" : dgraph_unstable,
                      "wcclist" : wcclist,
                      "stable2deathset" : stable2deathset,
                      "death2stableset" : death2stableset } )

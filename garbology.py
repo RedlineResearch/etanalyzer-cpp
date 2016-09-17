@@ -1244,6 +1244,9 @@ class StabilityReader:
         return self.stabilitydict
 
     def get_fields_dict( self, objId = None ):
+        return self.__getitem__[objId]
+
+    def __getitem__( self, objId = None ):
         return self.stabilitydict[objId] if objId in self.stabilitydict else None
 
     def get_stability_type( self,
