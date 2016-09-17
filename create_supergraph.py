@@ -105,6 +105,7 @@ def output_graph_and_summary( bmark = "",
                               dgraph = {},
                               dgraph_unstable = {},
                               wcclist = [],
+                              wcclist_unstable = {},
                               stable2deathset = {},
                               death2stableset = {},
                               backupdir = None,
@@ -134,9 +135,9 @@ def output_graph_and_summary( bmark = "",
     print "     -> nodes = %d  edges = %d  - WCC = %d" % \
         ( dgraph_unstable.number_of_nodes(),
           dgraph_unstable.number_of_edges(),
-          len(wcclist) )
+          len(wcclist_unstable) )
     print "     -> 3 largest WCC = %d, %d, %d" % \
-        ( len(wcclist[0]), len(wcclist[1]), len(wcclist[2]) )
+        ( len(wcclist_unstable[0]), len(wcclist_unstable[1]), len(wcclist_unstable[2]) )
     target = "%s-UNstable_graph.gml" % bmark
     # Backup the old gml file if it exists
     if os.path.isfile(target):
@@ -955,15 +956,16 @@ def create_supergraph_all_MPR( bmark = "",
                         stnode_list = stnode_list,
                         logger = logger )
     # Get the weakly connected components
-    wcclist = sorted( nx.weakly_connected_component_subgraphs(dgraph_unstable),
-                      key = len,
-                      reverse = True )
+    wcclist_unstable = sorted( nx.weakly_connected_component_subgraphs(dgraph_unstable),
+                               key = len,
+                               reverse = True )
     #---------------------------------------------------------------------------
     output_graph_and_summary( bmark = bmark,
                               objreader = objreader,
                               dgraph = dgraph,
                               dgraph_unstable = dgraph_unstable,
                               wcclist = wcclist,
+                              wcclist_unstable = wcclist_unstable,
                               backupdir = backupdir,
                               stable2deathset = stable2deathset,
                               death2stableset = death2stableset,
