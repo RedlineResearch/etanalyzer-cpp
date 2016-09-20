@@ -278,8 +278,16 @@ def main_process( output = None,
         else:
             print "Benchmark not found: %s" % bmark
             assert(False)
-        assert(os.path.isfile(tracefile))
-        assert(os.path.isfile(namesfile))
+        try:
+            assert(os.path.isfile(tracefile))
+        except:
+            print "%s NOT FOUND." % tracefile
+            raise ValueError("%s NOT FOUND." % tracefile)
+        try:
+            assert(os.path.isfile(namesfile))
+        except:
+            print "%s NOT FOUND." % namesfile
+            raise ValueError("%s NOT FOUND." % namesfile)
         basename = bmark + "-cpp-" + str(datestr)
         output_name = os.path.join( cycle_cpp_dir, basename + "-OUTPUT.txt" )
         # ./simulator xalan.names xalan-cpp-2016-0129 CYCLE OBJDEBUG
