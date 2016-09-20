@@ -134,7 +134,8 @@ def __cumul_sum__( mysumpair = (0, 0),
 STABLE = "S"
 SERIAL_STABLE = "ST"
 def is_stable( attr = "" ):
-    return ( (attr == STABLE) or (attr == SERIAL_STABLE) )
+    return (attr == STABLE)
+    # return ( (attr == STABLE) or (attr == SERIAL_STABLE) )
 
 # ----------------------------------------------------------------------------- 
 # ----------------------------------------------------------------------------- 

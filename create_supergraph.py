@@ -475,160 +475,6 @@ def summarize_wcc_stable_death_components( wcc_sd_list = [],
     print "======[ %s ][ END SUMMARY of components ]=======================================" % bmark
     return
 
-def create_supergraph_all( bmark = "",
-                           cycle_cpp_dir = {},
-                           main_config = {},
-                           objectinfo_config = {},
-                           dgroup_config = {},
-                           stability_config = {},
-                           reference_config = {},
-                           reverse_ref_config = {},
-                           logger = None ):
-    # Assumes that we are in the desired working directory.
-    # Get all the objects and add as a node to the graph
-    mydict = {}
-    backupdir = main_config["backup"]
-    read_result = read_simulator_data( bmark = bmark,
-                                       cycle_cpp_dir = cycle_cpp_dir,
-                                       objectinfo_config = objectinfo_config,
-                                       dgroup_config = dgroup_config,
-                                       stability_config = stability_config,
-                                       reference_config = reference_config,
-                                       reverse_ref_config = reverse_ref_config,
-                                       summary_config = summary_config,
-                                       mydict = mydict,
-                                       logger = logger )
-    if read_result == False:
-        return False
-    TYPE = get_index( "TYPE" ) # type index
-    print "======[ %s ]====================================================================" % bmark
-    dgraph = nx.DiGraph()
-    objreader = mydict["objreader"]
-    objnode_list =  set([])
-    for tup in objreader.iterrecs():
-        objId, rec = tup
-        mytype = objreader.get_type_using_typeId( rec[TYPE] )
-        if objId not in objnode_list:
-            dgraph.add_node( objId, { "type" : mytype } )
-            objnode_list.add( objId )
-        else:
-            logger.critical( "Multiple add for object Id [ %s ]" % str(objId) )
-    # Add the stable edges only
-    stability = mydict["stability"]
-    reference = mydict["reference"]
-    for objId, fdict in stability.iteritems(): # for each object
-        for fieldId, sattr in fdict.iteritems(): # for each field Id of each object
-            if is_stable(sattr):
-                # Add the edge
-                try:
-                    objlist = reference[ (objId, fieldId) ]
-                except:
-                    print "ERROR: Not found (%s, %s)" % (str(objId), str(fieldId))
-                    logger.error("ERROR: Not found (%s, %s)" % (str(objId), str(fieldId)))
-                    print "EXITING."
-                    exit(10)
-                if objId != 0:
-                    if objId not in objnode_list:
-                        print "=========[ ERROR ]=============================================================="
-                        pp.pprint( objnode_list )
-                        print "=========[ ERROR ]=============================================================="
-                        print "ObjId [ %s ] of type [ %s ]" % (str(objId), str(type(objId)))
-                        assert(False)
-                        # continue # TODO TODO TODO
-                else:
-                    continue
-                missing = set([])
-                for tgtId in objlist: # for each target object
-                    if tgtId != 0:
-                        if tgtId in missing:
-                            continue
-                        elif tgtId not in objnode_list:
-                            missing.add( tgtId )
-                            print "=========[ ERROR ]=============================================================="
-                            print "Missing objId [ %s ] of type [ %s ]" % (str(tgtId), str(type(tgtId)))
-                            continue # For now. TODO TODO TODO
-                        dgraph.add_edge( objId, tgtId )
-    wcclist = sorted( nx.weakly_connected_component_subgraphs(dgraph),
-                      key = len,
-                      reverse = True )
-    # TODO: Here's where the stable groups are compared against the death groups
-    # 1 - For every stable group, determine the deathgroup number set
-    # 2 - For every death group, determine the stable group number set
-    #     TODO: Are there stable group numbers?
-    # Using the order of the sorted wcclist, let group 1 be at index 0 and so on.
-    # Therefore this means that the largest wcc is at index 0, and is called group 1.
-    # TEMP: Get the set of deathgroup numbers for every stable set
-    print "================================================================================"
-    dgreader = mydict["dgroupreader"]
-    stable2dgroup = {}
-    s2d = stable2dgroup # Make it shorter
-    counter = Counter()
-    # Maintain the results in 2 dictionaries:
-    # 'stable2deathset' which maps:
-    #     stable group num -> set of death group numbers
-    stable2deathset = defaultdict(set)
-    # 'death2stableset' which maps:
-    #     death group number -> set of stable group numbers
-    death2stableset = defaultdict(set)
-    # As a sanity check, we keep track of which object Ids we've seen:
-    objId_seen = set()
-    obj2stablegroup = {}
-    # Go through the stable weakly-connected list and find the death groups
-    # that the objects are in.
-    for stable_groupId in xrange(len(wcclist)):
-        dgroups = set()
-        for sobjId in wcclist[stable_groupId]:
-            # Get the death group number from the dgroup reader
-            dgroupId = dgreader.get_group_number(sobjId)
-            assert(dgroupId != None)
-            # Save the death group Id
-            dgroups.add(dgroupId)
-            # Add to seen objects set
-            objId_seen.add(sobjId)
-            # Update the reverse mapping of 
-            if sobjId not in obj2stablegroup:
-                obj2stablegroup[sobjId] = stable_groupId
-            else:
-                logger.critical( "Multiple stable groups for object Id [ %s ] -> %d | %d" %
-                                 (str(objId), stable_groupId, obj2stablegroup[sobjId]) )
-                print "ERROR: Multiple stable groups for object Id [ %s ] -> %d | %d" % \
-                                 (str(objId), stable_groupId, obj2stablegroup[sobjId])
-                assert(False) # For now. TODO TODO TODO
-                obj2stablegroup[sobjId] = stable_groupId
-        # Save in a list, then print out.
-        # IDEA: A bipartite graph???
-        #       Connected component makes for GC region???
-        # DEBUG: keeping this here just in case
-        # if len(dgroups) > 0:
-        #     sys.stdout.write( "[ Stable group %d ]: %s\n" % (stable_groupId, str(dgroups)) )
-        # DEBUG END
-        stable2deathset[stable_groupId].update( dgroups )
-    # Do a reverse mapping from death group to stable
-    not_seen = 0
-    for sgroupId, dgset in stable2deathset.iteritems():
-        for dgroupId in dgset:
-            # The relationship is symmetric:
-            death2stableset[dgroupId].add(sgroupId)
-            for objId in dgreader.get_group(dgroupId):
-                # Are there any objects in our death groups that haven't been mapped?
-                if objId not in objId_seen:
-                    # Note that this isn't expected.
-                    not_seen += 1
-                    objId_seen.add(sobjId)
-                    dgroupId = dgreader.get_group_number(objId)
-                    new_sgroupId = obj2stablegroup[objId]
-                    death2stableset[dgroupId].add( new_sgroupId )
-    logger.error( "NOT SEEN: %d" % not_seen )
-    output_graph_and_summary( bmark = bmark,
-                              objreader = objreader,
-                              obj2stablegroup = obj2stablegroup,
-                              dgraph = dgraph,
-                              wcclist = wcclist,
-                              backupdir = backupdir,
-                              logger = logger )
-    print "------[ %s DONE ]---------------------------------------------------------------" % bmark
-    return wcclist
-
 #--------------------------------------------------------------------------------
 # Super graph ONE related functions
 def add_nodes_to_graph( objreader = {},
@@ -846,12 +692,13 @@ def create_supergraph_all_MPR( bmark = "",
                                        logger = logger )
     if read_result == False:
         return False
-    # Extract the important objects
+    # Extract the important reader objects
     objreader = mydict["objreader"]
     stability = mydict["stability"]
     reference = mydict["reference"]
     summary_reader = mydict["summary_reader"]
-    TYPE = get_index( "TYPE" ) # type index
+    # Get the type index
+    TYPE = get_index( "TYPE" )
     # Start the graph by adding nodes
     objnode_list =  set([])
     # Add nodes to graph

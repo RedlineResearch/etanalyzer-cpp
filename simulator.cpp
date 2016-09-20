@@ -685,7 +685,8 @@ void summarize_reference_stability( Ref2Type_t &stability,
         if (size == 1) {
             // Check to see if that target is 'loyal'
             Object *obj = objlist[0];
-            if (my_obj2ref[obj].size() <= 1) {
+            // STABLE objects
+            if ( (my_obj2ref[obj].size() <= 1) && !(obj->wasLastUpdateNull()) ) {
                 stability[ref] = RefType::STABLE;
             } else if (my_obj2ref[obj].size() > 1) {
                 stability[ref] = RefType::UNSTABLE;
