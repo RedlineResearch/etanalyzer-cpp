@@ -18,7 +18,7 @@ from multiprocessing import Process, Manager
 # Possible useful libraries, classes and functions:
 # from operator import itemgetter
 #   - This one is my own library:
-from mypytools import mean, stdev, variance
+from mypytools import mean, stdev, variance, check_host
 
 # The garbology related library. Import as follows.
 # Check garbology.py for other imports
@@ -80,16 +80,6 @@ def is_primitive_array( mytype = None ):
         return ( is_primitive_type(mytype[1:]) or
                  is_primitive_array(mytype[1:]) )
         
-# TODO: Refactor out
-def check_host( benchmark = None,
-                worklist_config = {},
-                host_config = {} ):
-    thishost = socket.gethostname()
-    for wanthost in worklist_config[benchmark]:
-        if thishost in host_config[wanthost]:
-            return True
-    return False
-
 # TODO: Refactor out
 def get_actual_hostname( hostname = "",
                          host_config = {} ):
@@ -826,6 +816,7 @@ def create_supergraph_all_MPR( bmark = "",
 def main_process( global_config = {},
                   objectinfo_config = {},
                   dgroup_config = {},
+                  host_config = {},
                   worklist_config = {},
                   main_config = {},
                   reference_config = {},
@@ -854,13 +845,18 @@ def main_process( global_config = {},
     #     Make sure everything is honky-dory.
     assert( "cycle_cpp_dir" in global_config )
     cycle_cpp_dir = global_config["cycle_cpp_dir"]
-    datadict = { bmark : {} for bmark in worklist_config.keys() }
     supergraph = {}
     manager = Manager()
     procs = {}
     results = {}
-    for bmark in datadict.keys():
+    for bmark in worklist_config.keys():
         # TODO START
+        hostlist = worklist_config[bmark]
+        if not check_host( benchmark = bmark,
+                           hostlist = hostlist,
+                           host_config = host_config ):
+            continue
+        # Else we can run for 'bmark'
         if mprflag:
             print "=======[ Spawning %s ]================================================" \
                 % bmark
@@ -889,9 +885,6 @@ def main_process( global_config = {},
                                              reference_config = reference_config,
                                              reverse_ref_config = reverse_ref_config,
                                              logger = logger )
-        # TODO END
-        print "[%s]" % str(bmark)
-        # TODO HERE TODO
     if mprflag:
         # Poll the processes 
         done = False
@@ -943,6 +936,7 @@ def process_config( args ):
     config_parser.read( args.config )
     global_config = config_section_map( "global", config_parser )
     main_config = config_section_map( "create-supergraph", config_parser )
+    host_config = config_section_map( "hosts", config_parser )
     objectinfo_config = config_section_map( "objectinfo", config_parser )
     dgroup_config = config_section_map( "etanalyze-output", config_parser )
     worklist_config = config_section_map( "create-supergraph-worklist", config_parser )
@@ -956,6 +950,7 @@ def process_config( args ):
              "main" : main_config,
              "objectinfo" : objectinfo_config,
              "dgroup" : dgroup_config,
+             "hosts" : host_config,
              "create-supergraph-worklist" : worklist_config,
              "reference" : reference_config,
              "reverse-reference" : reverse_ref_config,
@@ -1017,6 +1012,7 @@ def main():
     # Get the configurations we need.
     configdict = process_config( args )
     global_config = configdict["global"]
+    host_config = process_host_config( configdict["hosts"] )
     main_config = configdict["main"]
     objectinfo_config = configdict["objectinfo"]
     dgroup_config = configdict["dgroup"]
@@ -1028,7 +1024,6 @@ def main():
     # pp.pprint(worklist_config)
     # PROBABLY DELETE:
     # contextcount_config = configdict["contextcount"]
-    # host_config = process_host_config( configdict["host"] )
     # Set up logging
     logger = setup_logger( filename = args.logfile,
                            debugflag = global_config["debug"] )
@@ -1042,6 +1037,7 @@ def main():
                          main_config = main_config,
                          objectinfo_config = objectinfo_config,
                          dgroup_config = dgroup_config,
+                         host_config = host_config,
                          worklist_config = worklist_config,
                          reference_config = reference_config,
                          reverse_ref_config = reverse_ref_config,

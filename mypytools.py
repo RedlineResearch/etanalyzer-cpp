@@ -220,9 +220,19 @@ def create_work_directory( work_dir,
     os.chdir( timenow )
     return str(os.getcwd())
 
+def check_host( benchmark = None,
+                hostlist = {},
+                host_config = {} ):
+    import socket
+    thishost = socket.gethostname()
+    for wanthost in hostlist:
+        if thishost in host_config[wanthost]:
+            return True
+    return False
+
 
 __all__ = [ "mean", "merge_two_dicts", "stdev", "variance", "email_message",
-            "get_file_fp" ]
+            "get_file_fp", "check_host", ]
 
 if __name__ == "__main__":
     import doctest
