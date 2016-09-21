@@ -529,12 +529,14 @@ class EdgeInfoReader:
                     # 1 - tgtId
                     # 2 - create time 
                     # 3 - death time 
+                    # 4 - fieldId
                     row = [ int(x) for x in rowtmp ]
                     src = row[0]
                     tgt = row[1]
                     timepair = tuple(row[2:])
                     dtime = row[3]
-                    self.edgedict[tuple([src, tgt])] = timepair
+                    fieldId = row[4] 
+                    self.edgedict[tuple([src, fieldId, tgt])] = timepair
                     self.srcdict[src].add( tgt )
                     self.tgtdict[tgt].add( src )
                     self.update_last_edges( src = src,
@@ -563,12 +565,13 @@ class EdgeInfoReader:
     def print_out( self, numlines = 30 ):
         count = 0
         for edge, timepaid in self.edgedict.iteritems():
-            print "(%d, %d) -> (%d, %d)" % (edge[0], edge[1], timepaid[0], timepaid[1])
+            print "(%d[ %d ], %d) -> (%d, %d)" % (edge[0], edge[1], edge[2], timepaid[0], timepaid[1])
             count += 1
             if numlines != 0 and count >= numlines:
                 break
 
     def get_edge_times( self, edge = None ):
+        """The parameter 'edge' is a tuple (src object, field Id, tgt object)."""
         if edge in self.edgedict:
             return self.edgedict[ edge ]
         else:
@@ -1153,9 +1156,6 @@ class SummaryReader:
                     # 1 - value
                     sdict[row[0]] = int(row[1])
         assert(done)
-
-    def edgedict_iteritems( self ):
-        return self.edgedict.iteritems()
 
     def get_final_garbology_time( self ):
         assert("final_time" in self.summarydict)
