@@ -944,7 +944,8 @@ unsigned int output_edges( HeapState &myheap,
         edge_info_file << srcId << ","
             << tgtId << ","
             << eptr->getCreateTime() << ","
-            << eptr->getEndTime() << endl;
+            << eptr->getEndTime() << ","
+            << eptr->getSourceField() << endl;
         // }
         total_edges++;
     }

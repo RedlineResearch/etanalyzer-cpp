@@ -734,11 +734,11 @@ class Edge
 {
     private:
         // -- Source object
-        Object* m_source;
+        Object *m_source;
         // -- Source field
         unsigned int m_sourceField;
         // -- Target object
-        Object* m_target;
+        Object *m_target;
         // -- Creation time
         unsigned int m_createTime;
         // -- End time
@@ -746,8 +746,8 @@ class Edge
         unsigned int m_endTime;
 
     public:
-        Edge( Object* source, unsigned int field_id,
-              Object* target, unsigned int cur_time )
+        Edge( Object *source, unsigned int field_id,
+              Object *target, unsigned int cur_time )
             : m_source(source)
             , m_sourceField(field_id)
             , m_target(target)
@@ -755,9 +755,9 @@ class Edge
             , m_endTime(0) {
         }
 
-        Object* getSource() const { return m_source; }
-        Object* getTarget() const { return m_target; }
-        unsigned int getSourceField() const { return m_sourceField; }
+        Object *getSource() const { return m_source; }
+        Object *getTarget() const { return m_target; }
+        FieldId_t getSourceField() const { return m_sourceField; }
         unsigned int getCreateTime() const { return m_createTime; }
         unsigned int getEndTime() const { return m_endTime; }
 
