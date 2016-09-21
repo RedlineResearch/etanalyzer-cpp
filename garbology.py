@@ -512,7 +512,6 @@ class EdgeInfoReader:
     def read_edgeinfo_file( self ):
         start = False
         done = False
-        edge_info = self.edgedict
         with get_trace_fp( self.edgeinfo_file_name, self.logger ) as fp:
             for line in fp:
                 line = line.rstrip()
@@ -536,7 +535,53 @@ class EdgeInfoReader:
                     timepair = tuple(row[2:])
                     dtime = row[3]
                     fieldId = row[4] 
-                    self.edgedict[tuple([src, fieldId, tgt])] = timepair
+                    self.edgedict[tuple([src, fieldId, tgt])] = { "tp" : timepair, 
+                                                                  "s" : "X" }  # X means unknown
+                    self.srcdict[src].add( tgt )
+                    self.tgtdict[tgt].add( src )
+                    self.update_last_edges( src = src,
+                                            tgt = tgt,
+                                            deathtime = dtime )
+        assert(done)
+
+    def update_stability( self,
+                          stabreader = {} ):
+        raise RuntimeError("TODO: This needs to be implemented.")
+
+    def read_edgeinfo_file_with_stability( self,
+                                           stabreader = {} ):
+        start = False
+        done = False
+        sb = stabreader
+        with get_trace_fp( self.edgeinfo_file_name, self.logger ) as fp:
+            for line in fp:
+                line = line.rstrip()
+                if line.find("---------------[ EDGE INFO") == 0:
+                    start = True if not start else False
+                    if start:
+                        continue
+                    else:
+                        done = True
+                        break
+                if start:
+                    rowtmp = line.split(",")
+                    # 0 - srcId
+                    # 1 - tgtId
+                    # 2 - create time 
+                    # 3 - death time 
+                    # 4 - fieldId
+                    row = [ int(x) for x in rowtmp ]
+                    src = row[0]
+                    tgt = row[1]
+                    timepair = tuple(row[2:])
+                    dtime = row[3]
+                    fieldId = row[4] 
+                    try:
+                        stability = sb[src][fieldId]
+                    except:
+                        stability = "X" # X means unknown
+                    self.edgedict[tuple([src, fieldId, tgt])] = { "tp" : timepair, 
+                                                                  "s" : stability }
                     self.srcdict[src].add( tgt )
                     self.tgtdict[tgt].add( src )
                     self.update_last_edges( src = src,
@@ -564,8 +609,9 @@ class EdgeInfoReader:
 
     def print_out( self, numlines = 30 ):
         count = 0
-        for edge, timepaid in self.edgedict.iteritems():
-            print "(%d[ %d ], %d) -> (%d, %d)" % (edge[0], edge[1], edge[2], timepaid[0], timepaid[1])
+        for edge, rec in self.edgedict.iteritems():
+            timepair = rec["tp"]
+            print "(%d[ %d ], %d) -> (%d, %d)" % (edge[0], edge[1], edge[2], timepair[0], timepair[1])
             count += 1
             if numlines != 0 and count >= numlines:
                 break
