@@ -689,7 +689,7 @@ void summarize_reference_stability( Ref2Type_t &stability,
         // Is NULL in there?
         auto findit = objset.find(NULL);
         bool nullflag = (findit != objset.end());
-        if (!nullflag) {
+        if (nullflag) {
             // remove NULL
             objset.erase(findit);
         }
