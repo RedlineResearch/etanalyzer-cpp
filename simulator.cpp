@@ -667,7 +667,7 @@ void summarize_reference_stability( Ref2Type_t &stability,
         // obj is not NULL.
         // TODO: Do we need object Id? 
         // ObjectId_t objId = obj->getId();
-        if (reflist.size() == 1) {
+        if (reflist.size() <= 1) {
             obj->setRefTargetType( RefTargetType::STABLE );
         } else {
             assert(reflist.size() > 1);
@@ -1043,6 +1043,7 @@ void output_reference_summary( string &reference_summary_filename,
     }
     //
     // Summarize the stability attributes of features.
+    //     output file is   *-STABILITY-SUMMARY.csv
     for ( auto it = stability.begin();
           it != stability.end();
           ++it ) {
