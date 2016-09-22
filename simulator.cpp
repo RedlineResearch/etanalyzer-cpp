@@ -216,12 +216,14 @@ void update_reference_summaries( Object *src,
         ref_summary[ref] = std::move(std::vector< Object * >());
     }
     ref_summary[ref].push_back(tgt);
-    // Do the reverse mapping
-    auto rev = obj2ref_map.find(tgt);
-    if (rev == obj2ref_map.end()) {
-        obj2ref_map[tgt] = std::move(std::vector< Reference_t >());
+    // Do the reverse mapping ONLY if tgt is not NULL
+    if (tgt) {
+        auto rev = obj2ref_map.find(tgt);
+        if (rev == obj2ref_map.end()) {
+            obj2ref_map[tgt] = std::move(std::vector< Reference_t >());
+        }
+        obj2ref_map[tgt].push_back(ref);
     }
-    obj2ref_map[tgt].push_back(ref);
 }
 
 
@@ -319,7 +321,10 @@ unsigned int read_trace_file(FILE* f)
                     LastEvent lastevent = LastEvent::UPDATE_UNKNOWN;
                     Exec.IncUpdateTime();
                     obj = Heap.getObject(objId);
+                    // NOTE that we don't need to check for non-NULL source object 'obj'
+                    // here. NULL means that it's a global/static reference.
                     target = ((tgtId > 0) ? Heap.getObject(tgtId) : NULL);
+                    update_reference_summaries( obj, field, target );
                     // TODO last_map.setLast( threadId, LastEvent::UPDATE, obj );
                     // Set lastEvent and heap/stack flags for new target
                     if (target) {
@@ -332,9 +337,6 @@ unsigned int read_trace_file(FILE* f)
                         // So since target has an incoming edge, LastUpdateFromStatic
                         //    should be FALSE.
                         target->unsetLastUpdateFromStatic();
-                        // NOTE that we don't need to check for non-NULL source object 'obj'
-                        // here. NULL means that it's a global/static reference.
-                        update_reference_summaries( obj, field, target );
                     }
                     // Set lastEvent and heap/stack flags for old target
                     if (oldObj) {
@@ -682,12 +684,23 @@ void summarize_reference_stability( Ref2Type_t &stability,
         Object *obj = std::get<0>(ref); 
         FieldId_t fieldId = std::get<1>(ref); 
         std::vector< Object * > objlist = it->second;
+        // We need to make sure that all elements are not duplicates.
+        std::set< Object * > objset( objlist.begin(), objlist.end() );
+        // Is NULL in there?
+        auto findit = objset.find(NULL);
+        bool nullflag = (findit != objset.end());
+        if (!nullflag) {
+            // remove NULL
+            objset.erase(findit);
+        }
         // TODO: Do we need the Object Id?
         // ObjectId_t objId = (obj ? obj->getId() : 0);
-        unsigned int size = objlist.size();
+        unsigned int size = objset.size();
         if (size == 1) {
-            // Check to see if that target is 'loyal'
-            Object *obj = objlist[0];
+            // Convert object set into a vector
+            std::vector< Object * > tmplist( objset.begin(), objset.end() );
+            assert( tmplist.size() == 1 );
+            Object *obj = tmplist[0];
             // STABLE objects
             if ( (my_obj2ref[obj].size() <= 1) && !(obj->wasLastUpdateNull()) ) {
                 stability[ref] = RefType::STABLE;
@@ -700,8 +713,8 @@ void summarize_reference_stability( Ref2Type_t &stability,
             // the list are STABLE. Assume they're all stable unless
             // otherwise proven.
             stability[ref] = RefType::SERIAL_STABLE; // aka serial monogamist
-            for ( auto objit = objlist.begin();
-                  objit != objlist.end();
+            for ( auto objit = objset.begin();
+                  objit != objset.end();
                   ++objit ) {
                 RefTargetType objtype = (*objit)->getRefTargetType();
                 if (objtype == RefTargetType::UNSTABLE) {
