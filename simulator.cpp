@@ -338,14 +338,17 @@ unsigned int read_trace_file(FILE* f)
                     }
                     // Set lastEvent and heap/stack flags for old target
                     if (oldObj) {
-                        if (target) {
+                        if (tgtId != 0) {
                             oldObj->unsetLastUpdateNull();
+                        } else {
+                            oldObj->setLastUpdateNull();
+                        }
+                        if (target) {
                             if (oldTgtId != tgtId) {
                                 lastevent = LastEvent::UPDATE_AWAY_TO_VALID;
                                 oldObj->setLastEvent( lastevent  );
                             }
                         } else {
-                            oldObj->setLastUpdateNull();
                             // There's no need to check for oldTgtId == tgtId here.
                             lastevent = LastEvent::UPDATE_AWAY_TO_NULL;
                             oldObj->setLastEvent( lastevent );
