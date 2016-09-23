@@ -663,15 +663,20 @@ void summarize_reference_stability( Ref2Type_t &stability,
     for ( auto it = my_obj2ref.begin();
           it != my_obj2ref.end();
           ++it ) {
+        // my_obj2ref : Object2RefMap_t is a reverse map of sorts.
+        //      For each object in the map, it maps to a vector of references
+        //          that point/refer to that object
+        // This Object is the target
         Object *obj = it->first;
+        // This is the vector of references
         std::vector< Reference_t > reflist = it->second;
+        // Convert to a set in order to remove possible duplicates
+        std::set< Reference_t > refset( reflist.begin(), reflist.end() );
         if (!obj) {
             continue;
         }
         // obj is not NULL.
-        // TODO: Do we need object Id? 
-        // ObjectId_t objId = obj->getId();
-        if ( (reflist.size() <= 1) && !(obj->wasLastUpdateNull()) ) {
+        if ( (refset.size() <= 1) && (obj->wasLastUpdateNull() != true) ) {
             obj->setRefTargetType( RefTargetType::STABLE );
         } else {
             obj->setRefTargetType( RefTargetType::UNSTABLE );
@@ -681,9 +686,14 @@ void summarize_reference_stability( Ref2Type_t &stability,
     for ( auto it = my_refsum.begin();
           it != my_refsum.end();
           ++it ) {
+        // my_refsum : RefSummary_t is a map from reference to a vector of
+        //      objects that the reference pointed to. A reference is a pair
+        //      of (Object pointer, fieldId).
+        // Get the reference and deconstruct into parts.
         Reference_t ref = it->first;
         Object *obj = std::get<0>(ref); 
         FieldId_t fieldId = std::get<1>(ref); 
+        // Get the vector/list of object pointers
         std::vector< Object * > objlist = it->second;
         // We need to make sure that all elements are not duplicates.
         std::set< Object * > objset( objlist.begin(), objlist.end() );
@@ -691,12 +701,13 @@ void summarize_reference_stability( Ref2Type_t &stability,
         auto findit = objset.find(NULL);
         bool nullflag = (findit != objset.end());
         if (nullflag) {
-            // remove NULL
+            // If NULL is in the list, remove NULL.
             objset.erase(findit);
         }
         unsigned int size = objset.size();
         if (size == 1) {
-            // Convert object set into a vector
+            // The reference only points to one object!
+            // Convert object set back into a vector.
             std::vector< Object * > tmplist( objset.begin(), objset.end() );
             assert( tmplist.size() == 1 );
             Object *tgt = tmplist[0];
