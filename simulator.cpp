@@ -213,7 +213,7 @@ void update_reference_summaries( Object *src,
     auto iter = ref_summary.find(ref);
     if (iter == ref_summary.end()) {
         // Not found. Create a new vector of Object pointers
-        ref_summary[ref] = std::move(std::vector< Object * >());
+        ref_summary[ref] = std::vector< Object * >();
     }
     ref_summary[ref].push_back(tgt);
     // Do the reverse mapping ONLY if tgt is not NULL
@@ -324,7 +324,9 @@ unsigned int read_trace_file(FILE* f)
                     // NOTE that we don't need to check for non-NULL source object 'obj'
                     // here. NULL means that it's a global/static reference.
                     target = ((tgtId > 0) ? Heap.getObject(tgtId) : NULL);
-                    update_reference_summaries( obj, field, target );
+                    if (obj) {
+                        update_reference_summaries( obj, field, target );
+                    }
                     // TODO last_map.setLast( threadId, LastEvent::UPDATE, obj );
                     // Set lastEvent and heap/stack flags for new target
                     if (target) {
@@ -669,10 +671,9 @@ void summarize_reference_stability( Ref2Type_t &stability,
         // obj is not NULL.
         // TODO: Do we need object Id? 
         // ObjectId_t objId = obj->getId();
-        if (reflist.size() <= 1) {
+        if ( (reflist.size() <= 1) && !(obj->wasLastUpdateNull()) ) {
             obj->setRefTargetType( RefTargetType::STABLE );
         } else {
-            assert(reflist.size() > 1);
             obj->setRefTargetType( RefTargetType::UNSTABLE );
         }
     }
@@ -693,20 +694,13 @@ void summarize_reference_stability( Ref2Type_t &stability,
             // remove NULL
             objset.erase(findit);
         }
-        // TODO: Do we need the Object Id?
-        // ObjectId_t objId = (obj ? obj->getId() : 0);
         unsigned int size = objset.size();
         if (size == 1) {
             // Convert object set into a vector
             std::vector< Object * > tmplist( objset.begin(), objset.end() );
             assert( tmplist.size() == 1 );
-            Object *obj = tmplist[0];
-            // STABLE objects
-            if ( (my_obj2ref[obj].size() <= 1) && !(obj->wasLastUpdateNull()) ) {
-                stability[ref] = RefType::STABLE;
-            } else if (my_obj2ref[obj].size() > 1) {
-                stability[ref] = RefType::UNSTABLE;
-            } 
+            Object *tgt = tmplist[0];
+            stability[ref] = (tgt->wasLastUpdateNull() ? RefType::UNSTABLE : RefType::STABLE);
         } else {
             // objlist is of length > 1
             // This may still be stable if all objects in
