@@ -74,6 +74,7 @@ enum class CPairType {
 
 typedef unsigned int ObjectId_t;
 typedef unsigned int FieldId_t;
+typedef unsigned int VTime_t;
 typedef map<ObjectId_t, Object *> ObjectMap;
 typedef map<ObjectId_t, Edge *> EdgeMap;
 typedef set<Object *> ObjectSet;
@@ -489,10 +490,10 @@ class Object
         AllocSite * getAllocSite() const { return m_site; }
         string getAllocSiteName() const { return m_allocsite_name; }
         Thread * getThread() const { return m_thread; }
-        unsigned int getCreateTime() const { return m_createTime; }
-        unsigned int getDeathTime() const { return m_deathTime; }
-        unsigned int getCreateTimeAlloc() const { return this->m_createTime_alloc; }
-        unsigned int getDeathTimeAlloc() const { return m_deathTime_alloc; }
+        VTime_t getCreateTime() const { return m_createTime; }
+        VTime_t getDeathTime() const { return m_deathTime; }
+        VTime_t getCreateTimeAlloc() const { return this->m_createTime_alloc; }
+        VTime_t getDeathTimeAlloc() const { return m_deathTime_alloc; }
         Color getColor() const { return m_color; }
         EdgeMap::iterator const getEdgeMapBegin() { return m_fields.begin(); }
         EdgeMap::iterator const getEdgeMapEnd() { return m_fields.end(); }

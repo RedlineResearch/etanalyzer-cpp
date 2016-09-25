@@ -711,7 +711,17 @@ void summarize_reference_stability( Ref2Type_t &stability,
             std::vector< Object * > tmplist( objset.begin(), objset.end() );
             assert( tmplist.size() == 1 );
             Object *tgt = tmplist[0];
-            stability[ref] = (tgt->wasLastUpdateNull() ? RefType::UNSTABLE : RefType::STABLE);
+            // Check for source and target death times
+            assert(obj != NULL);
+            VTime_t src_dtime = obj->getDeathTime();
+            assert(tgt != NULL);
+            VTime_t tgt_dtime = tgt->getDeathTime();
+            if (tgt_dtime < src_dtime) {
+                // UNSTABLE if target died before source
+                stability[ref] = RefType::UNSTABLE;
+            } else {
+                stability[ref] = (tgt->wasLastUpdateNull() ? RefType::UNSTABLE : RefType::STABLE);
+            }
         } else {
             // objlist is of length > 1
             // This may still be stable if all objects in
