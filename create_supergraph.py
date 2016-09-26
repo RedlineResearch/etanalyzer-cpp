@@ -88,6 +88,10 @@ def get_actual_hostname( hostname = "",
             return key
     return None
 
+def get_objects_from_stable_group( sgnum = 0,
+                                   stable_grouplist = []):
+    return stable_grouplist[sgnum] if (sgnum < len(stable_grouplist)) else []
+
 #================================================================================
 #================================================================================
 def output_graph_and_summary( bmark = "",
@@ -96,6 +100,7 @@ def output_graph_and_summary( bmark = "",
                               dgraph_unstable = {},
                               wcclist = [],
                               wcclist_unstable = {},
+                              stable_grouplist = [],
                               stable2deathset = {},
                               death2stableset = {},
                               backupdir = None,
@@ -122,12 +127,18 @@ def output_graph_and_summary( bmark = "",
     nx.write_gml(dgraph, target)
     # The second unstable graph
     print "=======[ UNSTABLE GRAPH ]======================================================="
-    print "     -> nodes = %d  edges = %d  - WCC = %d" % \
+    print "     -> supernodes = %d  edges = %d  - super WCC = %d" % \
         ( dgraph_unstable.number_of_nodes(),
           dgraph_unstable.number_of_edges(),
           len(wcclist_unstable) )
-    print "     -> 3 largest WCC = %d, %d, %d" % \
+    print "     -> 3 largest super WCC     = %d, %d, %d" % \
         ( len(wcclist_unstable[0]), len(wcclist_unstable[1]), len(wcclist_unstable[2]) )
+    wcc_num_objects = []
+    for ind in [0, 1, 2]:
+        objlist = get_objects_from_stable_group( sgnum, stable_grouplist )
+        wcc_num_objects.append(objlist)
+    print "     ->    in number of objects = %d, %d, %d" % \
+            ( len(objlist[0]), len(objlist[1]), len(objlist[2]) )
     target = "%s-UNstable_graph.gml" % bmark
     # Backup the old gml file if it exists
     if os.path.isfile(target):
@@ -803,6 +814,7 @@ def create_supergraph_all_MPR( bmark = "",
                               dgraph_unstable = dgraph_unstable,
                               wcclist = wcclist,
                               wcclist_unstable = wcclist_unstable,
+                              stable_grouplist = stable_grouplist,
                               backupdir = backupdir,
                               stable2deathset = stable2deathset,
                               death2stableset = death2stableset,
