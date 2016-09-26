@@ -712,12 +712,15 @@ void summarize_reference_stability( Ref2Type_t &stability,
             assert( tmplist.size() == 1 );
             Object *tgt = tmplist[0];
             // Check for source and target death times
+            // The checks for NULL are probably NOT necessary.
             assert(obj != NULL);
             VTime_t src_dtime = obj->getDeathTime();
             assert(tgt != NULL);
             VTime_t tgt_dtime = tgt->getDeathTime();
-            if (tgt_dtime < src_dtime) {
-                // UNSTABLE if target died before source
+            if (tgt_dtime != src_dtime) {
+                // UNSTABLE if target and source deathtimes are different
+                // NOTE: This used to be UNSTABLE if target died before source.
+                //       We are using a more conservative definition of stability here.
                 stability[ref] = RefType::UNSTABLE;
             } else {
                 stability[ref] = (tgt->wasLastUpdateNull() ? RefType::UNSTABLE : RefType::STABLE);
