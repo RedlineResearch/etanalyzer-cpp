@@ -134,7 +134,7 @@ def output_graph_and_summary( bmark = "",
     print "     -> 3 largest super WCC     = %d, %d, %d" % \
         ( len(wcclist_unstable[0]), len(wcclist_unstable[1]), len(wcclist_unstable[2]) )
     wcc_num_objects = []
-    for ind in [0, 1, 2]:
+    for sgnum in [0, 1, 2]:
         objlist = get_objects_from_stable_group( sgnum, stable_grouplist )
         wcc_num_objects.append(objlist)
     print "     ->    in number of objects = %d, %d, %d" % \
