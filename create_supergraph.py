@@ -90,7 +90,7 @@ def get_actual_hostname( hostname = "",
 
 def get_objects_from_stable_group( sgnum = 0,
                                    stable_grouplist = []):
-    return stable_grouplist[sgnum] if (sgnum < len(stable_grouplist)) else []
+    return stable_grouplist[sgnum].nodes() if (sgnum < len(stable_grouplist)) else []
 
 #================================================================================
 #================================================================================
