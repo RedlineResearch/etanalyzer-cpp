@@ -138,7 +138,7 @@ def output_graph_and_summary( bmark = "",
         objlist = get_objects_from_stable_group( sgnum, stable_grouplist )
         wcc_num_objects.append(objlist)
     print "     ->    in number of objects = %d, %d, %d" % \
-            ( len(objlist[0]), len(objlist[1]), len(objlist[2]) )
+            ( len(wcc_num_objects[0]), len(wcc_num_objects[1]), len(wcc_num_objects[2]) )
     target = "%s-UNstable_graph.gml" % bmark
     # Backup the old gml file if it exists
     if os.path.isfile(target):
