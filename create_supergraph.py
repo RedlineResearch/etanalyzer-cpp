@@ -108,6 +108,8 @@ def output_graph_and_summary( bmark = "",
                               wcclist_unstable = {},
                               stable2deathset = {},
                               death2stableset = {},
+                              sumSD = {},
+                              sumUNSTABLE = {},
                               backupdir = None,
                               logger = None ):
     # Print to standard output
@@ -143,11 +145,14 @@ def output_graph_and_summary( bmark = "",
     print "     -> 3 largest super WCC     = %d, %d, %d" % \
         ( len(wcclist_unstable[0]), len(wcclist_unstable[1]), len(wcclist_unstable[2]) )
     wcc_num_objects = []
-    for sgnum in [0, 1, 2]:
-        objlist = get_objects_from_stable_group( sgnum, stable_grouplist )
-        wcc_num_objects.append(objlist)
     print "     ->    in number of objects = %d, %d, %d" % \
-            ( len(wcc_num_objects[0]), len(wcc_num_objects[1]), len(wcc_num_objects[2]) )
+            ( len(sumUNSTABLE[0]["objects"]),
+              len(sumUNSTABLE[1]["objects"]),
+              len(sumUNSTABLE[2]["objects"]), )
+    print "     ->    size total bytes     = %d, %d, %d" % \
+            ( sumUNSTABLE[0]["size"]["total"],
+              sumUNSTABLE[1]["size"]["total"],
+              sumUNSTABLE[2]["size"]["total"], )
     target = "%s-UNstable_graph.gml" % bmark
     # Backup the old gml file if it exists
     if os.path.isfile(target):
@@ -671,7 +676,8 @@ def summarize_wcc_stable_death_unstable_components( wcc_sd_list = [],
                 print "    * death range - [ {:.2f}, {:.2f} ]".format(val["min_sc"], val["max_sc"])
                 print "    *      mean = {:.2f}    stdev = {:.2f}".format(val["mean_sc"], val["stdev_sc"])
     print "======[ %s ][ END SUMMARY of STABLE <-> DEATH components ]======================" % bmark
-    return sumSD
+    return { "stable-death" : sumSD,
+             "unstable" : sumUNSTABLE, }
 
 #--------------------------------------------------------------------------------
 # Super graph ONE related functions
@@ -992,17 +998,19 @@ def create_supergraph_all_MPR( bmark = "",
     #---------------------------------------------------------------------------
     #----[ SUMMARIZE STABLE,DEATH and UNSTABLE ]--------------------------------
     #---------------------------------------------------------------------------
-    summarize_wcc_stable_death_unstable_components( wcc_sd_list = wcc_stable_death_list,
-                                                    stable_grouplist = stable_grouplist,
-                                                    unstable_grouplist = wcclist_unstable,
-                                                    objreader = objreader,
-                                                    dgroup_reader = dgreader,
-                                                    summary_reader = summary_reader,
-                                                    bmark = bmark,
-                                                    output_filename = os.path.join( main_config["output"], 
-                                                                                    "%s-stabledeath-object-summary.csv" % bmark ),
-                                                    logger = logger,
-                                                  )
+    result = summarize_wcc_stable_death_unstable_components( wcc_sd_list = wcc_stable_death_list,
+                                                             stable_grouplist = stable_grouplist,
+                                                             unstable_grouplist = wcclist_unstable,
+                                                             objreader = objreader,
+                                                             dgroup_reader = dgreader,
+                                                             summary_reader = summary_reader,
+                                                             bmark = bmark,
+                                                             output_filename = os.path.join( main_config["output"], 
+                                                                                             "%s-stabledeath-object-summary.csv" % bmark ),
+                                                             logger = logger,
+                                                           )
+    sumSD = result["stable-death"]
+    sumUNSTABLE = result["unstable"]
     #---------------------------------------------------------------------------
     #----[ Stable <-> Death summary OUTPUT ]------------------------------------
     #---------------------------------------------------------------------------
@@ -1022,6 +1030,8 @@ def create_supergraph_all_MPR( bmark = "",
                               dgraph_unstable = dgraph_unstable,
                               stable_grouplist = stable_grouplist, # aka wcclist
                               wcclist_unstable = wcclist_unstable,
+                              sumSD = sumSD,
+                              sumUNSTABLE = sumUNSTABLE,
                               backupdir = backupdir,
                               stable2deathset = stable2deathset,
                               death2stableset = death2stableset,
@@ -1030,7 +1040,9 @@ def create_supergraph_all_MPR( bmark = "",
                      "graph_unstable" : dgraph_unstable,
                      "wcclist" : wcclist,
                      "stable2deathset" : stable2deathset,
-                     "death2stableset" : death2stableset } )
+                     "death2stableset" : death2stableset,
+                     "stable-death" : sumSD,
+                     "unstable" : sumUNSTABLE, } )
 
 def main_process( global_config = {},
                   objectinfo_config = {},
