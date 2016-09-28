@@ -89,18 +89,23 @@ def get_actual_hostname( hostname = "",
     return None
 
 def get_objects_from_stable_group( sgnum = 0,
-                                   stable_grouplist = []):
+                                   stable_grouplist = [] ):
     return stable_grouplist[sgnum].nodes() if (sgnum < len(stable_grouplist)) else []
 
+def get_objects_from_stable_group_as_set( sgnum = 0, # stable group number
+                                          stable_grouplist = [] ):
+    objset = set( get_objects_from_stable_group( sgnum = sgnum,
+                                                 stable_grouplist = stable_grouplist ) )
+    return objset
+    
 #================================================================================
 #================================================================================
 def output_graph_and_summary( bmark = "",
                               objreader = {},
                               dgraph = {},
                               dgraph_unstable = {},
-                              wcclist = [],
-                              wcclist_unstable = {},
                               stable_grouplist = [],
+                              wcclist_unstable = {},
                               stable2deathset = {},
                               death2stableset = {},
                               backupdir = None,
@@ -108,14 +113,16 @@ def output_graph_and_summary( bmark = "",
     # Print to standard output
     print "=======[ SUMMARY ]=============================================================="
     print "[%s] -> # of objects = %d" % (bmark, len(objreader))
+    # ---------------------------------------------------------------------
     # The first stable graph
+    # ---------------------------------------------------------------------
     print "=======[ STABLE GRAPH ]========================================================="
     print "     -> nodes = %d  edges = %d  - WCC = %d" % \
         ( dgraph.number_of_nodes(),
           dgraph.number_of_edges(),
-          len(wcclist) )
+          len(stable_grouplist) )
     print "     -> 3 largest WCC = %d, %d, %d" % \
-        ( len(wcclist[0]), len(wcclist[1]), len(wcclist[2]) )
+        ( len(stable_grouplist[0]), len(stable_grouplist[1]), len(stable_grouplist[2]) )
     target = "%s-stable_graph.gml" % bmark
     # Backup the old gml file if it exists
     if os.path.isfile(target):
@@ -125,7 +132,9 @@ def output_graph_and_summary( bmark = "",
             os.remove( bakfile )
         shutil.move( target, backupdir )
     nx.write_gml(dgraph, target)
+    # ---------------------------------------------------------------------
     # The second unstable graph
+    # ---------------------------------------------------------------------
     print "=======[ UNSTABLE GRAPH ]======================================================="
     print "     -> supernodes = %d  edges = %d  - super WCC = %d" % \
         ( dgraph_unstable.number_of_nodes(),
@@ -296,12 +305,12 @@ def create_stable_death_bipartite_graph( stable2deathset = {},
                 done_edge.add( ("S%d" % stgt, "D%d" % dgroup) )
     return digraph
 
-def get_objects_as_set( stable_list = [],
-                        death_list = [],
-                        stable_grouplist = [],
-                        dgroup_reader = {},
-                        objreader = {},
-                        sd_combined_id = None ):
+def get_SD_objects_as_set( stable_list = [],
+                           death_list = [],
+                           stable_grouplist = [],
+                           dgroup_reader = {},
+                           objreader = {},
+                           sd_combined_id = None ):
     objset = set()
     for sgnum in stable_list:
         for objId in stable_grouplist[sgnum]:
@@ -315,6 +324,29 @@ def get_objects_as_set( stable_list = [],
             objreader.set_death_group_number(objId, dgnum)
             objreader.set_combined_sd_group_number(objId, sd_combined_id)
     return objset
+
+def get_objects_from_unstable_group( graph = [],
+                                     stable_grouplist = [],
+                                     dgroup_reader = {},
+                                     objreader = {},
+                                     group_id = 0 ):
+    result = set()
+    # Node ids in the graph are of the form of:
+    #     U123
+    # where U = unstable group
+    for node in graph.nodes():
+        # Get the stable node group number
+        # This is an unstable group consisting of nodes.
+        # A node == stable group. 
+        # That is, each node here is a stable group. Got that? :)
+        gtype = node[:1]
+        gnum = int(node[1:])
+        assert(gnum < len(stable_grouplist))
+        if gtype != "U":
+            raise ValueError( "Unexpected node type: %s for %s" % (gtype, node) )
+        result.update( get_objects_from_stable_group_as_set( sgnum = gnum,
+                                                             stable_grouplist = stable_grouplist ) )
+    return result
 
 def output_each_object( objset = set(),
                         seen_objects = set(),
@@ -330,6 +362,7 @@ def output_each_object( objset = set(),
             continue
         seen_objects.add(objId)
         stable_gnum = objreader.get_stable_group_number(objId)
+        unstable_gnum = objreader.get_unstable_group_number(objId)
         death_gnum = objreader.get_death_group_number(objId)
         combined_gnum = objreader.get_comibined_sd_group_number(objId)
         # object Id, stable group number, death group number, combined stable+death group number,
@@ -337,28 +370,24 @@ def output_each_object( objset = set(),
         writer.writerow( [ objId,
                            stable_gnum, death_gnum, combined_gnum,
                            objreader.get_alloc_time(objId),
-                           objreader.get_death_time(objId), ] )
+                           objreader.get_death_time(objId),
+                           unstable_gnum ] )
 
-
-def summarize_wcc_stable_death_components( wcc_sd_list = [],
-                                           stable_grouplist = [],
-                                           objreader = {} ,
-                                           dgroup_reader = {},
-                                           summary_reader = {},
-                                           bmark = "",
-                                           output_filename = None,
-                                           logger = None ):
-    summary = defaultdict(dict)
+def summarize_sd_list( wcc_sd_list = [],
+                       sumSD = {},
+                       stable_grouplist = [],
+                       dgroup_reader = {},
+                       objreader = {} ):
     # Summary is indexed by JOINT stable/death group number
     for index in xrange(len(wcc_sd_list)):
         graph = wcc_sd_list[index]
         # The lists for 'stable' and 'death' contain objectIds.
-        summary[index]["stable"] = []
-        summary[index]["death"] = []
-        summary[index]["objects"] = set()
+        sumSD[index]["stable"] = []
+        sumSD[index]["death"] = []
+        sumSD[index]["objects"] = set()
         # Shorten the names
-        stable = summary[index]["stable"]
-        death = summary[index]["death"]
+        stable = sumSD[index]["stable"]
+        death = sumSD[index]["death"]
         # Node ids in the graph are of the form of:
         #     D123   or S456
         # where D = death group
@@ -372,14 +401,54 @@ def summarize_wcc_stable_death_components( wcc_sd_list = [],
                 death.append(gnum)
             else:
                 raise ValueError( "Unexpected node type: %s for %s" % (gtype, node) )
-        summary[index]["objects"] = get_objects_as_set( stable_list = stable,
-                                                        death_list = death,
-                                                        stable_grouplist = stable_grouplist,
-                                                        dgroup_reader = dgroup_reader,
-                                                        objreader = objreader,
-                                                        sd_combined_id = index )
-    to_number = 5 if len(summary) > 5 else len(summary)
-    assert(to_number > 0)
+        sumSD[index]["objects"] = get_SD_objects_as_set( stable_list = stable,
+                                                         death_list = death,
+                                                         stable_grouplist = stable_grouplist,
+                                                         dgroup_reader = dgroup_reader,
+                                                         objreader = objreader,
+                                                         sd_combined_id = index )
+
+def summarize_unstable_list( unstable_grouplist = [],
+                             sumUNSTABLE = {},
+                             sumSD = {},
+                             stable_grouplist = [],
+                             dgroup_reader = {},
+                             objreader = {} ):
+    for index in xrange(len(unstable_grouplist)):
+        # for each group
+        graph = unstable_grouplist[index]
+        sumUNSTABLE[index]["objects"] =  get_objects_from_unstable_group( graph = graph,
+                                                                          stable_grouplist = stable_grouplist,
+                                                                          dgroup_reader = dgroup_reader,
+                                                                          objreader = objreader,
+                                                                          group_id = index )
+        for objId in sumUNSTABLE[index]["objects"]:
+            assert( objId in objreader )
+            objreader.set_unstable_group_number( objId, index )
+    return
+
+def summarize_wcc_stable_death_unstable_components( wcc_sd_list = [],
+                                                    stable_grouplist = [],
+                                                    unstable_grouplist = [],
+                                                    objreader = {} ,
+                                                    dgroup_reader = {},
+                                                    summary_reader = {},
+                                                    bmark = "",
+                                                    output_filename = None,
+                                                    logger = None ):
+    sumSD = defaultdict(dict)
+    sumUNSTABLE = defaultdict(dict)
+    summarize_sd_list( wcc_sd_list = wcc_sd_list,
+                       sumSD = sumSD,
+                       stable_grouplist = stable_grouplist,
+                       dgroup_reader = dgroup_reader,
+                       objreader = objreader )
+    summarize_unstable_list( unstable_grouplist = unstable_grouplist,
+                             sumUNSTABLE = sumUNSTABLE,
+                             sumSD = sumSD,
+                             stable_grouplist = stable_grouplist,
+                             dgroup_reader = dgroup_reader,
+                             objreader = objreader )
     # Get the final time for the benchmark
     final_time = summary_reader.get_final_garbology_time()
     assert(final_time > 0)
@@ -388,12 +457,22 @@ def summarize_wcc_stable_death_components( wcc_sd_list = [],
         # Create the CSV writer and write the header row
         writer = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
         writer.writerow( [ "objectId", "stable group number", "death group number",
-                           "combined group number", "allocation time", "death time", ] )
-        for index in xrange(to_number):
-            # Rename into shorter names
-            stable = summary[index]["stable"]
-            death = summary[index]["death"]
-            objset = summary[index]["objects"]
+                           "combined group number", "allocation time", "death time",
+                           "unstable group number", ] )
+        # TODO TODO TODO TODO TODO TODO TODO TODO
+        # This can be refactored because the code is mostly duplicated for sumUNSTABLE
+        #     and UNSTABLE <-> Death summaries.
+        # TODO TODO TODO TODO TODO TODO TODO TODO
+        #===========================================================================
+        #-----[ UNSTABLE Summary ]--------------------------------------------------
+        #===========================================================================
+        to_number_UN = 5 if len(sumUNSTABLE) > 5 else len(sumUNSTABLE)
+        assert(to_number_UN > 0)
+        for index in xrange(to_number_UN):
+            # Rename into shorter name
+            objset = sumUNSTABLE[index]["objects"]
+            stable = sumSD[index]["stable"]
+            death = sumSD[index]["death"]
             # Output the per object row in the CSV
             output_each_object( objset = objset,
                                 seen_objects = seen_objects,
@@ -405,13 +484,14 @@ def summarize_wcc_stable_death_components( wcc_sd_list = [],
                                 logger = logger )
             #------------------------------------------------------------
             # Get total number of objects
-            summary[index]["total_objects"] = len(objset)
+            sumUNSTABLE[index]["total_objects"] = len(objset)
             alloc_time_list = [ objreader.get_alloc_time(x) for x in objset ]
             alloc_time_set = set(alloc_time_list)
             death_time_list = [ objreader.get_death_time(x) for x in objset ]
             death_time_set = set(death_time_list)
-            summary[index]["number_alloc_times"] = len(alloc_time_set)
-            summary[index]["number_death_times"] = len(death_time_set)
+            size_list = [ objreader.get_size(x) for x in objset ]
+            sumUNSTABLE[index]["number_alloc_times"] = len(alloc_time_set)
+            sumUNSTABLE[index]["number_death_times"] = len(death_time_set)
             #------------------------------------------------------------
             # In the following the _sc suffix (as in X_sc) means it's scaled
             # to the total time in percentage.
@@ -419,14 +499,14 @@ def summarize_wcc_stable_death_components( wcc_sd_list = [],
             #      * Alloc time range
             min_alloctime = min( alloc_time_list )
             max_alloctime = max( alloc_time_list )
-            summary[index]["atime"] = { "min" : min_alloctime,
-                                        "min_sc" : (min_alloctime / final_time) * 100.0, 
-                                        "max" : max_alloctime,
-                                        "max_sc" : (max_alloctime / final_time) * 100.0}
+            sumUNSTABLE[index]["atime"] = { "min" : min_alloctime,
+                                            "min_sc" : (min_alloctime / final_time) * 100.0, 
+                                            "max" : max_alloctime,
+                                            "max_sc" : (max_alloctime / final_time) * 100.0}
             #      * Death time range
             min_deathtime = min( death_time_list )
             max_deathtime = max( death_time_list )
-            summary[index]["dtime"] = { "min" : min_deathtime,
+            sumUNSTABLE[index]["dtime"] = { "min" : min_deathtime,
                                         "min_sc" : (min_deathtime / final_time) * 100.0, 
                                         "max" : max_deathtime,
                                         "max_sc" : (max_deathtime / final_time) * 100.0}
@@ -436,45 +516,162 @@ def summarize_wcc_stable_death_components( wcc_sd_list = [],
             mean_alloctime = mean( alloc_time_list  )
             stdev_alloctime = stdev( alloc_time_list  )
             #     Allocation time
-            summary[index]["atime"]["mean"] = mean_alloctime
-            summary[index]["atime"]["stdev"] = stdev_alloctime
+            sumUNSTABLE[index]["atime"]["mean"] = mean_alloctime
+            sumUNSTABLE[index]["atime"]["stdev"] = stdev_alloctime
             #     Death time
-            summary[index]["dtime"]["mean"] = mean_deathtime
-            summary[index]["dtime"]["stdev"] = stdev_deathtime
+            sumUNSTABLE[index]["dtime"]["mean"] = mean_deathtime
+            sumUNSTABLE[index]["dtime"]["stdev"] = stdev_deathtime
             # The scaled (_sc) quantities
             #     Allocation time
-            summary[index]["atime"]["mean_sc"] = (mean_alloctime / final_time) * 100.0
-            summary[index]["atime"]["stdev_sc"] = (stdev_alloctime / final_time) * 100.0
+            sumUNSTABLE[index]["atime"]["mean_sc"] = (mean_alloctime / final_time) * 100.0
+            sumUNSTABLE[index]["atime"]["stdev_sc"] = (stdev_alloctime / final_time) * 100.0
             #     Death time
-            summary[index]["dtime"]["mean_sc"] = (mean_deathtime / final_time) * 100.0
-            summary[index]["dtime"]["stdev_sc"] = (stdev_deathtime / final_time) * 100.0
+            sumUNSTABLE[index]["dtime"]["mean_sc"] = (mean_deathtime / final_time) * 100.0
+            sumUNSTABLE[index]["dtime"]["stdev_sc"] = (stdev_deathtime / final_time) * 100.0
+            #     Size
+            min_size = min( size_list )
+            max_size = max( size_list )
+            mean_size = mean( size_list )
+            stdev_size = stdev( size_list  )
+            sumUNSTABLE[index]["size"]= { "min" : min_size,
+                                          "max" : max_size,
+                                          "mean" : mean_size,
+                                          "stdev" : stdev_size,
+                                          "total" : sum(size_list), }
+        #===========================================================================
+        #-----[ STABLE <-> DEATH Summary ]------------------------------------------
+        #===========================================================================
+        to_number_SD = 5 if len(sumSD) > 5 else len(sumSD)
+        assert(to_number_SD > 0)
+        for index in xrange(to_number_SD):
+            # Rename into shorter names
+            objset = sumSD[index]["objects"]
+            # Output the per object row in the CSV
+            output_each_object( objset = objset,
+                                seen_objects = seen_objects,
+                                writer = writer,
+                                stable = stable,
+                                death = death,
+                                objreader = objreader,
+                                bmark = bmark,
+                                logger = logger )
+            #------------------------------------------------------------
+            # Get total number of objects and sizes in bytes
+            sumSD[index]["total_objects"] = len(objset)
+            alloc_time_list = [ objreader.get_alloc_time(x) for x in objset ]
+            alloc_time_set = set(alloc_time_list)
+            death_time_list = [ objreader.get_death_time(x) for x in objset ]
+            death_time_set = set(death_time_list)
+            size_list = [ objreader.get_size(x) for x in objset ]
+            sumSD[index]["number_alloc_times"] = len(alloc_time_set)
+            sumSD[index]["number_death_times"] = len(death_time_set)
+            #------------------------------------------------------------
+            # In the following the _sc suffix (as in X_sc) means it's scaled
+            # to the total time in percentage.
+            # 1. Get minimum-maximum alloc times
+            #      * Alloc time range
+            min_alloctime = min( alloc_time_list )
+            max_alloctime = max( alloc_time_list )
+            sumSD[index]["atime"] = { "min" : min_alloctime,
+                                      "min_sc" : (min_alloctime / final_time) * 100.0, 
+                                      "max" : max_alloctime,
+                                      "max_sc" : (max_alloctime / final_time) * 100.0}
+            #      * Death time range
+            min_deathtime = min( death_time_list )
+            max_deathtime = max( death_time_list )
+            sumSD[index]["dtime"] = { "min" : min_deathtime,
+                                      "min_sc" : (min_deathtime / final_time) * 100.0, 
+                                      "max" : max_deathtime,
+                                      "max_sc" : (max_deathtime / final_time) * 100.0}
+            #  Alloc and Death time statistics
+            mean_deathtime = mean( death_time_list  )
+            stdev_deathtime = stdev( death_time_list  )
+            mean_alloctime = mean( alloc_time_list  )
+            stdev_alloctime = stdev( alloc_time_list  )
+            #     Allocation time
+            sumSD[index]["atime"]["mean"] = mean_alloctime
+            sumSD[index]["atime"]["stdev"] = stdev_alloctime
+            #     Death time
+            sumSD[index]["dtime"]["mean"] = mean_deathtime
+            sumSD[index]["dtime"]["stdev"] = stdev_deathtime
+            # The scaled (_sc) quantities
+            #     Allocation time
+            sumSD[index]["atime"]["mean_sc"] = (mean_alloctime / final_time) * 100.0
+            sumSD[index]["atime"]["stdev_sc"] = (stdev_alloctime / final_time) * 100.0
+            #     Death time
+            sumSD[index]["dtime"]["mean_sc"] = (mean_deathtime / final_time) * 100.0
+            sumSD[index]["dtime"]["stdev_sc"] = (stdev_deathtime / final_time) * 100.0
+            #     Size
+            min_size = min( size_list )
+            max_size = max( size_list )
+            mean_size = mean( size_list  )
+            stdev_size = stdev( size_list  )
+            sumSD[index]["size"]= { "min" : min_size,
+                                    "max" : max_size,
+                                    "mean" : mean_size,
+                                    "stdev" : stdev_size,
+                                    "total" : sum(size_list), }
             #------------------------------------------------------------
             # 2. Get minimum-maximum death times
             #     - std deviation? median?
             #     - categorize according to death groups? or stable groups?
             #          or does it matter?
             # 3. Get total drag
-    print "======[ %s ][ SUMMARY of components ]===========================================" % bmark
-    for index in sorted(summary.keys()):
-        if index > to_number:
+    #---------------------------------------------------------------------------
+    #----[ UnStable summary OUTPUT ]--------------------------------------------
+    #---------------------------------------------------------------------------
+    print "======[ %s ][ SUMMARY of UNSTABLE components ]==================================" % bmark
+    for index in sorted(sumUNSTABLE.keys()):
+        if index >= to_number_UN:
             break
-        mydict = summary[index]
+        mydict = sumUNSTABLE[index]
         print "Component %d" % index
         for key, val in mydict.iteritems():
             if key == "total_objects":
                 print "    * %d objects" % val
+            elif key == "size":
+                print "    * size range - [ {:d}, {:d} ]".format(val["min"], val["max"])
+                print "    *      mean = {:.2f}    stdev = {:.2f}".format(val["mean"], val["stdev"])
+                print "    *      total size bytes = {:d}".format( val["total"] )
             elif key == "number_alloc_times":
                 print "    * %d unique allocation times" % val
             elif key == "number_death_times":
                 print "    * %d unique death times" % val
             elif key == "atime":
                 print "    * alloc range - [ {:.2f}, {:.2f} ]".format(val["min_sc"], val["max_sc"])
-                print "    * mean = {:.2f}    stdev = {:.2f}".format(val["mean_sc"], val["stdev_sc"])
+                print "    *      mean = {:.2f}    stdev = {:.2f}".format(val["mean_sc"], val["stdev_sc"])
             elif key == "dtime":
                 print "    * death range - [ {:.2f}, {:.2f} ]".format(val["min_sc"], val["max_sc"])
-                print "    * mean = {:.2f}    stdev = {:.2f}".format(val["mean_sc"], val["stdev_sc"])
-    print "======[ %s ][ END SUMMARY of components ]=======================================" % bmark
-    return
+                print "    *      mean = {:.2f}    stdev = {:.2f}".format(val["mean_sc"], val["stdev_sc"])
+    print "======[ %s ][ END SUMMARY of UNSTABLE components ]==============================" % bmark
+    #---------------------------------------------------------------------------
+    #----[ Stable <-> Death summary output ]------------------------------------
+    #---------------------------------------------------------------------------
+    print "======[ %s ][ SUMMARY of STABLE <-> DEATH components ]==========================" % bmark
+    for index in sorted(sumSD.keys()):
+        if index >= to_number_SD:
+            break
+        mydict = sumSD[index]
+        print "Component %d" % index
+        for key, val in mydict.iteritems():
+            if key == "total_objects":
+                print "    * %d objects" % val
+            elif key == "size":
+                print "    * size range - [ {:d}, {:d} ]".format(val["min"], val["max"])
+                print "    *      mean = {:.2f}    stdev = {:.2f}".format(val["mean"], val["stdev"])
+                print "    *      total size bytes = {:d}".format( val["total"] )
+            elif key == "number_alloc_times":
+                print "    * %d unique allocation times" % val
+            elif key == "number_death_times":
+                print "    * %d unique death times" % val
+            elif key == "atime":
+                print "    * alloc range - [ {:.2f}, {:.2f} ]".format(val["min_sc"], val["max_sc"])
+                print "    *      mean = {:.2f}    stdev = {:.2f}".format(val["mean_sc"], val["stdev_sc"])
+            elif key == "dtime":
+                print "    * death range - [ {:.2f}, {:.2f} ]".format(val["min_sc"], val["max_sc"])
+                print "    *      mean = {:.2f}    stdev = {:.2f}".format(val["mean_sc"], val["stdev_sc"])
+    print "======[ %s ][ END SUMMARY of STABLE <-> DEATH components ]======================" % bmark
+    return sumSD
 
 #--------------------------------------------------------------------------------
 # Super graph ONE related functions
@@ -543,7 +740,7 @@ def add_nodes_to_graph_TWO( stable_grouplist = [],
     for sgnum in xrange(len(stable_grouplist)):
         objlist = stable_grouplist[sgnum]
         if sgnum not in stnode_list:
-            dgraph.add_node( sgnum ) # TODO: What attributes do we add?
+            dgraph.add_node( "U%d" % sgnum ) # TODO: What attributes do we add?
             stnode_list.add( sgnum )
         else:
             logger.critical( "%s: Multiple add for stable group [ %s ]" %
@@ -588,7 +785,7 @@ def add_unstable_edges( dgraph = {},
                         edge = (sgnum, tgt_sgnum)
                         if edge in edgeset:
                             continue
-                        dgraph.add_edge( edge[0], edge[1] )
+                        dgraph.add_edge( "U%d" % edge[0], "U%d" % edge[1] )
                         edgeset.add( edge )
                     # HERE
     return dgraph
@@ -769,23 +966,8 @@ def create_supergraph_all_MPR( bmark = "",
     wcc_stable_death_list = sorted( nx.connected_component_subgraphs(stable_death_graph),
                                     key = len,
                                     reverse = True )
-    summarize_wcc_stable_death_components( wcc_sd_list = wcc_stable_death_list,
-                                           stable_grouplist = stable_grouplist,
-                                           objreader = objreader,
-                                           dgroup_reader = dgreader,
-                                           summary_reader = summary_reader,
-                                           bmark = bmark,
-                                           output_filename = os.path.join( main_config["output"], 
-                                                                           "%s-stabledeath-object-summary.csv" % bmark ),
-                                           logger = logger,
-                                           )
-    print "============[ %s :: Stable <-> Death graph ]=======================================" % bmark
-    print "[%s] Number of nodes: %d" % (bmark, stable_death_graph.number_of_nodes())
-    print "[%s] Number of edges: %d" % (bmark, stable_death_graph.number_of_edges())
-    print "[%s] Number of components: %d" % (bmark, len(wcc_stable_death_list))
-    print "[%s] Top 5 largest components: %s" % (bmark, str( [ len(x) for x in wcc_stable_death_list[:5] ] ))
-    print "================================================================================"
-    print "================================================================================"
+    # SUMMARIZATION of wcc_stable_death used to be HERE.
+    # Moved below to include UNSTABLE analysis.
     #---------------------------------------------------------------------------
     # Create the next super graph TWO. Which consists of stable groups + unstable edges.
     # - Create new graph using stable groups as nodes.
@@ -808,13 +990,38 @@ def create_supergraph_all_MPR( bmark = "",
                                key = len,
                                reverse = True )
     #---------------------------------------------------------------------------
+    #----[ SUMMARIZE STABLE,DEATH and UNSTABLE ]--------------------------------
+    #---------------------------------------------------------------------------
+    summarize_wcc_stable_death_unstable_components( wcc_sd_list = wcc_stable_death_list,
+                                                    stable_grouplist = stable_grouplist,
+                                                    unstable_grouplist = wcclist_unstable,
+                                                    objreader = objreader,
+                                                    dgroup_reader = dgreader,
+                                                    summary_reader = summary_reader,
+                                                    bmark = bmark,
+                                                    output_filename = os.path.join( main_config["output"], 
+                                                                                    "%s-stabledeath-object-summary.csv" % bmark ),
+                                                    logger = logger,
+                                                  )
+    #---------------------------------------------------------------------------
+    #----[ Stable <-> Death summary OUTPUT ]------------------------------------
+    #---------------------------------------------------------------------------
+    print "============[ %s :: Stable <-> Death graph ]=======================================" % bmark
+    print "[%s] Number of nodes: %d" % (bmark, stable_death_graph.number_of_nodes())
+    print "[%s] Number of edges: %d" % (bmark, stable_death_graph.number_of_edges())
+    print "[%s] Number of components: %d" % (bmark, len(wcc_stable_death_list))
+    print "[%s] Top 5 largest components: %s" % (bmark, str( [ len(x) for x in wcc_stable_death_list[:5] ] ))
+    print "================================================================================"
+    print "================================================================================"
+    #---------------------------------------------------------------------------
+    #----[ Output the graph and summary ]---------------------------------------
+    #---------------------------------------------------------------------------
     output_graph_and_summary( bmark = bmark,
                               objreader = objreader,
                               dgraph = dgraph,
                               dgraph_unstable = dgraph_unstable,
-                              wcclist = wcclist,
+                              stable_grouplist = stable_grouplist, # aka wcclist
                               wcclist_unstable = wcclist_unstable,
-                              stable_grouplist = stable_grouplist,
                               backupdir = backupdir,
                               stable2deathset = stable2deathset,
                               death2stableset = death2stableset,

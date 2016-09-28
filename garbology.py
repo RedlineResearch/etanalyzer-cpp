@@ -154,6 +154,7 @@ class ObjectInfoReader:
         self.logger = logger
         # These are computed later on and are simply set to None here
         self.objId2stable_gnum = {}
+        self.objId2unstable_gnum = {}
         self.objId2death_gnum = {}
         # The following is the combined stable+death group numbers.
         #    We have it returning None by default for anything that hasn't
@@ -287,6 +288,10 @@ class ObjectInfoReader:
             return self.rev_typedict[typeId]
         else:
             return "NONE"
+
+    def get_size( self, objId = 0 ):
+        rec = self.get_record(objId)
+        return rec[ get_index("SIZE") ] if rec != None else None
 
     def get_type_using_typeId( self, typeId = 0 ):
         return self.rev_typedict[typeId] if typeId in self.rev_typedict \
@@ -462,6 +467,11 @@ class ObjectInfoReader:
                                  gnum = None ):
         self.objId2stable_gnum[objId] = gnum
 
+    def set_unstable_group_number( self,
+                                   objId = None,
+                                   gnum = None ):
+        self.objId2unstable_gnum[objId] = gnum
+
     def set_combined_sd_group_number( self,
                                       objId = None,
                                       gnum = None ):
@@ -470,6 +480,10 @@ class ObjectInfoReader:
     def get_stable_group_number( self,
                                  objId = None ):
         return self.objId2stable_gnum[objId] if objId in self.objId2stable_gnum else None
+
+    def get_unstable_group_number( self,
+                                   objId = None ):
+        return self.objId2unstable_gnum[objId] if objId in self.objId2unstable_gnum else None
 
     def get_comibined_sd_group_number( self,
                                        objId = None ):
