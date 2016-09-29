@@ -125,6 +125,10 @@ def output_graph_and_summary( bmark = "",
           len(stable_grouplist) )
     print "     -> 3 largest WCC = %d, %d, %d" % \
         ( len(stable_grouplist[0]), len(stable_grouplist[1]), len(stable_grouplist[2]) )
+    print "     ->    size total bytes     = %d, %d, %d" % \
+            ( sumSD[0]["size"]["total"],
+              sumSD[1]["size"]["total"],
+              sumSD[2]["size"]["total"], )
     target = "%s-stable_graph.gml" % bmark
     # Backup the old gml file if it exists
     if os.path.isfile(target):
@@ -144,7 +148,6 @@ def output_graph_and_summary( bmark = "",
           len(wcclist_unstable) )
     print "     -> 3 largest super WCC     = %d, %d, %d" % \
         ( len(wcclist_unstable[0]), len(wcclist_unstable[1]), len(wcclist_unstable[2]) )
-    wcc_num_objects = []
     print "     ->    in number of objects = %d, %d, %d" % \
             ( len(sumUNSTABLE[0]["objects"]),
               len(sumUNSTABLE[1]["objects"]),
