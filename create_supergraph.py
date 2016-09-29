@@ -998,19 +998,19 @@ def create_supergraph_all_MPR( bmark = "",
     #---------------------------------------------------------------------------
     #----[ SUMMARIZE STABLE,DEATH and UNSTABLE ]--------------------------------
     #---------------------------------------------------------------------------
-    result = summarize_wcc_stable_death_unstable_components( wcc_sd_list = wcc_stable_death_list,
-                                                             stable_grouplist = stable_grouplist,
-                                                             unstable_grouplist = wcclist_unstable,
-                                                             objreader = objreader,
-                                                             dgroup_reader = dgreader,
-                                                             summary_reader = summary_reader,
-                                                             bmark = bmark,
-                                                             output_filename = os.path.join( main_config["output"], 
-                                                                                             "%s-stabledeath-object-summary.csv" % bmark ),
-                                                             logger = logger,
-                                                           )
-    sumSD = result["stable-death"]
-    sumUNSTABLE = result["unstable"]
+    sum_result = summarize_wcc_stable_death_unstable_components( wcc_sd_list = wcc_stable_death_list,
+                                                                 stable_grouplist = stable_grouplist,
+                                                                 unstable_grouplist = wcclist_unstable,
+                                                                 objreader = objreader,
+                                                                 dgroup_reader = dgreader,
+                                                                 summary_reader = summary_reader,
+                                                                 bmark = bmark,
+                                                                 output_filename = os.path.join( main_config["output"], 
+                                                                                                 "%s-stabledeath-object-summary.csv" % bmark ),
+                                                                 logger = logger,
+                                                               )
+    sumSD = sum_result["stable-death"]
+    sumUNSTABLE = sum_result["unstable"]
     #---------------------------------------------------------------------------
     #----[ Stable <-> Death summary OUTPUT ]------------------------------------
     #---------------------------------------------------------------------------
