@@ -49,7 +49,10 @@ class ClassInfo
         // -- Debug flag
         static bool debug_names;
         // -- Read the names file
-        static void read_names_file(const char* filename);
+        static void read_names_file( const char *filename,
+                                     string main_package );
+    private:
+        static Method *_main_class;
 };
 
 // -- Representation of classes
@@ -128,7 +131,11 @@ class Method : public Entity
         AllocSiteMap m_allocsites;
 
     public:
-        Method(unsigned int id, Class* cls, char* name, char* descriptor, char* flags)
+        Method( unsigned int id,
+                Class *cls,
+                char *name,
+                char *descriptor,
+                char *flags )
             : Entity(id, name)
             , m_class(cls)
             , m_descriptor(descriptor)

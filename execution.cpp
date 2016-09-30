@@ -25,7 +25,9 @@ CCNode* CCNode::Call(Method* m)
     }
     NodeId_t parent = this->get_node_id();
     NodeId_t child = result->get_node_id();
-    this->m_output << parent << "," << child << endl;
+    if (this->m_output != NULL) {
+        this->m_output << parent << "," << child << endl;
+    }
     return result;
 }
 

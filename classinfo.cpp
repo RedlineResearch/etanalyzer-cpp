@@ -17,8 +17,12 @@ AllocSiteMap ClassInfo::TheAllocSites;
 // -- Debug flag
 bool ClassInfo::debug_names = false;
 
+// Main method
+Method * ClassInfo::_main_class = NULL;
+
 // -- Read in the names file
-void ClassInfo::read_names_file(const char* filename)
+void ClassInfo::read_names_file( const char *filename,
+                                 string main_class )
 {
     FILE* f = fopen(filename, "r");
     if ( ! f) {
@@ -65,12 +69,18 @@ void ClassInfo::read_names_file(const char* filename)
                 {
                     // N <id> <classid> <classname> <methodname> <descriptor> <flags S|I +N>
                     // 0  1       2          3           4            5             6
-                    Class* cls = TheClasses[t.getInt(2)];
-                    Method* m = new Method(t.getInt(1), cls, t.getString(4), t.getString(5), t.getString(6));
+                    Class *cls = TheClasses[t.getInt(2)];
+                    string classname( t.getString(4) );
+                    Method *m = new Method(t.getInt(1), cls, t.getString(4), t.getString(5), t.getString(6));
+                    if (classname.compare(main_class)) {
+                        // this is the main_package
+                        _main_class = m;
+                    }
                     TheMethods[m->getId()] = m;
                     cls->addMethod(m);
-                    if (debug_names)
+                    if (debug_names) {
                         cout << "   + METHOD " << m->info() << endl;
+                    }
                 }
                 break;
 
@@ -128,6 +138,7 @@ void ClassInfo::read_names_file(const char* filename)
         }
     }
 }
+
 
 // ----------------------------------------------------------------------
 //  Info methods (for debugging)

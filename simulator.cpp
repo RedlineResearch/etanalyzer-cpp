@@ -1132,6 +1132,8 @@ int main(int argc, char* argv[])
     ofstream nodemap_file(nodemap_filename);
     Exec.set_nodefile( &nodemap_file );
 
+    string main_package(argv[2]);
+
     string cycle_switch(argv[3]);
     bool cycle_flag = ((cycle_switch == "NOCYCLE") ? false : true);
     
@@ -1143,7 +1145,8 @@ int main(int argc, char* argv[])
     }
 
     cout << "Read names file..." << endl;
-    ClassInfo::read_names_file(argv[1]);
+    ClassInfo::read_names_file( argv[1],
+                                main_package );
 
     cout << "Start trace..." << endl;
     FILE* f = fdopen(0, "r");
