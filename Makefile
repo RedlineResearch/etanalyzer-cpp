@@ -21,6 +21,9 @@ simulator-type1: simulator-type1.o execution.o heap.o classinfo.o tokenizer.o an
 simulator.o: simulator.cpp classinfo.h tokenizer.h heap.h refstate.h
 	g++ $(FLAGS)  -c simulator.cpp
 
+simulator-find-main.o: simulator-find-main.cpp classinfo.h tokenizer.h heap.h refstate.h
+	g++ $(FLAGS)  -c simulator-find-main.cpp
+
 simulator-type1.o: simulator.cpp classinfo.h tokenizer.h heap.h refstate.h
 	g++ $(FLAGS) -D ENABLE_TYPE1 -c simulator.cpp -o simulator-type1.o
 

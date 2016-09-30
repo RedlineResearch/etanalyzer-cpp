@@ -137,6 +137,8 @@ unsigned int read_trace_file(FILE* f)
     Method *method;
     unsigned int total_objects;
 
+    Method *main_method = ClassInfo::get_main_method();
+
     // DEBUG
     unsigned int debug_stack_edges = 0;
     // END DEBUG

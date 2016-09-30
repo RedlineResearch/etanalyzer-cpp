@@ -18,7 +18,7 @@ AllocSiteMap ClassInfo::TheAllocSites;
 bool ClassInfo::debug_names = false;
 
 // Main method
-Method * ClassInfo::_main_class = NULL;
+Method * ClassInfo::_main_method = NULL;
 
 // -- Read in the names file
 void ClassInfo::read_names_file( const char *filename,
@@ -74,7 +74,7 @@ void ClassInfo::read_names_file( const char *filename,
                     Method *m = new Method(t.getInt(1), cls, t.getString(4), t.getString(5), t.getString(6));
                     if (classname.compare(main_class)) {
                         // this is the main_package
-                        _main_class = m;
+                        ClassInfo::_main_method = m;
                     }
                     TheMethods[m->getId()] = m;
                     cls->addMethod(m);

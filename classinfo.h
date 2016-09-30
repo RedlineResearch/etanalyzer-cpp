@@ -51,8 +51,11 @@ class ClassInfo
         // -- Read the names file
         static void read_names_file( const char *filename,
                                      string main_package );
+        static Method * get_main_method() {
+            return _main_method;
+        }
     private:
-        static Method *_main_class;
+        static Method *_main_method;
 };
 
 // -- Representation of classes
