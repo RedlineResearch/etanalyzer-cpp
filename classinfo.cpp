@@ -70,9 +70,14 @@ void ClassInfo::read_names_file( const char *filename,
                     // N <id> <classid> <classname> <methodname> <descriptor> <flags S|I +N>
                     // 0  1       2          3           4            5             6
                     Class *cls = TheClasses[t.getInt(2)];
-                    string classname( t.getString(4) );
+                    string classname( t.getString(3) );
+                    string methodname( t.getString(4) );
+                    string main_const( "main" );
                     Method *m = new Method(t.getInt(1), cls, t.getString(4), t.getString(5), t.getString(6));
-                    if (classname.compare(main_class)) {
+                    // DEBUG
+                    // cout << classname << " | " <<  methodname << endl;
+                    if ( (classname.compare(main_class) == 0) &&
+                         (methodname.compare(main_const) == 0) ) {
                         // this is the main_package
                         ClassInfo::_main_method = m;
                     }
