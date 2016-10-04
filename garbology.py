@@ -1439,6 +1439,30 @@ class ReverseRefReader:
         for key, fdict in self.referencedict.iteritems():
             print "%d -> %s" % (key, str(fdict))
 
+# ----------------------------------------------------------------------------- 
+# ----------------------------------------------------------------------------- 
+# Example:
+#    #     git version: 7c8d143510e9ee00303a8345acfbac5343305d57                        
+#    #     build date : Mon Oct  3 22:10:36 EDT 2016                                    
+#    ---------------[ START ]-----------------------------------------------------------
+#    Read names file...                                                                 
+#    Start trace...                                                                     
+#    Update time: 100000 | Method time: TODO | Alloc time: 928688                     
+#    Update time: 100000 | Method time: TODO | Alloc time: 928688                     
+#    Update time: 100000 | Method time: TODO | Alloc time: 928688                     
+#    main_time:103866                                                                   
+#    ---------------[ DONE ]------------------------------------------------------------
+#    #     git version: 7c8d143510e9ee00303a8345acfbac5343305d57                        
+#    #     build date : Mon Oct  3 22:10:36 EDT 2016                                    
+def read_main_file( main_file_name = "" ):
+    done = False
+    with get_trace_fp( main_file_name, logger ) as fp:
+        for line in fp:
+            line = line.rstrip()
+            if line.find("main_time:") == 0:
+                return int( line.replace("main_time:", "") )
+    assert(done)
+
 
 # ----------------------------------------------------------------------------- 
 # ----------------------------------------------------------------------------- 
