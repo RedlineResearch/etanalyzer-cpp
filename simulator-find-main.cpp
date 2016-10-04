@@ -143,7 +143,6 @@ unsigned int read_trace_file(FILE* f)
 
     Method *main_method = ClassInfo::get_main_method();
     unsigned int main_id = main_method->getId();
-    cout << "Main method: " << main_method << " [ " << main_id << " ]" << endl;
 
     // DEBUG
     unsigned int debug_stack_edges = 0;
@@ -278,7 +277,6 @@ unsigned int read_trace_file(FILE* f)
 // ----------------------------------------------------------------------
 int main(int argc, char* argv[])
 {
-    cout << "XXX:" << argc << endl;
     if (argc != 4) {
         cout << "Usage: " << argv[0] << " <namesfile> <main.package> <output filename>" << endl;
         cout << "      git version: " << build_git_sha << endl;
@@ -304,7 +302,6 @@ int main(int argc, char* argv[])
     FILE* f = fdopen(0, "r");
     unsigned int main_time = read_trace_file(f);
 
-    cout << "Main at update time: " << main_time << endl;
     cout << "---------------[ DONE ]------------------------------------------------------------" << endl;
     cout << "#     git version: " <<  build_git_sha << endl;
     cout << "#     build date : " <<  build_git_time << endl;
