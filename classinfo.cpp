@@ -22,7 +22,8 @@ Method * ClassInfo::_main_method = NULL;
 
 // -- Read in the names file
 void ClassInfo::read_names_file( const char *filename,
-                                 string main_class )
+                                 string main_class,
+                                 string main_function )
 {
     FILE* f = fopen(filename, "r");
     if ( ! f) {
@@ -72,12 +73,11 @@ void ClassInfo::read_names_file( const char *filename,
                     Class *cls = TheClasses[t.getInt(2)];
                     string classname( t.getString(3) );
                     string methodname( t.getString(4) );
-                    string main_const( "main" );
                     Method *m = new Method(t.getInt(1), cls, t.getString(4), t.getString(5), t.getString(6));
                     // DEBUG
                     // cout << classname << " | " <<  methodname << endl;
                     if ( (classname.compare(main_class) == 0) &&
-                         (methodname.compare(main_const) == 0) ) {
+                         (methodname.compare(main_function) == 0) ) {
                         // this is the main_package
                         ClassInfo::_main_method = m;
                     }

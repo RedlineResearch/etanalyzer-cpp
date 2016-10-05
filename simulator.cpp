@@ -1099,8 +1099,8 @@ void output_reference_summary( string &reference_summary_filename,
 
 int main(int argc, char* argv[])
 {
-    if (argc != 5) {
-        cout << "Usage: " << argv[0] << " <namesfile> <output base name> <CYCLE/NOCYCLE> <OBJDEBUG/NOOBJDEBUG>" << endl;
+    if (argc != 7) {
+        cout << "Usage: " << argv[0] << " <namesfile> <output base name> <CYCLE/NOCYCLE> <OBJDEBUG/NOOBJDEBUG> <main.class> <main.function>" << endl;
         cout << "      git version: " << build_git_sha << endl;
         cout << "      build date : " << build_git_time << endl;
         cout << "      CC kind    : " << Exec.get_kind() << endl;
@@ -1132,7 +1132,8 @@ int main(int argc, char* argv[])
     ofstream nodemap_file(nodemap_filename);
     Exec.set_nodefile( &nodemap_file );
 
-    string main_package(argv[2]);
+    string main_class(argv[5]);
+    string main_function(argv[6]);
 
     string cycle_switch(argv[3]);
     bool cycle_flag = ((cycle_switch == "NOCYCLE") ? false : true);
@@ -1146,7 +1147,8 @@ int main(int argc, char* argv[])
 
     cout << "Read names file..." << endl;
     ClassInfo::read_names_file( argv[1],
-                                main_package );
+                                main_class,
+                                main_function );
 
     cout << "Start trace..." << endl;
     FILE* f = fdopen(0, "r");

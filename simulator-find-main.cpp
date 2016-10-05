@@ -278,8 +278,8 @@ unsigned int read_trace_file(FILE* f)
 // ----------------------------------------------------------------------
 int main(int argc, char* argv[])
 {
-    if (argc != 4) {
-        cout << "Usage: " << argv[0] << " <namesfile> <main.package> <output filename>" << endl;
+    if (argc != 5) {
+        cout << "Usage: " << argv[0] << " <namesfile> <main.class> <main.function> <output filename>" << endl;
         cout << "      git version: " << build_git_sha << endl;
         cout << "      build date : " << build_git_time << endl;
         cout << "      CC kind    : " << Exec.get_kind() << endl;
@@ -288,16 +288,18 @@ int main(int argc, char* argv[])
     cout << "#     git version: " <<  build_git_sha << endl;
     cout << "#     build date : " <<  build_git_time << endl;
     cout << "---------------[ START ]-----------------------------------------------------------" << endl;
-    string basename(argv[3]);
+    string basename(argv[4]);
     // TODO TODO string summary_filename( basename + "-SUMMARY.csv" );
     Exec.set_output( NULL );
 
-    string main_package(argv[2]);
+    string main_class(argv[2]);
+    string main_function(argv[3]);
 
     // TODO Need the main package name
     cout << "Read names file..." << endl;
     ClassInfo::read_names_file( argv[1], 
-                                main_package );
+                                main_class,
+                                main_function );
 
     cout << "Start trace..." << endl;
     FILE* f = fdopen(0, "r");
