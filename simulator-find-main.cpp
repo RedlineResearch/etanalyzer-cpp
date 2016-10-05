@@ -155,10 +155,11 @@ unsigned int read_trace_file(FILE* f)
             break;
         }
 
-        if (Exec.NowUp() % 105000 == 100000) {
-            // cout << "  Method time: " << Exec.Now() << "   Alloc time: " << AllocationTime << endl;
-            cout << "  Update time: " << Exec.NowUp() << " | Method time: TODO | Alloc time: " << AllocationTime << endl;
-        }
+        // DEBUG only
+        // if (Exec.NowUp() % 105000 == 100000) {
+        //     // cout << "  Method time: " << Exec.Now() << "   Alloc time: " << AllocationTime << endl;
+        //     cout << "  Update time: " << Exec.NowUp() << " | Method time: TODO | Alloc time: " << AllocationTime << endl;
+        // }
 
         switch (tokenizer.getChar(0)) {
             case 'A':
