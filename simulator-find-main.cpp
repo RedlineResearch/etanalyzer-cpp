@@ -226,6 +226,7 @@ unsigned int read_trace_file(FILE* f)
                     if (method == main_method) {
                         // We're done!
                         cout << "main_time:" << Exec.NowUp() << endl;
+                        cout << "alloc_time:" << Exec.NowAlloc() << endl;
                         return Exec.NowUp();
                     }
                     thread_id = tokenizer.getInt(3);
