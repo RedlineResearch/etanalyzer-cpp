@@ -1454,7 +1454,8 @@ class ReverseRefReader:
 #    ---------------[ DONE ]------------------------------------------------------------
 #    #     git version: 7c8d143510e9ee00303a8345acfbac5343305d57                        
 #    #     build date : Mon Oct  3 22:10:36 EDT 2016                                    
-def read_main_file( main_file_name = "" ):
+def read_main_file( main_file_name = "",
+                    logger = None ):
     main_time = -1
     alloc_time = -1
     with get_trace_fp( main_file_name, logger ) as fp:
@@ -1465,7 +1466,8 @@ def read_main_file( main_file_name = "" ):
             elif line.find("alloc_time:") == 0:
                 alloc_time = int( line.replace("alloc_time:", "") )
     assert( (main_time >= 0) and (alloc_time >=0) )
-
+    return { "main_time" : main_time,
+             "alloc_time" : alloc_time }
 # ----------------------------------------------------------------------------- 
 # ----------------------------------------------------------------------------- 
 #

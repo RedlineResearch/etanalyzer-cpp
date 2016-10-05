@@ -23,8 +23,8 @@ from mypytools import mean, stdev, variance, check_host
 # The garbology related library. Import as follows.
 # Check garbology.py for other imports
 from garbology import ObjectInfoReader, StabilityReader, ReferenceReader, \
-         ReverseRefReader, DeathGroupsReader, SummaryReader, get_index, is_stable
-
+         ReverseRefReader, DeathGroupsReader, SummaryReader, get_index, is_stable, \
+         read_main_file
 # Needed to read in *-OBJECTINFO.txt and other files from 
 # the simulator run
 import csv
@@ -174,6 +174,7 @@ def read_simulator_data( bmark = "",
                          reference_config = {},
                          reverse_ref_config = {},
                          summary_config = {},
+                         fmain_result = {},
                          mydict = {},
                          logger = None ):
     # Read in OBJECTINFO
@@ -686,16 +687,19 @@ def summarize_wcc_stable_death_unstable_components( wcc_sd_list = [],
 # Super graph ONE related functions
 def add_nodes_to_graph( objreader = {},
                         objnode_list = set(),
+                        fmain_result = {},
                         logger = None ):
     dgraph = nx.DiGraph()
     TYPE = get_index( "TYPE" ) # type index
     for tup in objreader.iterrecs():
         objId, rec = tup
         mytype = objreader.get_type_using_typeId( rec[TYPE] )
-        if objId not in objnode_list:
+        atime = objreader.get_alloc_time_using_record( rec )
+        if ( (objId not in objnode_list) and
+             (atime >= fmain_result["main_time"]) ):
             dgraph.add_node( objId, { "type" : mytype } )
             objnode_list.add( objId )
-        else:
+        elif atime >= fmain_result["main_time"]:
             logger.critical( "%s: Multiple add for object Id [ %s ]" %
                              (bmark, str(objId)) )
     return dgraph
@@ -879,6 +883,7 @@ def create_supergraph_all_MPR( bmark = "",
                                reference_config = {},
                                reverse_ref_config = {},
                                summary_config = {},
+                               fmain_result = {},
                                result = [],
                                logger = None ):
     # Assumes that we are in the desired working directory.
@@ -895,6 +900,7 @@ def create_supergraph_all_MPR( bmark = "",
                                        reverse_ref_config = reverse_ref_config,
                                        summary_config = summary_config,
                                        mydict = mydict,
+                                       fmain_result = fmain_result,
                                        # shared_list = result,
                                        logger = logger )
     if read_result == False:
@@ -911,6 +917,7 @@ def create_supergraph_all_MPR( bmark = "",
     # Add nodes to graph
     dgraph = add_nodes_to_graph( objreader = objreader,
                                  objnode_list = objnode_list,
+                                 fmain_result = fmain_result,
                                  logger = logger )
     # Add the stable edges only
     add_stable_edges( dgraph = dgraph,
@@ -1091,6 +1098,10 @@ def main_process( global_config = {},
                            host_config = host_config ):
             continue
         # Else we can run for 'bmark'
+        # Read in main info. Doing this is fast so we don't need to spawn off a process.
+        fmain_result = read_main_file( os.path.join( global_config["fmain_dir"],
+                                                     bmark + global_config["fmain_file_suffix"] ),
+                                       logger = logger )
         if mprflag:
             print "=======[ Spawning %s ]================================================" \
                 % bmark
@@ -1106,6 +1117,7 @@ def main_process( global_config = {},
                                   reverse_ref_config,
                                   summary_config,
                                   results[bmark],
+                                  fmain_result,
                                   logger ) )
             procs[bmark] = p
             p.start()
@@ -1119,6 +1131,8 @@ def main_process( global_config = {},
                                              reference_config = reference_config,
                                              reverse_ref_config = reverse_ref_config,
                                              logger = logger )
+
+    exit(1)
     if mprflag:
         # Poll the processes 
         done = False
