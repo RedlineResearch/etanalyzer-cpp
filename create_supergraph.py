@@ -717,10 +717,8 @@ def add_stable_edges( dgraph = {},
                         if tgtId in missing:
                             continue
                         elif tgtId not in objnode_list:
-                            missing.add( tgtId )
-                            print "=========[ ERROR ]=============================================================="
-                            print "Missing objId [ %s ] of type [ %s ]" % (str(tgtId), str(type(tgtId)))
-                            continue # For now. TODO TODO TODO
+                            logger.debug( "Ignoring objId [ %s ] of type [ %s ]" % (str(tgtId), str(type(tgtId))) )
+                            continue
                         dgraph.add_edge( objId, tgtId )
 
 #--------------------------------------------------------------------------------
