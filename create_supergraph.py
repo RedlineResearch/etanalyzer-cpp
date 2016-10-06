@@ -1132,7 +1132,6 @@ def main_process( global_config = {},
                                        result = results[bmark],
                                        logger = logger )
 
-    exit(1)
     if mprflag:
         # Poll the processes 
         done = False
