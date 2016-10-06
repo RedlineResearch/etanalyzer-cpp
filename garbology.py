@@ -1599,7 +1599,7 @@ def main():
 __all__ = [ "EdgeInfoReader", "GarbologyConfig", "ObjectInfoReader",
             "ContextCountReader", "ReferenceReader", "ReverseRefReader",
             "StabilityReader",
-            "is_key_object", "get_index", "is_stable", ]
+            "is_key_object", "get_index", "is_stable", "read_main_file" ]
 
 if __name__ == "__main__":
     main()

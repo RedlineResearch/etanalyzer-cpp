@@ -58,28 +58,13 @@ def setup_logger( targetdir = ".",
 #
 # Main processing
 #
-def is_array( mytype ):
-    return (len(mytype) > 0) and (mytype[0] == "[")
 
-def is_primitive_type( mytype = None ):
-    return ( (mytype == "Z")     # boolean
-              or (mytype == "B") # byte
-              or (mytype == "C") # char
-              or (mytype == "D") # double
-              or (mytype == "F") # float
-              or (mytype == "I") # int
-              or (mytype == "J") # long
-              or (mytype == "S") # short
-              )
+def was_allocated_before_main( objId = 0,
+                               main_time = 0,
+                               objreader = {}):
+    atime = objreader.get_alloc_time( objId )
+    return atime < main_time
 
-def is_primitive_array( mytype = None ):
-    # Is it an array?
-    if not is_array(mytype):
-        return False
-    else:
-        return ( is_primitive_type(mytype[1:]) or
-                 is_primitive_array(mytype[1:]) )
-        
 # TODO: Refactor out
 def get_actual_hostname( hostname = "",
                          host_config = {} ):
@@ -722,12 +707,8 @@ def add_stable_edges( dgraph = {},
                     exit(10)
                 if objId != 0:
                     if objId not in objnode_list:
-                        print "=========[ ERROR ]=============================================================="
-                        pp.pprint( objnode_list )
-                        print "=========[ ERROR ]=============================================================="
-                        print "ObjId [ %s ] of type [ %s ]" % (str(objId), str(type(objId)))
-                        assert(False)
-                        # continue # TODO TODO TODO
+                        logger.debug( "Ignoring objId [ %s ] of type [ %s ]" % (str(objId), str(type(objId))) )
+                        continue
                 else:
                     continue
                 missing = set([])
@@ -767,6 +748,8 @@ def add_unstable_edges( dgraph = {},
                         stable_grouplist = [],
                         stnode_list = set(),
                         objnode_list = {},
+                        objreader = {},
+                        main_time = 0, # timestamp when main function was called
                         logger = None ):
     edgeset = set()
     for sgnum in xrange(len(stable_grouplist)): # for each stable group number
@@ -778,9 +761,13 @@ def add_unstable_edges( dgraph = {},
             assert(False)
         objlist = stable_grouplist[sgnum]
         for objId in objlist: # for each field Id of each object
+            if was_allocated_before_main( objId = objId,
+                                          main_time = main_time,
+                                          objreader = objreader ):
+                continue # Ignore anything before the main function
             fdict = stability[objId]
             if fdict == None:
-                continue
+                continue # No outgoing references
             for fieldId, sattr in fdict.iteritems(): # for each field Id of each object
                 if not is_stable(sattr):
                     # Get the target object Ids
@@ -793,11 +780,15 @@ def add_unstable_edges( dgraph = {},
                         exit(10)
                     missing = set([])
                     for tgtObjId in tgt_objlist: # for each target object
+                        if was_allocated_before_main( objId = tgtObjId,
+                                                      main_time = main_time,
+                                                      objreader = objreader ):
+                            continue # Ignore anything before the main function
                         # Look for the stable group number for tgtObjId
                         tgt_sgnum = obj2stablegroup[tgtObjId]
                         edge = (sgnum, tgt_sgnum)
                         if edge in edgeset:
-                            continue
+                            continue # already added the edge
                         dgraph.add_edge( "U%d" % edge[0], "U%d" % edge[1] )
                         edgeset.add( edge )
                     # HERE
@@ -863,15 +854,19 @@ def map_death_to_stablegroups( stable2deathset = {},
         for dgroupId in dgset:
             # The relationship is symmetric:
             death2stableset[dgroupId].add(sgroupId)
-            for objId in dgreader.get_group(dgroupId):
-                # Are there any objects in our death groups that haven't been mapped?
-                if objId not in objId_seen:
-                    # Note that this isn't expected.
-                    not_seen += 1
-                    objId_seen.add(sobjId)
-                    dgroupId = dgreader.get_group_number(objId)
-                    new_sgroupId = obj2stablegroup[objId]
-                    death2stableset[dgroupId].add( new_sgroupId )
+            # TODO TODO
+            # This isn't needed anymore now that we're ignoring anything before main.
+            # TODO TODO
+            # for objId in dgreader.get_group(dgroupId):
+            #     # Are there any objects in our death groups that haven't been mapped?
+            #     if objId not in objId_seen:
+            #         # Note that this isn't expected.
+            #         not_seen += 1
+            #         objId_seen.add(sobjId)
+            #         dgroupId = dgreader.get_group_number(objId)
+            #         new_sgroupId = obj2stablegroup[objId]
+            #         death2stableset[dgroupId].add( new_sgroupId )
+            # TODO TODO
     return not_seen
 
 def create_supergraph_all_MPR( bmark = "",
@@ -967,13 +962,12 @@ def create_supergraph_all_MPR( bmark = "",
                                logger = logger )
 
     # Do a reverse mapping from death group to stable
-    not_seen = map_death_to_stablegroups( stable2deathset = stable2deathset, # input
-                                          dgreader = dgreader, # input
-                                          objId_seen = objId_seen, # input/output
-                                          obj2stablegroup = obj2stablegroup, # input
-                                          death2stableset = death2stableset, # output
-                                          logger = logger )
-    logger.error( "NOT SEEN: %d" % not_seen )
+    map_death_to_stablegroups( stable2deathset = stable2deathset, # input
+                               dgreader = dgreader, # input
+                               objId_seen = objId_seen, # input/output
+                               obj2stablegroup = obj2stablegroup, # input
+                               death2stableset = death2stableset, # output
+                               logger = logger )
     # Make a bipartite stable <-> death group graph
     stable_death_graph = create_stable_death_bipartite_graph( stable2deathset = stable2deathset,
                                                               death2stableset = death2stableset,
@@ -1000,6 +994,8 @@ def create_supergraph_all_MPR( bmark = "",
                         stable_grouplist = stable_grouplist,
                         obj2stablegroup = obj2stablegroup,
                         stnode_list = stnode_list,
+                        objreader = objreader, # input
+                        main_time = fmain_result["main_time"], # timestamp when main function was called
                         logger = logger )
     # Get the weakly connected components
     wcclist_unstable = sorted( nx.weakly_connected_component_subgraphs(dgraph_unstable),
@@ -1099,8 +1095,10 @@ def main_process( global_config = {},
             continue
         # Else we can run for 'bmark'
         # Read in main info. Doing this is fast so we don't need to spawn off a process.
-        fmain_result = read_main_file( os.path.join( global_config["fmain_dir"],
-                                                     bmark + global_config["fmain_file_suffix"] ),
+        fmain_file = os.path.join( global_config["fmain_dir"],
+                                   bmark + global_config["fmain_file_suffix"] )
+        assert(os.path.isfile( fmain_file ))
+        fmain_result = read_main_file( fmain_file,
                                        logger = logger )
         if mprflag:
             print "=======[ Spawning %s ]================================================" \
@@ -1116,21 +1114,25 @@ def main_process( global_config = {},
                                   reference_config,
                                   reverse_ref_config,
                                   summary_config,
-                                  results[bmark],
                                   fmain_result,
+                                  results[bmark],
                                   logger ) )
             procs[bmark] = p
             p.start()
         else:
-            wcclist = create_supergraph_all( bmark = bmark,
-                                             cycle_cpp_dir = cycle_cpp_dir,
-                                             main_config = main_config,
-                                             objectinfo_config = objectinfo_config,
-                                             dgroup_config = dgroup_config,
-                                             stability_config = stability_config,
-                                             reference_config = reference_config,
-                                             reverse_ref_config = reverse_ref_config,
-                                             logger = logger )
+            results[bmark] = [ bmark, ]
+            create_supergraph_all_MPR( bmark = bmark,
+                                       cycle_cpp_dir = cycle_cpp_dir,
+                                       main_config = main_config,
+                                       objectinfo_config = objectinfo_config,
+                                       dgroup_config = dgroup_config,
+                                       stability_config = stability_config,
+                                       reference_config = reference_config,
+                                       reverse_ref_config = reverse_ref_config,
+                                       summary_config = summary_config,
+                                       fmain_result = fmain_result,
+                                       result = results[bmark],
+                                       logger = logger )
 
     exit(1)
     if mprflag:
