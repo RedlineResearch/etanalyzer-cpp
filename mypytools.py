@@ -15,6 +15,8 @@ import os
 from datetime import datetime, date
 import time
 
+# Defaultdicts are better than standard dictionaries!
+from collections import defaultdict
 
 def merge_two_dicts(x, y):
     '''Given two dicts, merge them into a new dict as a shallow copy.'''
@@ -221,18 +223,46 @@ def create_work_directory( work_dir,
     return str(os.getcwd())
 
 def check_host( benchmark = None,
-                hostlist = {},
+                hostlist = [],
                 host_config = {} ):
     import socket
+    assert( type(hostlist) == type([]) )
+    assert( type(host_config) == type({}) or
+            type(host_config) == type(defaultdict()) )
     thishost = socket.gethostname()
     for wanthost in hostlist:
-        if thishost in host_config[wanthost]:
+        actual = get_actual_hostname( hostname = wanthost,
+                                      host_config = host_config )
+        if thishost in host_config[actual]:
             return True
     return False
 
+def process_host_config( host_config = {} ):
+    for host in list(host_config.keys()):
+        hostlist = host_config[host].split(",")
+        hostlist.append(host)
+        host_config[host] = hostlist
+    print "***: %s" % str(host_config)
+    return defaultdict( list, host_config )
+
+def get_actual_hostname( hostname = "",
+                         host_config = {} ):
+    for key, hlist in host_config.iteritems():
+        if hostname in hlist:
+            return key
+    return None
+
+def process_worklist_config( worklist_config = {} ):
+    mydict = defaultdict( lambda: "NONE" )
+    for bmark in list(worklist_config.keys()):
+        hostlist = worklist_config[bmark].split(",")
+        mydict[bmark] = hostlist
+    return mydict
+
 
 __all__ = [ "mean", "merge_two_dicts", "stdev", "variance", "email_message",
-            "get_file_fp", "check_host", ]
+            "get_file_fp", "check_host", "get_actual_hostname", "process_host_config",
+            "process_worklist_config", ]
 
 if __name__ == "__main__":
     import doctest

@@ -139,6 +139,7 @@ def is_stable( attr = "" ):
 
 # ----------------------------------------------------------------------------- 
 # ----------------------------------------------------------------------------- 
+
 class ObjectInfoReader:
     def __init__( self,
                   objinfo_file = None,
@@ -173,6 +174,27 @@ class ObjectInfoReader:
         else:
             return False
 
+    def raw_objrow_to_list( self, rec = tuple()  ):
+        row = [ int(rec[ get_raw_index("ATIME") ]),
+                int(rec[ get_raw_index("DTIME") ]),
+                int(rec[ get_raw_index("SIZE") ]),
+                self.get_typeId( rec[ get_raw_index("TYPE") ] ),
+                rec[ get_raw_index("DIEDBY") ],
+                rec[ get_raw_index("LASTUP") ],
+                rec[ get_raw_index("STATTR") ],
+                rec[ get_raw_index("GARBTYPE") ],
+                rec[ get_raw_index("CONTEXT1") ],
+                rec[ get_raw_index("CONTEXT2") ],
+                rec[ get_raw_index("DEATH_CONTEXT_TYPE") ],
+                rec[ get_raw_index("ALLOC_CONTEXT1") ],
+                rec[ get_raw_index("ALLOC_CONTEXT2") ],
+                rec[ get_raw_index("ALLOC_CONTEXT_TYPE") ],
+                int(rec[ get_raw_index("ATIME_ALLOC") ]),
+                int(rec[ get_raw_index("DTIME_ALLOC") ]),
+                rec[ get_raw_index("ALLOCSITE") ],
+                ]
+        return row
+
     def read_objinfo_file( self, shared_list = None ):
         start = False
         count = 0
@@ -191,31 +213,11 @@ class ObjectInfoReader:
                         break
                 if start:
                     rec = line.split(",")
-                    # 0 - allocation time
-                    # 1 - death time
-                    # 2 - size
                     objId = int(rec[ get_raw_index("OBJID") ])
                     # IMPORTANT: Any changes here, means you have to make the
                     # corresponding change up in function 'get_index'
                     # The price of admission for a dynamically typed language.
-                    row = [ int(rec[ get_raw_index("ATIME") ]),
-                            int(rec[ get_raw_index("DTIME") ]),
-                            int(rec[ get_raw_index("SIZE") ]),
-                            self.get_typeId( rec[ get_raw_index("TYPE") ] ),
-                            rec[ get_raw_index("DIEDBY") ],
-                            rec[ get_raw_index("LASTUP") ],
-                            rec[ get_raw_index("STATTR") ],
-                            rec[ get_raw_index("GARBTYPE") ],
-                            rec[ get_raw_index("CONTEXT1") ],
-                            rec[ get_raw_index("CONTEXT2") ],
-                            rec[ get_raw_index("DEATH_CONTEXT_TYPE") ],
-                            rec[ get_raw_index("ALLOC_CONTEXT1") ],
-                            rec[ get_raw_index("ALLOC_CONTEXT2") ],
-                            rec[ get_raw_index("ALLOC_CONTEXT_TYPE") ],
-                            int(rec[ get_raw_index("ATIME_ALLOC") ]),
-                            int(rec[ get_raw_index("DTIME_ALLOC") ]),
-                            rec[ get_raw_index("ALLOCSITE") ],
-                            ]
+                    row = raw_objrow_to_list(rec)
                     self.alloc_age_list.append( ( row[get_index("DTIME_ALLOC")] -
                                                   row[get_index("ATIME_ALLOC")] ) )
                     self.methup_age_list.append( ( row[get_index("DTIME")] -
@@ -229,6 +231,39 @@ class ObjectInfoReader:
                 if ( (shared_list != None) and
                      (count % 2500 >= 2499) ):
                     shared_list.append( count )
+        assert(done)
+
+    def read_objinfo_file_into_db( self,
+                                   dbfilename = "" ):
+        # HERE TODO: Open Sqlite DB
+        # HERE TODO: Open Sqlite DB
+        start = False
+        count = 0
+        done = False
+        self.objset = set()
+        with get_trace_fp( self.objinfo_file_name, self.logger ) as fp:
+            for line in fp:
+                count += 1
+                line = line.rstrip()
+                if line.find("---------------[ OBJECT INFO") == 0:
+                    start = True if not start else False
+                    if start:
+                        continue
+                    else:
+                        done = True
+                        break
+                if start:
+                    rec = line.split(",")
+                    objId = int(rec[ get_raw_index("OBJID") ])
+                    # IMPORTANT: Any changes here, means you have to make the
+                    # corresponding change up in function 'get_index'
+                    # The price of admission for a dynamically typed language.
+                    row = raw_objrow_to_list(rec)
+                    if objId not in objset:
+                        objset.add(objId)
+                    else:
+                        self.logger.error( "DUPE: %s" % str(objId) )
+                    # TODO: Add to Sqlite DB
         assert(done)
 
     def get_typeId( self, mytype ):
@@ -1599,7 +1634,8 @@ def main():
 __all__ = [ "EdgeInfoReader", "GarbologyConfig", "ObjectInfoReader",
             "ContextCountReader", "ReferenceReader", "ReverseRefReader",
             "StabilityReader",
-            "is_key_object", "get_index", "is_stable", "read_main_file" ]
+            "is_key_object", "get_index", "is_stable", "read_main_file",
+            "raw_objrow_to_list", ]
 
 if __name__ == "__main__":
     main()
