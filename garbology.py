@@ -250,6 +250,7 @@ class ObjectInfoReader:
             print "Unable to open %s" % outdbfilename
             exit(1)
         conn = self.dbconn
+        conn.text_factory = str
         cur = conn.cursor()
         cur.execute( '''DROP TABLE IF EXISTS objectinfo''' )
         # Create the database. These are the fields in order.
