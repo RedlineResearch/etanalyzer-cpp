@@ -122,6 +122,7 @@ def main_process( output = None,
     cycle_cpp_dir = global_config["cycle_cpp_dir"]
     manager = Manager()
     results = {}
+    procs = {}
     for bmark in worklist_config.keys():
         hostlist = worklist_config[bmark]
         if not check_host( benchmark = bmark,
@@ -164,20 +165,16 @@ def main_process( output = None,
             # TODO procs[bmark] = p
             # TODO p.start()
         else:
-            assert(False)
+            print "=======[ Running %s ]=================================================" \
+                % bmark
             results[bmark] = [ bmark, ]
-            create_supergraph_all_MPR( bmark = bmark,
-                                       cycle_cpp_dir = cycle_cpp_dir,
-                                       main_config = main_config,
-                                       objectinfo_config = objectinfo_config,
-                                       dgroup_config = dgroup_config,
-                                       stability_config = stability_config,
-                                       reference_config = reference_config,
-                                       reverse_ref_config = reverse_ref_config,
-                                       summary_config = summary_config,
-                                       fmain_result = fmain_result,
-                                       result = results[bmark],
-                                       logger = logger )
+            read_objectinfo_into_db( result = results[bmark],
+                                     bmark = bmark,
+                                     outdbname = outdbname,
+                                     mprflag = mprflag,
+                                     objectinfo_config = objectinfo_config,
+                                     cycle_cpp_dir = cycle_cpp_dir,
+                                     logger = logger )
     if mprflag:
         # Poll the processes 
         done = False

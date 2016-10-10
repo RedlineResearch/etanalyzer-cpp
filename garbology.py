@@ -345,7 +345,8 @@ class ObjectInfoReader:
                         yield tuple(row)
 
         def type_row_generator():
-            for typeId, mytype in self.typedict.items():
+            for mytype, typeId in self.typedict.items():
+                # DEBUG: print "%d -> %s" % (typeId, mytype)
                 yield (typeId, mytype)
         # ----------------------------------------------------------------------
         # TODO call executemany here
@@ -353,7 +354,7 @@ class ObjectInfoReader:
         cur.executemany( "INSERT INTO objinfo VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", row_generator() )
         cur.executemany( "INSERT INTO typetable VALUES (?,?)", type_row_generator() )
         cur.execute( 'CREATE UNIQUE INDEX idx_objectinfo_objid ON objinfo (objid)' )
-        cur.execute( 'CREATE UNIQUE INDEX idx_typeinfo_typeid ON objinfo (typeid)' )
+        cur.execute( 'CREATE UNIQUE INDEX idx_typeinfo_typeid ON typetable (typeid)' )
         self.dbconn.commit()
         self.dbconn.close()
 
