@@ -72,19 +72,11 @@ def read_objectinfo_into_db( result = [],
     # Create the DB file.
     # Find the files.
     tracefile = os.path.join( cycle_cpp_dir, objectinfo_config[bmark] )
-    print "XXX:", os.path.isfile( tracefile ) 
     # The ObjectInfoFile2DB will create the DB connection. We just
     # need to pass it the DB filename
     objinforeader = ObjectInfoFile2DB( objinfo_filename = tracefile,
-                                       dbfilename = outdbname,
+                                       outdbfilename = outdbname,
                                        logger = logger )
-    # Have the DB file, have the object info.
-    # Read in each row using....????
-    # How do we do the garbology schtick?
-    # Choices:
-    # 1- Do this inside a subclass of ObjectInfoReader that keeps track of the types and all.
-    # 2- Do it here.
-    # Well, 1 seems to be the best OOP choice. So we'll go with that.
 
 def read_edgeinfo_into_db( result = [],
                            mprflag = False,

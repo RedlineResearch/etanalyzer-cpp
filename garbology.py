@@ -1,4 +1,4 @@
-# garbology.py 
+# garbology.py
 #
 import argparse
 import os
@@ -12,6 +12,7 @@ import datetime
 import subprocess
 from collections import defaultdict, Counter
 from functools import reduce
+import sqlite3
 
 pp = pprint.PrettyPrinter( indent = 4 )
 
@@ -137,20 +138,20 @@ def is_stable( attr = "" ):
     return (attr == STABLE)
     # return ( (attr == STABLE) or (attr == SERIAL_STABLE) )
 
-# ----------------------------------------------------------------------------- 
-# ----------------------------------------------------------------------------- 
+# -----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 class ObjectInfoReader:
     def __init__( self,
-                  objinfo_file = None,
+                  objinfo_filename = None,
                   dbconn = None,
                   useDB_as_source = False,
                   logger = None ):
-        self.objinfo_file_name = objinfo_file
+        self.objinfo_filename = objinfo_filename
         self.objdict = {}
-        self.useDB = useDB
+        self.useDB_as_source = useDB_as_source
         self.dbconn = dbconn
-        if self.useDB:
+        if self.useDB_as_source:
             assert( self.dbconn != None )
         self.typedict = {}
         self.rev_typedict = {}
@@ -206,7 +207,7 @@ class ObjectInfoReader:
         count = 0
         done = False
         object_info = self.objdict
-        with get_trace_fp( self.objinfo_file_name, self.logger ) as fp:
+        with get_trace_fp( self.objinfo_filename, self.logger ) as fp:
             for line in fp:
                 count += 1
                 line = line.rstrip()
@@ -239,7 +240,13 @@ class ObjectInfoReader:
                 #     shared_list.append( count )
         assert(done)
 
-    def create_db( self, conn = None ):
+    def create_db( self, outdbfilename = None ):
+        try:
+            self.dbconn = sqlite3.connect( outdbfilename )
+        except:
+            logger.critical( "Unable to open %s" % outdbfilename )
+            print "Unable to open %s" % outdbfilename
+            exit(1)
         conn = self.dbconn
         cur = conn.cursor()
         cur.execute( '''DROP TABLE IF EXISTS objectinfo''' )
@@ -276,33 +283,33 @@ class ObjectInfoReader:
         # 18- allocation site (asite_name) : TEXT
         # 19- stability  (stability) : TEXT
         #     -- Choices are [S,U,X] meaning Stable, Unstable, Unknown
-        cur.execute( """CREATE TABLE trace (objid INTEGER PRIMARY KEY,
-                                            atime INTEGER,
-                                            dtime INTEGER,
-                                            size INTEGER,
-                                            type TEXT,
-                                            dtype TEXT,
-                                            lastnull TEXT,
-                                            diedbystack TEXT,
-                                            dgroupkind TEXT,
-                                            dmethod1 TEXT,
-                                            dmethod2 TEXT,
-                                            dcontype TEXT,
-                                            amethod1 TEXT,
-                                            amethod2 TEXT,
-                                            acontype TEXT,
-                                            atime_alloc INTEGER,
-                                            dtime_alloc INTEGER,
-                                            asite_name TEXT,
-                                            stability TEXT)""" )
+        cur.execute( """CREATE TABLE objinfo (objid INTEGER PRIMARY KEY,
+                                              atime INTEGER,
+                                              dtime INTEGER,
+                                              size INTEGER,
+                                              type TEXT,
+                                              dtype TEXT,
+                                              lastnull TEXT,
+                                              diedbystack TEXT,
+                                              dgroupkind TEXT,
+                                              dmethod1 TEXT,
+                                              dmethod2 TEXT,
+                                              dcontype TEXT,
+                                              amethod1 TEXT,
+                                              amethod2 TEXT,
+                                              acontype TEXT,
+                                              atime_alloc INTEGER,
+                                              dtime_alloc INTEGER,
+                                              asite_name TEXT,
+                                              stability TEXT)""" )
         conn.execute( 'DROP INDEX IF EXISTS idx_objectinfo_recid' )
 
     def read_objinfo_file_into_db( self ):
-        start = False
-        count = 0
         # Declare our generator
-        def row_generator( dbfname ):
-            with get_trace_fp( self.objinfo_file_name, self.logger ) as fp:
+        def row_generator():
+            start = False
+            count = 0
+            with get_trace_fp( self.objinfo_filename, self.logger ) as fp:
                 for line in fp:
                     count += 1
                     line = line.rstrip()
@@ -318,10 +325,14 @@ class ObjectInfoReader:
                     # IMPORTANT: Any changes here, means you have to make the
                     # corresponding change up in function 'get_index'
                     # The price of admission for a dynamically typed language.
-                    row = tuple(raw_objrow_to_list(rec))
-                    yield row
-        # TODO call executemany here       
-
+                    row = raw_objrow_to_list(rec)
+                    row = row.insert( 0, objId )
+                    yield tuple(row)
+        # TODO call executemany here
+        cur = self.dbconn.cursor()
+        cur.executemany( "INSERT INTO objinfo VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", row_generator() )
+        self.dbconn.commit()
+        self.dbconn.close()
 
     def get_typeId( self, mytype ):
         typedict = self.typedict
@@ -523,7 +534,7 @@ class ObjectInfoReader:
 
     def get_alloc_context_type_using_record( self, rec = None ):
         return rec[ get_index("ALLOC_CONTEXT_TYPE") ] if rec != None else "NONE"
-    
+
     # Allocsite functions
     def get_allocsite( self, objId = 0 ):
         rec = self.get_record(objId)
@@ -603,27 +614,21 @@ class ObjectInfoFile2DB:
                   logger = None ):
         assert( logger != None )
         assert( os.path.isfile(objinfo_filename) )
-        try:
-            self.dbconn = sqlite3.connect( outdbfilename )
-        except:
-            logger.critical( "Unable to open %s" % outdbfilename )
-            print "Unable to open %s" % outdbfilename
-            exit(1)
-        self.create_db() 
         self.objreader = ObjectInfoReader( objinfo_filename = objinfo_filename,
-                                           dbconn = self.dbconn,
                                            useDB_as_source = False,
                                            logger = logger )
+        self.objreader.create_db( outdbfilename = outdbfilename )
         self.objreader.read_objinfo_file_into_db()
 
-# ----------------------------------------------------------------------------- 
-# ----------------------------------------------------------------------------- 
+
+# -----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 class EdgeInfoReader:
     def __init__( self,
                   edgeinfo_file = None,
                   logger = None ):
         # TODO: Choice of loading from text file or from pickle
-        # 
+        #
         self.edgeinfo_file_name = edgeinfo_file
         # Edge dictionary
         self.edgedict = {} # (src, tgt) -> (create time, death time)
@@ -652,16 +657,16 @@ class EdgeInfoReader:
                     rowtmp = line.split(",")
                     # 0 - srcId
                     # 1 - tgtId
-                    # 2 - create time 
-                    # 3 - death time 
+                    # 2 - create time
+                    # 3 - death time
                     # 4 - fieldId
                     row = [ int(x) for x in rowtmp ]
                     src = row[0]
                     tgt = row[1]
                     timepair = tuple(row[2:])
                     dtime = row[3]
-                    fieldId = row[4] 
-                    self.edgedict[tuple([src, fieldId, tgt])] = { "tp" : timepair, 
+                    fieldId = row[4]
+                    self.edgedict[tuple([src, fieldId, tgt])] = { "tp" : timepair,
                                                                   "s" : "X" }  # X means unknown
                     self.srcdict[src].add( tgt )
                     self.tgtdict[tgt].add( src )
@@ -693,20 +698,20 @@ class EdgeInfoReader:
                     rowtmp = line.split(",")
                     # 0 - srcId
                     # 1 - tgtId
-                    # 2 - create time 
-                    # 3 - death time 
+                    # 2 - create time
+                    # 3 - death time
                     # 4 - fieldId
                     row = [ int(x) for x in rowtmp ]
                     src = row[0]
                     tgt = row[1]
                     timepair = tuple(row[2:])
                     dtime = row[3]
-                    fieldId = row[4] 
+                    fieldId = row[4]
                     try:
                         stability = sb[src][fieldId]
                     except:
                         stability = "X" # X means unknown
-                    self.edgedict[tuple([src, fieldId, tgt])] = { "tp" : timepair, 
+                    self.edgedict[tuple([src, fieldId, tgt])] = { "tp" : timepair,
                                                                   "s" : stability }
                     self.srcdict[src].add( tgt )
                     self.tgtdict[tgt].add( src )
@@ -763,12 +768,12 @@ class EdgeInfoReader:
         else:
             self.lastedge[tgt] = { "lastsources" : [ src ],
                                    "dtime" : deathtime }
-    
+
     def get_last_edge_record( self, tgtId = None ):
         return self.lastedge[tgtId] if tgtId in self.lastedge else None
 
-# ----------------------------------------------------------------------------- 
-# ----------------------------------------------------------------------------- 
+# -----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 class DeathGroupsReader:
     def __init__( self,
                   dgroup_file = None,
@@ -779,14 +784,14 @@ class DeathGroupsReader:
         self.obj2group = {}
         # Map of key to group number
         self.key2group = {}
-        # Map of key to death time 
+        # Map of key to death time
         self.group2dtime = {}
         # Map of group number to list of objects
         self.group2list= {}
         self.debugflag = debugflag
         self.logger = logger
         self._atend_gnum = None
-        
+
     def map_key2group( self,
                        groupnum = 0,
                        keylist = [] ):
@@ -886,7 +891,7 @@ class DeathGroupsReader:
                 print "DEBUG: Group number %d removed" % gnum
                 self.logger.error( "Group number %d removed" % gnum )
         # Get the largest groupnumber in group2list
-        last_gnum = max( self.group2list.keys() ) 
+        last_gnum = max( self.group2list.keys() )
         # Get the newgroup dictionary and reassign if needed
         for dt, myset in newgroup.iteritems():
             # Get the group number based on death time
@@ -936,7 +941,7 @@ class DeathGroupsReader:
                 newgnum = glist[0]
                 for other in glist[1:]:
                     # Save the list
-                    otherlist = self.group2list[other] 
+                    otherlist = self.group2list[other]
                     # Remove it
                     del self.group2list[other]
                     # Add to the target group
@@ -1115,18 +1120,18 @@ class DeathGroupsReader:
                 group2list[gnum] = list(set(group2list[gnum]))
         print "%d empty groups cleaned." % count
 
-# ----------------------------------------------------------------------------- 
-# ----------------------------------------------------------------------------- 
+# -----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 class ContextCountReader:
     def __init__( self,
                   context_file = None,
                   logger = None,
                   update_missing = False ):
         # TODO: Choice of loading from text file or from pickle
-        # 
+        #
         self.context_file_name = context_file
         # Context to counts and attribute record dictionary
-        self.contextdict = {} # (funcsrc, functgt, contexttype) -> (count objects, count death groups) 
+        self.contextdict = {} # (funcsrc, functgt, contexttype) -> (count objects, count death groups)
         self.con_typedict = defaultdict( Counter ) # (funcsrc, functgt) -> Counter of key object types
         self.all_typedict = defaultdict( Counter ) # (funcsrc, functgt) -> Counter of all types
         self.stack_counter = Counter() # (funcsrc, functgt) -> count of stack objects
@@ -1149,7 +1154,7 @@ class ContextCountReader:
             for line in fp:
                 line = line.rstrip()
                 rowtmp = line.split(",")
-                # TODO HERE TODO 
+                # TODO HERE TODO
                 # 0 - function 1
                 # 1 - function 2
                 # 2 - number of objects that died at (function1, function2)
@@ -1194,7 +1199,7 @@ class ContextCountReader:
         if by_stack:
             self.stack_counter.update( [ newkey ] )
         return True
-    
+
     def update_key_count( self,
                           context_pair = (None, None),
                           cptype = None,
@@ -1217,7 +1222,7 @@ class ContextCountReader:
             self.update_key_count_no_check( newkey,
                                             key_count )
             return True
-    
+
     def update_key_count_no_check( self,
                                    newkey = (None, None, None),
                                    key_count = 0 ):
@@ -1250,7 +1255,7 @@ class ContextCountReader:
             result = True
         self.con_typedict[cpair].update( [ objType ] )
         return result
-    
+
     def inc_key_count_no_check( self,
                                 cpair = (None, None) ):
         cdict = self.contextdict
@@ -1296,14 +1301,14 @@ class ContextCountReader:
         #     if numlines != 0 and count >= numlines:
         #         break
 
-# ----------------------------------------------------------------------------- 
-# ----------------------------------------------------------------------------- 
+# -----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 class SummaryReader:
     def __init__( self,
                   summary_file = None,
                   logger = None ):
         # TODO: Choice of loading from text file or from pickle
-        # 
+        #
         self.summary_file_name = summary_file
         self.summarydict = {}
         self.logger = logger
@@ -1367,8 +1372,8 @@ class SummaryReader:
         for key, val in self.summarydict.iteritems():
             print "%s -> %d" % (key, val)
 
-# ----------------------------------------------------------------------------- 
-# ----------------------------------------------------------------------------- 
+# -----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 class StabilityReader:
     def __init__( self,
                   stability_file = None,
@@ -1435,8 +1440,8 @@ class StabilityReader:
         for key, fdict in self.stabilitydict.iteritems():
             print "%d -> %s" % (key, str(fdict))
 
-# ----------------------------------------------------------------------------- 
-# ----------------------------------------------------------------------------- 
+# -----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 class ReferenceReader:
     def __init__( self,
                   reference_file = None,
@@ -1496,8 +1501,8 @@ class ReferenceReader:
         for key, fdict in self.referencedict.iteritems():
             print "%d -> %s" % (key, str(fdict))
 
-# ----------------------------------------------------------------------------- 
-# ----------------------------------------------------------------------------- 
+# -----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 class ReverseRefReader:
     def __init__( self,
                   reverseref_file = None,
@@ -1551,21 +1556,21 @@ class ReverseRefReader:
         for key, fdict in self.referencedict.iteritems():
             print "%d -> %s" % (key, str(fdict))
 
-# ----------------------------------------------------------------------------- 
-# ----------------------------------------------------------------------------- 
+# -----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Example:
-#    #     git version: 7c8d143510e9ee00303a8345acfbac5343305d57                        
-#    #     build date : Mon Oct  3 22:10:36 EDT 2016                                    
+#    #     git version: 7c8d143510e9ee00303a8345acfbac5343305d57
+#    #     build date : Mon Oct  3 22:10:36 EDT 2016
 #    ---------------[ START ]-----------------------------------------------------------
-#    Read names file...                                                                 
-#    Start trace...                                                                     
-#    Update time: 100000 | Method time: TODO | Alloc time: 928688                     
-#    Update time: 100000 | Method time: TODO | Alloc time: 928688                     
-#    Update time: 100000 | Method time: TODO | Alloc time: 928688                     
-#    main_time:103866                                                                   
+#    Read names file...
+#    Start trace...
+#    Update time: 100000 | Method time: TODO | Alloc time: 928688
+#    Update time: 100000 | Method time: TODO | Alloc time: 928688
+#    Update time: 100000 | Method time: TODO | Alloc time: 928688
+#    main_time:103866
 #    ---------------[ DONE ]------------------------------------------------------------
-#    #     git version: 7c8d143510e9ee00303a8345acfbac5343305d57                        
-#    #     build date : Mon Oct  3 22:10:36 EDT 2016                                    
+#    #     git version: 7c8d143510e9ee00303a8345acfbac5343305d57
+#    #     build date : Mon Oct  3 22:10:36 EDT 2016
 def read_main_file( main_file_name = "",
                     logger = None ):
     main_time = -1
@@ -1580,8 +1585,8 @@ def read_main_file( main_file_name = "",
     assert( (main_time >= 0) and (alloc_time >=0) )
     return { "main_time" : main_time,
              "alloc_time" : alloc_time }
-# ----------------------------------------------------------------------------- 
-# ----------------------------------------------------------------------------- 
+# -----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 #
 #  PRIVATE FUNCTIONS
 #
@@ -1615,12 +1620,12 @@ def get_trace_fp( tracefile = None,
     gzre = re.compile( "(.*)\.gz$", re.IGNORECASE )
     bz2match = bz2re.search( tracefile )
     gzmatch = gzre.search( tracefile )
-    if bz2match: 
+    if bz2match:
         # bzip2 file
         fp = subprocess.Popen( [ "bzcat", tracefile ],
                                stdout = subprocess.PIPE,
                                stderr = subprocess.PIPE ).stdout
-    elif gzmatch: 
+    elif gzmatch:
         # gz file
         fp = subprocess.Popen( [ "zcat", tracefile ],
                                stdout = subprocess.PIPE,
