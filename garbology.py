@@ -143,10 +143,15 @@ def is_stable( attr = "" ):
 class ObjectInfoReader:
     def __init__( self,
                   objinfo_file = None,
+                  dbconn = None,
+                  useDB_as_source = False,
                   logger = None ):
-        # TODO: Choice of loading from text file or from pickle
         self.objinfo_file_name = objinfo_file
         self.objdict = {}
+        self.useDB = useDB
+        self.dbconn = dbconn
+        if self.useDB:
+            assert( self.dbconn != None )
         self.typedict = {}
         self.rev_typedict = {}
         self.keyset = set([])
@@ -195,7 +200,8 @@ class ObjectInfoReader:
                 ]
         return row
 
-    def read_objinfo_file( self, shared_list = None ):
+    def read_objinfo_file( self,
+                           shared_list = None ):
         start = False
         count = 0
         done = False
@@ -228,43 +234,94 @@ class ObjectInfoReader:
                             self.keyset.add( objId )
                     else:
                         self.logger.error( "DUPE: %s" % str(objId) )
-                if ( (shared_list != None) and
-                     (count % 2500 >= 2499) ):
-                    shared_list.append( count )
+                # if ( (shared_list != None) and
+                #      (count % 2500 >= 2499) ):
+                #     shared_list.append( count )
         assert(done)
 
-    def read_objinfo_file_into_db( self,
-                                   dbfilename = "" ):
-        # HERE TODO: Open Sqlite DB
-        # HERE TODO: Open Sqlite DB
+    def create_db( self, conn = None ):
+        conn = self.dbconn
+        cur = conn.cursor()
+        cur.execute( '''DROP TABLE IF EXISTS objectinfo''' )
+        # Create the database. These are the fields in order.
+        # Decode as:
+        # num- fullname (sqlite name) : type
+        # 1- object Id (objid) : INTEGER
+        # 2- allocation time (atime) : INTEGER
+        # 3- death time (dtime) : INTEGER
+        # 4- size in bytes (size) : INTEGER
+        # 5- type (type) : TEXT
+        # 6- death type (dtype) : TEXT
+        #    -- Choices are [S,G,H,E]
+        # 7- was last update null (lastnull) : TEXT
+        #    -- Choices are [N,V] meaning Null or Value
+        # 8- died by stack (diedbystack) : TEXT
+        #    -- Choices are [SHEAP,SONLY,H] meaning Stack after Heap, Stack only, Heap
+        # 9- dgroup_kind (dgroupkind) : TEXT
+        #    -- Choices are [CY,CYKEY,DAG,DAGKEY]
+        # 10- death method 1 (dmethod1) : TEXT
+        #     -- part 1 of simple context pair - death site
+        # 11- death method 2 (dmethod2) : TEXT
+        #     -- part 2 of simple context pair - death site
+        # 12- death context type (dcontype) : TEXT
+        #     -- Choices are [C,R] meaning C is call. R is return.
+        # 13- allocation method 1 (amethod1) : TEXT
+        #     -- part 1 of simple context pair - alloc site
+        # 14- allocation method 2 (amethod2) : TEXT
+        #     -- part 2 of simple context pair - alloc site
+        # 15- allocation context type (acontype) : TEXT
+        #     -- Choices are [C,R]  C is call. R is return.
+        # 16- allocation time in bytest allocated (atime_alloc) : INTEGER
+        # 17- death time in bytest allocated (dtime_alloc) : INTEGER
+        # 18- allocation site (asite_name) : TEXT
+        # 19- stability  (stability) : TEXT
+        #     -- Choices are [S,U,X] meaning Stable, Unstable, Unknown
+        cur.execute( """CREATE TABLE trace (objid INTEGER PRIMARY KEY,
+                                            atime INTEGER,
+                                            dtime INTEGER,
+                                            size INTEGER,
+                                            type TEXT,
+                                            dtype TEXT,
+                                            lastnull TEXT,
+                                            diedbystack TEXT,
+                                            dgroupkind TEXT,
+                                            dmethod1 TEXT,
+                                            dmethod2 TEXT,
+                                            dcontype TEXT,
+                                            amethod1 TEXT,
+                                            amethod2 TEXT,
+                                            acontype TEXT,
+                                            atime_alloc INTEGER,
+                                            dtime_alloc INTEGER,
+                                            asite_name TEXT,
+                                            stability TEXT)""" )
+        conn.execute( 'DROP INDEX IF EXISTS idx_objectinfo_recid' )
+
+    def read_objinfo_file_into_db( self ):
         start = False
         count = 0
-        done = False
-        self.objset = set()
-        with get_trace_fp( self.objinfo_file_name, self.logger ) as fp:
-            for line in fp:
-                count += 1
-                line = line.rstrip()
-                if line.find("---------------[ OBJECT INFO") == 0:
-                    start = True if not start else False
-                    if start:
-                        continue
-                    else:
-                        done = True
-                        break
+        # Declare our generator
+        def row_generator( dbfname ):
+            with get_trace_fp( self.objinfo_file_name, self.logger ) as fp:
+                for line in fp:
+                    count += 1
+                    line = line.rstrip()
+                    if line.find("---------------[ OBJECT INFO") == 0:
+                        start = True if not start else False
+                        if start:
+                            continue
+                        else:
+                            break
                 if start:
                     rec = line.split(",")
                     objId = int(rec[ get_raw_index("OBJID") ])
                     # IMPORTANT: Any changes here, means you have to make the
                     # corresponding change up in function 'get_index'
                     # The price of admission for a dynamically typed language.
-                    row = raw_objrow_to_list(rec)
-                    if objId not in objset:
-                        objset.add(objId)
-                    else:
-                        self.logger.error( "DUPE: %s" % str(objId) )
-                    # TODO: Add to Sqlite DB
-        assert(done)
+                    row = tuple(raw_objrow_to_list(rec))
+                    yield row
+        # TODO call executemany here       
+
 
     def get_typeId( self, mytype ):
         typedict = self.typedict
@@ -538,6 +595,26 @@ class ObjectInfoReader:
     def __contains__( self, item ):
         """Return if ObjectReader contains item (which is an object Id)"""
         return item in self.objdict
+
+class ObjectInfoFile2DB:
+    def __init__( self,
+                  objinfo_filename = "",
+                  outdbfilename = "",
+                  logger = None ):
+        assert( logger != None )
+        assert( os.path.isfile(objinfo_filename) )
+        try:
+            self.dbconn = sqlite3.connect( outdbfilename )
+        except:
+            logger.critical( "Unable to open %s" % outdbfilename )
+            print "Unable to open %s" % outdbfilename
+            exit(1)
+        self.create_db() 
+        self.objreader = ObjectInfoReader( objinfo_filename = objinfo_filename,
+                                           dbconn = self.dbconn,
+                                           useDB_as_source = False,
+                                           logger = logger )
+        self.objreader.read_objinfo_file_into_db()
 
 # ----------------------------------------------------------------------------- 
 # ----------------------------------------------------------------------------- 
@@ -1633,7 +1710,7 @@ def main():
 
 __all__ = [ "EdgeInfoReader", "GarbologyConfig", "ObjectInfoReader",
             "ContextCountReader", "ReferenceReader", "ReverseRefReader",
-            "StabilityReader",
+            "StabilityReader", "ObjectInfoFile2DB",
             "is_key_object", "get_index", "is_stable", "read_main_file",
             "raw_objrow_to_list", ]
 

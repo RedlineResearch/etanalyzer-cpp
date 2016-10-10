@@ -25,7 +25,7 @@ from mypytools import check_host, create_work_directory, process_host_config, \
 
 # The garbology related library. Import as follows.
 # Check garbology.py for other imports
-# from garbology import SummaryReader, get_index
+from garbology import ObjectInfoFile2DB
 
 # Needed to read in *-OBJECTINFO.txt and other files from
 # the simulator run
@@ -60,63 +60,6 @@ def setup_logger( targetdir = ".",
 # Main processing
 #
 
-def create_db( conn = None ):
-    cur = conn.cursor()
-    cur.execute( '''DROP TABLE IF EXISTS objectinfo''' )
-    # Create the database. These are the fields in order.
-    # Decode as:
-    # num- fullname (sqlite name) : type
-    # 1- object Id (objid) : INTEGER
-    # 2- allocation time (atime) : INTEGER
-    # 3- death time (dtime) : INTEGER
-    # 4- size in bytes (size) : INTEGER
-    # 5- type (type) : TEXT
-    # 6- death type (dtype) : TEXT
-    #    -- Choices are [S,G,H,E]
-    # 7- was last update null (lastnull) : TEXT
-    #    -- Choices are [N,V] meaning Null or Value
-    # 8- died by stack (diedbystack) : TEXT
-    #    -- Choices are [SHEAP,SONLY,H] meaning Stack after Heap, Stack only, Heap
-    # 9- dgroup_kind (dgroupkind) : TEXT
-    #    -- Choices are [CY,CYKEY,DAG,DAGKEY]
-    # 10- death method 1 (dmethod1) : TEXT
-    #     -- part 1 of simple context pair - death site
-    # 11- death method 2 (dmethod2) : TEXT
-    #     -- part 2 of simple context pair - death site
-    # 12- death context type (dcontype) : TEXT
-    #     -- Choices are [C,R] meaning C is call. R is return.
-    # 13- allocation method 1 (amethod1) : TEXT
-    #     -- part 1 of simple context pair - alloc site
-    # 14- allocation method 2 (amethod2) : TEXT
-    #     -- part 2 of simple context pair - alloc site
-    # 15- allocation context type (acontype) : TEXT
-    #     -- Choices are [C,R]  C is call. R is return.
-    # 16- allocation time in bytest allocated (atime_alloc) : INTEGER
-    # 17- death time in bytest allocated (dtime_alloc) : INTEGER
-    # 18- allocation site (asite_name) : TEXT
-    # 19- stability  (stability) : TEXT
-    #     -- Choices are [S,U,X] meaning Stable, Unstable, Unknown
-    cur.execute( """CREATE TABLE trace (objid INTEGER PRIMARY KEY,
-                                        atime INTEGER,
-                                        dtime INTEGER,
-                                        size INTEGER,
-                                        type TEXT,
-                                        dtype TEXT,
-                                        lastnull TEXT,
-                                        diedbystack TEXT,
-                                        dgroupkind TEXT,
-                                        dmethod1 TEXT,
-                                        dmethod2 TEXT,
-                                        dcontype TEXT,
-                                        amethod1 TEXT,
-                                        amethod2 TEXT,
-                                        acontype TEXT,
-                                        atime_alloc INTEGER,
-                                        dtime_alloc INTEGER,
-                                        asite_name TEXT,
-                                        stability TEXT)""" )
-    conn.execute( 'DROP INDEX IF EXISTS idx_objectinfo_recid' )
-
 def read_objectinfo_into_db( result = [],
                              bmark = "",
                              outdbname = "",
@@ -128,14 +71,20 @@ def read_objectinfo_into_db( result = [],
     # print os.listdir( )
     # Create the DB file.
     # Find the files.
-    try:
-        conn = sqlite3.connect( outdbname )
-    except:
-        logger.critical( "Unable to open %s" % outdbname )
-        print "Unable to open %s" % outdbname
-        exit(1)
-    create_db( conn = conn )
-    print "XXX:", os.path.isfile( os.path.join( cycle_cpp_dir, objectinfo_config[bmark] ) )
+    tracefile = os.path.join( cycle_cpp_dir, objectinfo_config[bmark] )
+    print "XXX:", os.path.isfile( tracefile ) 
+    # The ObjectInfoFile2DB will create the DB connection. We just
+    # need to pass it the DB filename
+    objinforeader = ObjectInfoFile2DB( objinfo_filename = tracefile,
+                                       dbfilename = outdbname,
+                                       logger = logger )
+    # Have the DB file, have the object info.
+    # Read in each row using....????
+    # How do we do the garbology schtick?
+    # Choices:
+    # 1- Do this inside a subclass of ObjectInfoReader that keeps track of the types and all.
+    # 2- Do it here.
+    # Well, 1 seems to be the best OOP choice. So we'll go with that.
 
 def read_edgeinfo_into_db( result = [],
                            mprflag = False,
