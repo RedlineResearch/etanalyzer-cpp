@@ -139,23 +139,23 @@ def main_process( output = None,
             #
             # NOTE: The order of the args tuple is important!
             # Read in the OBJECTINFO
-            read_objectinfo_into_db( result = results[bmark],
-                                     bmark = bmark,
-                                     outdbname = outdbname,
-                                     mprflag = mprflag,
-                                     objectinfo_config = objectinfo_config,
-                                     cycle_cpp_dir = cycle_cpp_dir,
-                                     logger = logger )
-            # TODO p = Process( target = read_objectinfo_into_db,
-            # TODO              args = ( results[bmark],
-            # TODO                       bmark,
-            # TODO                       outdbname,
-            # TODO                       mprflag,
-            # TODO                       objectinfo_config,
-            # TODO                       cycle_cpp_dir,
-            # TODO                       logger ) )
-            # TODO procs[bmark] = p
-            # TODO p.start()
+            # DEBUG: read_objectinfo_into_db( result = results[bmark],
+            # DEBUG:                          bmark = bmark,
+            # DEBUG:                          outdbname = outdbname,
+            # DEBUG:                          mprflag = mprflag,
+            # DEBUG:                          objectinfo_config = objectinfo_config,
+            # DEBUG:                          cycle_cpp_dir = cycle_cpp_dir,
+            # DEBUG:                          logger = logger )
+            p = Process( target = read_objectinfo_into_db,
+                         args = ( results[bmark],
+                                  bmark,
+                                  outdbname,
+                                  mprflag,
+                                  objectinfo_config,
+                                  cycle_cpp_dir,
+                                  logger ) )
+            procs[bmark] = p
+            p.start()
             # Read in the EDGEINFO
             # TODO p = Process( target = read_edgeinfo_into_db,
             # TODO              args = ( results[bmark],
@@ -178,15 +178,29 @@ def main_process( output = None,
                                        fmain_result = fmain_result,
                                        result = results[bmark],
                                        logger = logger )
-
-    exit(100)
+    if mprflag:
+        # Poll the processes 
+        done = False
+        expected = len(procs.keys())
+        numdone = 0
+        # Join
+        for bmark in procs.keys():
+            procs[bmark].join()
+        # Poll
+        for bmark in procs.keys():
+            proc = procs[bmark]
+            done = False
+            while not done:
+                done = True
+                if proc.is_alive():
+                    done = False
+                else:
+                    numdone += 1
+                    print "==============================> [%s] DONE." % bmark
+                    del procs[bmark]
+            sys.stdout.flush()
+        print "======[ Processes DONE ]========================================================"
     print "================================================================================"
-    exit(1)
-    with open( os.path.join( workdir, "TODO.csv" ), "wb" ) as fptr:
-        pass
-        # writer = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
-        # for row in table1:
-        #     writer.writerow(row)
     print "csvinfo2db.py.py - DONE."
     os.chdir( olddir )
     exit(0)

@@ -100,6 +100,7 @@ def get_index( field = None ):
                  "ATIME_ALLOC" : 14,
                  "DTIME_ALLOC" : 15,
                  "ALLOCSITE" : 16,
+                 "STABILITY" : 17,
         }[field]
     except:
         return None
@@ -198,6 +199,7 @@ class ObjectInfoReader:
                 int(rec[ get_raw_index("ATIME_ALLOC") ]),
                 int(rec[ get_raw_index("DTIME_ALLOC") ]),
                 rec[ get_raw_index("ALLOCSITE") ],
+                rec[ get_raw_index("STABILITY") ],
                 ]
         return row
 
@@ -257,7 +259,7 @@ class ObjectInfoReader:
         # 2- allocation time (atime) : INTEGER
         # 3- death time (dtime) : INTEGER
         # 4- size in bytes (size) : INTEGER
-        # 5- type (type) : TEXT
+        # 5- typeId (typeid) : INTEGER
         # 6- death type (dtype) : TEXT
         #    -- Choices are [S,G,H,E]
         # 7- was last update null (lastnull) : TEXT
@@ -302,10 +304,22 @@ class ObjectInfoReader:
                                               dtime_alloc INTEGER,
                                               asite_name TEXT,
                                               stability TEXT)""" )
-        conn.execute( 'DROP INDEX IF EXISTS idx_objectinfo_recid' )
+        conn.execute( 'DROP INDEX IF EXISTS idx_objectinfo_objid' )
+        # Now create the type table which maps:
+        #     typeId -> actual type
+        cur.execute( '''DROP TABLE IF EXISTS typetable''' )
+        # Create the database. These are the fields in order.
+        # Decode as:
+        # num- fullname (sqlite name) : type
+        # 1- type Id (typeid) : INTEGER
+        # 2- type  (type) : TEXT
+        cur.execute( """CREATE TABLE typetable (typeid INTEGER PRIMARY KEY,
+                                                type TEXT)""" )
+        conn.execute( 'DROP INDEX IF EXISTS idx_typeinfo_typeid' )
 
     def read_objinfo_file_into_db( self ):
-        # Declare our generator
+        # Declare our generator2
+        # ----------------------------------------------------------------------
         def row_generator():
             start = False
             count = 0
@@ -319,18 +333,27 @@ class ObjectInfoReader:
                             continue
                         else:
                             break
-                if start:
-                    rec = line.split(",")
-                    objId = int(rec[ get_raw_index("OBJID") ])
-                    # IMPORTANT: Any changes here, means you have to make the
-                    # corresponding change up in function 'get_index'
-                    # The price of admission for a dynamically typed language.
-                    row = raw_objrow_to_list(rec)
-                    row = row.insert( 0, objId )
-                    yield tuple(row)
+                    if start:
+                        rec = line.split(",")
+                        objId = int(rec[ get_raw_index("OBJID") ])
+                        # IMPORTANT: Any changes here, means you have to make the
+                        # corresponding change up in function 'get_index'
+                        # The price of admission for a dynamically typed language.
+                        row = self.raw_objrow_to_list(rec)
+                        row.insert( 0, objId )
+                        # DEBUG: print ">> %s" % str(row)
+                        yield tuple(row)
+
+        def type_row_generator():
+            for typeId, mytype in self.typedict.items():
+                yield (typeId, mytype)
+        # ----------------------------------------------------------------------
         # TODO call executemany here
         cur = self.dbconn.cursor()
         cur.executemany( "INSERT INTO objinfo VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", row_generator() )
+        cur.executemany( "INSERT INTO typetable VALUES (?,?)", type_row_generator() )
+        cur.execute( 'CREATE UNIQUE INDEX idx_objectinfo_objid ON objinfo (objid)' )
+        cur.execute( 'CREATE UNIQUE INDEX idx_typeinfo_typeid ON objinfo (typeid)' )
         self.dbconn.commit()
         self.dbconn.close()
 
@@ -1717,7 +1740,7 @@ __all__ = [ "EdgeInfoReader", "GarbologyConfig", "ObjectInfoReader",
             "ContextCountReader", "ReferenceReader", "ReverseRefReader",
             "StabilityReader", "ObjectInfoFile2DB",
             "is_key_object", "get_index", "is_stable", "read_main_file",
-            "raw_objrow_to_list", ]
+             ]
 
 if __name__ == "__main__":
     main()
