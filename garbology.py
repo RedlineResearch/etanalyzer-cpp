@@ -290,7 +290,7 @@ class ObjectInfoReader:
                                               atime INTEGER,
                                               dtime INTEGER,
                                               size INTEGER,
-                                              type TEXT,
+                                              typeid INTEGER,
                                               dtype TEXT,
                                               lastnull TEXT,
                                               diedbystack TEXT,
