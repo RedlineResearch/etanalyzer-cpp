@@ -247,7 +247,8 @@ class ObjectInfoReader:
         else:
             self.objdict = ObjectCache( tgtpath = self.db_filename,
                                         table = "objinfo",
-                                        keyfield = "objid" )
+                                        keyfield = "objid",
+                                        logger = self.logger )
 
     def create_objectinfo_db( self, outdbfilename = None ):
         try:

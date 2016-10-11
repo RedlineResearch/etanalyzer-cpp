@@ -11,7 +11,8 @@ class ObjectCache( collections.Mapping ):
                   tgtpath = None,
                   table = None,
                   keyfield = None,
-                  cache_size = 5000000 ):
+                  cache_size = 5000000,
+                  logger = None ):
         self.conn = sqlite3.connect( tgtpath )
         assert( table != None )
         self.table = str(table)
@@ -21,6 +22,7 @@ class ObjectCache( collections.Mapping ):
         self.lru = pylru.lrucache( size = cache_size )
         # NOTE: We assume that the keyfield is always the first field in the record
         #       tuple.
+        self.logger = logger
 
     def __iter__( self ):
         cur = self.conn.cursor()
@@ -57,18 +59,27 @@ class ObjectCache( collections.Mapping ):
         while True:
             keylist = cur.fetchmany()
             if len(keylist) > 0:
-                keyset.update( keylist )
+                keyset.update( [ x[0] for x in keylist ] )
             else:
                 break
-        return list(keyset)
+        result = list(keyset)
+        for x in result:
+            try:
+                assert(type(x) == type(1))
+            except:
+                print "kEY ERROR:"
+                print "x:", x
+                exit(100)
+        return result
 
     def __contains__( self, item ):
         if item in self.lru:
             return True
         else:
             cur = self.conn.cursor()
-            cur.execute( "SELECT * FROM %s WHERE %s=%s" %
-                         ( self.table, self.keyfield, str(item) ) )
+            cmd = "SELECT * FROM %s WHERE %s=%s" % ( self.table, self.keyfield, str(item) )
+            self.logger.debug( "CMD: %s" % cmd )
+            cur.execute( cmd )
             retlist = cur.fetchmany()
             if len(retlist) != 1:
                 return False
@@ -79,9 +90,10 @@ class ObjectCache( collections.Mapping ):
     def __len__(self):
         cur = self.conn.cursor()
         if self.count == None:
-            self.count = cur.execute( "SELECT Count(*) FROM %s" % self.table )
+            cur.execute( "SELECT Count(*) FROM %s" % self.table )
+        self.count = cur.fetchone()
         # DEBUG: print "%s : %s" %(str(self.count), str(type(self.count)))
-        return self.count
+        return self.count[0]
 
     def __getitem__(self, key):
         if key in self.lru:

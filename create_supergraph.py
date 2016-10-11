@@ -168,6 +168,7 @@ def read_simulator_data( bmark = "",
     print "Reading in the OBJECTINFO file for benchmark:", bmark
     sys.stdout.flush()
     if use_objinfo_db:
+        print " - Using objectinfo DB:"
         db_filename = os.path.join( cycle_cpp_dir,
                                     objectinfo_db_config[bmark] )
         mydict["objreader"] = ObjectInfoReader( os.path.join( cycle_cpp_dir,
@@ -184,7 +185,7 @@ def read_simulator_data( bmark = "",
         #     sys.stdout.flush()
         # return False
     else:
-        print "BBB:"
+        print " - Using objectinfo text file:"
         mydict["objreader"] = ObjectInfoReader( os.path.join( cycle_cpp_dir,
                                                               objectinfo_config[bmark] ),
                                                 useDB_as_source = False,
@@ -211,8 +212,6 @@ def read_simulator_data( bmark = "",
     #     mydict.clear()
     #     sys.stdout.flush()
     #     return False
-    print "DONE DEBUG. YAHOO."
-    exit(100)
     # Read in STABILITY
     print "Reading in the STABILITY file for benchmark:", bmark
     sys.stdout.flush()
