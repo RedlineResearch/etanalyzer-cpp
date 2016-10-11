@@ -161,20 +161,41 @@ def read_simulator_data( bmark = "",
                          summary_config = {},
                          fmain_result = {},
                          mydict = {},
+                         use_objinfo_db = False,
+                         objectinfo_db_config = {},
                          logger = None ):
     # Read in OBJECTINFO
     print "Reading in the OBJECTINFO file for benchmark:", bmark
     sys.stdout.flush()
-    mydict["objreader"] = ObjectInfoReader( os.path.join( cycle_cpp_dir,
-                                                          objectinfo_config[bmark] ),
-                                            logger = logger )
-    objreader = mydict["objreader"]
-    try:
+    if use_objinfo_db:
+        db_filename = os.path.join( cycle_cpp_dir,
+                                    objectinfo_db_config[bmark] )
+        mydict["objreader"] = ObjectInfoReader( os.path.join( cycle_cpp_dir,
+                                                              objectinfo_config[bmark] ),
+                                                useDB_as_source = True,
+                                                db_filename = db_filename,
+                                                logger = logger )
+        objreader = mydict["objreader"]
+        # try:
         objreader.read_objinfo_file()
-    except:
-        logger.error( "[ %s ] Unable to read objinfo file.." % bmark )
-        mydict.clear()
-        sys.stdout.flush()
+        # except:
+        #     logger.error( "[ %s ] Unable to read objinfo file.." % bmark )
+        #     mydict.clear()
+        #     sys.stdout.flush()
+        # return False
+    else:
+        print "BBB:"
+        mydict["objreader"] = ObjectInfoReader( os.path.join( cycle_cpp_dir,
+                                                              objectinfo_config[bmark] ),
+                                                useDB_as_source = False,
+                                                logger = logger )
+        objreader = mydict["objreader"]
+        try:
+            objreader.read_objinfo_file()
+        except:
+            logger.error( "[ %s ] Unable to read objinfo file.." % bmark )
+            mydict.clear()
+            sys.stdout.flush()
         return False
     # Read in CYCLES (which contains the death groups)
     print "Reading in the CYCLES (deathgroup) file for benchmark:", bmark
@@ -183,13 +204,15 @@ def read_simulator_data( bmark = "",
                                                               dgroup_config[bmark] ),
                                                 logger = logger )
     dgroupreader = mydict["dgroupreader"]
-    try:
-        dgroupreader.read_dgroup_file( objreader )
-    except:
-        logger.error( "[ %s ] Unable to read cycles (deathgroup) file.." % bmark )
-        mydict.clear()
-        sys.stdout.flush()
-        return False
+    # try:
+    dgroupreader.read_dgroup_file( objreader )
+    # except:
+    #     logger.error( "[ %s ] Unable to read cycles (deathgroup) file.." % bmark )
+    #     mydict.clear()
+    #     sys.stdout.flush()
+    #     return False
+    print "DONE DEBUG. YAHOO."
+    exit(100)
     # Read in STABILITY
     print "Reading in the STABILITY file for benchmark:", bmark
     sys.stdout.flush()
@@ -878,6 +901,8 @@ def create_supergraph_all_MPR( bmark = "",
                                summary_config = {},
                                fmain_result = {},
                                result = [],
+                               use_objinfo_db = False,
+                               objectinfo_db_config = {},
                                logger = None ):
     # Assumes that we are in the desired working directory.
     # Get all the objects and add as a node to the graph
@@ -894,6 +919,8 @@ def create_supergraph_all_MPR( bmark = "",
                                        summary_config = summary_config,
                                        mydict = mydict,
                                        fmain_result = fmain_result,
+                                       use_objinfo_db = use_objinfo_db,
+                                       objectinfo_db_config = objectinfo_db_config,
                                        # shared_list = result,
                                        logger = logger )
     if read_result == False:
@@ -1058,6 +1085,7 @@ def main_process( global_config = {},
                   reverse_ref_config = {},
                   stability_config = {},
                   summary_config = {},
+                  objectinfo_db_config = {},
                   mprflag = False,
                   debugflag = False,
                   logger = None ):
@@ -1084,9 +1112,13 @@ def main_process( global_config = {},
     manager = Manager()
     procs = {}
     results = {}
+    use_objinfo_db = (main_config["use_objinfo_db"] == "True")
     for bmark in worklist_config.keys():
         # TODO START
         hostlist = worklist_config[bmark]
+        # DEBUG print "benchmark: %s" % bmark
+        # DEBUG print "  hostlist: %s" % str(hostlist)
+        # DEBUG print "  host_config: %s" % str(host_config)
         if not check_host( benchmark = bmark,
                            hostlist = hostlist,
                            host_config = host_config ):
@@ -1114,10 +1146,14 @@ def main_process( global_config = {},
                                   summary_config,
                                   fmain_result,
                                   results[bmark],
+                                  use_objinfo_db,
+                                  objectinfo_db_config,
                                   logger ) )
             procs[bmark] = p
             p.start()
         else:
+            print "=======[ Running %s ]=================================================" \
+                % bmark
             results[bmark] = [ bmark, ]
             create_supergraph_all_MPR( bmark = bmark,
                                        cycle_cpp_dir = cycle_cpp_dir,
@@ -1130,6 +1166,8 @@ def main_process( global_config = {},
                                        summary_config = summary_config,
                                        fmain_result = fmain_result,
                                        result = results[bmark],
+                                       use_objinfo_db = use_objinfo_db,
+                                       objectinfo_db_config = objectinfo_db_config,
                                        logger = logger )
 
     if mprflag:
@@ -1191,6 +1229,7 @@ def process_config( args ):
     reverse_ref_config = config_section_map( "reverse-reference", config_parser )
     stability_config = config_section_map( "stability-summary", config_parser )
     summary_config = config_section_map( "summary-cpp", config_parser )
+    objectinfo_db_config = config_section_map( "objectinfo-db", config_parser )
     # DON'T KNOW: contextcount_config = config_section_map( "contextcount", config_parser )
     # PROBABLY NOT:  host_config = config_section_map( "hosts", config_parser )
     return { "global" : global_config,
@@ -1203,6 +1242,7 @@ def process_config( args ):
              "reverse-reference" : reverse_ref_config,
              "stability" : stability_config,
              "summary_config" : summary_config,
+             "objectinfo_db" : objectinfo_db_config,
              # "contextcount" : contextcount_config,
              # "host" : host_config,
              }
@@ -1211,6 +1251,7 @@ def process_host_config( host_config = {} ):
     for bmark in list(host_config.keys()):
         hostlist = host_config[bmark].split(",")
         host_config[bmark] = hostlist
+        host_config[bmark].append(bmark)
     return defaultdict( list, host_config )
 
 def process_worklist_config( worklist_config = {} ):
@@ -1267,6 +1308,7 @@ def main():
     reverse_ref_config = configdict["reverse-reference"]
     stability_config = configdict["stability"]
     summary_config = configdict["summary_config"]
+    objectinfo_db_config = configdict["objectinfo_db"]
     worklist_config = process_worklist_config( configdict["create-supergraph-worklist"] )
     # pp.pprint(worklist_config)
     # PROBABLY DELETE:
@@ -1290,6 +1332,7 @@ def main():
                          reverse_ref_config = reverse_ref_config,
                          stability_config = stability_config,
                          summary_config = summary_config,
+                         objectinfo_db_config = objectinfo_db_config,
                          logger = logger )
 
 if __name__ == "__main__":

@@ -13,6 +13,8 @@ import subprocess
 from collections import defaultdict, Counter
 from functools import reduce
 import sqlite3
+import pylru
+from sqorm import ObjectCache
 
 pp = pprint.PrettyPrinter( indent = 4 )
 
@@ -145,15 +147,15 @@ def is_stable( attr = "" ):
 class ObjectInfoReader:
     def __init__( self,
                   objinfo_filename = None,
-                  dbconn = None,
+                  db_filename = None,
                   useDB_as_source = False,
                   logger = None ):
         self.objinfo_filename = objinfo_filename
         self.objdict = {}
         self.useDB_as_source = useDB_as_source
-        self.dbconn = dbconn
+        self.db_filename = db_filename
         if self.useDB_as_source:
-            assert( self.dbconn != None )
+            assert( self.db_filename != None )
         self.typedict = {}
         self.rev_typedict = {}
         self.keyset = set([])
@@ -207,51 +209,59 @@ class ObjectInfoReader:
                            shared_list = None ):
         start = False
         count = 0
-        done = False
-        object_info = self.objdict
-        with get_trace_fp( self.objinfo_filename, self.logger ) as fp:
-            for line in fp:
-                count += 1
-                line = line.rstrip()
-                if line.find("---------------[ OBJECT INFO") == 0:
-                    start = True if not start else False
+        if not self.useDB_as_source:
+            done = False
+            object_info = self.objdict
+            with get_trace_fp( self.objinfo_filename, self.logger ) as fp:
+                for line in fp:
+                    count += 1
+                    line = line.rstrip()
+                    if line.find("---------------[ OBJECT INFO") == 0:
+                        start = True if not start else False
+                        if start:
+                            continue
+                        else:
+                            done = True
+                            break
                     if start:
-                        continue
-                    else:
-                        done = True
-                        break
-                if start:
-                    rec = line.split(",")
-                    objId = int(rec[ get_raw_index("OBJID") ])
-                    # IMPORTANT: Any changes here, means you have to make the
-                    # corresponding change up in function 'get_index'
-                    # The price of admission for a dynamically typed language.
-                    row = raw_objrow_to_list(rec)
-                    self.alloc_age_list.append( ( row[get_index("DTIME_ALLOC")] -
-                                                  row[get_index("ATIME_ALLOC")] ) )
-                    self.methup_age_list.append( ( row[get_index("DTIME")] -
-                                                   row[get_index("ATIME")] ) )
-                    if objId not in object_info:
-                        object_info[objId] = tuple(row)
-                        if self.is_key_object( objId ):
-                            self.keyset.add( objId )
-                    else:
-                        self.logger.error( "DUPE: %s" % str(objId) )
-                # if ( (shared_list != None) and
-                #      (count % 2500 >= 2499) ):
-                #     shared_list.append( count )
-        assert(done)
+                        rec = line.split(",")
+                        objId = int(rec[ get_raw_index("OBJID") ])
+                        # IMPORTANT: Any changes here, means you have to make the
+                        # corresponding change up in function 'get_index'
+                        # The price of admission for a dynamically typed language.
+                        row = raw_objrow_to_list(rec)
+                        self.alloc_age_list.append( ( row[get_index("DTIME_ALLOC")] -
+                                                      row[get_index("ATIME_ALLOC")] ) )
+                        self.methup_age_list.append( ( row[get_index("DTIME")] -
+                                                       row[get_index("ATIME")] ) )
+                        if objId not in object_info:
+                            object_info[objId] = tuple(row)
+                            if self.is_key_object( objId ):
+                                self.keyset.add( objId )
+                        else:
+                            self.logger.error( "DUPE: %s" % str(objId) )
+                    # if ( (shared_list != None) and
+                    #      (count % 2500 >= 2499) ):
+                    #     shared_list.append( count )
+            assert(done)
+        else:
+            self.objdict = ObjectCache( tgtpath = self.db_filename,
+                                        table = "objinfo",
+                                        keyfield = "objid" )
 
-    def create_db( self, outdbfilename = None ):
+    def create_objectinfo_db( self, outdbfilename = None ):
         try:
-            self.dbconn = sqlite3.connect( outdbfilename )
+            self.outdbconn = sqlite3.connect( outdbfilename )
         except:
             logger.critical( "Unable to open %s" % outdbfilename )
             print "Unable to open %s" % outdbfilename
             exit(1)
-        conn = self.dbconn
+        conn = self.outdbconn
         conn.text_factory = str
         cur = conn.cursor()
+        # ----------------------------------------------------------------------
+        # Create the OBJECTINFO DB
+        # ----------------------------------------------------------------------
         cur.execute( '''DROP TABLE IF EXISTS objectinfo''' )
         # Create the database. These are the fields in order.
         # Decode as:
@@ -351,13 +361,13 @@ class ObjectInfoReader:
                 yield (typeId, mytype)
         # ----------------------------------------------------------------------
         # TODO call executemany here
-        cur = self.dbconn.cursor()
+        cur = self.outdbconn.cursor()
         cur.executemany( "INSERT INTO objinfo VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", row_generator() )
         cur.executemany( "INSERT INTO typetable VALUES (?,?)", type_row_generator() )
         cur.execute( 'CREATE UNIQUE INDEX idx_objectinfo_objid ON objinfo (objid)' )
         cur.execute( 'CREATE UNIQUE INDEX idx_typeinfo_typeid ON typetable (typeid)' )
-        self.dbconn.commit()
-        self.dbconn.close()
+        self.outdbconn.commit()
+        self.outdbconn.close()
 
     def get_typeId( self, mytype ):
         typedict = self.typedict
@@ -365,10 +375,35 @@ class ObjectInfoReader:
         if mytype in typedict:
             return typedict[mytype]
         else:
-            lastkey = len(typedict.keys())
-            typedict[mytype] = lastkey + 1
-            rev_typedict[lastkey + 1] = mytype
-            return lastkey + 1
+            if not self.useDB_as_source:
+                lastkey = len(typedict.keys())
+                typedict[mytype] = lastkey + 1
+                rev_typedict[lastkey + 1] = mytype
+                return lastkey + 1
+            else:
+                rec = self.objdict.getitem_from_table( mytype, "typetable", "type" )
+                rev_typedict[rec[0]] = mytype
+                return rec[0] if (rec != None) else None
+
+    def get_type( self, objId = 0 ):
+        rec = self.get_record(objId)
+        typeId = rec[ get_index("TYPE") ] if rec != None else None
+        if not self.useDB_as_source:
+            if typeId != None:
+                return self.rev_typedict[typeId]
+            else:
+                return "NONE"
+        else:
+            if typeId not in self.rev_typedict:
+                rec = self.objdict.getitem_from_table( typeId, "typetable", "typeid" )
+                if rec != None:
+                    mytype = rec[1]
+                    rev_typedict[typeId] = mytype
+                    return mytype
+                else:
+                    return "NONE"
+            else:
+                return rev_typedict[typeId]
 
     def died_at_end( self, objId ):
         return (self.objdict[objId][get_index("DIEDBY")] == "E") if (objId in self.objdict) \
@@ -388,11 +423,7 @@ class ObjectInfoReader:
 
     def iterrecs( self ):
         """Returns (objId, rec) where rec is the record for the object with that object id."""
-        # TODO Is there any real difference between iteritems and iterrecs? TODO
-        odict = self.objdict
-        keys = odict.keys()
-        for objId in keys:
-            yield (objId, odict[objId])
+        return self.objdict.iteritems()
 
     def keys( self ):
         return self.objdict.keys()
@@ -408,14 +439,6 @@ class ObjectInfoReader:
 
     def get_record( self, objId = 0 ):
         return self.objdict[objId] if (objId in self.objdict) else None
-
-    def get_type( self, objId = 0 ):
-        rec = self.get_record(objId)
-        typeId = rec[ get_index("TYPE") ] if rec != None else None
-        if typeId != None:
-            return self.rev_typedict[typeId]
-        else:
-            return "NONE"
 
     def get_size( self, objId = 0 ):
         rec = self.get_record(objId)
@@ -642,7 +665,7 @@ class ObjectInfoFile2DB:
         self.objreader = ObjectInfoReader( objinfo_filename = objinfo_filename,
                                            useDB_as_source = False,
                                            logger = logger )
-        self.objreader.create_db( outdbfilename = outdbfilename )
+        self.objreader.create_objectinfo_db( outdbfilename = outdbfilename )
         self.objreader.read_objinfo_file_into_db()
 
 
@@ -651,6 +674,7 @@ class ObjectInfoFile2DB:
 class EdgeInfoReader:
     def __init__( self,
                   edgeinfo_file = None,
+                  useDB_as_source = False,
                   logger = None ):
         # TODO: Choice of loading from text file or from pickle
         #
@@ -663,6 +687,11 @@ class EdgeInfoReader:
         self.tgtdict = defaultdict( set ) # tgt -> set of srcs
         # Target object to record of last edge
         self.lastedge = {} # tgt -> (list of lastedges, death time)
+        # Use an SQLITE as source instead of the EDGEINFO file
+        self.useDB_as_source = useDB_as_source
+        self.dbconn = dbconn
+        if self.useDB_as_source:
+            assert( self.dbconn != None )
         self.logger = logger
 
     def read_edgeinfo_file( self ):
@@ -797,6 +826,108 @@ class EdgeInfoReader:
     def get_last_edge_record( self, tgtId = None ):
         return self.lastedge[tgtId] if tgtId in self.lastedge else None
 
+    def create_edgeinfo_db( self, outdbfilename = None ):
+        try:
+            self.outdbconn = sqlite3.connect( outdbfilename )
+        except:
+            logger.critical( "Unable to open %s" % outdbfilename )
+            print "Unable to open %s" % outdbfilename
+            exit(1)
+        conn = self.outdbconn
+        conn.text_factory = str
+        cur = conn.cursor()
+        # ----------------------------------------------------------------------
+        # Create the EDGEINFO DB
+        # ----------------------------------------------------------------------
+        cur.execute( '''DROP TABLE IF EXISTS objectinfo''' )
+        # Create the database. These are the fields in order.
+        # Decode as:
+        # num- fullname (sqlite name) : type
+        # 1- source Id (srcid) : INTEGER
+        # 2- target Id (tgtId) : INTEGER
+        # 3- create time (ctime) : INTEGER
+        # 4- death time (dtime) : INTEGER
+        # 5- source field (srcfield) : INTEGER
+        cur.execute( """CREATE TABLE edgeinfo (srcid INTEGER PRIMARY KEY,
+                                               tgtid INTEGER,
+                                               ctime INTEGER,
+                                               dtime INTEGER,
+                                               srcfield INTEGER)""" )
+        conn.execute( 'DROP INDEX IF EXISTS idx_edgeinfo_srcid' )
+
+    def read_edgeinfo_file_into_db( self ):
+        # 10 October 2016: TODO TODO TODO
+        # Have started work, but still not functional.
+        # TODO
+        # Declare our generator
+        # ----------------------------------------------------------------------
+        def row_generator():
+            start = False
+            with get_trace_fp( self.edgeinfo_filename, self.logger ) as fp:
+                for line in fp:
+                    line = line.rstrip()
+                    if line.find("---------------[ EDGE INFO") == 0:
+                        start = True if not start else False
+                        if start:
+                            continue
+                        else:
+                            break
+                    if start:
+                        rowtmp = line.split(",")
+                        # 0 - srcId
+                        # 1 - tgtId
+                        # 2 - create time
+                        # 3 - death time
+                        # 4 - fieldId
+                        row = [ int(x) for x in rowtmp ]
+                        src = row[0]
+                        tgt = row[1]
+                        ctime = row[2]
+                        dtime = row[3]
+                        fieldId = row[4]
+                        try:
+                            stability = sb[src][fieldId]
+                        except:
+                            stability = "X" # X means unknown
+                        self.edgedict[tuple([src, fieldId, tgt])] = { "tp" : timepair,
+                                                                      "s" : stability }
+                        self.srcdict[src].add( tgt )
+                        self.tgtdict[tgt].add( src )
+                        self.update_last_edges( src = src,
+                                                tgt = tgt,
+                                                deathtime = dtime )
+                        yield tuple(row)
+
+        def type_row_generator():
+            for mytype, typeId in self.typedict.items():
+                # DEBUG: print "%d -> %s" % (typeId, mytype)
+                yield (typeId, mytype)
+        # ----------------------------------------------------------------------
+        # TODO call executemany here
+        cur = self.outdbconn.cursor()
+        cur.executemany( "INSERT INTO objinfo VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", row_generator() )
+        cur.executemany( "INSERT INTO typetable VALUES (?,?)", type_row_generator() )
+        cur.execute( 'CREATE UNIQUE INDEX idx_objectinfo_objid ON objinfo (objid)' )
+        cur.execute( 'CREATE UNIQUE INDEX idx_typeinfo_typeid ON typetable (typeid)' )
+        self.outdbconn.commit()
+        self.outdbconn.close()
+
+
+
+class EdgeInfoFile2DB:
+    def __init__( self,
+                  edgeinfo_filename = "",
+                  outdbfilename = "",
+                  logger = None ):
+        assert( logger != None )
+        assert( os.path.isfile(edgeinfo_filename) )
+        self.edgereader = EdgeInfoReader( edgeinfo_filename = edgeinfo_filename,
+                                          useDB_as_source = False,
+                                          logger = logger )
+        self.edgereader.create_edgeinfo_db( outdbfilename = outdbfilename )
+        self.edgereader.read_edgeinfo_file_into_db()
+
+    
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
 class DeathGroupsReader:
