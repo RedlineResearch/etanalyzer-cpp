@@ -1174,20 +1174,20 @@ def main_process( global_config = {},
         done = False
         expected = len(procs.keys())
         numdone = 0
-        for bmark in procs.keys():
-            procs[bmark].join()
-        for bmark in procs.keys():
-            proc = procs[bmark]
-            done = False
-            while not done:
-                done = True
+        # for bmark in procs.keys():
+        #    procs[bmark].join()
+        while not done:
+            done = True
+            for bmark in procs.keys():
+                proc = procs[bmark]
+                proc.join(10)
                 if proc.is_alive():
                     done = False
                 else:
                     numdone += 1
                     print "==============================> [%s] DONE." % bmark
                     del procs[bmark]
-            sys.stdout.flush()
+                sys.stdout.flush()
         print "======[ Processes DONE ]========================================================"
     # TODO for bmark, graph in supergraph.iteritems():
     # TODO     wcclist = sorted( nx.weakly_connected_component_subgraphs(graph),
