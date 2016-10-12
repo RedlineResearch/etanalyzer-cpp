@@ -149,6 +149,7 @@ class ObjectInfoReader:
                   objinfo_filename = None,
                   db_filename = None,
                   useDB_as_source = False,
+                  cachesize = 5000000,
                   logger = None ):
         self.objinfo_filename = objinfo_filename
         self.objdict = {}
@@ -170,6 +171,8 @@ class ObjectInfoReader:
         #    We have it returning None by default for anything that hasn't
         #    been assigned yet.
         self.objId2combined_gnum = defaultdict( lambda: None )
+        # Cache size for LRU cache if needed
+        self.cachesize = cachesize
 
     def __len__( self ):
         return len(self.objdict)
@@ -248,6 +251,7 @@ class ObjectInfoReader:
             self.objdict = ObjectCache( tgtpath = self.db_filename,
                                         table = "objinfo",
                                         keyfield = "objid",
+                                        cachesize = self.cachesize,
                                         logger = self.logger )
 
     def create_objectinfo_db( self, outdbfilename = None ):

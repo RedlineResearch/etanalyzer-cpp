@@ -11,7 +11,7 @@ class ObjectCache( collections.Mapping ):
                   tgtpath = None,
                   table = None,
                   keyfield = None,
-                  cache_size = 5000000,
+                  cachesize = 5000000,
                   logger = None ):
         self.conn = sqlite3.connect( tgtpath )
         assert( table != None )
@@ -19,7 +19,7 @@ class ObjectCache( collections.Mapping ):
         self.count = None
         assert( keyfield != None )
         self.keyfield = str(keyfield)
-        self.lru = pylru.lrucache( size = cache_size )
+        self.lru = pylru.lrucache( size = cachesize )
         # NOTE: We assume that the keyfield is always the first field in the record
         #       tuple.
         self.logger = logger

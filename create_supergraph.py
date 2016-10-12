@@ -163,6 +163,7 @@ def read_simulator_data( bmark = "",
                          mydict = {},
                          use_objinfo_db = False,
                          objectinfo_db_config = {},
+                         cachesize = 5000000,
                          logger = None ):
     # Read in OBJECTINFO
     print "Reading in the OBJECTINFO file for benchmark:", bmark
@@ -175,6 +176,7 @@ def read_simulator_data( bmark = "",
                                                               objectinfo_config[bmark] ),
                                                 useDB_as_source = True,
                                                 db_filename = db_filename,
+                                                cachesize = cachesize,
                                                 logger = logger )
         objreader = mydict["objreader"]
         # try:
@@ -902,6 +904,7 @@ def create_supergraph_all_MPR( bmark = "",
                                result = [],
                                use_objinfo_db = False,
                                objectinfo_db_config = {},
+                               cachesize_config = {},
                                logger = None ):
     # Assumes that we are in the desired working directory.
     # Get all the objects and add as a node to the graph
@@ -920,6 +923,7 @@ def create_supergraph_all_MPR( bmark = "",
                                        fmain_result = fmain_result,
                                        use_objinfo_db = use_objinfo_db,
                                        objectinfo_db_config = objectinfo_db_config,
+                                       cachesize = int(cachesize_config[bmark]),
                                        # shared_list = result,
                                        logger = logger )
     if read_result == False:
@@ -1085,6 +1089,7 @@ def main_process( global_config = {},
                   stability_config = {},
                   summary_config = {},
                   objectinfo_db_config = {},
+                  cachesize_config = {},
                   mprflag = False,
                   debugflag = False,
                   logger = None ):
@@ -1147,6 +1152,7 @@ def main_process( global_config = {},
                                   results[bmark],
                                   use_objinfo_db,
                                   objectinfo_db_config,
+                                  cachesize_config,
                                   logger ) )
             procs[bmark] = p
             p.start()
@@ -1167,6 +1173,7 @@ def main_process( global_config = {},
                                        result = results[bmark],
                                        use_objinfo_db = use_objinfo_db,
                                        objectinfo_db_config = objectinfo_db_config,
+                                       cachesize_config = cachesize_config,
                                        logger = logger )
 
     if mprflag:
@@ -1174,8 +1181,9 @@ def main_process( global_config = {},
         done = False
         expected = len(procs.keys())
         numdone = 0
-        # for bmark in procs.keys():
-        #    procs[bmark].join()
+        # NOTE: We could have checked to see if this is a child process and just
+        # skipped this if not the parent. But since the procs dictionary will 
+        # be empty for children, this is fine as is.
         while not done:
             done = True
             for bmark in procs.keys():
@@ -1189,15 +1197,6 @@ def main_process( global_config = {},
                     del procs[bmark]
                 sys.stdout.flush()
         print "======[ Processes DONE ]========================================================"
-    # TODO for bmark, graph in supergraph.iteritems():
-    # TODO     wcclist = sorted( nx.weakly_connected_component_subgraphs(graph),
-    # TODO                       key = len,
-    # TODO                       reverse = True )
-    # TODO     print "[%s] -> # of objects = %d" % (bmark, len(objreader))
-    # TODO     print "     -> nodes = %d  edges = %d  - WCC = %d" % \
-    # TODO         ( graph.number_of_nodes(),
-    # TODO           graph.number_of_edges(),
-    # TODO           len(wcclist) )
     print "================================================================================"
     print "create_supergraph.py - DONE."
     os.chdir( olddir )
@@ -1224,6 +1223,7 @@ def process_config( args ):
     objectinfo_config = config_section_map( "objectinfo", config_parser )
     dgroup_config = config_section_map( "etanalyze-output", config_parser )
     worklist_config = config_section_map( "create-supergraph-worklist", config_parser )
+    cachesize_config = config_section_map( "create-supergraph-cachesize", config_parser )
     reference_config = config_section_map( "reference", config_parser )
     reverse_ref_config = config_section_map( "reverse-reference", config_parser )
     stability_config = config_section_map( "stability-summary", config_parser )
@@ -1242,6 +1242,7 @@ def process_config( args ):
              "stability" : stability_config,
              "summary_config" : summary_config,
              "objectinfo_db" : objectinfo_db_config,
+             "cachesize" : cachesize_config,
              # "contextcount" : contextcount_config,
              # "host" : host_config,
              }
@@ -1308,6 +1309,7 @@ def main():
     stability_config = configdict["stability"]
     summary_config = configdict["summary_config"]
     objectinfo_db_config = configdict["objectinfo_db"]
+    cachesize_config = configdict["cachesize"]
     worklist_config = process_worklist_config( configdict["create-supergraph-worklist"] )
     # pp.pprint(worklist_config)
     # PROBABLY DELETE:
@@ -1332,6 +1334,7 @@ def main():
                          stability_config = stability_config,
                          summary_config = summary_config,
                          objectinfo_db_config = objectinfo_db_config,
+                         cachesize_config = cachesize_config,
                          logger = logger )
 
 if __name__ == "__main__":
