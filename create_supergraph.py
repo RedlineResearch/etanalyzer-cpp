@@ -445,6 +445,72 @@ def summarize_unstable_list( unstable_grouplist = [],
             objreader.set_unstable_group_number( objId, index )
     return
 
+def summarize_stable_list( stable_grouplist = [],
+                           sumSTABLE = {},
+                           final_time = 0,
+                           objreader = {} ):
+    for index in xrange(len(stable_grouplist)):
+        # for each group
+        graph = stable_grouplist[index]
+        sumSTABLE[index]["objects"] =  get_objects_from_stable_group_as_set( sgnum = index, # stable group number
+                                                                             stable_grouplist = stable_grouplist )
+        objset = sumSTABLE[index]["objects"]
+        # Time related statistics
+        alloc_time_list = [ objreader.get_alloc_time(x) for x in objset ]
+        alloc_time_set = set(alloc_time_list)
+        death_time_list = [ objreader.get_death_time(x) for x in objset ]
+        death_time_set = set(death_time_list)
+        size_list = [ objreader.get_size(x) for x in objset ]
+        sumSTABLE[index]["number_alloc_times"] = len(alloc_time_set)
+        sumSTABLE[index]["number_death_times"] = len(death_time_set)
+        #------------------------------------------------------------
+        # In the following the _sc suffix (as in X_sc) means it's scaled
+        # to the total time in percentage.
+        # 1. Get minimum-maximum alloc times
+        #      * Alloc time range
+        min_alloctime = min( alloc_time_list )
+        max_alloctime = max( alloc_time_list )
+        sumSTABLE[index]["atime"] = { "min" : min_alloctime,
+                                      "min_sc" : (min_alloctime / final_time) * 100.0, 
+                                      "max" : max_alloctime,
+                                      "max_sc" : (max_alloctime / final_time) * 100.0}
+        #      * Death time range
+        min_deathtime = min( death_time_list )
+        max_deathtime = max( death_time_list )
+        sumSTABLE[index]["dtime"] = { "min" : min_deathtime,
+                                      "min_sc" : (min_deathtime / final_time) * 100.0, 
+                                      "max" : max_deathtime,
+                                      "max_sc" : (max_deathtime / final_time) * 100.0}
+        #  Alloc and Death time statistics
+        mean_deathtime = mean( death_time_list )
+        stdev_deathtime = stdev( death_time_list ) if len(death_time_list) > 1 else 0.0
+        mean_alloctime = mean( alloc_time_list )
+        stdev_alloctime = stdev( alloc_time_list ) if len(alloc_time_list) > 1 else 0.0
+        #     Allocation time
+        sumSTABLE[index]["atime"]["mean"] = mean_alloctime
+        sumSTABLE[index]["atime"]["stdev"] = stdev_alloctime
+        #     Death time
+        sumSTABLE[index]["dtime"]["mean"] = mean_deathtime
+        sumSTABLE[index]["dtime"]["stdev"] = stdev_deathtime
+        # The scaled (_sc) quantities
+        #     Allocation time
+        sumSTABLE[index]["atime"]["mean_sc"] = (mean_alloctime / final_time) * 100.0
+        sumSTABLE[index]["atime"]["stdev_sc"] = (stdev_alloctime / final_time) * 100.0
+        #     Death time
+        sumSTABLE[index]["dtime"]["mean_sc"] = (mean_deathtime / final_time) * 100.0
+        sumSTABLE[index]["dtime"]["stdev_sc"] = (stdev_deathtime / final_time) * 100.0
+        #     Size
+        min_size = min( size_list )
+        max_size = max( size_list )
+        mean_size = mean( size_list )
+        stdev_size = stdev( size_list ) if len(size_list) > 1 else 0.0
+        sumSTABLE[index]["size"]= { "min" : min_size,
+                                    "max" : max_size,
+                                    "mean" : mean_size,
+                                    "stdev" : stdev_size,
+                                    "total" : sum(size_list), }
+    return
+
 def summarize_wcc_stable_death_unstable_components( wcc_sd_list = [],
                                                     stable_grouplist = [],
                                                     unstable_grouplist = [],
@@ -456,6 +522,7 @@ def summarize_wcc_stable_death_unstable_components( wcc_sd_list = [],
                                                     logger = None ):
     sumSD = defaultdict(dict)
     sumUNSTABLE = defaultdict(dict)
+    sumSTABLE = defaultdict(dict)
     summarize_sd_list( wcc_sd_list = wcc_sd_list,
                        sumSD = sumSD,
                        stable_grouplist = stable_grouplist,
@@ -470,6 +537,10 @@ def summarize_wcc_stable_death_unstable_components( wcc_sd_list = [],
     # Get the final time for the benchmark
     final_time = summary_reader.get_final_garbology_time()
     assert(final_time > 0)
+    summarize_stable_list( stable_grouplist = stable_grouplist,
+                           sumSTABLE = sumSTABLE,
+                           final_time = final_time,
+                           objreader = objreader )
     with open(output_filename, "wb") as fptr:
         seen_objects = set()
         # Create the CSV writer and write the header row
@@ -530,9 +601,9 @@ def summarize_wcc_stable_death_unstable_components( wcc_sd_list = [],
                                         "max_sc" : (max_deathtime / final_time) * 100.0}
             #  Alloc and Death time statistics
             mean_deathtime = mean( death_time_list  )
-            stdev_deathtime = stdev( death_time_list  )
+            stdev_deathtime = stdev( death_time_list ) if len(death_time_list) > 1 else 0
             mean_alloctime = mean( alloc_time_list  )
-            stdev_alloctime = stdev( alloc_time_list  )
+            stdev_alloctime = stdev( alloc_time_list ) if len(alloc_time_list) > 1 else 0
             #     Allocation time
             sumUNSTABLE[index]["atime"]["mean"] = mean_alloctime
             sumUNSTABLE[index]["atime"]["stdev"] = stdev_alloctime
@@ -550,7 +621,7 @@ def summarize_wcc_stable_death_unstable_components( wcc_sd_list = [],
             min_size = min( size_list )
             max_size = max( size_list )
             mean_size = mean( size_list )
-            stdev_size = stdev( size_list  )
+            stdev_size = stdev( size_list ) if len(size_list) > 1 else 0
             sumUNSTABLE[index]["size"]= { "min" : min_size,
                                           "max" : max_size,
                                           "mean" : mean_size,
@@ -603,9 +674,9 @@ def summarize_wcc_stable_death_unstable_components( wcc_sd_list = [],
                                       "max_sc" : (max_deathtime / final_time) * 100.0}
             #  Alloc and Death time statistics
             mean_deathtime = mean( death_time_list  )
-            stdev_deathtime = stdev( death_time_list  )
+            stdev_deathtime = stdev( death_time_list ) if len(death_time_list) > 1 else 0
             mean_alloctime = mean( alloc_time_list  )
-            stdev_alloctime = stdev( alloc_time_list  )
+            stdev_alloctime = stdev( alloc_time_list ) if len(alloc_time_list) > 1 else 0
             #     Allocation time
             sumSD[index]["atime"]["mean"] = mean_alloctime
             sumSD[index]["atime"]["stdev"] = stdev_alloctime
@@ -623,7 +694,7 @@ def summarize_wcc_stable_death_unstable_components( wcc_sd_list = [],
             min_size = min( size_list )
             max_size = max( size_list )
             mean_size = mean( size_list  )
-            stdev_size = stdev( size_list  )
+            stdev_size = stdev( size_list ) if len(size_list) > 1 else 0
             sumSD[index]["size"]= { "min" : min_size,
                                     "max" : max_size,
                                     "mean" : mean_size,
@@ -635,6 +706,34 @@ def summarize_wcc_stable_death_unstable_components( wcc_sd_list = [],
             #     - categorize according to death groups? or stable groups?
             #          or does it matter?
             # 3. Get total drag
+    #---------------------------------------------------------------------------
+    #----[ Stable summary OUTPUT ]--------------------------------------------
+    #---------------------------------------------------------------------------
+    print "======[ %s ][ SUMMARY of STABLE components ]==================================" % bmark
+    to_number_ST = 5 if len(stable_grouplist) > 5 else len(stable_grouplist)
+    for index in xrange(len(stable_grouplist)):
+        if index >= to_number_ST:
+            break
+        mydict = sumSTABLE[index]
+        print "Component %d" % index
+        for key, val in mydict.iteritems():
+            if key == "total_objects":
+                print "    * %d objects" % val
+            elif key == "size":
+                print "    * size range - [ {:d}, {:d} ]".format(val["min"], val["max"])
+                print "    *      mean = {:.2f}    stdev = {:.2f}".format(val["mean"], val["stdev"])
+                print "    *      total size bytes = {:d}".format( val["total"] )
+            elif key == "number_alloc_times":
+                print "    * %d unique allocation times" % val
+            elif key == "number_death_times":
+                print "    * %d unique death times" % val
+            elif key == "atime":
+                print "    * alloc range - [ {:.2f}, {:.2f} ]".format(val["min_sc"], val["max_sc"])
+                print "    *      mean = {:.2f}    stdev = {:.2f}".format(val["mean_sc"], val["stdev_sc"])
+            elif key == "dtime":
+                print "    * death range - [ {:.2f}, {:.2f} ]".format(val["min_sc"], val["max_sc"])
+                print "    *      mean = {:.2f}    stdev = {:.2f}".format(val["mean_sc"], val["stdev_sc"])
+    print "======[ %s ][ END SUMMARY of STABLE components ]==============================" % bmark
     #---------------------------------------------------------------------------
     #----[ UnStable summary OUTPUT ]--------------------------------------------
     #---------------------------------------------------------------------------
@@ -665,32 +764,36 @@ def summarize_wcc_stable_death_unstable_components( wcc_sd_list = [],
     #---------------------------------------------------------------------------
     #----[ Stable <-> Death summary output ]------------------------------------
     #---------------------------------------------------------------------------
-    print "======[ %s ][ SUMMARY of STABLE <-> DEATH components ]==========================" % bmark
-    for index in sorted(sumSD.keys()):
-        if index >= to_number_SD:
-            break
-        mydict = sumSD[index]
-        print "Component %d" % index
-        for key, val in mydict.iteritems():
-            if key == "total_objects":
-                print "    * %d objects" % val
-            elif key == "size":
-                print "    * size range - [ {:d}, {:d} ]".format(val["min"], val["max"])
-                print "    *      mean = {:.2f}    stdev = {:.2f}".format(val["mean"], val["stdev"])
-                print "    *      total size bytes = {:d}".format( val["total"] )
-            elif key == "number_alloc_times":
-                print "    * %d unique allocation times" % val
-            elif key == "number_death_times":
-                print "    * %d unique death times" % val
-            elif key == "atime":
-                print "    * alloc range - [ {:.2f}, {:.2f} ]".format(val["min_sc"], val["max_sc"])
-                print "    *      mean = {:.2f}    stdev = {:.2f}".format(val["mean_sc"], val["stdev_sc"])
-            elif key == "dtime":
-                print "    * death range - [ {:.2f}, {:.2f} ]".format(val["min_sc"], val["max_sc"])
-                print "    *      mean = {:.2f}    stdev = {:.2f}".format(val["mean_sc"], val["stdev_sc"])
-    print "======[ %s ][ END SUMMARY of STABLE <-> DEATH components ]======================" % bmark
+    # TODO: This is wrong. commenting out using an if statement
+    if False:
+        print "======[ %s ][ SUMMARY of STABLE <-> DEATH components ]==========================" % bmark
+        for index in sorted(sumSD.keys()):
+            if index >= to_number_SD:
+                break
+            mydict = sumSD[index]
+            print "Component %d" % index
+            for key, val in mydict.iteritems():
+                if key == "total_objects":
+                    print "    * %d objects" % val
+                elif key == "size":
+                    print "    * size range - [ {:d}, {:d} ]".format(val["min"], val["max"])
+                    print "    *      mean = {:.2f}    stdev = {:.2f}".format(val["mean"], val["stdev"])
+                    print "    *      total size bytes = {:d}".format( val["total"] )
+                elif key == "number_alloc_times":
+                    print "    * %d unique allocation times" % val
+                elif key == "number_death_times":
+                    print "    * %d unique death times" % val
+                elif key == "atime":
+                    print "    * alloc range - [ {:.2f}, {:.2f} ]".format(val["min_sc"], val["max_sc"])
+                    print "    *      mean = {:.2f}    stdev = {:.2f}".format(val["mean_sc"], val["stdev_sc"])
+                elif key == "dtime":
+                    print "    * death range - [ {:.2f}, {:.2f} ]".format(val["min_sc"], val["max_sc"])
+                    print "    *      mean = {:.2f}    stdev = {:.2f}".format(val["mean_sc"], val["stdev_sc"])
+        print "======[ %s ][ END SUMMARY of STABLE <-> DEATH components ]======================" % bmark
+    # END TODO
     return { "stable-death" : sumSD,
-             "unstable" : sumUNSTABLE, }
+             "unstable" : sumUNSTABLE,
+             "stable" : sumSTABLE, }
 
 #--------------------------------------------------------------------------------
 # Super graph ONE related functions
