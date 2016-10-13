@@ -14,9 +14,9 @@ from collections import defaultdict
 import networkx as nx
 import shutil
 from multiprocessing import Process, Manager
+from operator import itemgetter
 
 # Possible useful libraries, classes and functions:
-# from operator import itemgetter
 #   - This one is my own library:
 from mypytools import mean, stdev, variance, check_host
 
@@ -445,10 +445,25 @@ def summarize_unstable_list( unstable_grouplist = [],
             objreader.set_unstable_group_number( objId, index )
     return
 
+def get_type_distribution( objset = set(),
+                           objreader = {} ):
+    counter = Counter()
+    for objId in objset:
+        mytype = objreader.get_type( objId )
+        counter.update( [ mytype ] )
+    return counter
+
 def summarize_stable_list( stable_grouplist = [],
                            sumSTABLE = {},
                            final_time = 0,
                            objreader = {} ):
+    """
+    """
+    # TODO: Add documentation of the keys and values of sumSTABLE
+    #       - "objects"
+    #       - "size"
+    #       - "type_counter"
+    # TODO: More?
     for index in xrange(len(stable_grouplist)):
         # for each group
         graph = stable_grouplist[index]
@@ -504,6 +519,10 @@ def summarize_stable_list( stable_grouplist = [],
         max_size = max( size_list )
         mean_size = mean( size_list )
         stdev_size = stdev( size_list ) if len(size_list) > 1 else 0.0
+        # 
+        # Now get the types PER group
+        sumSTABLE[index]["type_counter"] = get_type_distribution( objset = objset,
+                                                                  objreader = objreader )
         sumSTABLE[index]["size"]= { "min" : min_size,
                                     "max" : max_size,
                                     "mean" : mean_size,
@@ -733,6 +752,12 @@ def summarize_wcc_stable_death_unstable_components( wcc_sd_list = [],
             elif key == "dtime":
                 print "    * death range - [ {:.2f}, {:.2f} ]".format(val["min_sc"], val["max_sc"])
                 print "    *      mean = {:.2f}    stdev = {:.2f}".format(val["mean_sc"], val["stdev_sc"])
+            elif key == "type_counter":
+                counts = sorted( [ (key, cnt) for key, cnt in val.items() ],
+                                 key = itemgetter(1),
+                                 reverse = True )
+                for mytup in counts:
+                    print "   * %s = %d" % (mytup[0], mytup[1])
     print "======[ %s ][ END SUMMARY of STABLE components ]==============================" % bmark
     #---------------------------------------------------------------------------
     #----[ UnStable summary OUTPUT ]--------------------------------------------

@@ -403,12 +403,12 @@ class ObjectInfoReader:
                 rec = self.objdict.getitem_from_table( typeId, "typetable", "typeid" )
                 if rec != None:
                     mytype = rec[1]
-                    rev_typedict[typeId] = mytype
+                    self.rev_typedict[typeId] = mytype
                     return mytype
                 else:
                     return "NONE"
             else:
-                return rev_typedict[typeId]
+                return self.rev_typedict[typeId]
 
     def died_at_end( self, objId ):
         return (self.objdict[objId][get_index("DIEDBY")] == "E") if (objId in self.objdict) \
