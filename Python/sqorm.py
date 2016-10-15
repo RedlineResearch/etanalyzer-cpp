@@ -24,7 +24,7 @@ class ObjectCache( collections.Mapping ):
         self.keyfield = str(keyfield)
         # We save all the keys. Note that once we have all the keys, then we don't
         # need to ask the DB again since we don't allow writes.
-        self.keys = set()
+        self.keyset = set()
         # We want to know if we have all the keys.
         self.have_all_keys = False
         # We use an LRU cache to store results.
@@ -37,10 +37,10 @@ class ObjectCache( collections.Mapping ):
         cur = self.conn.cursor()
         cur.execute( "SELECT * FROM %s" % self.table )
         if self.have_all_keys:
-            for key in self.keys:
+            for key in self.keyset:
                 yield key
         else:
-            for key in self.keys:
+            for key in self.keyset:
                 yield key
             while True:
                 reclist = cur.fetchmany()
@@ -52,10 +52,10 @@ class ObjectCache( collections.Mapping ):
                             # we already have the record, we store it in the cache.
                             # The likelihood that the user will ask for the the record is high.
                             self.lru[key] = rec[1:]
-                        if key in self.keys:
+                        if key in self.keyset:
                             # If we have already returned the key, just go to the next one.
                             continue
-                        self.keys.add( key )
+                        self.keyset.add( key )
                         yield key
                 else:
                     # This is one of the times when we know we have all the keys.
@@ -72,7 +72,7 @@ class ObjectCache( collections.Mapping ):
                     key = rec[0]
                     if key not in self.lru:
                         self.lru[key] = rec[1:]
-                    self.keys.add( key ) # Might as well add to the key set
+                    self.keyset.add( key ) # Might as well add to the key set
                     yield (key, rec[1:])
             else:
                 # This is one of the times when we know we have all the keys.
@@ -82,19 +82,20 @@ class ObjectCache( collections.Mapping ):
     def keys( self ):
         if self.have_all_keys:
             # Return a copy
-            print "YYY"
-            return set(self.keys)
+            return set(self.keyset)
         else:
             cur = self.conn.cursor()
             cur.execute( "SELECT %s FROM %s" % (self.keyfield, self.table) )
-            keyset = set()
+            mykeyset = set()
             while True:
                 keylist = cur.fetchmany()
                 if len(keylist) > 0:
-                    keyset.update( [ x[0] for x in keylist ] )
+                    mykeyset.update( [ x[0] for x in keylist ] )
                 else:
                     break
-            result = list(keyset)
+            # Result should be a list.
+            result = list(mykeyset)
+            # This debug check happens only once, so it's ok to do it.
             for x in result:
                 try:
                     assert(type(x) == type(1))
@@ -102,9 +103,8 @@ class ObjectCache( collections.Mapping ):
                     print "kEY ERROR:"
                     print "x:", x
                     exit(100)
-            self.keys = set(result) # make a copy
+            self.keyset = mykeyset
             self.have_all_keys = True
-            print "XXX"
             return result
 
     def __contains__( self, item ):
