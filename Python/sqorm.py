@@ -6,6 +6,7 @@ def __tup2str__( tup ):
     ret = [ str(x) for x in tup ]
     return tuple(ret)
 
+# This is a Read Only cache.
 class ObjectCache( collections.Mapping ):
     def __init__( self,
                   tgtpath = None,
@@ -17,8 +18,16 @@ class ObjectCache( collections.Mapping ):
         assert( table != None )
         self.table = str(table)
         self.count = None
+        # The 'keyfield' determines what the key value for the ObjectCache.
+        # This simulates a dictionary with an SQLITE DB as backing store.
         assert( keyfield != None )
         self.keyfield = str(keyfield)
+        # We save all the keys. Note that once we have all the keys, then we don't
+        # need to ask the DB again since we don't allow writes.
+        self.keys = set()
+        # We want to know if we have all the keys.
+        self.have_all_keys = False
+        # We use an LRU cache to store results.
         self.lru = pylru.lrucache( size = cachesize )
         # NOTE: We assume that the keyfield is always the first field in the record
         #       tuple.
@@ -27,16 +36,31 @@ class ObjectCache( collections.Mapping ):
     def __iter__( self ):
         cur = self.conn.cursor()
         cur.execute( "SELECT * FROM %s" % self.table )
-        while True:
-            reclist = cur.fetchmany()
-            if len(reclist) > 0:
-                for rec in reclist:
-                    key = rec[0]
-                    if key not in self.lru:
-                        self.lru[key] = rec[1:]
-                    yield key
-            else:
-                raise StopIteration
+        if self.have_all_keys:
+            for key in self.keys:
+                yield key
+        else:
+            for key in self.keys:
+                yield key
+            while True:
+                reclist = cur.fetchmany()
+                if len(reclist) > 0:
+                    for rec in reclist:
+                        key = rec[0]
+                        if key not in self.lru:
+                            # __iter__ only needs to return the key. But since
+                            # we already have the record, we store it in the cache.
+                            # The likelihood that the user will ask for the the record is high.
+                            self.lru[key] = rec[1:]
+                        if key in self.keys:
+                            # If we have already returned the key, just go to the next one.
+                            continue
+                        self.keys.add( key )
+                        yield key
+                else:
+                    # This is one of the times when we know we have all the keys.
+                    self.have_all_keys = True
+                    raise StopIteration
 
     def iteritems( self ):
         cur = self.conn.cursor()
@@ -48,29 +72,38 @@ class ObjectCache( collections.Mapping ):
                     key = rec[0]
                     if key not in self.lru:
                         self.lru[key] = rec[1:]
+                    self.keys.add( key ) # Might as well add to the key set
                     yield (key, rec[1:])
             else:
+                # This is one of the times when we know we have all the keys.
+                self.have_all_keys = True
                 raise StopIteration
 
     def keys( self ):
-        cur = self.conn.cursor()
-        cur.execute( "SELECT %s FROM %s" % (self.keyfield, self.table) )
-        keyset = set()
-        while True:
-            keylist = cur.fetchmany()
-            if len(keylist) > 0:
-                keyset.update( [ x[0] for x in keylist ] )
-            else:
-                break
-        result = list(keyset)
-        for x in result:
-            try:
-                assert(type(x) == type(1))
-            except:
-                print "kEY ERROR:"
-                print "x:", x
-                exit(100)
-        return result
+        if self.have_all_keys:
+            # Return a copy
+            return set(self.keys)
+        else:
+            cur = self.conn.cursor()
+            cur.execute( "SELECT %s FROM %s" % (self.keyfield, self.table) )
+            keyset = set()
+            while True:
+                keylist = cur.fetchmany()
+                if len(keylist) > 0:
+                    keyset.update( [ x[0] for x in keylist ] )
+                else:
+                    break
+            result = list(keyset)
+            for x in result:
+                try:
+                    assert(type(x) == type(1))
+                except:
+                    print "kEY ERROR:"
+                    print "x:", x
+                    exit(100)
+            self.keys = set(result) # make a copy
+            self.have_all_keys = True
+            return result
 
     def __contains__( self, item ):
         if item in self.lru:
@@ -78,7 +111,7 @@ class ObjectCache( collections.Mapping ):
         else:
             cur = self.conn.cursor()
             cmd = "SELECT * FROM %s WHERE %s=%s" % ( self.table, self.keyfield, str(item) )
-            self.logger.debug( "CMD: %s" % cmd )
+            # self.logger.debug( "CMD: %s" % cmd )
             cur.execute( cmd )
             retlist = cur.fetchmany()
             if len(retlist) != 1:
@@ -130,7 +163,7 @@ class ObjectCache( collections.Mapping ):
         if self.conn != None:
             self.conn.close()
 
-    def __additem__(self, key):
+    # This is a Read-Only cache. The following are therefore not implemented.  def __additem__(self, key):
         raise NotImplemented
 
     def __setitem__(self, key, value):
