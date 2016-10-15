@@ -82,6 +82,7 @@ class ObjectCache( collections.Mapping ):
     def keys( self ):
         if self.have_all_keys:
             # Return a copy
+            print "YYY"
             return set(self.keys)
         else:
             cur = self.conn.cursor()
@@ -103,6 +104,7 @@ class ObjectCache( collections.Mapping ):
                     exit(100)
             self.keys = set(result) # make a copy
             self.have_all_keys = True
+            print "XXX"
             return result
 
     def __contains__( self, item ):
