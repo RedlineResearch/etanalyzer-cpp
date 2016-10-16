@@ -844,7 +844,7 @@ class EdgeInfoReader:
         # ----------------------------------------------------------------------
         # Create the EDGEINFO DB
         # ----------------------------------------------------------------------
-        cur.execute( '''DROP TABLE IF EXISTS objectinfo''' )
+        cur.execute( '''DROP TABLE IF EXISTS edgeinfo''' )
         # Create the database. These are the fields in order.
         # Decode as:
         # num- fullname (sqlite name) : type
@@ -859,6 +859,7 @@ class EdgeInfoReader:
                                                dtime INTEGER,
                                                srcfield INTEGER)""" )
         conn.execute( 'DROP INDEX IF EXISTS idx_edgeinfo_srcid' )
+        conn.execute( 'DROP INDEX IF EXISTS idx_edgeinfo_tgtid' )
 
     def read_edgeinfo_file_into_db( self ):
         # 10 October 2016: TODO TODO TODO
