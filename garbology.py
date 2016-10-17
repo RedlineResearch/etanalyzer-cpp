@@ -255,6 +255,7 @@ class ObjectInfoReader:
                                         logger = self.logger )
 
     def create_objectinfo_db( self, outdbfilename = None ):
+        # Note that outdbconn will not be closed here.
         try:
             self.outdbconn = sqlite3.connect( outdbfilename )
         except:
@@ -678,12 +679,13 @@ class ObjectInfoFile2DB:
 # -----------------------------------------------------------------------------
 class EdgeInfoReader:
     def __init__( self,
-                  edgeinfo_file = None,
+                  edgeinfo_filename = None,
+                  stabreader = None,
                   useDB_as_source = False,
                   logger = None ):
         # TODO: Choice of loading from text file or from pickle
         #
-        self.edgeinfo_file_name = edgeinfo_file
+        self.edgeinfo_file_name = edgeinfo_filename
         # Edge dictionary
         self.edgedict = {} # (src, tgt) -> (create time, death time)
         # Source to target object dictionary
@@ -694,9 +696,8 @@ class EdgeInfoReader:
         self.lastedge = {} # tgt -> (list of lastedges, death time)
         # Use an SQLITE as source instead of the EDGEINFO file
         self.useDB_as_source = useDB_as_source
-        self.dbconn = dbconn
-        if self.useDB_as_source:
-            assert( self.dbconn != None )
+        # Stability reader
+        self.stabreader = stabreader
         self.logger = logger
 
     def read_edgeinfo_file( self ):
@@ -770,50 +771,53 @@ class EdgeInfoReader:
         #                                     deathtime = dtime )
         # assert(done)
 
-    def update_stability( self,
-                          stabreader = {} ):
-        raise RuntimeError("TODO: This needs to be implemented.")
+    def update_stability_reader( self,
+                                 stabreader = None ):
+        assert( stabreader != None )
+        self.stabreader = stabreader
 
     def read_edgeinfo_file_with_stability_into_db( self,
                                                    stabreader = None ):
-        assert( stabreader != None )
+        try:
+            assert( stabreader != None )
+        except:
+            raise ValueError( "Stability reader should be set." )
         # Declare our generator
         # ----------------------------------------------------------------------
-        def row_generator( fp = None ):
-            global stabreader
-            sb = stabreader
+        def row_generator():
+            sb = self.stabreader
             start = False
             count = 0
-            for line in fp:
-                line = line.rstrip()
-                if line.find("---------------[ EDGE INFO") == 0:
-                    start = True if not start else False
+            with get_trace_fp( self.edgeinfo_file_name, self.logger ) as fp:
+                for line in fp:
+                    line = line.rstrip()
+                    if line.find("---------------[ EDGE INFO") == 0:
+                        start = True if not start else False
+                        if start:
+                            continue
+                        else:
+                            break
                     if start:
-                        continue
-                    else:
-                        break
-                if start:
-                    rowtmp = line.split(",")
-                    # 0 - srcId
-                    # 1 - tgtId
-                    # 2 - create time
-                    # 3 - death time
-                    # 4 - fieldId
-                    row = [ int(x) for x in rowtmp ]
-                    src = row[0]
-                    fieldId = row[4]
-                    # tgt = row[1]
-                    # timepair = tuple(row[2:4])
-                    # dtime = row[3]
-                    try:
-                        stability = sb[src][fieldId]
-                    except:
-                        stability = "X" # X means unknown
-                    row.append(stability)
-                    yield tuple(row)
+                        rowtmp = line.split(",")
+                        # 0 - srcId
+                        # 1 - tgtId
+                        # 2 - create time
+                        # 3 - death time
+                        # 4 - fieldId
+                        row = [ int(x) for x in rowtmp ]
+                        src = row[0]
+                        fieldId = row[4]
+                        # tgt = row[1]
+                        # timepair = tuple(row[2:4])
+                        # dtime = row[3]
+                        try:
+                            stability = sb[src][fieldId]
+                        except:
+                            stability = "X" # X means unknown
+                        row.append(stability)
+                        yield tuple(row)
             # End generator
 
-        with get_trace_fp( self.edgeinfo_file_name, self.logger ) as fp:
             # TODO
             # Start OLD CODE
             # TODO  self.edgedict[tuple([src, fieldId, tgt])] = { "tp" : timepair,
@@ -946,11 +950,13 @@ class EdgeInfoReader:
         # 3- create time (ctime) : INTEGER
         # 4- death time (dtime) : INTEGER
         # 5- source field (srcfield) : INTEGER
+        # 6- stability (stability) : TEXT
         cur.execute( """CREATE TABLE edgeinfo (srcid INTEGER PRIMARY KEY,
                                                tgtid INTEGER,
                                                ctime INTEGER,
                                                dtime INTEGER,
-                                               srcfield INTEGER)""" )
+                                               srcfield INTEGER,
+                                               stability TEXT)""" )
         conn.execute( 'DROP INDEX IF EXISTS idx_edgeinfo_srcid' )
         conn.execute( 'DROP INDEX IF EXISTS idx_edgeinfo_tgtid' )
         #
@@ -978,6 +984,7 @@ class EdgeInfoFile2DB:
         assert( os.path.isfile(edgeinfo_filename) )
         self.edgereader = EdgeInfoReader( edgeinfo_filename = edgeinfo_filename,
                                           useDB_as_source = False,
+                                          stabreader = stabreader,
                                           logger = logger )
         self.edgereader.create_edgeinfo_db( outdbfilename = outdbfilename )
         self.edgereader.read_edgeinfo_file_with_stability_into_db( stabreader = stabreader )

@@ -25,7 +25,7 @@ from mypytools import check_host, create_work_directory, process_host_config, \
 
 # The garbology related library. Import as follows.
 # Check garbology.py for other imports
-from garbology import ObjectInfoFile2DB
+from garbology import ObjectInfoFile2DB, EdgeInfoFile2DB
 
 # Needed to read in *-OBJECTINFO.txt and other files from
 # the simulator run
@@ -91,6 +91,7 @@ def read_edgeinfo_with_stability_into_db( result = [],
     # need to pass it the DB filename
     edgereader = EdgeInfoFile2DB( edgeinfo_filename = tracefile,
                                   outdbfilename = outdbname,
+                                  stabreader = stabreader,
                                   logger = logger )
 
 def main_process( output = None,
@@ -131,8 +132,10 @@ def main_process( output = None,
     assert( "cycle_cpp_dir" in global_config )
     cycle_cpp_dir = global_config["cycle_cpp_dir"]
     manager = Manager()
-    results = {}
-    procs = {}
+    results_obj = {}
+    procs_obj = {}
+    results_edge = {}
+    procs_edge = {}
     for bmark in worklist_config.keys():
         hostlist = worklist_config[bmark]
         if not check_host( benchmark = bmark,
@@ -144,69 +147,84 @@ def main_process( output = None,
         if mprflag:
             print "=======[ Spawning %s ]================================================" \
                 % bmark
-            results[bmark] = manager.list([ bmark, ])
+            results_obj[bmark] = manager.list([ bmark, ])
             # TODO
             # - create function 'csvinfo2b' that does the work
             #
             # NOTE: The order of the args tuple is important!
             # Read in the OBJECTINFO
-            # DEBUG: read_objectinfo_into_db( result = results[bmark],
-            # DEBUG:                          bmark = bmark,
-            # DEBUG:                          outdbname = outdbname,
-            # DEBUG:                          mprflag = mprflag,
-            # DEBUG:                          objectinfo_config = objectinfo_config,
-            # DEBUG:                          cycle_cpp_dir = cycle_cpp_dir,
-            # DEBUG:                          logger = logger )
-            # THIS WORKS : p = Process( target = read_objectinfo_into_db,
-            # THIS WORKS :              args = ( results[bmark],
-            # THIS WORKS :                       bmark,
-            # THIS WORKS :                       outdbname,
-            # THIS WORKS :                       mprflag,
-            # THIS WORKS :                       objectinfo_config,
-            # THIS WORKS :                       cycle_cpp_dir,
-            # THIS WORKS :                       logger ) )
-            # THIS WORKS : procs[bmark] = p
-            # THIS WORKS : p.start()
-            # Read in the EDGEINFO
-            p = Process( target = read_edgeinfo_with_stability_into_db,
-                         args = ( results[bmark],
+            p = Process( target = read_objectinfo_into_db,
+                         args = ( results_obj[bmark],
+                                  bmark,
+                                  outdbname,
                                   mprflag,
+                                  objectinfo_config,
+                                  cycle_cpp_dir,
                                   logger ) )
-            procs[bmark] = p
+            procs_obj[bmark] = p
+            p.start()
+            # Read in the EDGEINFO
+            # TODO TODO TODO
+            # Need to read in the StabilityReader
+            # WORKINPROGRESS: p = Process( target = read_edgeinfo_with_stability_into_db,
+            # WORKINPROGRESS:              args = ( results_edge[bmark],
+            # WORKINPROGRESS:                       bmark,
+            # WORKINPROGRESS:                       outdbname,
+            # WORKINPROGRESS:                       mprflag,
+            # WORKINPROGRESS:                       stabreader,
+            # WORKINPROGRESS:                       edgeinfo_config,
+            # WORKINPROGRESS:                       cycle_cpp_dir,
+            # WORKINPROGRESS:                       logger )
+            # WORKINPROGRESS:              )
+            # WORKINPROGRESS: procs_edge[bmark] = p
             p.start()
         else:
             print "=======[ Running %s ]=================================================" \
                 % bmark
-            results[bmark] = [ bmark, ]
-            read_objectinfo_into_db( result = results[bmark],
+
+            print "     Reading in objectinfo..."
+            results_obj[bmark] = [ bmark, ]
+            read_objectinfo_into_db( result = results_obj[bmark],
                                      bmark = bmark,
                                      outdbname = outdbname,
                                      mprflag = mprflag,
-                                     edgeinfo_config = edgeinfo_config,
+                                     objectinfo_config = objectinfo_config,
                                      cycle_cpp_dir = cycle_cpp_dir,
                                      logger = logger )
+            # WORKINPROGRESS: print "     Reading in edgeinfo..."
+            # WORKINPROGRESS: results_edge[bmark] = [ bmark, ]
+            # WORKINPROGRESS: read_edgeinfo_with_stability_into_db( result = results_edge[bmark],
+            # WORKINPROGRESS:                                       bmark = bmark,
+            # WORKINPROGRESS:                                       outdbname = outdbname,
+            # WORKINPROGRESS:                                       mprflag = mprflag,
+            # WORKINPROGRESS:                                       edgeinfo_config = edgeinfo_config,
+            # WORKINPROGRESS:                                       cycle_cpp_dir = cycle_cpp_dir,
+            # WORKINPROGRESS:                                       logger = logger )
     if mprflag:
         # Poll the processes 
-        done = False
-        expected = len(procs.keys())
-        numdone = 0
-        # Join
-        for bmark in procs.keys():
-            procs[bmark].join()
-        # Poll
-        for bmark in procs.keys():
-            proc = procs[bmark]
-            done = False
-            while not done:
-                done = True
-                if proc.is_alive():
-                    done = False
-                else:
-                    numdone += 1
-                    print "==============================> [%s] DONE." % bmark
-                    del procs[bmark]
-            sys.stdout.flush()
+        while not done:
+            done = True
+            for bmark in set(procs_obj.keys() + procs_edge.keys()) :
+                if bmark in procs_obj:
+                    proc = procs_obj[bmark]
+                    proc.join(60)
+                    if proc.is_alive():
+                        done = False
+                    else:
+                        del procs_obj[bmark]
+                        timenow = time.asctime()
+                        logger.debug( "[%s] - done at %s" % (bmark, timenow) )
+                if bmark in procs_edge:
+                    proc = procs_edge[bmark]
+                    proc.join(60)
+                    if proc.is_alive():
+                        done = False
+                    else:
+                        del procs_edge[bmark]
+                        timenow = time.asctime()
+                        logger.debug( "[%s] - done at %s" % (bmark, timenow) )
         print "======[ Processes DONE ]========================================================"
+        sys.stdout.flush()
     print "================================================================================"
     print "csvinfo2db.py.py - DONE."
     os.chdir( olddir )
