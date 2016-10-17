@@ -334,7 +334,7 @@ class ObjectInfoReader:
         conn.execute( 'DROP INDEX IF EXISTS idx_typeinfo_typeid' )
 
     def read_objinfo_file_into_db( self ):
-        # Declare our generator2
+        # Declare our generator
         # ----------------------------------------------------------------------
         def row_generator():
             start = False
@@ -722,7 +722,7 @@ class EdgeInfoReader:
                     row = [ int(x) for x in rowtmp ]
                     src = row[0]
                     tgt = row[1]
-                    timepair = tuple(row[2:])
+                    timepair = tuple(row[2:4])
                     dtime = row[3]
                     fieldId = row[4]
                     self.edgedict[tuple([src, fieldId, tgt])] = { "tp" : timepair,
@@ -734,9 +734,101 @@ class EdgeInfoReader:
                                             deathtime = dtime )
         assert(done)
 
+    def read_edgeinfo_file_into_db( self ):
+        raise RuntimeError("TODO: Need to implement.")
+        # start = False
+        # done = False
+        # with get_trace_fp( self.edgeinfo_file_name, self.logger ) as fp:
+        #     for line in fp:
+        #         line = line.rstrip()
+        #         if line.find("---------------[ EDGE INFO") == 0:
+        #             start = True if not start else False
+        #             if start:
+        #                 continue
+        #             else:
+        #                 done = True
+        #                 break
+        #         if start:
+        #             rowtmp = line.split(",")
+        #             # 0 - srcId
+        #             # 1 - tgtId
+        #             # 2 - create time
+        #             # 3 - death time
+        #             # 4 - fieldId
+        #             row = [ int(x) for x in rowtmp ]
+        #             src = row[0]
+        #             tgt = row[1]
+        #             timepair = tuple(row[2:])
+        #             dtime = row[3]
+        #             fieldId = row[4]
+        #             self.edgedict[tuple([src, fieldId, tgt])] = { "tp" : timepair,
+        #                                                           "s" : "X" }  # X means unknown
+        #             self.srcdict[src].add( tgt )
+        #             self.tgtdict[tgt].add( src )
+        #             self.update_last_edges( src = src,
+        #                                     tgt = tgt,
+        #                                     deathtime = dtime )
+        # assert(done)
+
     def update_stability( self,
                           stabreader = {} ):
         raise RuntimeError("TODO: This needs to be implemented.")
+
+    def read_edgeinfo_file_with_stability_into_db( self,
+                                                   stabreader = {} ):
+        # Declare our generator
+        # ----------------------------------------------------------------------
+        def row_generator( fp = None,
+                           sb = None ):
+            start = False
+            count = 0
+            for line in fp:
+                line = line.rstrip()
+                if line.find("---------------[ EDGE INFO") == 0:
+                    start = True if not start else False
+                    if start:
+                        continue
+                    else:
+                        break
+                if start:
+                    rowtmp = line.split(",")
+                    # 0 - srcId
+                    # 1 - tgtId
+                    # 2 - create time
+                    # 3 - death time
+                    # 4 - fieldId
+                    row = [ int(x) for x in rowtmp ]
+                    src = row[0]
+                    fieldId = row[4]
+                    # tgt = row[1]
+                    # timepair = tuple(row[2:4])
+                    # dtime = row[3]
+                    try:
+                        stability = sb[src][fieldId]
+                    except:
+                        stability = "X" # X means unknown
+                    row.append(stability)
+                    yield tuple(row)
+            # End generator
+
+        with get_trace_fp( self.edgeinfo_file_name, self.logger ) as fp:
+            # Call generator
+            # TODO
+            # Start OLD CODE
+            # TODO  self.edgedict[tuple([src, fieldId, tgt])] = { "tp" : timepair,
+            # TODO                                                "s" : stability }
+            # TODO  self.srcdict[src].add( tgt )
+            # TODO  self.tgtdict[tgt].add( src )
+            # TODO  self.update_last_edges( src = src,
+            # TODO                          tgt = tgt,
+            # TODO                          deathtime = dtime )
+            # END OLD CODE
+            cur = self.outdbconn.cursor()
+            cur.executemany( "INSERT INTO edgeinfo VALUES (?,?,?,?,?,?)", row_generator() )
+            cur.execute( 'CREATE UNIQUE INDEX idx_edgeinfo_srcid ON edgeinfo (srcid)' )
+            cur.execute( 'CREATE UNIQUE INDEX idx_edgeinfo_tgtid ON edgeinfo (tgtid)' )
+            self.outdbconn.commit()
+            self.outdbconn.close()
 
     def read_edgeinfo_file_with_stability( self,
                                            stabreader = {} ):
@@ -763,7 +855,7 @@ class EdgeInfoReader:
                     row = [ int(x) for x in rowtmp ]
                     src = row[0]
                     tgt = row[1]
-                    timepair = tuple(row[2:])
+                    timepair = tuple(row[2:4])
                     dtime = row[3]
                     fieldId = row[4]
                     try:
@@ -860,6 +952,19 @@ class EdgeInfoReader:
                                                srcfield INTEGER)""" )
         conn.execute( 'DROP INDEX IF EXISTS idx_edgeinfo_srcid' )
         conn.execute( 'DROP INDEX IF EXISTS idx_edgeinfo_tgtid' )
+        #
+        # Now the lastedge table
+        cur.execute( '''DROP TABLE IF EXISTS lastedge''' )
+        # Create the database. These are the fields in order.
+        # Decode as:
+        # num- fullname (sqlite name) : type
+        # 1- target Id (tgtid) : INTEGER
+        # 2- death time (dtime) : INTEGER
+        # 3- last source (srcid) : INTEGER
+        cur.execute( """CREATE TABLE lastedge (tgtid INTEGER PRIMARY KEY,
+                                               dtime INTEGER,
+                                               srcid INTEGER)""" )
+        conn.execute( 'DROP INDEX IF EXISTS idx_lastedge_tgtid' )
 
     def read_edgeinfo_file_into_db( self ):
         # 10 October 2016: TODO TODO TODO
@@ -895,19 +1000,15 @@ class EdgeInfoReader:
                             stability = sb[src][fieldId]
                         except:
                             stability = "X" # X means unknown
-                        self.edgedict[tuple([src, fieldId, tgt])] = { "tp" : timepair,
-                                                                      "s" : stability }
-                        self.srcdict[src].add( tgt )
-                        self.tgtdict[tgt].add( src )
+                        # self.edgedict[tuple([src, fieldId, tgt])] = { "tp" : timepair,
+                        #                                               "s" : stability }
+                        # self.srcdict[src].add( tgt )
+                        # self.tgtdict[tgt].add( src )
                         self.update_last_edges( src = src,
                                                 tgt = tgt,
                                                 deathtime = dtime )
                         yield tuple(row)
 
-        def type_row_generator():
-            for mytype, typeId in self.typedict.items():
-                # DEBUG: print "%d -> %s" % (typeId, mytype)
-                yield (typeId, mytype)
         # ----------------------------------------------------------------------
         # TODO call executemany here
         cur = self.outdbconn.cursor()
