@@ -775,11 +775,13 @@ class EdgeInfoReader:
         raise RuntimeError("TODO: This needs to be implemented.")
 
     def read_edgeinfo_file_with_stability_into_db( self,
-                                                   stabreader = {} ):
+                                                   stabreader = None ):
+        assert( stabreader != None )
         # Declare our generator
         # ----------------------------------------------------------------------
-        def row_generator( fp = None,
-                           sb = None ):
+        def row_generator( fp = None ):
+            global stabreader
+            sb = stabreader
             start = False
             count = 0
             for line in fp:
@@ -812,7 +814,6 @@ class EdgeInfoReader:
             # End generator
 
         with get_trace_fp( self.edgeinfo_file_name, self.logger ) as fp:
-            # Call generator
             # TODO
             # Start OLD CODE
             # TODO  self.edgedict[tuple([src, fieldId, tgt])] = { "tp" : timepair,
@@ -966,65 +967,12 @@ class EdgeInfoReader:
                                                srcid INTEGER)""" )
         conn.execute( 'DROP INDEX IF EXISTS idx_lastedge_tgtid' )
 
-    def read_edgeinfo_file_into_db( self ):
-        # 10 October 2016: TODO TODO TODO
-        # Have started work, but still not functional.
-        # TODO
-        # Declare our generator
-        # ----------------------------------------------------------------------
-        def row_generator():
-            start = False
-            with get_trace_fp( self.edgeinfo_filename, self.logger ) as fp:
-                for line in fp:
-                    line = line.rstrip()
-                    if line.find("---------------[ EDGE INFO") == 0:
-                        start = True if not start else False
-                        if start:
-                            continue
-                        else:
-                            break
-                    if start:
-                        rowtmp = line.split(",")
-                        # 0 - srcId
-                        # 1 - tgtId
-                        # 2 - create time
-                        # 3 - death time
-                        # 4 - fieldId
-                        row = [ int(x) for x in rowtmp ]
-                        src = row[0]
-                        tgt = row[1]
-                        ctime = row[2]
-                        dtime = row[3]
-                        fieldId = row[4]
-                        try:
-                            stability = sb[src][fieldId]
-                        except:
-                            stability = "X" # X means unknown
-                        # self.edgedict[tuple([src, fieldId, tgt])] = { "tp" : timepair,
-                        #                                               "s" : stability }
-                        # self.srcdict[src].add( tgt )
-                        # self.tgtdict[tgt].add( src )
-                        self.update_last_edges( src = src,
-                                                tgt = tgt,
-                                                deathtime = dtime )
-                        yield tuple(row)
-
-        # ----------------------------------------------------------------------
-        # TODO call executemany here
-        cur = self.outdbconn.cursor()
-        cur.executemany( "INSERT INTO objinfo VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", row_generator() )
-        cur.executemany( "INSERT INTO typetable VALUES (?,?)", type_row_generator() )
-        cur.execute( 'CREATE UNIQUE INDEX idx_objectinfo_objid ON objinfo (objid)' )
-        cur.execute( 'CREATE UNIQUE INDEX idx_typeinfo_typeid ON typetable (typeid)' )
-        self.outdbconn.commit()
-        self.outdbconn.close()
-
-
 
 class EdgeInfoFile2DB:
     def __init__( self,
                   edgeinfo_filename = "",
                   outdbfilename = "",
+                  stabreader = {},
                   logger = None ):
         assert( logger != None )
         assert( os.path.isfile(edgeinfo_filename) )
@@ -1032,7 +980,7 @@ class EdgeInfoFile2DB:
                                           useDB_as_source = False,
                                           logger = logger )
         self.edgereader.create_edgeinfo_db( outdbfilename = outdbfilename )
-        self.edgereader.read_edgeinfo_file_into_db()
+        self.edgereader.read_edgeinfo_file_with_stability_into_db( stabreader = stabreader )
 
     
 # -----------------------------------------------------------------------------
@@ -1978,7 +1926,7 @@ def main():
 
 __all__ = [ "EdgeInfoReader", "GarbologyConfig", "ObjectInfoReader",
             "ContextCountReader", "ReferenceReader", "ReverseRefReader",
-            "StabilityReader", "ObjectInfoFile2DB",
+            "StabilityReader", "ObjectInfoFile2DB", "EdgeInfoFile2DB",
             "is_key_object", "get_index", "is_stable", "read_main_file",
              ]
 

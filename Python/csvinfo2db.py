@@ -69,8 +69,6 @@ def read_objectinfo_into_db( result = [],
                              logger = None ):
     assert(logger != None)
     # print os.listdir( )
-    # Create the DB file.
-    # Find the files.
     tracefile = os.path.join( cycle_cpp_dir, objectinfo_config[bmark] )
     # The ObjectInfoFile2DB will create the DB connection. We just
     # need to pass it the DB filename
@@ -78,11 +76,22 @@ def read_objectinfo_into_db( result = [],
                                        outdbfilename = outdbname,
                                        logger = logger )
 
-def read_edgeinfo_into_db( result = [],
-                           mprflag = False,
-                           logger = None ):
+def read_edgeinfo_with_stability_into_db( result = [],
+                                          bmark = "",
+                                          outdbname = "",
+                                          mprflag = False,
+                                          stabreader = {},
+                                          edgeinfo_config = {},
+                                          cycle_cpp_dir = "",
+                                          logger = None ):
     assert(logger != None)
-    # Find the files.
+    # print os.listdir( )
+    tracefile = os.path.join( cycle_cpp_dir, edgeinfo_config[bmark] )
+    # The EdgeInfoFile2DB will create the DB connection. We just
+    # need to pass it the DB filename
+    edgereader = EdgeInfoFile2DB( edgeinfo_filename = tracefile,
+                                  outdbfilename = outdbname,
+                                  logger = logger )
 
 def main_process( output = None,
                   global_config = {},
@@ -90,6 +99,7 @@ def main_process( output = None,
                   worklist_config = {},
                   host_config = {},
                   objectinfo_config = {},
+                  edgeinfo_config = {},
                   mprflag = False,
                   debugflag = False,
                   logger = None ):
@@ -147,23 +157,23 @@ def main_process( output = None,
             # DEBUG:                          objectinfo_config = objectinfo_config,
             # DEBUG:                          cycle_cpp_dir = cycle_cpp_dir,
             # DEBUG:                          logger = logger )
-            p = Process( target = read_objectinfo_into_db,
+            # THIS WORKS : p = Process( target = read_objectinfo_into_db,
+            # THIS WORKS :              args = ( results[bmark],
+            # THIS WORKS :                       bmark,
+            # THIS WORKS :                       outdbname,
+            # THIS WORKS :                       mprflag,
+            # THIS WORKS :                       objectinfo_config,
+            # THIS WORKS :                       cycle_cpp_dir,
+            # THIS WORKS :                       logger ) )
+            # THIS WORKS : procs[bmark] = p
+            # THIS WORKS : p.start()
+            # Read in the EDGEINFO
+            p = Process( target = read_edgeinfo_with_stability_into_db,
                          args = ( results[bmark],
-                                  bmark,
-                                  outdbname,
                                   mprflag,
-                                  objectinfo_config,
-                                  cycle_cpp_dir,
                                   logger ) )
             procs[bmark] = p
             p.start()
-            # Read in the EDGEINFO
-            # TODO p = Process( target = read_edgeinfo_into_db,
-            # TODO              args = ( results[bmark],
-            # TODO                       mprflag,
-            # TODO                       logger ) )
-            # TODO procs[bmark] = p
-            # TODO p.start()
         else:
             print "=======[ Running %s ]=================================================" \
                 % bmark
@@ -172,7 +182,7 @@ def main_process( output = None,
                                      bmark = bmark,
                                      outdbname = outdbname,
                                      mprflag = mprflag,
-                                     objectinfo_config = objectinfo_config,
+                                     edgeinfo_config = edgeinfo_config,
                                      cycle_cpp_dir = cycle_cpp_dir,
                                      logger = logger )
     if mprflag:
@@ -222,6 +232,7 @@ def process_config( args ):
     host_config = config_section_map( "hosts", config_parser )
     worklist_config = config_section_map( "cvsinfo2db-worklist", config_parser )
     objectinfo_config = config_section_map( "objectinfo", config_parser )
+    edgeinfo_config = config_section_map( "edgeinfo", config_parser )
     # MAYBE: summary_config = config_section_map( "summary_cpp", config_parser )
     # DON'T KNOW: contextcount_config = config_section_map( "contextcount", config_parser )
     return { "global" : global_config,
@@ -229,6 +240,7 @@ def process_config( args ):
              "worklist" : worklist_config,
              "hosts" : host_config,
              "objectinfo" : objectinfo_config,
+             "edgeinfo" : edgeinfo_config,
              }
 
 def create_parser():
@@ -274,6 +286,7 @@ def main():
     worklist_config = process_worklist_config( configdict["worklist"] )
     host_config = process_host_config( configdict["hosts"] )
     objectinfo_config = configdict["objectinfo"]
+    edgeinfo_config = configdict["edgeinfo"]
     # TODO DEBUG TODO
     pp.pprint( global_config )
     print "================================================================================"
@@ -294,6 +307,7 @@ def main():
                          host_config = host_config,
                          worklist_config = worklist_config,
                          objectinfo_config = objectinfo_config,
+                         edgeinfo_config = edgeinfo_config,
                          mprflag = args.mprflag,
                          logger = logger )
 
