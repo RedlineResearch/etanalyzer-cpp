@@ -283,6 +283,9 @@ class ExecState
         ObjectContextMap m_objDeath2cmap;
         // Last method called
         ThreadDeque m_thread_stack;
+        // When main function was called
+        VTime_t main_func_uptime; // in logical update+method time
+        VTime_t main_func_alloctime; // in logical allocation time (bytes)
 
     public:
         ExecState( ExecMode kind )
@@ -477,6 +480,23 @@ class ExecState
         ofstream *m_nodefile;
         void set_nodefile( ofstream *nfile ) { this->m_nodefile = nfile; }
 
+
+        // Related to getting the time when the main function was called
+        inline VTime_t get_main_func_uptime() {
+            return this->main_func_uptime; // in logical update+method time
+        }
+
+        inline VTime_t get_main_func_alloctime() {
+            return this->main_func_alloctime; // in logical allocation time (bytes)
+        }
+
+        inline void set_main_func_uptime(VTime_t new_uptime) {
+            this->main_func_uptime = new_uptime; // in logical update+method time
+        }
+
+        inline VTime_t set_main_func_alloctime(VTime_t new_alloctime) {
+            this->main_func_alloctime = new_alloctime; // in logical allocation time (bytes)
+        }
 
     private:
         void debug_cpair( ContextPair cpair,

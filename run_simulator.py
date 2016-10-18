@@ -216,6 +216,7 @@ def main_process( output = None,
                   names_config = {},
                   simulator_config = {},
                   host_config = {},
+                  mainfunction_config = {},
                   debugflag = None,
                   logger = None ):
     global pp
@@ -231,6 +232,7 @@ def main_process( output = None,
         simulator = simulator_config["simulator_exe"]
     else:
         logger.critical("Invalid runtype: %s - defaulting to 2" % str(runtype))
+
     assert(os.path.isfile(simulator))
     # Create a directory
     # TODO Option: have a scratch test directory vs a date today directory
@@ -263,7 +265,6 @@ def main_process( output = None,
                              hostlist = hostlist,
                              host_config = host_config ) ):
             logger.debug( "SKIP: %s" % bmark )
-            print "SKIP: %s" % bmark
             continue
         # -----------------------------------------------------------------------
         # Then spawn using multiprocessing
@@ -289,10 +290,17 @@ def main_process( output = None,
         except:
             print "%s NOT FOUND." % namesfile
             raise ValueError("%s NOT FOUND." % namesfile)
+        # 
+        # Setup the necessary information for running 'simulator'
+        #
         basename = bmark + "-cpp-" + str(datestr)
         output_name = os.path.join( cycle_cpp_dir, basename + "-OUTPUT.txt" )
+        main_class, main_function = mainfunction_config[bmark].split(".")
+        # TODO DEBUG print "%s: %s -> %s" % (bmark, main_class, main_function)
         # ./simulator xalan.names xalan-cpp-2016-0129 CYCLE OBJDEBUG
-        myargs = [ namesfile, basename, cycle_flag, objdebug_flag ]
+        myargs = [ namesfile, basename,
+                   cycle_flag, objdebug_flag,
+                   main_class, main_function ]
         fp = get_trace_fp( tracefile, logger )
         outfptr = open( output_name, "wb" )
         logger.debug( "Tracefile: %s" % tracefile )
@@ -310,7 +318,6 @@ def main_process( output = None,
                               cycle_cpp_dir ) ) # change current working directory
         p.start()
         procs[bmark] = p
-        pp.pprint(procs)
     # Poll the processes
     done = False
     while not done:
@@ -589,7 +596,8 @@ def process_sim_config( args ):
              "specjvm" : config_section_map( "specjvm", simconfig_parser ),
              "specjvm_names" : config_section_map( "specjvm_names", simconfig_parser ),
              "minibench" : config_section_map( "minibench", simconfig_parser ),
-             "minibench_names" : config_section_map( "minibench_names", simconfig_parser ), }
+             "minibench_names" : config_section_map( "minibench_names", simconfig_parser ),
+             "main_function" : config_section_map( "main_function", simconfig_parser ), }
 
 def main():
     global pp
@@ -612,6 +620,7 @@ def main():
     specjvm_names = sim_result["specjvm_names"]
     minibench_config = sim_result["minibench"]
     minibench_names = sim_result["minibench_names"]
+    mainfunction_config = sim_result["main_function"]
 
     debugflag = global_config["debug"]
     # logging
@@ -628,6 +637,7 @@ def main():
                          names_config = dict( dict(specjvm_names, **dacapo_names), **minibench_names ),
                          simulator_config = simulator_config,
                          host_config = host_config,
+                         mainfunction_config = mainfunction_config,
                          logger = logger )
 
 if __name__ == "__main__":
