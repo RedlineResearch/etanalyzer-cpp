@@ -1027,6 +1027,8 @@ void output_reference_summary( string &reference_summary_filename,
     ofstream stability_summary_file(stability_summary_filename);
     //
     // Summarizes the objects pointed at by the reference (object Id + field Id)
+    // This is the REF-SUMMARY output file. In garbology, the ReferenceReader
+    // is responsible for reading it.
     for ( auto it = my_refsum.begin();
           it != my_refsum.end();
           ++it ) {
@@ -1036,13 +1038,23 @@ void output_reference_summary( string &reference_summary_filename,
         std::vector< Object * > objlist = it->second;
         ObjectId_t objId = (obj ? obj->getId() : 0);
         ref_summary_file << objId << ","      // 1 - object Id
-                         << fieldId << ","    // 2 - field Id
-                         << objlist.size();   // 3 - number of objects pointed at
+                         << fieldId << ",";   // 2 - field Id
+        unsigned int actual_size = 0;
         for ( auto vecit = objlist.begin();
               vecit != objlist.end();
               ++vecit ) {
             if (*vecit) {
-                ref_summary_file << "," << (*vecit)->getId() ; // 4+ - objects pointed at
+                ++actual_size;
+            }
+        }
+        ref_summary_file << actual_size; // 3 - number of objects pointed at
+        if (actual_size > 0) {
+            for ( auto vecit = objlist.begin();
+                  vecit != objlist.end();
+                  ++vecit ) {
+                if (*vecit) {
+                    ref_summary_file << "," << (*vecit)->getId(); // 4+ - objects pointed at
+                }
             }
         }
         ref_summary_file << endl;
@@ -1050,6 +1062,8 @@ void output_reference_summary( string &reference_summary_filename,
     //
     // Summarizes the reverse, which is for each object (using its Id), give
     // the references that point to it.
+    // This is the REF-REVERSE-SUMMARY output file. In garbology, the ReverseRefReader
+    // is responsible for reading it.
     for ( auto it = my_obj2ref.begin();
           it != my_obj2ref.end();
           ++it ) {
