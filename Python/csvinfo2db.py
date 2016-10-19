@@ -11,7 +11,7 @@ import re
 import ConfigParser
 from multiprocessing import Process, Manager
 import sqlite3
-from shutil import copy
+from shutil import copy 
 # Possible useful libraries, classes and functions:
 # from operator import itemgetter
 # from collections import Counter
@@ -235,6 +235,14 @@ def main_process( output = None,
     # Copy all the databases into MAIN directory.
     dest = main_config["output"]
     for dbfilename in dblist:
+        # Check to see first if the destination exists:
+        abspath, fname = dbfilename.split()
+        tgt = os.path.join( dest, fname )
+        if os.path.isfile(tgt):
+            try:
+                os.remove(tgt)
+            except:
+                logger.error( "Weird error: found the file [%s] but can't remove it." % tgt )
         print "Copying %s -> %s." % (dbfilename, dest)
         copy( dbfilename, dest )
     print "================================================================================"
