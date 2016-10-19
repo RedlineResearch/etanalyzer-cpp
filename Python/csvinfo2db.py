@@ -11,6 +11,7 @@ import re
 import ConfigParser
 from multiprocessing import Process, Manager
 import sqlite3
+from shutil import copy
 # Possible useful libraries, classes and functions:
 # from operator import itemgetter
 # from collections import Counter
@@ -136,6 +137,7 @@ def main_process( output = None,
     procs_obj = {}
     results_edge = {}
     procs_edge = {}
+    dblist = []
     for bmark in worklist_config.keys():
         hostlist = worklist_config[bmark]
         if not check_host( benchmark = bmark,
@@ -153,6 +155,7 @@ def main_process( output = None,
             #
             # NOTE: The order of the args tuple is important!
             # Read in the OBJECTINFO
+            dblist.append( outdbname )
             p = Process( target = read_objectinfo_into_db,
                          args = ( results_obj[bmark],
                                   bmark,
@@ -177,7 +180,8 @@ def main_process( output = None,
             # WORKINPROGRESS:                       logger )
             # WORKINPROGRESS:              )
             # WORKINPROGRESS: procs_edge[bmark] = p
-            p.start()
+            # dblist.append( outdbname )
+            # p.start()
         else:
             print "=======[ Running %s ]=================================================" \
                 % bmark
@@ -191,6 +195,7 @@ def main_process( output = None,
                                      objectinfo_config = objectinfo_config,
                                      cycle_cpp_dir = cycle_cpp_dir,
                                      logger = logger )
+            dblist.append( outdbname )
             # WORKINPROGRESS: print "     Reading in edgeinfo..."
             # WORKINPROGRESS: results_edge[bmark] = [ bmark, ]
             # WORKINPROGRESS: read_edgeinfo_with_stability_into_db( result = results_edge[bmark],
@@ -200,6 +205,7 @@ def main_process( output = None,
             # WORKINPROGRESS:                                       edgeinfo_config = edgeinfo_config,
             # WORKINPROGRESS:                                       cycle_cpp_dir = cycle_cpp_dir,
             # WORKINPROGRESS:                                       logger = logger )
+            # WORKINPROGRESS: dblist.append( outdbname )
     if mprflag:
         # Poll the processes 
         while not done:
@@ -226,6 +232,12 @@ def main_process( output = None,
         print "======[ Processes DONE ]========================================================"
         sys.stdout.flush()
     print "================================================================================"
+    # Copy all the databases into MAIN directory.
+    dest = main_config["output"]
+    for dbfilename in dblist:
+        print "Copying %s -> %s." % (dbfilename, dest)
+        copy( dbfilename, dest )
+    print "================================================================================"
     print "csvinfo2db.py.py - DONE."
     os.chdir( olddir )
     exit(0)
@@ -248,7 +260,7 @@ def process_config( args ):
     global_config = config_section_map( "global", config_parser )
     main_config = config_section_map( "csvinfo2db", config_parser )
     host_config = config_section_map( "hosts", config_parser )
-    worklist_config = config_section_map( "cvsinfo2db-worklist", config_parser )
+    worklist_config = config_section_map( "csvinfo2db-worklist", config_parser )
     objectinfo_config = config_section_map( "objectinfo", config_parser )
     edgeinfo_config = config_section_map( "edgeinfo", config_parser )
     # MAYBE: summary_config = config_section_map( "summary_cpp", config_parser )

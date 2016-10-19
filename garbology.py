@@ -973,7 +973,6 @@ class EdgeInfoReader:
                                                srcid INTEGER)""" )
         conn.execute( 'DROP INDEX IF EXISTS idx_lastedge_tgtid' )
 
-
 class EdgeInfoFile2DB:
     def __init__( self,
                   edgeinfo_filename = "",
@@ -1663,6 +1662,7 @@ class StabilityReader:
 class ReferenceReader:
     def __init__( self,
                   reference_file = None,
+                  useDB_as_source = False,
                   logger = None ):
         self.reference_filename = reference_file
         self.referencedict = {}
@@ -1687,6 +1687,69 @@ class ReferenceReader:
                     if fieldId in sdict[objId]:
                         self.logger.error( "Duplicate field Id [%d]" % fieldId )
                 sdict[objId][fieldId] = [ int(x) for x in row[3:] ]
+
+    def create_refsummary_db( self, outdbfilename = None ):
+        # Note that outdbconn will not be closed here.
+        try:
+            self.outdbconn = sqlite3.connect( outdbfilename )
+        except:
+            logger.critical( "Unable to open %s" % outdbfilename )
+            print "Unable to open %s" % outdbfilename
+            exit(1)
+        conn = self.outdbconn
+        conn.text_factory = str
+        cur = conn.cursor()
+        # ----------------------------------------------------------------------
+        # Create the REF-SUMMARY DB
+        # ----------------------------------------------------------------------
+        cur.execute( '''DROP TABLE IF EXISTS refsummary''' )
+        # Create the database. These are the fields in order.
+        # Decode as:
+        # num- fullname (sqlite name) : type
+        # 1- object Id (objid) : INTEGER
+        # 2- field Id (fieldid) : INTEGER
+        # 3- number of objects pointed at (numtarget) : INTEGER
+        # 4- list of object Ids (objlist) : TEXT
+        #    NOTE: This is in TEXT so that we can put all in one field.
+        #          It is up to the user program to separate the simple
+        #          comma separated object list.
+        cur.execute( """CREATE TABLE refsummary (objid INTEGER KEY,
+                                                 fieldid INTEGER,
+                                                 numtarget INTEGER,
+                                                 objlist TEXT)""" )
+        conn.execute( 'DROP INDEX IF EXISTS idx_refsummary_objid' )
+
+    def read_refsummary_into_db( self ):
+        # Declare our generator
+        # ----------------------------------------------------------------------
+        def row_generator():
+            with get_trace_fp( self.reference_filename, self.logger ) as fp:
+                for line in fp:
+                    orig = line
+                    line = line.rstrip()
+                    row = line.split(",")
+                    # 1- object Id (objid) : INTEGER
+                    # 2- field Id (fieldid) : INTEGER
+                    # 3- number of objects pointed at (numtarget) : INTEGER
+                    # 4- list of object Ids (objlist) : TEXT
+                    result = row[0:3]
+                    try:
+                        assert(len(row) >= 3) # TODO DEBUG
+                    except:
+                        print orig
+                        print str(row)
+                        exit(100)
+                    result.append( str(row[3:]) )
+                    result = tuple(result)
+                    print "XXX:", str(result)
+                    yield result
+
+        cur = self.outdbconn.cursor()
+        cur.executemany( "INSERT INTO refsummary VALUES (?,?,?,?)", row_generator() )
+        cur.execute( 'CREATE UNIQUE INDEX idx_refsummary_objid ON refsummary (objid)' )
+        self.outdbconn.commit()
+        self.outdbconn.close()
+
 
     def iteritems( self ):
         return self.referencedict.iteritems()
@@ -1718,6 +1781,19 @@ class ReferenceReader:
     def print_out( self ):
         for key, fdict in self.referencedict.iteritems():
             print "%d -> %s" % (key, str(fdict))
+
+class ReferenceFile2DB:
+    def __init__( self,
+                  reference_filename = "",
+                  outdbfilename = "",
+                  logger = None ):
+        assert( logger != None )
+        assert( os.path.isfile(reference_filename) )
+        self.refreader = ReferenceReader( reference_file = reference_filename,
+                                          useDB_as_source = False,
+                                          logger = logger )
+        self.refreader.create_refsummary_db( outdbfilename = outdbfilename )
+        self.refreader.read_refsummary_into_db()
 
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
@@ -1934,6 +2010,7 @@ def main():
 __all__ = [ "EdgeInfoReader", "GarbologyConfig", "ObjectInfoReader",
             "ContextCountReader", "ReferenceReader", "ReverseRefReader",
             "StabilityReader", "ObjectInfoFile2DB", "EdgeInfoFile2DB",
+            "ReferenceFile2DB",
             "is_key_object", "get_index", "is_stable", "read_main_file",
              ]
 
