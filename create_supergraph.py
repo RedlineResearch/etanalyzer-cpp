@@ -24,7 +24,7 @@ from mypytools import mean, stdev, variance, check_host
 # Check garbology.py for other imports
 from garbology import ObjectInfoReader, StabilityReader, ReferenceReader, \
          ReverseRefReader, DeathGroupsReader, SummaryReader, get_index, is_stable, \
-         read_main_file
+         read_main_file, EdgeInfoReader
 # Needed to read in *-OBJECTINFO.txt and other files from 
 # the simulator run
 import csv
@@ -154,6 +154,7 @@ def output_graph_and_summary( bmark = "",
 def read_simulator_data( bmark = "",
                          cycle_cpp_dir = "",
                          objectinfo_config = {},
+                         edgeinfo_config = {},
                          dgroup_config = {},
                          stability_config = {},
                          reference_config = {},
@@ -165,6 +166,7 @@ def read_simulator_data( bmark = "",
                          objectinfo_db_config = {},
                          cachesize = 5000000,
                          logger = None ):
+    #===========================================================================
     # Read in OBJECTINFO
     print "Reading in the OBJECTINFO file for benchmark:", bmark
     sys.stdout.flush()
@@ -200,20 +202,7 @@ def read_simulator_data( bmark = "",
             mydict.clear()
             sys.stdout.flush()
         return False
-    # Read in CYCLES (which contains the death groups)
-    print "Reading in the CYCLES (deathgroup) file for benchmark:", bmark
-    sys.stdout.flush()
-    mydict["dgroupreader"] = DeathGroupsReader( os.path.join( cycle_cpp_dir,
-                                                              dgroup_config[bmark] ),
-                                                logger = logger )
-    dgroupreader = mydict["dgroupreader"]
-    # try:
-    dgroupreader.read_dgroup_file( objreader )
-    # except:
-    #     logger.error( "[ %s ] Unable to read cycles (deathgroup) file.." % bmark )
-    #     mydict.clear()
-    #     sys.stdout.flush()
-    #     return False
+    #===========================================================================
     # Read in STABILITY
     print "Reading in the STABILITY file for benchmark:", bmark
     sys.stdout.flush()
@@ -228,6 +217,60 @@ def read_simulator_data( bmark = "",
         mydict.clear()
         sys.stdout.flush()
         return False
+    #===========================================================================
+    # Read in EDGEINFO
+    print "Reading in the EDGEINFO file for benchmark:", bmark
+    sys.stdout.flush()
+    if False: # TODO: Add selection for edgeinfo DB
+        pass
+        # TODO TODO TODO
+        # print " - Using objectinfo DB:"
+        # db_filename = os.path.join( cycle_cpp_dir,
+        #                             objectinfo_db_config[bmark] )
+        # mydict["objreader"] = ObjectInfoReader( os.path.join( cycle_cpp_dir,
+        #                                                       objectinfo_config[bmark] ),
+        #                                         useDB_as_source = True,
+        #                                         db_filename = db_filename,
+        #                                         cachesize = cachesize,
+        #                                         logger = logger )
+        # objreader = mydict["objreader"]
+        # # try:
+        # objreader.read_objinfo_file()
+        # # except:
+        # #     logger.error( "[ %s ] Unable to read objinfo file.." % bmark )
+        # #     mydict.clear()
+        # #     sys.stdout.flush()
+        # # return False
+    else:
+        print " - Using edgeinfo text file:"
+        mydict["edgereader"] = EdgeInfoReader( os.path.join( cycle_cpp_dir,
+                                                             edgeinfo_config[bmark] ),
+                                               useDB_as_source = False,
+                                               logger = logger )
+        edgereader = mydict["edgereader"]
+        try:
+            edgereader.read_edgeinfo_file_with_stability( stabreader )
+        except:
+            logger.error( "[ %s ] Unable to read edgeinfo file.." % bmark )
+            mydict.clear()
+            sys.stdout.flush()
+        return False
+    #===========================================================================
+    # Read in CYCLES (which contains the death groups)
+    print "Reading in the CYCLES (deathgroup) file for benchmark:", bmark
+    sys.stdout.flush()
+    mydict["dgroupreader"] = DeathGroupsReader( os.path.join( cycle_cpp_dir,
+                                                              dgroup_config[bmark] ),
+                                                logger = logger )
+    dgroupreader = mydict["dgroupreader"]
+    # try:
+    dgroupreader.read_dgroup_file( objreader )
+    # except:
+    #     logger.error( "[ %s ] Unable to read cycles (deathgroup) file.." % bmark )
+    #     mydict.clear()
+    #     sys.stdout.flush()
+    #     return False
+    #===========================================================================
     # Read in REFERENCE
     print "Reading in the REFERENCE file for benchmark:", bmark
     sys.stdout.flush()
@@ -242,6 +285,7 @@ def read_simulator_data( bmark = "",
         mydict.clear()
         sys.stdout.flush()
         return False
+    #===========================================================================
     # Read in REVERSE-REFERENCE
     print "Reading in the REVERSE-REFERENCE file for benchmark:", bmark
     sys.stdout.flush()
@@ -256,6 +300,7 @@ def read_simulator_data( bmark = "",
         mydict.clear()
         sys.stdout.flush()
         return False
+    #===========================================================================
     # Read in SUMMARY
     print "Reading in the SUMMARY file for benchmark:", bmark
     sys.stdout.flush()
@@ -270,6 +315,7 @@ def read_simulator_data( bmark = "",
         mydict.clear()
         sys.stdout.flush()
         return False
+    #===========================================================================
     sys.stdout.flush()
     return True
 
@@ -874,7 +920,7 @@ def add_stable_edges( dgraph = {},
                         dgraph.add_edge( objId, tgtId )
 
 #--------------------------------------------------------------------------------
-# Super graph ONE related functions
+# Super graph TWO related functions
 def add_nodes_to_graph_TWO( stable_grouplist = [],
                             stnode_list = set(),
                             logger = None ):
@@ -1019,6 +1065,65 @@ def map_death_to_stablegroups( stable2deathset = {},
             # TODO TODO
     return not_seen
 
+#--------------------------------------------------------------------------------
+# Super graph THREE (3) related functions
+def add_nodes_to_graph_THREE( dgreader = None,
+                              dgnode_set = set(),
+                              logger = None ):
+    dgraph = nx.DiGraph()
+    for dgnum, objlist in dgreader.iteritems():
+        if dgnum not in dgnode_set:
+            dgraph.add_node( "D%d" % dgnum ) # TODO: What attributes do we add?
+            dgnode_set.add( dgnum )
+        else:
+            logger.critical( "%s: Multiple add for death group [ %s ]" %
+                             (bmark, str(dgnum)) )
+    return dgraph
+
+def add_last_edges( dgraph = {},
+                    dgnode_set = set(),
+                    dgreader = {},
+                    objreader = {},
+                    edgereader = {},
+                    logger = None ):
+    edgeset = set()
+    for dgnum in dgreader.keys(): # for each stable group number
+        if dgnum not in dgnode_set:
+            print "=========[ ERROR ]=============================================================="
+            pp.pprint( dgnode_set )
+            print "=========[ ERROR ]=============================================================="
+            print "death group num[ %s ] objlist %s" % (dgnum, dgreader.get_group(dgnum))
+            assert(False)
+        objlist = dgreader.get_group(dgnum)
+        tgtDg = dgnum # Rename
+        tgtNode = "D%d" % tgtDg
+        for objId in objlist:
+            # TODO: What does it mean to partially add a group?
+            # if was_allocated_before_main( objId = objId,
+            #                               main_time = main_time,
+            #                               objreader = objreader ):
+            #     continue # Ignore anything before the main function
+            lastedge_rec = dgreader.get_last_edge_record( tgtId = objId )
+            # Record is a dictionary:
+            # { "lastsources" : list of sources 
+            #     "dtime" : death time }
+            if lastedge_rec != None:
+                lastsources = lastedge_rec["lastsources"]
+                if len(lastsources) > 1:
+                    logger.debug( "More than one incoming edge for objId[%d] <- %s" % (objId, str(lastsources)) )
+                elif len(lastsources) == 0:
+                    logger.debug( "No incoming edge for objId[%d]" % objId )
+                for srcId in lastsources:
+                    srcDg = dgreader.get_group(srcId)
+                    if (srcDg, tgtDg) not in edgeset:
+                        srcNode = "D%d" % srcDg
+                        dgraph.add_edge( srcNode, tgtNode )
+            else:
+                logger.debug( "No incoming edges for objId[ %d ]" % objId )
+    return dgraph
+# End Super graph THREE related functions
+#--------------------------------------------------------------------------------
+
 def create_supergraph_all_MPR( bmark = "",
                                cycle_cpp_dir = "",
                                main_config = {},
@@ -1033,6 +1138,7 @@ def create_supergraph_all_MPR( bmark = "",
                                use_objinfo_db = False,
                                objectinfo_db_config = {},
                                cachesize_config = {},
+                               edgeinfo_config = {},
                                logger = None ):
     # Assumes that we are in the desired working directory.
     # Get all the objects and add as a node to the graph
@@ -1042,6 +1148,7 @@ def create_supergraph_all_MPR( bmark = "",
     read_result = read_simulator_data( bmark = bmark,
                                        cycle_cpp_dir = cycle_cpp_dir,
                                        objectinfo_config = objectinfo_config,
+                                       edgeinfo_config = edgeinfo_config,
                                        dgroup_config = dgroup_config,
                                        stability_config = stability_config,
                                        reference_config = reference_config,
@@ -1061,8 +1168,12 @@ def create_supergraph_all_MPR( bmark = "",
     stability = mydict["stability"]
     reference = mydict["reference"]
     summary_reader = mydict["summary_reader"]
+    edgereader = mydict["edgereader"]
     # Get the type index
     TYPE = get_index( "TYPE" )
+    #=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+    # 1: STABLE GRAPH
+    #=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
     # Start the graph by adding nodes
     objnode_list =  set([])
     # Add nodes to graph
@@ -1080,131 +1191,209 @@ def create_supergraph_all_MPR( bmark = "",
     wcclist = sorted( nx.weakly_connected_component_subgraphs(dgraph),
                       key = len,
                       reverse = True )
+    #=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+    # 2: DEATH SUPERGRAPH
+    #=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
     #---------------------------------------------------------------------------
-    # Here's where the stable groups are compared against the death groups
-    # 1 - For every stable group, determine the deathgroup number set
-    # 2 - For every death group, determine the stable group number set
-    # Using the order of the sorted wcclist, let group 1 be at index 0 and so on.
-    # Therefore this means that the largest wcc is at index 0, and is called group 1.
     dgreader = mydict["dgroupreader"]
-    stable2dgroup = {}
-    s2d = stable2dgroup # Make it shorter
-    counter = Counter()
-    # Maintain the results in 2 dictionaries:
-    # 'stable2deathset' which maps:
-    #     stable group num -> set of death group numbers
-    stable2deathset = defaultdict(set)
-    # 'death2stableset' which maps:
-    #     death group number -> set of stable group numbers
-    death2stableset = defaultdict(set)
+    # TODO: What is counter for?
+    #        counter = Counter()
     # As a sanity check, we keep track of which object Ids we've seen:
     objId_seen = set()
-    obj2stablegroup = {}
+    dgnode_set = set()
+    dgraph_dgroup = add_nodes_to_graph_THREE( dgreader = dgreader,
+                                              dgnode_set = dgnode_set,
+                                              logger = logger )
+    add_last_edges( dgraph = dgraph_dgroup,
+                    dgnode_set = dgnode_set,
+                    dgreader = dgreader,
+                    objreader = objreader,
+                    edgereader = edgereader,
+                    logger = logger )
     # Get the group number for 'died at end' group since we want to ignore that group
     atend_gnum = dgreader.get_atend_group_number()
-    # Rename wcclist to a more appropriate name. stable_grouplist is a list of
-    #     object Ids. We use the list indices as a stable group number mapping to the 
-    #     object Ids.
-    stable_grouplist = wcclist
-    #---------------------------------------------------------------------------
-    # Go through the stable weakly-connected list and find the death groups
-    # that the objects are in.
-    map_stable_to_deathgroups( stable_grouplist = stable_grouplist, # input
-                               atend_gnum = atend_gnum, # input
-                               dgreader = dgreader, # input
-                               stable2deathset = stable2deathset, # output
-                               objId_seen = objId_seen, # output
-                               obj2stablegroup = obj2stablegroup, # output
-                               logger = logger )
+    # wcc_stable_death_list = sorted( nx.connected_component_subgraphs(stable_death_graph),
+    #                                 key = len,
+    #                                 reverse = True )
+    if False:
+        # TODO: Temporary commenting out
+        #---------------------------------------------------------------------------
+        #----[ SUMMARIZE STABLE,DEATH and UNSTABLE ]--------------------------------
+        #---------------------------------------------------------------------------
+        sum_result = summarize_wcc_stable_death_unstable_components( wcc_sd_list = wcc_stable_death_list,
+                                                                     stable_grouplist = stable_grouplist,
+                                                                     unstable_grouplist = wcclist_unstable,
+                                                                     objreader = objreader,
+                                                                     dgroup_reader = dgreader,
+                                                                     summary_reader = summary_reader,
+                                                                     bmark = bmark,
+                                                                     output_filename = os.path.join( main_config["output"], 
+                                                                                                     "%s-stabledeath-object-summary.csv" % bmark ),
+                                                                     logger = logger,
+                                                                   )
+        sumSD = sum_result["stable-death"]
+        sumUNSTABLE = sum_result["unstable"]
+        #---------------------------------------------------------------------------
+        #----[ Stable <-> Death summary OUTPUT ]------------------------------------
+        #---------------------------------------------------------------------------
+        print "============[ %s :: Stable <-> Death graph ]=======================================" % bmark
+        print "[%s] Number of nodes: %d" % (bmark, stable_death_graph.number_of_nodes())
+        print "[%s] Number of edges: %d" % (bmark, stable_death_graph.number_of_edges())
+        print "[%s] Number of components: %d" % (bmark, len(wcc_stable_death_list))
+        print "[%s] Top 5 largest components: %s" % (bmark, str( [ len(x) for x in wcc_stable_death_list[:5] ] ))
+        print "================================================================================"
+        print "================================================================================"
+        #---------------------------------------------------------------------------
+        #----[ Output the graph and summary ]---------------------------------------
+        #---------------------------------------------------------------------------
+        output_graph_and_summary( bmark = bmark,
+                                  objreader = objreader,
+                                  dgraph = dgraph,
+                                  dgraph_unstable = dgraph_unstable,
+                                  stable_grouplist = stable_grouplist, # aka wcclist
+                                  wcclist_unstable = wcclist_unstable,
+                                  sumSD = sumSD,
+                                  sumUNSTABLE = sumUNSTABLE,
+                                  backupdir = backupdir,
+                                  stable2deathset = stable2deathset,
+                                  death2stableset = death2stableset,
+                                  logger = logger )
+    # TODO
+    # Make this a command line option, like say --enable-stable-death
+    # Commenting this out and adding in the death supergraph.
+    if False:
+        #=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+        # 3: STABLE<->DEATH GRAPH
+        #=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+        #---------------------------------------------------------------------------
+        # Here's where the stable groups are compared against the death groups
+        # 1 - For every stable group, determine the deathgroup number set
+        # 2 - For every death group, determine the stable group number set
+        # Using the order of the sorted wcclist, let group 1 be at index 0 and so on.
+        # Therefore this means that the largest wcc is at index 0, and is called group 1.
+        dgreader = mydict["dgroupreader"]
+        stable2dgroup = {}
+        s2d = stable2dgroup # Make it shorter
+        counter = Counter()
+        # Maintain the results in 2 dictionaries:
+        # 'stable2deathset' which maps:
+        #     stable group num -> set of death group numbers
+        stable2deathset = defaultdict(set)
+        # 'death2stableset' which maps:
+        #     death group number -> set of stable group numbers
+        death2stableset = defaultdict(set)
+        # As a sanity check, we keep track of which object Ids we've seen:
+        objId_seen = set()
+        obj2stablegroup = {}
+        # Get the group number for 'died at end' group since we want to ignore that group
+        atend_gnum = dgreader.get_atend_group_number()
+        # Rename wcclist to a more appropriate name. stable_grouplist is a list of
+        #     object Ids. We use the list indices as a stable group number mapping to the 
+        #     object Ids.
+        stable_grouplist = wcclist
+        #---------------------------------------------------------------------------
+        # Go through the stable weakly-connected list and find the death groups
+        # that the objects are in.
+        map_stable_to_deathgroups( stable_grouplist = stable_grouplist, # input
+                                   atend_gnum = atend_gnum, # input
+                                   dgreader = dgreader, # input
+                                   stable2deathset = stable2deathset, # output
+                                   objId_seen = objId_seen, # output
+                                   obj2stablegroup = obj2stablegroup, # output
+                                   logger = logger )
 
-    # Do a reverse mapping from death group to stable
-    map_death_to_stablegroups( stable2deathset = stable2deathset, # input
-                               dgreader = dgreader, # input
-                               objId_seen = objId_seen, # input/output
-                               obj2stablegroup = obj2stablegroup, # input
-                               death2stableset = death2stableset, # output
-                               logger = logger )
-    # Make a bipartite stable <-> death group graph
-    stable_death_graph = create_stable_death_bipartite_graph( stable2deathset = stable2deathset,
-                                                              death2stableset = death2stableset,
-                                                              DAE_groupnum = atend_gnum,
-                                                              logger = logger )
-    wcc_stable_death_list = sorted( nx.connected_component_subgraphs(stable_death_graph),
-                                    key = len,
-                                    reverse = True )
-    # SUMMARIZATION of wcc_stable_death used to be HERE.
-    # Moved below to include UNSTABLE analysis.
-    #---------------------------------------------------------------------------
-    # Create the next super graph TWO. Which consists of stable groups + unstable edges.
-    # - Create new graph using stable groups as nodes.
-    #       Start the graph by adding nodes
-    stnode_list =  set([])
-    # Add nodes to graph
-    dgraph_unstable = add_nodes_to_graph_TWO( stable_grouplist = stable_grouplist,
-                                              stnode_list = stnode_list,
-                                              logger = logger )
-    # - Add the UNSTABLE edges.
-    add_unstable_edges( dgraph = dgraph_unstable,
-                        stability = stability,
-                        reference = reference,
-                        stable_grouplist = stable_grouplist,
-                        obj2stablegroup = obj2stablegroup,
-                        stnode_list = stnode_list,
-                        objreader = objreader, # input
-                        main_time = fmain_result["main_time"], # timestamp when main function was called
-                        logger = logger )
-    # Get the weakly connected components
-    wcclist_unstable = sorted( nx.weakly_connected_component_subgraphs(dgraph_unstable),
-                               key = len,
-                               reverse = True )
-    #---------------------------------------------------------------------------
-    #----[ SUMMARIZE STABLE,DEATH and UNSTABLE ]--------------------------------
-    #---------------------------------------------------------------------------
-    sum_result = summarize_wcc_stable_death_unstable_components( wcc_sd_list = wcc_stable_death_list,
-                                                                 stable_grouplist = stable_grouplist,
-                                                                 unstable_grouplist = wcclist_unstable,
-                                                                 objreader = objreader,
-                                                                 dgroup_reader = dgreader,
-                                                                 summary_reader = summary_reader,
-                                                                 bmark = bmark,
-                                                                 output_filename = os.path.join( main_config["output"], 
-                                                                                                 "%s-stabledeath-object-summary.csv" % bmark ),
-                                                                 logger = logger,
-                                                               )
-    sumSD = sum_result["stable-death"]
-    sumUNSTABLE = sum_result["unstable"]
-    #---------------------------------------------------------------------------
-    #----[ Stable <-> Death summary OUTPUT ]------------------------------------
-    #---------------------------------------------------------------------------
-    print "============[ %s :: Stable <-> Death graph ]=======================================" % bmark
-    print "[%s] Number of nodes: %d" % (bmark, stable_death_graph.number_of_nodes())
-    print "[%s] Number of edges: %d" % (bmark, stable_death_graph.number_of_edges())
-    print "[%s] Number of components: %d" % (bmark, len(wcc_stable_death_list))
-    print "[%s] Top 5 largest components: %s" % (bmark, str( [ len(x) for x in wcc_stable_death_list[:5] ] ))
-    print "================================================================================"
-    print "================================================================================"
-    #---------------------------------------------------------------------------
-    #----[ Output the graph and summary ]---------------------------------------
-    #---------------------------------------------------------------------------
-    output_graph_and_summary( bmark = bmark,
-                              objreader = objreader,
-                              dgraph = dgraph,
-                              dgraph_unstable = dgraph_unstable,
-                              stable_grouplist = stable_grouplist, # aka wcclist
-                              wcclist_unstable = wcclist_unstable,
-                              sumSD = sumSD,
-                              sumUNSTABLE = sumUNSTABLE,
-                              backupdir = backupdir,
-                              stable2deathset = stable2deathset,
-                              death2stableset = death2stableset,
-                              logger = logger )
-    result.append( { "graph" : dgraph,
-                     "graph_unstable" : dgraph_unstable,
-                     "wcclist" : wcclist,
-                     "stable2deathset" : stable2deathset,
-                     "death2stableset" : death2stableset,
-                     "stable-death" : sumSD,
-                     "unstable" : sumUNSTABLE, } )
+        # Do a reverse mapping from death group to stable
+        map_death_to_stablegroups( stable2deathset = stable2deathset, # input
+                                   dgreader = dgreader, # input
+                                   objId_seen = objId_seen, # input/output
+                                   obj2stablegroup = obj2stablegroup, # input
+                                   death2stableset = death2stableset, # output
+                                   logger = logger )
+        # Make a bipartite stable <-> death group graph
+        stable_death_graph = create_stable_death_bipartite_graph( stable2deathset = stable2deathset,
+                                                                  death2stableset = death2stableset,
+                                                                  DAE_groupnum = atend_gnum,
+                                                                  logger = logger )
+        wcc_stable_death_list = sorted( nx.connected_component_subgraphs(stable_death_graph),
+                                        key = len,
+                                        reverse = True )
+        # SUMMARIZATION of wcc_stable_death used to be HERE.
+        # Moved below to include UNSTABLE analysis.
+        #=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+        # 4: STABLE with UNSTABLE edges GRAPH
+        #=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+        #---------------------------------------------------------------------------
+        # Create the next super graph TWO. Which consists of stable groups + unstable edges.
+        # - Create new graph using stable groups as nodes.
+        #       Start the graph by adding nodes
+        stnode_list =  set([])
+        # Add nodes to graph
+        dgraph_unstable = add_nodes_to_graph_TWO( stable_grouplist = stable_grouplist,
+                                                  stnode_list = stnode_list,
+                                                  logger = logger )
+        # - Add the UNSTABLE edges.
+        add_unstable_edges( dgraph = dgraph_unstable,
+                            stability = stability,
+                            reference = reference,
+                            stable_grouplist = stable_grouplist,
+                            obj2stablegroup = obj2stablegroup,
+                            stnode_list = stnode_list,
+                            objreader = objreader, # input
+                            main_time = fmain_result["main_time"], # timestamp when main function was called
+                            logger = logger )
+        # Get the weakly connected components
+        wcclist_unstable = sorted( nx.weakly_connected_component_subgraphs(dgraph_unstable),
+                                   key = len,
+                                   reverse = True )
+        #---------------------------------------------------------------------------
+        #----[ SUMMARIZE STABLE,DEATH and UNSTABLE ]--------------------------------
+        #---------------------------------------------------------------------------
+        sum_result = summarize_wcc_stable_death_unstable_components( wcc_sd_list = wcc_stable_death_list,
+                                                                     stable_grouplist = stable_grouplist,
+                                                                     unstable_grouplist = wcclist_unstable,
+                                                                     objreader = objreader,
+                                                                     dgroup_reader = dgreader,
+                                                                     summary_reader = summary_reader,
+                                                                     bmark = bmark,
+                                                                     output_filename = os.path.join( main_config["output"], 
+                                                                                                     "%s-stabledeath-object-summary.csv" % bmark ),
+                                                                     logger = logger,
+                                                                   )
+        sumSD = sum_result["stable-death"]
+        sumUNSTABLE = sum_result["unstable"]
+        #---------------------------------------------------------------------------
+        #----[ Stable <-> Death summary OUTPUT ]------------------------------------
+        #---------------------------------------------------------------------------
+        print "============[ %s :: Stable <-> Death graph ]=======================================" % bmark
+        print "[%s] Number of nodes: %d" % (bmark, stable_death_graph.number_of_nodes())
+        print "[%s] Number of edges: %d" % (bmark, stable_death_graph.number_of_edges())
+        print "[%s] Number of components: %d" % (bmark, len(wcc_stable_death_list))
+        print "[%s] Top 5 largest components: %s" % (bmark, str( [ len(x) for x in wcc_stable_death_list[:5] ] ))
+        print "================================================================================"
+        print "================================================================================"
+        #---------------------------------------------------------------------------
+        #----[ Output the graph and summary ]---------------------------------------
+        #---------------------------------------------------------------------------
+        output_graph_and_summary( bmark = bmark,
+                                  objreader = objreader,
+                                  dgraph = dgraph,
+                                  dgraph_unstable = dgraph_unstable,
+                                  stable_grouplist = stable_grouplist, # aka wcclist
+                                  wcclist_unstable = wcclist_unstable,
+                                  sumSD = sumSD,
+                                  sumUNSTABLE = sumUNSTABLE,
+                                  backupdir = backupdir,
+                                  stable2deathset = stable2deathset,
+                                  death2stableset = death2stableset,
+                                  logger = logger )
+        result.append( { "graph" : dgraph,
+                         "graph_unstable" : dgraph_unstable,
+                         "wcclist" : wcclist,
+                         "stable2deathset" : stable2deathset,
+                         "death2stableset" : death2stableset,
+                         "stable-death" : sumSD,
+                         "unstable" : sumUNSTABLE, } )
+        # END COMMENTED OUT CODE
 
 def main_process( global_config = {},
                   objectinfo_config = {},
@@ -1218,6 +1407,7 @@ def main_process( global_config = {},
                   summary_config = {},
                   objectinfo_db_config = {},
                   cachesize_config = {},
+                  edgeinfo_config = {},
                   mprflag = False,
                   debugflag = False,
                   logger = None ):
@@ -1281,6 +1471,7 @@ def main_process( global_config = {},
                                   use_objinfo_db,
                                   objectinfo_db_config,
                                   cachesize_config,
+                                  edgeinfo_config,
                                   logger ) )
             procs[bmark] = p
             p.start()
@@ -1349,6 +1540,7 @@ def process_config( args ):
     main_config = config_section_map( "create-supergraph", config_parser )
     host_config = config_section_map( "hosts", config_parser )
     objectinfo_config = config_section_map( "objectinfo", config_parser )
+    edgeinfo_config = config_section_map( "edgeinfo", config_parser )
     dgroup_config = config_section_map( "etanalyze-output", config_parser )
     worklist_config = config_section_map( "create-supergraph-worklist", config_parser )
     cachesize_config = config_section_map( "create-supergraph-cachesize", config_parser )
@@ -1362,6 +1554,7 @@ def process_config( args ):
     return { "global" : global_config,
              "main" : main_config,
              "objectinfo" : objectinfo_config,
+             "edgeinfo" : edgeinfo_config,
              "dgroup" : dgroup_config,
              "hosts" : host_config,
              "create-supergraph-worklist" : worklist_config,
@@ -1431,6 +1624,7 @@ def main():
     host_config = process_host_config( configdict["hosts"] )
     main_config = configdict["main"]
     objectinfo_config = configdict["objectinfo"]
+    edgeinfo_config = configdict["edgeinfo"]
     dgroup_config = configdict["dgroup"]
     reference_config = configdict["reference"]
     reverse_ref_config = configdict["reverse-reference"]
@@ -1439,7 +1633,6 @@ def main():
     objectinfo_db_config = configdict["objectinfo_db"]
     cachesize_config = configdict["cachesize"]
     worklist_config = process_worklist_config( configdict["create-supergraph-worklist"] )
-    # pp.pprint(worklist_config)
     # PROBABLY DELETE:
     # contextcount_config = configdict["contextcount"]
     # Set up logging
@@ -1463,6 +1656,7 @@ def main():
                          summary_config = summary_config,
                          objectinfo_db_config = objectinfo_db_config,
                          cachesize_config = cachesize_config,
+                         edgeinfo_config = edgeinfo_config,
                          logger = logger )
 
 if __name__ == "__main__":

@@ -778,6 +778,7 @@ class EdgeInfoReader:
 
     def read_edgeinfo_file_with_stability_into_db( self,
                                                    stabreader = None ):
+        print "G:"
         try:
             assert( stabreader != None )
         except:
@@ -828,12 +829,12 @@ class EdgeInfoReader:
             # TODO                          tgt = tgt,
             # TODO                          deathtime = dtime )
             # END OLD CODE
-            cur = self.outdbconn.cursor()
-            cur.executemany( "INSERT INTO edgeinfo VALUES (?,?,?,?,?,?)", row_generator() )
-            cur.execute( 'CREATE UNIQUE INDEX idx_edgeinfo_srcid ON edgeinfo (srcid)' )
-            cur.execute( 'CREATE UNIQUE INDEX idx_edgeinfo_tgtid ON edgeinfo (tgtid)' )
-            self.outdbconn.commit()
-            self.outdbconn.close()
+        cur = self.outdbconn.cursor()
+        cur.executemany( "INSERT INTO edgeinfo VALUES (?,?,?,?,?,?)", row_generator() )
+        cur.execute( 'CREATE INDEX idx_edgeinfo_srcid ON edgeinfo (srcid)' )
+        cur.execute( 'CREATE INDEX idx_edgeinfo_tgtid ON edgeinfo (tgtid)' )
+        self.outdbconn.commit()
+        self.outdbconn.close()
 
     def read_edgeinfo_file_with_stability( self,
                                            stabreader = {} ):
@@ -925,6 +926,9 @@ class EdgeInfoReader:
             self.lastedge[tgt] = { "lastsources" : [ src ],
                                    "dtime" : deathtime }
 
+    def in_lastedge_dict( self, tgtId = None ):
+        return tgtId in self.lastedge
+
     def get_last_edge_record( self, tgtId = None ):
         return self.lastedge[tgtId] if tgtId in self.lastedge else None
 
@@ -951,12 +955,13 @@ class EdgeInfoReader:
         # 4- death time (dtime) : INTEGER
         # 5- source field (srcfield) : INTEGER
         # 6- stability (stability) : TEXT
-        cur.execute( """CREATE TABLE edgeinfo (srcid INTEGER PRIMARY KEY,
+        cur.execute( """CREATE TABLE edgeinfo (srcid INTEGER,
                                                tgtid INTEGER,
                                                ctime INTEGER,
                                                dtime INTEGER,
                                                srcfield INTEGER,
-                                               stability TEXT)""" )
+                                               stability TEXT,
+                                               UNIQUE (srcid, tgtid, srcfield, ctime))""" )
         conn.execute( 'DROP INDEX IF EXISTS idx_edgeinfo_srcid' )
         conn.execute( 'DROP INDEX IF EXISTS idx_edgeinfo_tgtid' )
         #
@@ -980,15 +985,23 @@ class EdgeInfoFile2DB:
                   stabreader = {},
                   logger = None ):
         assert( logger != None )
-        assert( os.path.isfile(edgeinfo_filename) )
+        try:
+            assert( os.path.isfile(edgeinfo_filename) )
+        except:
+            print "File not found: %s" % edgeinfo_filename
+            exit(200)
+        print "C:"
         self.edgereader = EdgeInfoReader( edgeinfo_filename = edgeinfo_filename,
                                           useDB_as_source = False,
                                           stabreader = stabreader,
                                           logger = logger )
+        print "D:"
         self.edgereader.create_edgeinfo_db( outdbfilename = outdbfilename )
+        print "E:"
         self.edgereader.read_edgeinfo_file_with_stability_into_db( stabreader = stabreader )
+        print "F:"
 
-    
+
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
 class DeathGroupsReader:
@@ -1322,6 +1335,12 @@ class DeathGroupsReader:
 
     def iteritems( self ):
         return self.group2list.iteritems()
+
+    def keys( self ):
+        return self.group2list.keys()
+
+    def items( self ):
+        return self.group2list.items()
 
     def get_atend_group_number( self ):
         return self._atend_gnum
