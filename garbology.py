@@ -213,6 +213,7 @@ class ObjectInfoReader:
         start = False
         count = 0
         if not self.useDB_as_source:
+            print "XXX"
             done = False
             object_info = self.objdict
             with get_trace_fp( self.objinfo_filename, self.logger ) as fp:
@@ -232,7 +233,7 @@ class ObjectInfoReader:
                         # IMPORTANT: Any changes here, means you have to make the
                         # corresponding change up in function 'get_index'
                         # The price of admission for a dynamically typed language.
-                        row = raw_objrow_to_list(rec)
+                        row = self.raw_objrow_to_list(rec)
                         self.alloc_age_list.append( ( row[get_index("DTIME_ALLOC")] -
                                                       row[get_index("ATIME_ALLOC")] ) )
                         self.methup_age_list.append( ( row[get_index("DTIME")] -
@@ -248,6 +249,7 @@ class ObjectInfoReader:
                     #     shared_list.append( count )
             assert(done)
         else:
+            print "YYY"
             self.objdict = ObjectCache( tgtpath = self.db_filename,
                                         table = "objinfo",
                                         keyfield = "objid",

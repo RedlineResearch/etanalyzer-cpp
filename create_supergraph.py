@@ -190,18 +190,21 @@ def read_simulator_data( bmark = "",
         # return False
     else:
         print " - Using objectinfo text file:"
-        mydict["objreader"] = ObjectInfoReader( os.path.join( cycle_cpp_dir,
-                                                              objectinfo_config[bmark] ),
+        objinfo_path = os.path.join( cycle_cpp_dir,
+                                     objectinfo_config[bmark] )
+        mydict["objreader"] = ObjectInfoReader( objinfo_path,
                                                 useDB_as_source = False,
                                                 logger = logger )
         objreader = mydict["objreader"]
-        try:
-            objreader.read_objinfo_file()
-        except:
-            logger.error( "[ %s ] Unable to read objinfo file.." % bmark )
-            mydict.clear()
-            sys.stdout.flush()
-        return False
+        # try:
+        objreader.read_objinfo_file()
+        # except:
+        #     logger.error( "[ %s ] Unable to read objinfo file - [%s]" %
+        #                   (bmark, objinfo_path) )
+        #     print "[ %s ] Unable to read objinfo file - [%s]" % (bmark, objinfo_path)
+        #     mydict.clear()
+        #     sys.stdout.flush()
+        #     return False
     #===========================================================================
     # Read in STABILITY
     print "Reading in the STABILITY file for benchmark:", bmark
@@ -254,7 +257,7 @@ def read_simulator_data( bmark = "",
             logger.error( "[ %s ] Unable to read edgeinfo file.." % bmark )
             mydict.clear()
             sys.stdout.flush()
-        return False
+            return False
     #===========================================================================
     # Read in CYCLES (which contains the death groups)
     print "Reading in the CYCLES (deathgroup) file for benchmark:", bmark
@@ -1212,9 +1215,19 @@ def create_supergraph_all_MPR( bmark = "",
                     logger = logger )
     # Get the group number for 'died at end' group since we want to ignore that group
     atend_gnum = dgreader.get_atend_group_number()
-    # wcc_stable_death_list = sorted( nx.connected_component_subgraphs(stable_death_graph),
-    #                                 key = len,
-    #                                 reverse = True )
+    wcc_deathgroup_list = sorted( nx.connected_component_subgraphs(dgraph_dgroup),
+                                  key = len,
+                                  reverse = True )
+    #---------------------------------------------------------------------------
+    #----[ Death group summary OUTPUT ]-----------------------------------------
+    #---------------------------------------------------------------------------
+    print "============[ %s :: Death group graph ]============================================" % bmark
+    print "[%s] Number of nodes: %d" % (bmark, dgraph_dgroup.number_of_nodes())
+    print "[%s] Number of edges: %d" % (bmark, dgraph_dgroup.number_of_edges())
+    print "[%s] Number of components: %d" % (bmark, len(wcc_deathgroup_list))
+    print "[%s] Top 5 largest components: %s" % (bmark, str( [ len(x) for x in wcc_deathgroup_list[:5] ] ))
+    print "==================================================================================="
+    #---------------------------------------------------------------------------
     if False:
         # TODO: Temporary commenting out
         #---------------------------------------------------------------------------
@@ -1493,6 +1506,7 @@ def main_process( global_config = {},
                                        use_objinfo_db = use_objinfo_db,
                                        objectinfo_db_config = objectinfo_db_config,
                                        cachesize_config = cachesize_config,
+                                       edgeinfo_config = edgeinfo_config,
                                        logger = logger )
 
     if mprflag:
