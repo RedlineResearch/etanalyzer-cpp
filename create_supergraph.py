@@ -166,8 +166,11 @@ def read_simulator_data( bmark = "",
                          objectinfo_db_config = {},
                          cachesize = 5000000,
                          logger = None ):
-    #===========================================================================
-    # Read in OBJECTINFO
+    # TODO DEBUG
+    summary_fname = os.path.join( cycle_cpp_dir,
+                                  summary_config[bmark] )
+    # #===========================================================================
+    # # Read in OBJECTINFO
     print "Reading in the OBJECTINFO file for benchmark:", bmark
     sys.stdout.flush()
     if use_objinfo_db:
@@ -196,32 +199,18 @@ def read_simulator_data( bmark = "",
                                                 useDB_as_source = False,
                                                 logger = logger )
         objreader = mydict["objreader"]
-        # try:
         objreader.read_objinfo_file()
-        # except:
-        #     logger.error( "[ %s ] Unable to read objinfo file - [%s]" %
-        #                   (bmark, objinfo_path) )
-        #     print "[ %s ] Unable to read objinfo file - [%s]" % (bmark, objinfo_path)
-        #     mydict.clear()
-        #     sys.stdout.flush()
-        #     return False
-    #===========================================================================
-    # Read in STABILITY
+    # #===========================================================================
+    # # Read in STABILITY
     print "Reading in the STABILITY file for benchmark:", bmark
     sys.stdout.flush()
     mydict["stability"] = StabilityReader( os.path.join( cycle_cpp_dir,
                                                          stability_config[bmark] ),
                                            logger = logger )
-    try:
-        stabreader = mydict["stability"]
-        stabreader.read_stability_file()
-    except:
-        logger.error( "[ %s ] Unable to read stability file.." % bmark )
-        mydict.clear()
-        sys.stdout.flush()
-        return False
-    #===========================================================================
-    # Read in EDGEINFO
+    stabreader = mydict["stability"]
+    stabreader.read_stability_file()
+    # #===========================================================================
+    # # Read in EDGEINFO
     print "Reading in the EDGEINFO file for benchmark:", bmark
     sys.stdout.flush()
     if False: # TODO: Add selection for edgeinfo DB
@@ -237,13 +226,7 @@ def read_simulator_data( bmark = "",
         #                                         cachesize = cachesize,
         #                                         logger = logger )
         # objreader = mydict["objreader"]
-        # # try:
         # objreader.read_objinfo_file()
-        # # except:
-        # #     logger.error( "[ %s ] Unable to read objinfo file.." % bmark )
-        # #     mydict.clear()
-        # #     sys.stdout.flush()
-        # # return False
     else:
         print " - Using edgeinfo text file:"
         mydict["edgereader"] = EdgeInfoReader( os.path.join( cycle_cpp_dir,
@@ -251,28 +234,16 @@ def read_simulator_data( bmark = "",
                                                useDB_as_source = False,
                                                logger = logger )
         edgereader = mydict["edgereader"]
-        try:
-            edgereader.read_edgeinfo_file_with_stability( stabreader )
-        except:
-            logger.error( "[ %s ] Unable to read edgeinfo file.." % bmark )
-            mydict.clear()
-            sys.stdout.flush()
-            return False
-    #===========================================================================
-    # Read in CYCLES (which contains the death groups)
+        edgereader.read_edgeinfo_file_with_stability( stabreader )
+    # #===========================================================================
+    # # Read in CYCLES (which contains the death groups)
     print "Reading in the CYCLES (deathgroup) file for benchmark:", bmark
     sys.stdout.flush()
     mydict["dgroupreader"] = DeathGroupsReader( os.path.join( cycle_cpp_dir,
                                                               dgroup_config[bmark] ),
                                                 logger = logger )
     dgroupreader = mydict["dgroupreader"]
-    # try:
     dgroupreader.read_dgroup_file( objreader )
-    # except:
-    #     logger.error( "[ %s ] Unable to read cycles (deathgroup) file.." % bmark )
-    #     mydict.clear()
-    #     sys.stdout.flush()
-    #     return False
     #===========================================================================
     # Read in REFERENCE
     print "Reading in the REFERENCE file for benchmark:", bmark
@@ -280,44 +251,27 @@ def read_simulator_data( bmark = "",
     mydict["reference"] = ReferenceReader( os.path.join( cycle_cpp_dir,
                                                          reference_config[bmark] ),
                                            logger = logger )
-    try:
-        refreader = mydict["reference"]
-        refreader.read_reference_file()
-    except:
-        logger.error( "[ %s ] Unable to read reference file.." % bmark )
-        mydict.clear()
-        sys.stdout.flush()
-        return False
+    refreader = mydict["reference"]
+    refreader.read_reference_file()
     #===========================================================================
     # Read in REVERSE-REFERENCE
     print "Reading in the REVERSE-REFERENCE file for benchmark:", bmark
     sys.stdout.flush()
     mydict["reverse-ref"] = ReverseRefReader( os.path.join( cycle_cpp_dir,
                                                             reverse_ref_config[bmark] ),
-                                              logger = logger )
-    try:
-        reversereader = mydict["reverse-ref"]
-        reversereader.read_reverseref_file()
-    except:
-        logger.error( "[ %s ] Unable to read reverse-reference file.." % bmark )
-        mydict.clear()
-        sys.stdout.flush()
-        return False
+                                             logger = logger )
+    reversereader = mydict["reverse-ref"]
+    reversereader.read_reverseref_file()
     #===========================================================================
     # Read in SUMMARY
     print "Reading in the SUMMARY file for benchmark:", bmark
     sys.stdout.flush()
-    mydict["summary_reader"] = SummaryReader( os.path.join( cycle_cpp_dir,
-                                                     summary_config[bmark] ),
-                                       logger = logger )
-    try:
-        summary_reader = mydict["summary_reader"]
-        summary_reader.read_summary_file()
-    except:
-        logger.error( "[ %s ] Unable to read summary file.." % bmark )
-        mydict.clear()
-        sys.stdout.flush()
-        return False
+    summary_fname = os.path.join( cycle_cpp_dir,
+                                  summary_config[bmark] )
+    mydict["summary_reader"] = SummaryReader( summary_file = summary_fname,
+                                              logger = logger )
+    summary_reader = mydict["summary_reader"]
+    summary_reader.read_summary_file()
     #===========================================================================
     sys.stdout.flush()
     return True
@@ -1656,7 +1610,7 @@ def main():
     # Main processing
     #
     config_debugflag = global_config["debug"]
-    return main_process( debugflag = (config_debugflag if config_debugflag else args.debugflag),
+    return main_process( debugflag = args.debugflag,
                          mprflag = args.mprflag,
                          global_config = global_config,
                          main_config = main_config,

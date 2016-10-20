@@ -1203,7 +1203,7 @@ class DeathGroupsReader:
                     gnum = dtime2group[dt]
                     self.group2list[gnum].append(objId)
                     self.obj2group[objId] = [ gnum ]
-                    self.logger.error( "Adding object [%d] to group [%d]" % (objId, gnum) )
+                    self.logger.debug( "Adding object [%d] to group [%d]" % (objId, gnum) )
                 else:
                     # Alert: new death time. Create a new group.
                     if oir.died_at_end(objId):
@@ -1214,7 +1214,7 @@ class DeathGroupsReader:
                         else:
                             self.group2list[atend_gnum] = [ objId ]
                         self.obj2group[objId] = [ atend_gnum ]
-                        self.logger.error( "Adding object [%d] to AT END group [%d]" % (objId, atend_gnum) )
+                        self.logger.debug( "Adding object [%d] to AT END group [%d]" % (objId, atend_gnum) )
                     else:
                         # Add to a new group
                         gnum = last_gnum + 1
@@ -1222,7 +1222,7 @@ class DeathGroupsReader:
                         dtime2group[dt] = gnum
                         self.group2list[gnum] = [ objId ]
                         self.obj2group[objId] = [ gnum ]
-                        self.logger.error( "Adding object [%d] to group [%d]" % (objId, gnum) )
+                        self.logger.debug( "Adding object [%d] to group [%d]" % (objId, gnum) )
         # Do we need to verify?
         if verify:
             dtime2group = defaultdict(set)
@@ -1321,16 +1321,20 @@ class DeathGroupsReader:
         print "----------------------------------------------------------------------"
         # TODO grlen = sorted( [ len(mylist) for group, mylist in self.group2list.iteritems() if len(mylist) > 0 ],
         #                       reverse = True )
+        nokey_set = set()
         for gnum, mylist in self.group2list.iteritems():
             keylist = get_key_objects( mylist, oir )
             self.map_key2group( groupnum = groupnum, keylist = keylist )
             # Debug key objects. NOTE: This may not be used for now.
             if len(keylist) > 1:
-                logger.error( "multiple key objects: %s" % str(keylist) )
+                logger.debug( "multiple key objects: %s" % str(keylist) )
                 multkey += 1
             elif len(keylist) == 0:
-                logger.critical( "NO key object in group: %s" % str(dg) )
-                withoutkey += 1
+                tmpset = frozenset(keylist)
+                if tmpset not in nokey_set:
+                    logger.debug( "NO key object in group: %s" % str(keylist) )
+                    withoutkey += 1
+                    nokey_set.add(tmpset)
         print "Multiple key: %d" % multkey
         print "Without key: %d" % withoutkey
         print "----------------------------------------------------------------------"
@@ -1569,7 +1573,10 @@ class SummaryReader:
                     row = line.split(",")
                     # 0 - key
                     # 1 - value
-                    sdict[row[0]] = int(row[1])
+                    try:
+                        sdict[row[0]] = int(row[1])
+                    except:
+                        raise ValueError( "Unexpected line: %s" % line )
         assert(done)
 
     def get_final_garbology_time( self ):
