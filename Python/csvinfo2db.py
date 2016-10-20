@@ -26,7 +26,7 @@ from mypytools import check_host, create_work_directory, process_host_config, \
 
 # The garbology related library. Import as follows.
 # Check garbology.py for other imports
-from garbology import ObjectInfoFile2DB, EdgeInfoFile2DB
+from garbology import ObjectInfoFile2DB, EdgeInfoFile2DB, StabilityReader
 
 # Needed to read in *-OBJECTINFO.txt and other files from
 # the simulator run
@@ -86,6 +86,7 @@ def read_edgeinfo_with_stability_into_db( result = [],
                                           cycle_cpp_dir = "",
                                           logger = None ):
     assert(logger != None)
+    print "A:"
     # print os.listdir( )
     tracefile = os.path.join( cycle_cpp_dir, edgeinfo_config[bmark] )
     # The EdgeInfoFile2DB will create the DB connection. We just
@@ -94,6 +95,7 @@ def read_edgeinfo_with_stability_into_db( result = [],
                                   outdbfilename = outdbname,
                                   stabreader = stabreader,
                                   logger = logger )
+    print "B:"
 
 def main_process( output = None,
                   global_config = {},
@@ -102,6 +104,7 @@ def main_process( output = None,
                   host_config = {},
                   objectinfo_config = {},
                   edgeinfo_config = {},
+                  stability_config = {},
                   mprflag = False,
                   debugflag = False,
                   logger = None ):
@@ -154,58 +157,75 @@ def main_process( output = None,
             # - create function 'csvinfo2b' that does the work
             #
             # NOTE: The order of the args tuple is important!
+            # ======================================================================
             # Read in the OBJECTINFO
-            dblist.append( outdbname )
-            p = Process( target = read_objectinfo_into_db,
-                         args = ( results_obj[bmark],
-                                  bmark,
-                                  outdbname,
-                                  mprflag,
-                                  objectinfo_config,
-                                  cycle_cpp_dir,
-                                  logger ) )
-            procs_obj[bmark] = p
-            p.start()
+            # WORKING: dblist.append( outdbname )
+            # WORKING: p = Process( target = read_objectinfo_into_db,
+            # WORKING:              args = ( results_obj[bmark],
+            # WORKING:                       bmark,
+            # WORKING:                       outdbname,
+            # WORKING:                       mprflag,
+            # WORKING:                       objectinfo_config,
+            # WORKING:                       cycle_cpp_dir,
+            # WORKING:                       logger ) )
+            # WORKING: procs_obj[bmark] = p
+            # WORKING: p.start()
+            # ======================================================================
             # Read in the EDGEINFO
             # TODO TODO TODO
             # Need to read in the StabilityReader
-            # WORKINPROGRESS: p = Process( target = read_edgeinfo_with_stability_into_db,
-            # WORKINPROGRESS:              args = ( results_edge[bmark],
-            # WORKINPROGRESS:                       bmark,
-            # WORKINPROGRESS:                       outdbname,
-            # WORKINPROGRESS:                       mprflag,
-            # WORKINPROGRESS:                       stabreader,
-            # WORKINPROGRESS:                       edgeinfo_config,
-            # WORKINPROGRESS:                       cycle_cpp_dir,
-            # WORKINPROGRESS:                       logger )
-            # WORKINPROGRESS:              )
-            # WORKINPROGRESS: procs_edge[bmark] = p
-            # dblist.append( outdbname )
-            # p.start()
+            print "Reading in the STABILITY file for benchmark:", bmark
+            sys.stdout.flush()
+            stabreader = StabilityReader( os.path.join( cycle_cpp_dir,
+                                                        stability_config[bmark] ),
+                                          logger = logger )
+            stabreader.read_stability_file()
+            print "STAB done."
+            exit(100)
+            # Start the process
+            p = Process( target = read_edgeinfo_with_stability_into_db,
+                         args = ( results_edge[bmark],
+                                  bmark,
+                                  outdbname,
+                                  mprflag,
+                                  stabreader,
+                                  edgeinfo_config,
+                                  cycle_cpp_dir,
+                                  logger )
+                         )
+            procs_edge[bmark] = p
+            dblist.append( outdbname )
+            p.start()
         else:
             print "=======[ Running %s ]=================================================" \
                 % bmark
 
-            print "     Reading in objectinfo..."
-            results_obj[bmark] = [ bmark, ]
-            read_objectinfo_into_db( result = results_obj[bmark],
-                                     bmark = bmark,
-                                     outdbname = outdbname,
-                                     mprflag = mprflag,
-                                     objectinfo_config = objectinfo_config,
-                                     cycle_cpp_dir = cycle_cpp_dir,
-                                     logger = logger )
+            # WORKING: print "     Reading in objectinfo..."
+            # WORKING: results_obj[bmark] = [ bmark, ]
+            # WORKING: read_objectinfo_into_db( result = results_obj[bmark],
+            # WORKING:                          bmark = bmark,
+            # WORKING:                          outdbname = outdbname,
+            # WORKING:                          mprflag = mprflag,
+            # WORKING:                          objectinfo_config = objectinfo_config,
+            # WORKING:                          cycle_cpp_dir = cycle_cpp_dir,
+            # WORKING:                          logger = logger )
+            # WORKING: dblist.append( outdbname )
+            stabreader = StabilityReader( os.path.join( cycle_cpp_dir,
+                                                        stability_config[bmark] ),
+                                          logger = logger )
+            stabreader.read_stability_file()
+            print "STAB done."
+            print "     Reading in edgeinfo..."
+            results_edge[bmark] = [ bmark, ]
+            read_edgeinfo_with_stability_into_db( result = results_edge[bmark],
+                                                  bmark = bmark,
+                                                  outdbname = outdbname,
+                                                  mprflag = mprflag,
+                                                  edgeinfo_config = edgeinfo_config,
+                                                  cycle_cpp_dir = cycle_cpp_dir,
+                                                  logger = logger )
             dblist.append( outdbname )
-            # WORKINPROGRESS: print "     Reading in edgeinfo..."
-            # WORKINPROGRESS: results_edge[bmark] = [ bmark, ]
-            # WORKINPROGRESS: read_edgeinfo_with_stability_into_db( result = results_edge[bmark],
-            # WORKINPROGRESS:                                       bmark = bmark,
-            # WORKINPROGRESS:                                       outdbname = outdbname,
-            # WORKINPROGRESS:                                       mprflag = mprflag,
-            # WORKINPROGRESS:                                       edgeinfo_config = edgeinfo_config,
-            # WORKINPROGRESS:                                       cycle_cpp_dir = cycle_cpp_dir,
-            # WORKINPROGRESS:                                       logger = logger )
-            # WORKINPROGRESS: dblist.append( outdbname )
+            exit(100)
     if mprflag:
         # Poll the processes 
         while not done:
@@ -236,7 +256,8 @@ def main_process( output = None,
     dest = main_config["output"]
     for dbfilename in dblist:
         # Check to see first if the destination exists:
-        abspath, fname = dbfilename.split()
+        # print "XXX: %s -> %s" % (dbfilename, dbfilename.split())
+        abspath, fname = os.path.split(dbfilename)
         tgt = os.path.join( dest, fname )
         if os.path.isfile(tgt):
             try:
@@ -271,6 +292,7 @@ def process_config( args ):
     worklist_config = config_section_map( "csvinfo2db-worklist", config_parser )
     objectinfo_config = config_section_map( "objectinfo", config_parser )
     edgeinfo_config = config_section_map( "edgeinfo", config_parser )
+    stability_config = config_section_map( "stability-summary", config_parser )
     # MAYBE: summary_config = config_section_map( "summary_cpp", config_parser )
     # DON'T KNOW: contextcount_config = config_section_map( "contextcount", config_parser )
     return { "global" : global_config,
@@ -279,6 +301,7 @@ def process_config( args ):
              "hosts" : host_config,
              "objectinfo" : objectinfo_config,
              "edgeinfo" : edgeinfo_config,
+             "stability" : stability_config,
              }
 
 def create_parser():
@@ -325,7 +348,9 @@ def main():
     host_config = process_host_config( configdict["hosts"] )
     objectinfo_config = configdict["objectinfo"]
     edgeinfo_config = configdict["edgeinfo"]
+    stability_config = configdict["stability"]
     # TODO DEBUG TODO
+    print "================================================================================"
     pp.pprint( global_config )
     print "================================================================================"
     pp.pprint( main_config )
@@ -346,6 +371,7 @@ def main():
                          worklist_config = worklist_config,
                          objectinfo_config = objectinfo_config,
                          edgeinfo_config = edgeinfo_config,
+                         stability_config = stability_config,
                          mprflag = args.mprflag,
                          logger = logger )
 

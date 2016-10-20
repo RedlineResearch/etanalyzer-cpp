@@ -1331,8 +1331,8 @@ int main(int argc, char* argv[])
                  << "vm_RC_zero," << Heap.getVMObjectsRefCountZero() << endl
                  << "vm_RC_positive," << Heap.getVMObjectsRefCountPositive() << endl
                  << "max_live_size," << Heap.maxLiveSize() << endl
-                 << "main_func_uptime" << Exec.get_main_func_uptime() << endl
-                 << "main_func_alloctime" << Exec.get_main_func_alloctime() << endl
+                 << "main_func_uptime," << Exec.get_main_func_uptime() << endl
+                 << "main_func_alloctime," << Exec.get_main_func_alloctime() << endl
                  << "final_time," << final_time << endl
                  << "final_time_alloc," << final_time_alloc << endl;
     summary_file << "---------------[ SUMMARY INFO END ]------------------------------------------------" << endl;
