@@ -1172,7 +1172,7 @@ def create_supergraph_all_MPR( bmark = "",
                     logger = logger )
     # Get the group number for 'died at end' group since we want to ignore that group
     atend_gnum = dgreader.get_atend_group_number()
-    wcc_deathgroup_list = sorted( nx.connected_component_subgraphs(dgraph_dgroup),
+    wcc_deathgroup_list = sorted( nx.weakly_connected_component_subgraphs(dgraph_dgroup),
                                   key = len,
                                   reverse = True )
     #---------------------------------------------------------------------------
