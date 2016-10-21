@@ -1285,9 +1285,10 @@ class DeathGroupsReader:
                     if len(dg) == 0:
                         continue
                     dtimes = list( set( [ oir.get_death_time(x) for x in dg ] ) )
-                    if (len(dtimes) > 1):
-                         # TODO: Should we split into groups according to death times?
-                         logger.debug( "Multiple death times: %s" % str(dtimes) )
+                    # TODO TODO TODO
+                    # if (len(dtimes) > 1):
+                    #      # TODO: Should we split into groups according to death times?
+                    #      logger.debug( "Multiple death times: %s" % str(dtimes) )
                     # dglist = []
                     # for ind in xrange(len(dtimes)):
                     #     dtime = dtimes[ind]

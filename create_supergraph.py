@@ -1060,7 +1060,7 @@ def add_last_edges( dgraph = {},
             #                               main_time = main_time,
             #                               objreader = objreader ):
             #     continue # Ignore anything before the main function
-            lastedge_rec = dgreader.get_last_edge_record( tgtId = objId )
+            lastedge_rec = edgereader.get_last_edge_record( tgtId = objId )
             # Record is a dictionary:
             # { "lastsources" : list of sources 
             #     "dtime" : death time }
@@ -1071,10 +1071,13 @@ def add_last_edges( dgraph = {},
                 elif len(lastsources) == 0:
                     logger.debug( "No incoming edge for objId[%d]" % objId )
                 for srcId in lastsources:
-                    srcDg = dgreader.get_group(srcId)
-                    if (srcDg, tgtDg) not in edgeset:
-                        srcNode = "D%d" % srcDg
-                        dgraph.add_edge( srcNode, tgtNode )
+                    srcDglist = dgreader.get_group(srcId)
+                    if len(srcDglist) >= 1:
+                        srcDg = srcDglist[0]
+                        if (srcDg, tgtDg) not in edgeset:
+                            srcNode = "D%d" % srcDg
+                            dgraph.add_edge( srcNode, tgtNode )
+                            edgeset.add( (srcDg, tgtDg) )
             else:
                 logger.debug( "No incoming edges for objId[ %d ]" % objId )
     return dgraph
