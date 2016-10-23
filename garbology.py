@@ -780,7 +780,6 @@ class EdgeInfoReader:
 
     def read_edgeinfo_file_with_stability_into_db( self,
                                                    stabreader = None ):
-        print "G:"
         try:
             assert( stabreader != None )
         except:
@@ -809,15 +808,18 @@ class EdgeInfoReader:
                         # 4 - fieldId
                         row = [ int(x) for x in rowtmp ]
                         src = row[0]
+                        tgt = row[1]
+                        dtime = row[3]
                         fieldId = row[4]
-                        # tgt = row[1]
                         # timepair = tuple(row[2:4])
-                        # dtime = row[3]
                         try:
                             stability = sb[src][fieldId]
                         except:
                             stability = "X" # X means unknown
                         row.append(stability)
+                        self.update_last_edges( src = src,
+                                                tgt = tgt,
+                                                deathtime = dtime )
                         yield tuple(row)
             # End generator
 
@@ -835,6 +837,16 @@ class EdgeInfoReader:
         cur.executemany( "INSERT INTO edgeinfo VALUES (?,?,?,?,?,?)", row_generator() )
         cur.execute( 'CREATE INDEX idx_edgeinfo_srcid ON edgeinfo (srcid)' )
         cur.execute( 'CREATE INDEX idx_edgeinfo_tgtid ON edgeinfo (tgtid)' )
+        #================================================================================
+        # Now save the lastedge dictionary
+        def row_generator_lastedge():
+            for tgt, mydict in self.lastedge.iteritems():
+                if len(mydict["lastsources"]) > 0:
+                    yield (tgt, mydict["dtime"], mydict["lastsources"][0])
+        cur.executemany( "INSERT INTO lastedge VALUES (?,?,?)", row_generator_lastedge() )
+        cur.execute( 'CREATE INDEX idx_lastedge_tgtid ON lastedge (tgtid)' )
+        #================================================================================
+        # Close the connection
         self.outdbconn.commit()
         self.outdbconn.close()
 
@@ -992,16 +1004,12 @@ class EdgeInfoFile2DB:
         except:
             print "File not found: %s" % edgeinfo_filename
             exit(200)
-        print "C:"
         self.edgereader = EdgeInfoReader( edgeinfo_filename = edgeinfo_filename,
                                           useDB_as_source = False,
                                           stabreader = stabreader,
                                           logger = logger )
-        print "D:"
         self.edgereader.create_edgeinfo_db( outdbfilename = outdbfilename )
-        print "E:"
         self.edgereader.read_edgeinfo_file_with_stability_into_db( stabreader = stabreader )
-        print "F:"
 
 
 # -----------------------------------------------------------------------------
