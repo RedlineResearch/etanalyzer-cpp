@@ -158,18 +158,18 @@ def main_process( output = None,
             # NOTE: The order of the args tuple is important!
             # ======================================================================
             # Read in the OBJECTINFO
-            # WORKING OBJ: outdbname_object = os.path.join( workdir, bmark + "-OBJECTINFO.db" )
-            # WORKING OBJ: p = Process( target = read_objectinfo_into_db,
-            # WORKING OBJ:              args = ( results_obj[bmark],
-            # WORKING OBJ:                       bmark,
-            # WORKING OBJ:                       outdbname_object,
-            # WORKING OBJ:                       mprflag,
-            # WORKING OBJ:                       objectinfo_config,
-            # WORKING OBJ:                       cycle_cpp_dir,
-            # WORKING OBJ:                       logger ) )
-            # WORKING OBJ: procs_obj[bmark] = p
-            # WORKING OBJ: dblist.append( outdbname_object )
-            # WORKING OBJ: p.start()
+            outdbname_object = os.path.join( workdir, bmark + "-OBJECTINFO.db" )
+            p = Process( target = read_objectinfo_into_db,
+                         args = ( results_obj[bmark],
+                                  bmark,
+                                  outdbname_object,
+                                  mprflag,
+                                  objectinfo_config,
+                                  cycle_cpp_dir,
+                                  logger ) )
+            procs_obj[bmark] = p
+            dblist.append( outdbname_object )
+            p.start()
             # ======================================================================
             # Read in the EDGEINFO
             # TODO TODO TODO
@@ -182,6 +182,7 @@ def main_process( output = None,
             stabreader.read_stability_file()
             print "STAB done."
             outdbname_edge = os.path.join( workdir, bmark + "-EDGEINFO.db" )
+            results_edge[bmark] = manager.list([ bmark, ])
             # Start the process
             p = Process( target = read_edgeinfo_with_stability_into_db,
                          args = ( results_edge[bmark],
@@ -200,17 +201,17 @@ def main_process( output = None,
             print "=======[ Running %s ]=================================================" \
                 % bmark
 
-            # print "     Reading in objectinfo..."
-            # WORKING OBJ: outdbname_object = os.path.join( workdir, bmark + "-OBJECTINFO.db" )
-            # WORKING OBJ: results_obj[bmark] = [ bmark, ]
-            # WORKING OBJ: read_objectinfo_into_db( result = results_obj[bmark],
-            # WORKING OBJ:                          bmark = bmark,
-            # WORKING OBJ:                          outdbname = outdbname_object,
-            # WORKING OBJ:                          mprflag = mprflag,
-            # WORKING OBJ:                          objectinfo_config = objectinfo_config,
-            # WORKING OBJ:                          cycle_cpp_dir = cycle_cpp_dir,
-            # WORKING OBJ:                          logger = logger )
-            # WORKING OBJ: dblist.append( outdbname_object )
+            print "     Reading in objectinfo..."
+            outdbname_object = os.path.join( workdir, bmark + "-OBJECTINFO.db" )
+            results_obj[bmark] = [ bmark, ]
+            read_objectinfo_into_db( result = results_obj[bmark],
+                                     bmark = bmark,
+                                     outdbname = outdbname_object,
+                                     mprflag = mprflag,
+                                     objectinfo_config = objectinfo_config,
+                                     cycle_cpp_dir = cycle_cpp_dir,
+                                     logger = logger )
+            dblist.append( outdbname_object )
             stabreader = StabilityReader( os.path.join( cycle_cpp_dir,
                                                         stability_config[bmark] ),
                                           logger = logger )
