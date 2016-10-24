@@ -230,6 +230,7 @@ def main_process( output = None,
             dblist.append( outdbname_edge )
     if mprflag:
         # Poll the processes 
+        done = False
         while not done:
             done = True
             for bmark in set(procs_obj.keys() + procs_edge.keys()) :
