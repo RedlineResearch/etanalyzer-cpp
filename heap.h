@@ -633,13 +633,14 @@ class Object
         void setKeyTypeIfNotKnown( KeyType newtype ) {
             if (this->m_key_type == KeyType::UNKNOWN_KEYTYPE) {
                 this->m_key_type = newtype;
-            } else {
-                // TODO: Log some debugging.
-                cerr << "Object[ " << this->m_id
-                     << "] keytype prev[ " << keytype2str(this->m_key_type)
-                     << "] new [ " << keytype2str(newtype) << "]"
-                     << endl;
             }
+            // else {
+            //     // TODO: Log some debugging.
+            //     cerr << "Object[ " << this->m_id
+            //          << "] keytype prev[ " << keytype2str(this->m_key_type)
+            //          << "] new [ " << keytype2str(newtype) << "]"
+            //          << endl;
+            // }
         }
         KeyType getKeyType() const { return this->m_key_type; }
 

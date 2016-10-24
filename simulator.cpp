@@ -284,9 +284,9 @@ unsigned int read_trace_file(FILE* f)
                     ContextPair cpair = thread->getContextPair();
                     CPairType cptype = thread->getContextPairType();
                     // DEBUG
-                    if (!as) {
-                        cerr << "DBG: objId[ " << tokenizer.getInt(1) << " ] has no alloc site." << endl;
-                    } // END DEBUG
+                    // if (!as) {
+                    //     cerr << "DBG: objId[ " << tokenizer.getInt(1) << " ] has no alloc site." << endl;
+                    // } // END DEBUG
                     obj = Heap.allocate( tokenizer.getInt(1),    // id
                                          tokenizer.getInt(2),    // size
                                          tokenizer.getChar(0),   // kind of alloc

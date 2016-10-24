@@ -293,7 +293,7 @@ void HeapState::end_of_program(unsigned int cur_time)
           ++i ) {
         Object* obj = i->second;
         if (obj->isLive(cur_time)) {
-            cerr << "ALIVE" << endl;
+            // OLD DEBUG: cerr << "ALIVE" << endl;
             // Go ahead and ignore the call to HeapState::makeDead
             // as we won't need to update maxLiveSize here anymore.
             if (!obj->isDead()) {
