@@ -422,9 +422,10 @@ unsigned int read_trace_file(FILE* f)
                                     (lastevent == OBJECT_DEATH_AFTER_ROOT_DECRC) ||
                                     (lastevent == OBJECT_DEATH_AFTER_UPDATE_DECRC) ) {
                             obj->setDiedByStackFlag();
-                        } else {
-                            cerr << "Unhandled event: " << lastevent2str(lastevent) << endl;
                         }
+                        //else {
+                        //     cerr << "Unhandled event: " << lastevent2str(lastevent) << endl;
+                        // }
                         Heap.makeDead(obj, Exec.NowUp());
                         // Get the current method
                         Method *topMethod = NULL;
