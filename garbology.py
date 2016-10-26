@@ -1085,6 +1085,11 @@ class DeathGroupsReader:
         o2g = self.obj2group
         oir = objreader
         counter = Counter()
+        # counter key is number of death times in a group
+        #         value is number of unique death times in a group
+        # There is a bug in the C++ simulator where groups of different death times are merged.
+        # It was easier to clean up here because we know the death times are accurate.
+        # The more conscientious thing to do would be to fix the bug in the simulator.
         dtimes = {}
         newgroup = defaultdict(set)
         dtime2group = {}
@@ -1108,10 +1113,10 @@ class DeathGroupsReader:
                         # 2- Remove from obj2group
                         if objId in self.obj2group:
                             del self.obj2group[objId]
-                    else:
-                        # Object belongs to original group.
-                        # There's no need to move groups.
-                        pass
+                    # else:
+                    #     # Object belongs to original group.
+                    #     # There's no need to move groups.
+                    #     pass
                 # What needs to be adjusted if we split the group?
                 # group2dtime
                 # group2list

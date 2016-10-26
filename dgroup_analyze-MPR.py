@@ -569,7 +569,9 @@ def update_keytype_dict( ktdict = {},
         assert( writer != None )
     if objinfo.died_at_end(objId):
         # We ignore immortal objects that died at the END.
+        # TODO TODO TODO: Shouldn't this be something like DIED_AT_END?
         return DIEDBYSTACK
+        # TODO TODO TODO
     grouplen = len(group)
     early_obj = get_earliest_alloctime_object( group = group, objinfo = objinfo )
     true_key_flag = (early_obj == objId)
@@ -727,16 +729,18 @@ def get_key_object_types( gnum = None,
         if len(key_objects) > 1:
             # Multiple keys?
             tgt = None
-            debug_multiple_keys( group = group,
-                                 key_objects = key_objects,
-                                 objinfo = objinfo,
-                                 logger = logger )
+            # DEBUG ONLY
+            # debug_multiple_keys( group = group,
+            #                      key_objects = key_objects,
+            #                      objinfo = objinfo,
+            #                      logger = logger )
+            # END DEBUG
             if objinfo.died_at_end(group[0]):
                 return DIEDATEND
             result = MULTKEY
-            print " - Multiple key objects."
-        else:
-            print " - DEBUG: NO marked key objects."
+        # DEBUG ONLY
+        # else:
+        #     print " - DEBUG: NO marked key objects."
         done = False
         curindex = 0
         while not done and (curindex < len(group)):
@@ -1071,8 +1075,8 @@ def death_group_analyze( bmark = None,
     # for tgt, data in edgeinfo.lastedge_iteritems():
     #     sys.stdout.write(  "%d -> [%d] : %s" % (tgt, data["dtime"], str(data["lastsources"])) )
     ktdict = {}
-    debug_count = 0
-    debug_tries = 0
+    # TODO debug_count = 0
+    # TODO debug_tries = 0
     died_at_end_count = 0
     contextresult = { "total" : 0, "error" : 0 }
     # ----------------------------------------
@@ -1116,12 +1120,12 @@ def death_group_analyze( bmark = None,
     analyze_graphs( scclist ) # TODO TODO TODO TODO
     # ----------------------------------------
     logger.debug( "[%s]: Total: %d" % (bmark, len(dgroups.group2list)) )
-    logger.debug( "[%s]: Tries: %d" % (bmark, debug_tries) )
-    logger.debug( "[%s]: Error: %d" % (bmark, debug_count) )
+    # TODO logger.debug( "[%s]: Tries: %d" % (bmark, debug_tries) )
+    # TODO logger.debug( "[%s]: Error: %d" % (bmark, debug_count) )
     logger.debug( "[%s]: Died at end: %d" % (bmark, died_at_end_count) )
     sys.stdout.write(  "[%s]: Total: %d\n" % (bmark, len(dgroups.group2list)) )
-    sys.stdout.write(  "[%s]: Tries: %d\n" % (bmark, debug_tries) )
-    sys.stdout.write(  "[%s]: Error: %d\n" % (bmark, debug_count) )
+    # TODO sys.stdout.write(  "[%s]: Tries: %d\n" % (bmark, debug_tries) )
+    # TODO sys.stdout.write(  "[%s]: Error: %d\n" % (bmark, debug_count) )
     sys.stdout.write(  "[%s]: Died at end: %d\n" % (bmark, died_at_end_count) )
     sys.stdout.write( "-------[ CONTEXT RESULTS ]----------------------------------------------\n" )
     sys.stdout.write( "Total: %d\n" % contextresult["total"] )
@@ -1211,13 +1215,12 @@ def main_process( output = None,
                   summary_config = {},
                   host_config = {},
                   worklist_config = {},
+                  mprflag = False,
                   debugflag = False,
                   dumpall = False,
                   logger = None ):
     global pp
     # HERE: TODO
-    print "GLOBAL:"
-    pp.pprint(global_config)
     cycle_cpp_dir = global_config["cycle_cpp_dir"]
     # TODO: Not used? 
     # TODO: work_dir = main_config["directory"]
@@ -1239,10 +1242,10 @@ def main_process( output = None,
                                      timenow = timenow,
                                      logger = logger,
                                      interactive = False )
+    print "Work directory: %s" % str(workdir)
+    print "================================================================================"
     # TODO What is key -> value in the following dictionaries?
     results = {}
-    # TODO What is the results structure?
-    # benchark key -> TODO
 
     # TODO probably need a summary
     # summary = {}
@@ -1259,30 +1262,45 @@ def main_process( output = None,
                               host_config = host_config )) ):
             print "SKIP:", bmark
             continue
-        print "=======[ Spawning %s ]================================================" \
-            % bmark
-        p = Process( target = death_group_analyze,
-                     args = ( bmark,
-                              cycle_cpp_dir,
-                              main_config,
-                              filename,
-                              contextcount_config,
-                              objectinfo_config,
-                              edge_config,
-                              host_config,
-                              logger ) )
-        p.start()
-        procs[bmark] = p
-    done = False
-    while not done:
-        done = True
-        for bmark in procs.keys():
-            proc = procs[bmark]
-            proc.join(60)
-            if proc.is_alive():
-                done = False
-            else:
-                del procs[bmark]
+        if mprflag:
+            print "=======[ Spawning %s ]================================================" \
+                % bmark
+            p = Process( target = death_group_analyze,
+                         args = ( bmark,
+                                  cycle_cpp_dir,
+                                  main_config,
+                                  filename,
+                                  contextcount_config,
+                                  objectinfo_config,
+                                  edge_config,
+                                  host_config,
+                                  logger ) )
+            p.start()
+            procs[bmark] = p
+        else:
+            # Don't use multiprocessing
+            print "=======[ Running %s ]=================================================" \
+                % bmark
+            death_group_analyze( bmark = bmark,
+                                 cycle_cpp_dir = cycle_cpp_dir,
+                                 main_config = main_config,
+                                 dgroups_filename = filename,
+                                 contextcount_config = contextcount_config,
+                                 objectinfo_config = objectinfo_config,
+                                 edge_config = edge_config,
+                                 host_config = host_config,
+                                 logger = logger )
+    if mprflag:
+        done = False
+        while not done:
+            done = True
+            for bmark in procs.keys():
+                proc = procs[bmark]
+                proc.join(60)
+                if proc.is_alive():
+                    done = False
+                else:
+                    del procs[bmark]
     print "DONE."
     os.chdir( olddir )
     exit(0)
@@ -1318,6 +1336,14 @@ def create_parser():
                          dest = "lastedgeflag",
                          help = "Disable last edge processing.",
                          action = "store_false" )
+    parser.add_argument( "--mpr",
+                         dest = "mprflag",
+                         help = "Enable multiprocessing.",
+                         action = "store_true" )
+    parser.add_argument( "--single",
+                         dest = "mprflag",
+                         help = "Single threaded operation.",
+                         action = "store_false" )
     parser.add_argument( "--logfile",
                          help = "Specify logfile name.",
                          action = "store" )
@@ -1325,6 +1351,7 @@ def create_parser():
                          debugflag = False,
                          lastedgeflag = False,
                          benchmark = "_ALL_",
+                         mprflag = False,
                          config = None )
     return parser
 
@@ -1351,7 +1378,7 @@ def process_config( args ):
     edgeinfo_config = config_section_map( "edgeinfo", config_parser )
     objectinfo_config = config_section_map( "objectinfo", config_parser )
     contextcount_config = config_section_map( "contextcount", config_parser )
-    summary_config = config_section_map( "summary_cpp", config_parser )
+    summary_config = config_section_map( "summary-cpp", config_parser )
     host_config = config_section_map( "hosts", config_parser )
     worklist_config = config_section_map( "dgroups-worklist", config_parser )
     return { "global" : global_config,
@@ -1397,8 +1424,6 @@ def main():
     summary_config = configdict["summary"]
     host_config = process_host_config( configdict["host"] )
     worklist_config = process_worklist_config( configdict["worklist"] )
-    print "WORKLIST_CONFIG:"
-    pp.pprint(worklist_config)
     # Set up logging
     logger = setup_logger( filename = args.logfile,
                            debugflag = global_config["debug"] )
@@ -1419,6 +1444,7 @@ def main():
                          global_config = global_config,
                          host_config = host_config,
                          worklist_config = worklist_config,
+                         mprflag = args.mprflag,
                          dumpall = dumpall,
                          logger = logger )
 

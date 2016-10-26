@@ -1406,11 +1406,7 @@ def main_process( global_config = {},
     results = {}
     use_objinfo_db = (main_config["use_objinfo_db"] == "True")
     for bmark in worklist_config.keys():
-        # TODO START
         hostlist = worklist_config[bmark]
-        # DEBUG print "benchmark: %s" % bmark
-        # DEBUG print "  hostlist: %s" % str(hostlist)
-        # DEBUG print "  host_config: %s" % str(host_config)
         if not check_host( benchmark = bmark,
                            hostlist = hostlist,
                            host_config = host_config ):
