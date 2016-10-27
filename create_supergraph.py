@@ -1142,8 +1142,8 @@ def create_supergraph_all_MPR( bmark = "",
     # Get all the objects and add as a node to the graph
     mydict = {}
     backupdir = main_config["backup"]
-    obj_cachesize = main_config["obj_cachesize"]
-    edge_cachesize = main_config["edge_cachesize"]
+    obj_cachesize = int(obj_cachesize_config[bmark])
+    edge_cachesize = int(edge_cachesize_config[bmark])
     # Read all the data in.
     read_result = read_simulator_data( bmark = bmark,
                                        cycle_cpp_dir = cycle_cpp_dir,
@@ -1161,7 +1161,6 @@ def create_supergraph_all_MPR( bmark = "",
                                        use_edgeinfo_db = use_edgeinfo_db,
                                        edge_cachesize = edge_cachesize,
                                        objectinfo_db_config = objectinfo_db_config,
-                                       cachesize = int(cachesize_config[bmark]),
                                        # shared_list = result,
                                        logger = logger )
     if read_result == False:
@@ -1582,7 +1581,8 @@ def process_config( args ):
     edgeinfo_config = config_section_map( "edgeinfo", config_parser )
     dgroup_config = config_section_map( "etanalyze-output", config_parser )
     worklist_config = config_section_map( "create-supergraph-worklist", config_parser )
-    cachesize_config = config_section_map( "create-supergraph-cachesize", config_parser )
+    obj_cachesize_config = config_section_map( "create-supergraph-obj-cachesize", config_parser )
+    edge_cachesize_config = config_section_map( "create-supergraph-edge-cachesize", config_parser )
     reference_config = config_section_map( "reference", config_parser )
     reverse_ref_config = config_section_map( "reverse-reference", config_parser )
     stability_config = config_section_map( "stability-summary", config_parser )
@@ -1602,7 +1602,8 @@ def process_config( args ):
              "stability" : stability_config,
              "summary_config" : summary_config,
              "objectinfo_db" : objectinfo_db_config,
-             "cachesize" : cachesize_config,
+             "obj_cachesize" : obj_cachesize_config,
+             "edge_cachesize" : edge_cachesize_config,
              # "contextcount" : contextcount_config,
              # "host" : host_config,
              }
