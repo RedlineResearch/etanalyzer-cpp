@@ -1210,7 +1210,7 @@ def create_supergraph_all_MPR( bmark = "",
     #---------------------------------------------------------------------------
     print "============[ %s :: Stable group graph ]===========================================" % bmark
     print "[%s] Number of nodes: %d" % (bmark, dgraph_stable.number_of_nodes())
-    print "[%s] Number of edges: %d" % (bmark, dgraph_stablep.number_of_edges())
+    print "[%s] Number of edges: %d" % (bmark, dgraph_stable.number_of_edges())
     print "[%s] Number of components: %d" % (bmark, len(wcclist))
     print "[%s] Top 5 largest components: %s" % (bmark, str( [ len(x) for x in wcclist[:5] ] ))
     print "==================================================================================="
