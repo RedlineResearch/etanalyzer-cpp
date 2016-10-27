@@ -1671,7 +1671,8 @@ def main():
     stability_config = configdict["stability"]
     summary_config = configdict["summary_config"]
     objectinfo_db_config = configdict["objectinfo_db"]
-    cachesize_config = configdict["cachesize"]
+    obj_cachesize_config = configdict["obj_cachesize"]
+    edge_cachesize_config = configdict["edge_cachesize"]
     worklist_config = process_worklist_config( configdict["create-supergraph-worklist"] )
     # PROBABLY DELETE:
     # contextcount_config = configdict["contextcount"]
