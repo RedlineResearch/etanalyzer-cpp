@@ -1135,7 +1135,8 @@ def create_supergraph_all_MPR( bmark = "",
                                use_objinfo_db = False,
                                use_edgeinfo_db = False,
                                objectinfo_db_config = {},
-                               cachesize_config = {},
+                               obj_cachesize_config = {},
+                               edge_cachesize_config = {},
                                edgeinfo_config = {},
                                logger = None ):
     # Assumes that we are in the desired working directory.
@@ -1506,7 +1507,8 @@ def main_process( global_config = {},
                                   use_objinfo_db,
                                   use_edgeinfo_db,
                                   objectinfo_db_config,
-                                  cachesize_config,
+                                  obj_cachesize_config,
+                                  edge_cachesize_config,
                                   edgeinfo_config,
                                   logger ) )
             procs[bmark] = p
@@ -1530,7 +1532,8 @@ def main_process( global_config = {},
                                        use_objinfo_db = use_objinfo_db,
                                        use_edgeinfo_db = use_edgeinfo_db,
                                        objectinfo_db_config = objectinfo_db_config,
-                                       cachesize_config = cachesize_config,
+                                       obj_cachesize_config = obj_cachesize_config,
+                                       edge_cachesize_config = edge_cachesize_config,
                                        edgeinfo_config = edgeinfo_config,
                                        logger = logger )
 
