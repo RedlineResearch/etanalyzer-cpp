@@ -197,8 +197,9 @@ def read_simulator_data( bmark = "",
                          mydict = {},
                          use_objinfo_db = False,
                          use_edgeinfo_db = False,
+                         obj_cachesize = 5000000,
+                         edge_cachesize = 5000000,
                          objectinfo_db_config = {},
-                         cachesize = 5000000,
                          logger = None ):
     # TODO DEBUG
     summary_fname = os.path.join( cycle_cpp_dir,
@@ -215,7 +216,7 @@ def read_simulator_data( bmark = "",
                                                               objectinfo_config[bmark] ),
                                                 useDB_as_source = True,
                                                 db_filename = db_filename,
-                                                cachesize = cachesize,
+                                                cachesize = obj_cachesize,
                                                 logger = logger )
         objreader = mydict["objreader"]
         # try:
@@ -259,7 +260,7 @@ def read_simulator_data( bmark = "",
         #                                                       objectinfo_config[bmark] ),
         #                                         useDB_as_source = True,
         #                                         db_filename = db_filename,
-        #                                         cachesize = cachesize,
+        #                                         cachesize = edge_cachesize,
         #                                         logger = logger )
         # objreader = mydict["objreader"]
         # objreader.read_objinfo_file()
@@ -1141,6 +1142,8 @@ def create_supergraph_all_MPR( bmark = "",
     # Get all the objects and add as a node to the graph
     mydict = {}
     backupdir = main_config["backup"]
+    obj_cachesize = main_config["obj_cachesize"]
+    edge_cachesize = main_config["edge_cachesize"]
     # Read all the data in.
     read_result = read_simulator_data( bmark = bmark,
                                        cycle_cpp_dir = cycle_cpp_dir,
@@ -1154,7 +1157,9 @@ def create_supergraph_all_MPR( bmark = "",
                                        mydict = mydict,
                                        fmain_result = fmain_result,
                                        use_objinfo_db = use_objinfo_db,
+                                       obj_cachesize = obj_cachesize,
                                        use_edgeinfo_db = use_edgeinfo_db,
+                                       edge_cachesize = edge_cachesize,
                                        objectinfo_db_config = objectinfo_db_config,
                                        cachesize = int(cachesize_config[bmark]),
                                        # shared_list = result,
