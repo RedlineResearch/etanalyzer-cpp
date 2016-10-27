@@ -150,7 +150,40 @@ def output_graph_and_summary( bmark = "",
             os.remove( bakfile )
         shutil.move( target, backupdir )
     nx.write_gml(dgraph_unstable, target)
-        
+
+def output_stable_supergraph_and_summary( bmark = "",
+                                          objreader = {},
+                                          dgraph_stable = {},
+                                          stable_grouplist = [],
+                                          backupdir = None,
+                                          logger = None ):
+    # Print to standard output
+    print "=======[ STABLE SUMMARY ]======================================================="
+    print "[%s] -> # of objects = %d" % (bmark, len(objreader))
+    # ---------------------------------------------------------------------
+    # The first stable graph
+    # ---------------------------------------------------------------------
+    print "=======[ STABLE GRAPH ]========================================================="
+    print "     -> nodes = %d  edges = %d  - WCC = %d" % \
+        ( dgraph_stable.number_of_nodes(),
+          dgraph_stable.number_of_edges(),
+          len(stable_grouplist) )
+    print "     -> 3 largest WCC = %d, %d, %d" % \
+        ( len(stable_grouplist[0]), len(stable_grouplist[1]), len(stable_grouplist[2]) )
+    print "     ->    size total bytes     = %d, %d, %d" % \
+            ( sumSD[0]["size"]["total"],
+              sumSD[1]["size"]["total"],
+              sumSD[2]["size"]["total"], )
+    target = "%s-stable_graph.gml" % bmark
+    # Backup the old gml file if it exists
+    if os.path.isfile(target):
+        # Move this file into backup directory
+        bakfile = os.path.join( backupdir, target )
+        if os.path.isfile( bakfile ):
+            os.remove( bakfile )
+        shutil.move( target, backupdir )
+    nx.write_gml(dgraph_stable, target)
+
 def read_simulator_data( bmark = "",
                          cycle_cpp_dir = "",
                          objectinfo_config = {},
@@ -163,6 +196,7 @@ def read_simulator_data( bmark = "",
                          fmain_result = {},
                          mydict = {},
                          use_objinfo_db = False,
+                         use_edgeinfo_db = False,
                          objectinfo_db_config = {},
                          cachesize = 5000000,
                          logger = None ):
@@ -214,6 +248,8 @@ def read_simulator_data( bmark = "",
     print "Reading in the EDGEINFO file for benchmark:", bmark
     sys.stdout.flush()
     if False: # TODO: Add selection for edgeinfo DB
+        # TODO: if use_edgeinfo_db:
+        assert(False) # TODO
         pass
         # TODO TODO TODO
         # print " - Using objectinfo DB:"
@@ -456,10 +492,10 @@ def get_type_distribution( objset = set(),
         counter.update( [ mytype ] )
     return counter
 
-def summarize_stable_list( stable_grouplist = [],
-                           sumSTABLE = {},
-                           final_time = 0,
-                           objreader = {} ):
+def summarize_stable_list( stable_grouplist = [], # input
+                           sumSTABLE = {}, # output
+                           final_time = 0, # input
+                           objreader = {} ): # input
     """
     """
     # TODO: Add documentation of the keys and values of sumSTABLE
@@ -535,6 +571,7 @@ def summarize_stable_list( stable_grouplist = [],
 
 def summarize_wcc_stable_death_unstable_components( wcc_sd_list = [],
                                                     stable_grouplist = [],
+                                                    sumSTABLE = {},
                                                     unstable_grouplist = [],
                                                     objreader = {} ,
                                                     dgroup_reader = {},
@@ -544,7 +581,6 @@ def summarize_wcc_stable_death_unstable_components( wcc_sd_list = [],
                                                     logger = None ):
     sumSD = defaultdict(dict)
     sumUNSTABLE = defaultdict(dict)
-    sumSTABLE = defaultdict(dict)
     summarize_sd_list( wcc_sd_list = wcc_sd_list,
                        sumSD = sumSD,
                        stable_grouplist = stable_grouplist,
@@ -559,10 +595,10 @@ def summarize_wcc_stable_death_unstable_components( wcc_sd_list = [],
     # Get the final time for the benchmark
     final_time = summary_reader.get_final_garbology_time()
     assert(final_time > 0)
-    summarize_stable_list( stable_grouplist = stable_grouplist,
-                           sumSTABLE = sumSTABLE,
-                           final_time = final_time,
-                           objreader = objreader )
+    # ------------------------------------------------------------------------------------------
+    # Removed the call to summarize_stable_list here as it should be called before calling
+    # this function. - RLV
+    # ------------------------------------------------------------------------------------------
     with open(output_filename, "wb") as fptr:
         seen_objects = set()
         # Create the CSV writer and write the header row
@@ -1096,6 +1132,7 @@ def create_supergraph_all_MPR( bmark = "",
                                fmain_result = {},
                                result = [],
                                use_objinfo_db = False,
+                               use_edgeinfo_db = False,
                                objectinfo_db_config = {},
                                cachesize_config = {},
                                edgeinfo_config = {},
@@ -1117,6 +1154,7 @@ def create_supergraph_all_MPR( bmark = "",
                                        mydict = mydict,
                                        fmain_result = fmain_result,
                                        use_objinfo_db = use_objinfo_db,
+                                       use_edgeinfo_db = use_edgeinfo_db,
                                        objectinfo_db_config = objectinfo_db_config,
                                        cachesize = int(cachesize_config[bmark]),
                                        # shared_list = result,
@@ -1137,20 +1175,40 @@ def create_supergraph_all_MPR( bmark = "",
     # Start the graph by adding nodes
     objnode_list =  set([])
     # Add nodes to graph
-    dgraph = add_nodes_to_graph( objreader = objreader,
+    dgraph_stable = add_nodes_to_graph( objreader = objreader,
                                  objnode_list = objnode_list,
                                  fmain_result = fmain_result,
                                  logger = logger )
     # Add the stable edges only
-    add_stable_edges( dgraph = dgraph,
+    add_stable_edges( dgraph = dgraph_stable,
                       stability = stability,
                       reference = reference,
                       objnode_list = objnode_list,
                       logger = logger )
     # Get the weakly connected components
-    wcclist = sorted( nx.weakly_connected_component_subgraphs(dgraph),
+    wcclist = sorted( nx.weakly_connected_component_subgraphs(dgraph_stable),
                       key = len,
                       reverse = True )
+    stable_grouplist = wcclist
+    # This will contain the summary for stable groups
+    sumSTABLE = defaultdict(dict)
+    # Final time recorded for the program being analyzed
+    final_time = summary_reader.get_final_garbology_time()
+    assert(final_time > 0)
+    # This summarizes the stable_grouplist
+    summarize_stable_list( stable_grouplist = stable_grouplist, # input
+                           sumSTABLE = sumSTABLE, # output
+                           final_time = final_time, # input
+                           objreader = objreader ) # input
+    #---------------------------------------------------------------------------
+    #----[ Stable group summary OUTPUT ]----------------------------------------
+    #---------------------------------------------------------------------------
+    print "============[ %s :: Stable group graph ]===========================================" % bmark
+    print "[%s] Number of nodes: %d" % (bmark, dgraph_stable.number_of_nodes())
+    print "[%s] Number of edges: %d" % (bmark, dgraph_stablep.number_of_edges())
+    print "[%s] Number of components: %d" % (bmark, len(wcclist))
+    print "[%s] Top 5 largest components: %s" % (bmark, str( [ len(x) for x in wcclist[:5] ] ))
+    print "==================================================================================="
     #=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
     # 2: DEATH SUPERGRAPH
     #=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
@@ -1185,6 +1243,7 @@ def create_supergraph_all_MPR( bmark = "",
     print "[%s] Top 5 largest components: %s" % (bmark, str( [ len(x) for x in wcc_deathgroup_list[:5] ] ))
     print "==================================================================================="
     #---------------------------------------------------------------------------
+    #----[ TODO ]---------------------------------------------------------------
     if False:
         # TODO: Temporary commenting out
         #---------------------------------------------------------------------------
@@ -1192,6 +1251,7 @@ def create_supergraph_all_MPR( bmark = "",
         #---------------------------------------------------------------------------
         sum_result = summarize_wcc_stable_death_unstable_components( wcc_sd_list = wcc_stable_death_list,
                                                                      stable_grouplist = stable_grouplist,
+                                                                     sumSTABLE = sumSTABLE, # input
                                                                      unstable_grouplist = wcclist_unstable,
                                                                      objreader = objreader,
                                                                      dgroup_reader = dgreader,
@@ -1218,7 +1278,7 @@ def create_supergraph_all_MPR( bmark = "",
         #---------------------------------------------------------------------------
         output_graph_and_summary( bmark = bmark,
                                   objreader = objreader,
-                                  dgraph = dgraph,
+                                  dgraph = dgraph_stable,
                                   dgraph_unstable = dgraph_unstable,
                                   stable_grouplist = stable_grouplist, # aka wcclist
                                   wcclist_unstable = wcclist_unstable,
@@ -1228,6 +1288,7 @@ def create_supergraph_all_MPR( bmark = "",
                                   stable2deathset = stable2deathset,
                                   death2stableset = death2stableset,
                                   logger = logger )
+    #================================================================================
     # TODO
     # Make this a command line option, like say --enable-stable-death
     # Commenting this out and adding in the death supergraph.
@@ -1364,6 +1425,7 @@ def create_supergraph_all_MPR( bmark = "",
                          "stable-death" : sumSD,
                          "unstable" : sumUNSTABLE, } )
         # END COMMENTED OUT CODE
+        #================================================================================
 
 def main_process( global_config = {},
                   objectinfo_config = {},
@@ -1405,6 +1467,7 @@ def main_process( global_config = {},
     procs = {}
     results = {}
     use_objinfo_db = (main_config["use_objinfo_db"] == "True")
+    use_edgeinfo_db = (main_config["use_edgeinfo_db"] == "True")
     for bmark in worklist_config.keys():
         hostlist = worklist_config[bmark]
         if not check_host( benchmark = bmark,
@@ -1419,6 +1482,7 @@ def main_process( global_config = {},
         fmain_result = read_main_file( fmain_file,
                                        logger = logger )
         if mprflag:
+            # Multiprocessing version
             print "=======[ Spawning %s ]================================================" \
                 % bmark
             results[bmark] = manager.list([ bmark, ])
@@ -1435,6 +1499,7 @@ def main_process( global_config = {},
                                   fmain_result,
                                   results[bmark],
                                   use_objinfo_db,
+                                  use_edgeinfo_db,
                                   objectinfo_db_config,
                                   cachesize_config,
                                   edgeinfo_config,
@@ -1442,6 +1507,7 @@ def main_process( global_config = {},
             procs[bmark] = p
             p.start()
         else:
+            # Single threaded version
             print "=======[ Running %s ]=================================================" \
                 % bmark
             results[bmark] = [ bmark, ]
@@ -1457,6 +1523,7 @@ def main_process( global_config = {},
                                        fmain_result = fmain_result,
                                        result = results[bmark],
                                        use_objinfo_db = use_objinfo_db,
+                                       use_edgeinfo_db = use_edgeinfo_db,
                                        objectinfo_db_config = objectinfo_db_config,
                                        cachesize_config = cachesize_config,
                                        edgeinfo_config = edgeinfo_config,

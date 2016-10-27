@@ -1467,6 +1467,7 @@ class ContextCountReader:
         cdict = self.contextdict
         newkey = cpair + (cptype,)
         if newkey not in cdict:
+            # TODO: Is this an error at all? Maybe this should be logger.debug. TODO
             self.logger.error("Context pair[ %s ] not found." % str(newkey))
             # Update the missing if we're supposed to
             if not self.update_missing:
