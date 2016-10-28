@@ -208,16 +208,19 @@ def read_simulator_data( bmark = "",
     # # Read in OBJECTINFO
     print "Reading in the OBJECTINFO file for benchmark:", bmark
     sys.stdout.flush()
+    oread_start = time.clock()
     if use_objinfo_db:
         print " - Using objectinfo DB:"
         db_filename = os.path.join( cycle_cpp_dir,
                                     objectinfo_db_config[bmark] )
+        oread_start = time.clock()
         mydict["objreader"] = ObjectInfoReader( os.path.join( cycle_cpp_dir,
                                                               objectinfo_config[bmark] ),
                                                 useDB_as_source = True,
                                                 db_filename = db_filename,
                                                 cachesize = obj_cachesize,
                                                 logger = logger )
+        oread_end = time.clock()
         objreader = mydict["objreader"]
         # try:
         objreader.read_objinfo_file()
@@ -235,19 +238,29 @@ def read_simulator_data( bmark = "",
                                                 logger = logger )
         objreader = mydict["objreader"]
         objreader.read_objinfo_file()
+    oread_end = time.clock()
+    logger.debug( "[%s]: DONE: %f" % (bmark, (oread_end - oread_start)) )
+    sys.stdout.write(  "[%s]: DONE: %f\n" % (bmark, (oread_end - oread_start)) )
+    sys.stdout.flush()
     # #===========================================================================
     # # Read in STABILITY
     print "Reading in the STABILITY file for benchmark:", bmark
     sys.stdout.flush()
+    stab_start = time.clock()
     mydict["stability"] = StabilityReader( os.path.join( cycle_cpp_dir,
                                                          stability_config[bmark] ),
                                            logger = logger )
     stabreader = mydict["stability"]
     stabreader.read_stability_file()
+    stab_end = time.clock()
+    logger.debug( "[%s]: DONE: %f" % (bmark, (stab_end - stab_start)) )
+    sys.stdout.write(  "[%s]: DONE: %f\n" % (bmark, (stab_end - stab_start)) )
+    sys.stdout.flush()
     # #===========================================================================
     # # Read in EDGEINFO
     print "Reading in the EDGEINFO file for benchmark:", bmark
     sys.stdout.flush()
+    edge_start = time.clock()
     if False: # TODO: Add selection for edgeinfo DB
         # TODO: if use_edgeinfo_db:
         assert(False) # TODO
@@ -272,45 +285,68 @@ def read_simulator_data( bmark = "",
                                                logger = logger )
         edgereader = mydict["edgereader"]
         edgereader.read_edgeinfo_file_with_stability( stabreader )
+    edge_end = time.clock()
+    logger.debug( "[%s]: DONE: %f" % (bmark, (edge_end - edge_start)) )
+    sys.stdout.write(  "[%s]: DONE: %f\n" % (bmark, (edge_end - edge_start)) )
+    sys.stdout.flush()
     # #===========================================================================
     # # Read in CYCLES (which contains the death groups)
     print "Reading in the CYCLES (deathgroup) file for benchmark:", bmark
     sys.stdout.flush()
+    dgroup_start = time.clock()
     mydict["dgroupreader"] = DeathGroupsReader( os.path.join( cycle_cpp_dir,
                                                               dgroup_config[bmark] ),
                                                 logger = logger )
     dgroupreader = mydict["dgroupreader"]
     dgroupreader.read_dgroup_file( objreader )
+    dgroup_end = time.clock()
+    logger.debug( "[%s]: DONE: %f" % (bmark, (dgroup_end - dgroup_start)) )
+    sys.stdout.write(  "[%s]: DONE: %f\n" % (bmark, (dgroup_end - dgroup_start)) )
+    sys.stdout.flush()
     #===========================================================================
     # Read in REFERENCE
     print "Reading in the REFERENCE file for benchmark:", bmark
     sys.stdout.flush()
+    ref_start = time.clock()
     mydict["reference"] = ReferenceReader( os.path.join( cycle_cpp_dir,
                                                          reference_config[bmark] ),
                                            logger = logger )
     refreader = mydict["reference"]
     refreader.read_reference_file()
+    ref_end = time.clock()
+    logger.debug( "[%s]: DONE: %f" % (bmark, (ref_end - ref_start)) )
+    sys.stdout.write(  "[%s]: DONE: %f\n" % (bmark, (ref_end - ref_start)) )
+    sys.stdout.flush()
     #===========================================================================
     # Read in REVERSE-REFERENCE
     print "Reading in the REVERSE-REFERENCE file for benchmark:", bmark
     sys.stdout.flush()
+    revref_start = time.clock()
     mydict["reverse-ref"] = ReverseRefReader( os.path.join( cycle_cpp_dir,
                                                             reverse_ref_config[bmark] ),
                                              logger = logger )
     reversereader = mydict["reverse-ref"]
     reversereader.read_reverseref_file()
+    revref_end = time.clock()
+    logger.debug( "[%s]: DONE: %f" % (bmark, (revref_end - revref_start)) )
+    sys.stdout.write(  "[%s]: DONE: %f\n" % (bmark, (revref_end - revref_start)) )
+    sys.stdout.flush()
     #===========================================================================
     # Read in SUMMARY
     print "Reading in the SUMMARY file for benchmark:", bmark
     sys.stdout.flush()
+    summary_start = time.clock()
     summary_fname = os.path.join( cycle_cpp_dir,
                                   summary_config[bmark] )
     mydict["summary_reader"] = SummaryReader( summary_file = summary_fname,
                                               logger = logger )
     summary_reader = mydict["summary_reader"]
     summary_reader.read_summary_file()
-    #===========================================================================
+    summary_end = time.clock()
+    logger.debug( "[%s]: DONE: %f" % (bmark, (summary_end - summary_start)) )
+    sys.stdout.write(  "[%s]: DONE: %f\n" % (bmark, (summary_end - summary_start)) )
     sys.stdout.flush()
+    #===========================================================================
     return True
 
 def debug_None_death_group( sobjId = None,

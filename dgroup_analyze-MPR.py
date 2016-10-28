@@ -14,7 +14,6 @@ from collections import Counter
 import csv
 import subprocess
 from datetime import datetime, date
-import time
 import socket
 from collections import defaultdict
 from multiprocessing import Process
