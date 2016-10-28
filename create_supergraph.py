@@ -200,6 +200,7 @@ def read_simulator_data( bmark = "",
                          obj_cachesize = 5000000,
                          edge_cachesize = 5000000,
                          objectinfo_db_config = {},
+                         # TODO edgeinfo_db_config = {},
                          logger = None ):
     # TODO DEBUG
     summary_fname = os.path.join( cycle_cpp_dir,
@@ -214,21 +215,12 @@ def read_simulator_data( bmark = "",
         db_filename = os.path.join( cycle_cpp_dir,
                                     objectinfo_db_config[bmark] )
         oread_start = time.clock()
-        mydict["objreader"] = ObjectInfoReader( os.path.join( cycle_cpp_dir,
-                                                              objectinfo_config[bmark] ),
-                                                useDB_as_source = True,
+        mydict["objreader"] = ObjectInfoReader( useDB_as_source = True,
                                                 db_filename = db_filename,
                                                 cachesize = obj_cachesize,
                                                 logger = logger )
-        oread_end = time.clock()
         objreader = mydict["objreader"]
-        # try:
         objreader.read_objinfo_file()
-        # except:
-        #     logger.error( "[ %s ] Unable to read objinfo file.." % bmark )
-        #     mydict.clear()
-        #     sys.stdout.flush()
-        # return False
     else:
         print " - Using objectinfo text file:"
         objinfo_path = os.path.join( cycle_cpp_dir,
@@ -261,22 +253,17 @@ def read_simulator_data( bmark = "",
     print "Reading in the EDGEINFO file for benchmark:", bmark
     sys.stdout.flush()
     edge_start = time.clock()
-    if False: # TODO: Add selection for edgeinfo DB
-        # TODO: if use_edgeinfo_db:
-        assert(False) # TODO
-        pass
-        # TODO TODO TODO
-        # print " - Using objectinfo DB:"
-        # db_filename = os.path.join( cycle_cpp_dir,
-        #                             objectinfo_db_config[bmark] )
-        # mydict["objreader"] = ObjectInfoReader( os.path.join( cycle_cpp_dir,
-        #                                                       objectinfo_config[bmark] ),
-        #                                         useDB_as_source = True,
-        #                                         db_filename = db_filename,
-        #                                         cachesize = edge_cachesize,
-        #                                         logger = logger )
-        # objreader = mydict["objreader"]
-        # objreader.read_objinfo_file()
+    if False:
+        # TODO if use_edgeinfo_db:
+        print " - Using edgeinfo DB:"
+        db_filename = os.path.join( cycle_cpp_dir,
+                                    edgeinfo_db_config[bmark] )
+        mydict["edgereader"] = EdgeInfoReader( useDB_as_source = True,
+                                               db_filename = db_filename,
+                                               cachesize = edge_cachesize,
+                                               logger = logger )
+        edgereader = mydict["edgereader"]
+        edgereader.read_edgeinfo_file()
     else:
         print " - Using edgeinfo text file:"
         mydict["edgereader"] = EdgeInfoReader( os.path.join( cycle_cpp_dir,

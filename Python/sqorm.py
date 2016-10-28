@@ -22,6 +22,8 @@ class ObjectCache( collections.Mapping ):
         # This simulates a dictionary with an SQLITE DB as backing store.
         assert( keyfield != None )
         self.keyfield = str(keyfield)
+        # While we have the keyfield, we assume the key is at location 0 in the record.
+        # This just simplifies things.
         # We save all the keys. Note that once we have all the keys, then we don't
         # need to ask the DB again since we don't allow writes.
         self.keyset = set()
@@ -34,18 +36,19 @@ class ObjectCache( collections.Mapping ):
         self.logger = logger
 
     def __iter__( self ):
-        cur = self.conn.cursor()
-        cur.execute( "SELECT * FROM %s" % self.table )
         if self.have_all_keys:
             for key in self.keyset:
                 yield key
         else:
+            cur = self.conn.cursor()
+            cur.execute( "SELECT * FROM %s" % self.table )
             for key in self.keyset:
                 yield key
             while True:
                 reclist = cur.fetchmany()
                 if len(reclist) > 0:
                     for rec in reclist:
+                        # Assuming the key (keyfield) is at location 0.
                         key = rec[0]
                         if key not in self.lru:
                             # __iter__ only needs to return the key. But since

@@ -11,6 +11,7 @@ import csv
 import datetime
 import subprocess
 from collections import defaultdict, Counter
+import collections
 from functools import reduce
 import sqlite3
 import pylru
@@ -213,7 +214,6 @@ class ObjectInfoReader:
         start = False
         count = 0
         if not self.useDB_as_source:
-            print "XXX"
             done = False
             object_info = self.objdict
             with get_trace_fp( self.objinfo_filename, self.logger ) as fp:
@@ -249,7 +249,6 @@ class ObjectInfoReader:
                     #     shared_list.append( count )
             assert(done)
         else:
-            print "YYY"
             self.objdict = ObjectCache( tgtpath = self.db_filename,
                                         table = "objinfo",
                                         keyfield = "objid",
@@ -679,6 +678,8 @@ class ObjectInfoFile2DB:
 
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
+# EdgeInfoReader related classes
+
 class EdgeInfoReader:
     def __init__( self,
                   edgeinfo_filename = None,
@@ -852,44 +853,47 @@ class EdgeInfoReader:
 
     def read_edgeinfo_file_with_stability( self,
                                            stabreader = {} ):
-        start = False
-        done = False
-        sb = stabreader
-        with get_trace_fp( self.edgeinfo_file_name, self.logger ) as fp:
-            for line in fp:
-                line = line.rstrip()
-                if line.find("---------------[ EDGE INFO") == 0:
-                    start = True if not start else False
+        if not self.useDB_as_source:
+            start = False
+            done = False
+            sb = stabreader
+            with get_trace_fp( self.edgeinfo_file_name, self.logger ) as fp:
+                for line in fp:
+                    line = line.rstrip()
+                    if line.find("---------------[ EDGE INFO") == 0:
+                        start = True if not start else False
+                        if start:
+                            continue
+                        else:
+                            done = True
+                            break
                     if start:
-                        continue
-                    else:
-                        done = True
-                        break
-                if start:
-                    rowtmp = line.split(",")
-                    # 0 - srcId
-                    # 1 - tgtId
-                    # 2 - create time
-                    # 3 - death time
-                    # 4 - fieldId
-                    row = [ int(x) for x in rowtmp ]
-                    src = row[0]
-                    tgt = row[1]
-                    timepair = tuple(row[2:4])
-                    dtime = row[3]
-                    fieldId = row[4]
-                    try:
-                        stability = sb[src][fieldId]
-                    except:
-                        stability = "X" # X means unknown
-                    self.edgedict[tuple([src, fieldId, tgt])] = { "tp" : timepair,
-                                                                  "s" : stability }
-                    self.srcdict[src].add( tgt )
-                    self.tgtdict[tgt].add( src )
-                    self.update_last_edges( src = src,
-                                            tgt = tgt,
-                                            deathtime = dtime )
-        assert(done)
+                        rowtmp = line.split(",")
+                        # 0 - srcId
+                        # 1 - tgtId
+                        # 2 - create time
+                        # 3 - death time
+                        # 4 - fieldId
+                        row = [ int(x) for x in rowtmp ]
+                        src = row[0]
+                        tgt = row[1]
+                        timepair = tuple(row[2:4])
+                        dtime = row[3]
+                        fieldId = row[4]
+                        try:
+                            stability = sb[src][fieldId]
+                        except:
+                            stability = "X" # X means unknown
+                        self.edgedict[tuple([src, fieldId, tgt])] = { "tp" : timepair,
+                                                                      "s" : stability }
+                        self.srcdict[src].add( tgt )
+                        self.tgtdict[tgt].add( src )
+                        self.update_last_edges( src = src,
+                                                tgt = tgt,
+                                                deathtime = dtime )
+            assert(done)
+        else:
+            raise RuntimeError("TODO: Not yet implemented.")
 
     def get_targets( self, src = 0 ):
         return self.srcdict[src] if (src in self.srcdict) else []
@@ -970,10 +974,10 @@ class EdgeInfoReader:
         # 5- source field (srcfield) : INTEGER
         # 6- stability (stability) : TEXT
         cur.execute( """CREATE TABLE edgeinfo (srcid INTEGER,
+                                               srcfield INTEGER,
                                                tgtid INTEGER,
                                                ctime INTEGER,
                                                dtime INTEGER,
-                                               srcfield INTEGER,
                                                stability TEXT,
                                                UNIQUE (srcid, tgtid, srcfield, ctime))""" )
         conn.execute( 'DROP INDEX IF EXISTS idx_edgeinfo_srcid' )
@@ -2059,3 +2063,182 @@ __all__ = [ "EdgeInfoReader", "GarbologyConfig", "ObjectInfoReader",
 
 if __name__ == "__main__":
     main()
+
+#================================================================================
+# Unused code
+# TODO class EdgeInfoCache( collections.Mapping ):
+# TODO     def __init__( self,
+# TODO                   tgtpath = None,
+# TODO                   cachesize = 5000000,
+# TODO                   logger = None ):
+# TODO         self.conn = sqlite3.connect( tgtpath )
+# TODO         assert( table != None )
+# TODO         self.table = "edgeinfo"
+# TODO         self.count = None
+# TODO         self.keyfield1 = "srcid"
+# TODO         self.keyfield2 = "srcfield"
+# TODO         self.keyfield3 = "tgtid"
+# TODO         self.keyindex1 = 0
+# TODO         self.keyindex2 = 1
+# TODO         self.keyindex3 = 2
+# TODO         # We save all the keys. Note that once we have all the keys, then we don't
+# TODO         # need to ask the DB again since we don't allow writes. This will be a
+# TODO         # set of tuples.
+# TODO         self.keyset = set()
+# TODO         # We want to know if we have all the keys.
+# TODO         self.have_all_keys = False
+# TODO         # We use an LRU cache to store results.
+# TODO         self.lru = pylru.lrucache( size = cachesize )
+# TODO         # NOTE: We assume that the keyfield is always the first field in the record
+# TODO         #       tuple.
+# TODO         self.logger = logger
+# TODO 
+# TODO     def __iter__( self ):
+# TODO         if self.have_all_keys:
+# TODO             for key in self.keyset:
+# TODO                 yield key
+# TODO         else:
+# TODO             cur = self.conn.cursor()
+# TODO             cur.execute( "SELECT * FROM %s" % self.table )
+# TODO             for key in self.keyset:
+# TODO                 yield key
+# TODO             ind1 = self.keyindex1
+# TODO             ind2 = self.keyindex2
+# TODO             ind3 = self.keyindex3
+# TODO             indrest = ind3 + 1
+# TODO             while True:
+# TODO                 reclist = cur.fetchmany()
+# TODO                 if len(reclist) > 0:
+# TODO                     for rec in reclist:
+# TODO                         key = ( rec[ind1], rec[ind2], rec[ind3] )
+# TODO                         if key not in self.lru:
+# TODO                             # __iter__ only needs to return the key. But since
+# TODO                             # we already have the record, we store it in the cache.
+# TODO                             # The likelihood that the user will ask for the the record is high.
+# TODO                             self.lru[key] = rec[indrest:]
+# TODO                         if key in self.keyset:
+# TODO                             # If we have already returned the key, just go to the next one.
+# TODO                             continue
+# TODO                         self.keyset.add( key )
+# TODO                         yield key
+# TODO                 else:
+# TODO                     # This is one of the times when we know we have all the keys.
+# TODO                     self.have_all_keys = True
+# TODO                     raise StopIteration
+# TODO 
+# TODO     def iteritems( self ):
+# TODO         cur = self.conn.cursor()
+# TODO         cur.execute( "SELECT * FROM %s" % self.table )
+# TODO         ind1 = self.keyindex1
+# TODO         ind2 = self.keyindex2
+# TODO         ind3 = self.keyindex3
+# TODO         indrest = ind3 + 1
+# TODO         while True:
+# TODO             reclist = cur.fetchmany()
+# TODO             if len(reclist) > 0:
+# TODO                 for rec in reclist:
+# TODO                     key = ( rec[ind1], rec[ind2], rec[ind3] )
+# TODO                     if key not in self.lru:
+# TODO                         self.lru[key] = rec[indrest:]
+# TODO                     self.keyset.add( key ) # Might as well add to the key set
+# TODO                     yield (key, rec[indrest:])
+# TODO             else:
+# TODO                 # This is one of the times when we know we have all the keys.
+# TODO                 self.have_all_keys = True
+# TODO                 raise StopIteration
+# TODO 
+# TODO     def keys( self ):
+# TODO         if self.have_all_keys:
+# TODO             # Return a copy
+# TODO             return set(self.keyset)
+# TODO         else:
+# TODO             cur = self.conn.cursor()
+# TODO             cur.execute( "SELECT %s FROM %s" % (self.keyfield, self.table) )
+# TODO             mykeyset = set()
+# TODO             while True:
+# TODO                 keylist = cur.fetchmany()
+# TODO                 if len(keylist) > 0:
+# TODO                     mykeyset.update( [ x[0] for x in keylist ] )
+# TODO                 else:
+# TODO                     break
+# TODO             # Result should be a list.
+# TODO             result = list(mykeyset)
+# TODO             # This debug check happens only once, so it's ok to do it.
+# TODO             for x in result:
+# TODO                 try:
+# TODO                     assert(type(x) == type(1))
+# TODO                 except:
+# TODO                     print "kEY ERROR:"
+# TODO                     print "x:", x
+# TODO                     exit(100)
+# TODO             self.keyset = mykeyset
+# TODO             self.have_all_keys = True
+# TODO             return result
+# TODO 
+# TODO     def __contains__( self, item ):
+# TODO         if item in self.lru:
+# TODO             return True
+# TODO         else:
+# TODO             cur = self.conn.cursor()
+# TODO             cmd = "SELECT * FROM %s WHERE %s=%s" % ( self.table, self.keyfield, str(item) )
+# TODO             # self.logger.debug( "CMD: %s" % cmd )
+# TODO             cur.execute( cmd )
+# TODO             retlist = cur.fetchmany()
+# TODO             if len(retlist) != 1:
+# TODO                 return False
+# TODO             rec = retlist[0]
+# TODO             self.lru[item] = rec[1:]
+# TODO             return True
+# TODO 
+# TODO     def __len__(self):
+# TODO         cur = self.conn.cursor()
+# TODO         if self.count == None:
+# TODO             cur.execute( "SELECT Count(*) FROM %s" % self.table )
+# TODO         self.count = cur.fetchone()
+# TODO         # DEBUG: print "%s : %s" %(str(self.count), str(type(self.count)))
+# TODO         return self.count[0]
+# TODO 
+# TODO     def __getitem__(self, key):
+# TODO         if key in self.lru:
+# TODO             return self.lru[key]
+# TODO         else:
+# TODO             cur = self.conn.cursor()
+# TODO             cur.execute( "select * from %s where %s=%s" %
+# TODO                          ( self.table, self.keyfield, str(key) ) )
+# TODO             retlist = cur.fetchmany()
+# TODO             if len(retlist) < 1:
+# TODO                 raise KeyError( "%s not found" % str(key ) )
+# TODO             elif len(retlist) > 1:
+# TODO                 pass
+# TODO                 # todo: need to log an error here. or at least a warning.
+# TODO             rec = retlist[0]
+# TODO             key = rec[0]
+# TODO             self.lru[key] = rec[1:]
+# TODO             return rec[1:]
+# TODO 
+# TODO     def getitem_from_table(self, key, mytable, mykeyfield):
+# TODO         cur = self.conn.cursor()
+# TODO         cur.execute( "select * from %s where %s=%s" %
+# TODO                      ( mytable, mykeyfield, str(key) ) )
+# TODO         retlist = cur.fetchmany()
+# TODO         if len(retlist) < 1:
+# TODO             raise KeyError( "%s not found" % str(key ) )
+# TODO         elif len(retlist) > 1:
+# TODO             pass
+# TODO             # todo: need to log an error here. or at least a warning.
+# TODO         rec = retlist[0]
+# TODO         return rec
+# TODO 
+# TODO     def close( self ):
+# TODO         if self.conn != None:
+# TODO             self.conn.close()
+# TODO 
+# TODO     # This is a Read-Only cache. The following are therefore not implemented.  def __additem__(self, key):
+# TODO         raise NotImplemented
+# TODO 
+# TODO     def __setitem__(self, key, value):
+# TODO         raise NotImplemented
+# TODO 
+# TODO     def __delitem__(self, key):
+# TODO         raise NotImplemented
+# TODO 
