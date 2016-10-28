@@ -1,5 +1,5 @@
 from __future__ import division
-# dgroup2db.py
+# dgroups2db.py
 #
 import argparse
 import os
@@ -39,8 +39,8 @@ import time
 pp = pprint.PrettyPrinter( indent = 4 )
 
 def setup_logger( targetdir = ".",
-                  filename = "dgroup2db.py.log",
-                  logger_name = 'dgroup2db.py',
+                  filename = "dgroups2db.py.log",
+                  logger_name = 'dgroups2db.py',
                   debugflag = 0 ):
     # Set up main logger
     logger = logging.getLogger( logger_name )
@@ -97,8 +97,7 @@ def read_edgeinfo_with_stability_into_db( result = [],
                                   logger = logger )
     print "B:"
 
-def main_process( output = None,
-                  global_config = {},
+def main_process( global_config = {},
                   main_config = {},
                   worklist_config = {},
                   host_config = {},
@@ -111,10 +110,6 @@ def main_process( output = None,
     global pp
     # This is where the summary CSV files are
     cycle_cpp_dir = global_config["cycle_cpp_dir"]
-    # Setup stdout to file redirect TODO: Where should this comment be placed?
-    # TODO: Eventually remove the following commented code related to hosts.
-    # Since we're not doing mutiprocessing, we don't need this. But keep
-    # it here until absolutely sure.
     # Get the date and time to label the work directory.
     today = date.today()
     today = today.strftime("%Y-%m%d")
@@ -130,7 +125,6 @@ def main_process( output = None,
     # in space. This is to be able to go back to a known good dataset.
     # The current run is then copied to a non-timestamped directory
     # where the rest of the workflow expects it as detailed in the config file.
-    # TODO: Need a worklist.
     # Directory is in "global_config"
     #     Make sure everything is honky-dory.
     assert( "cycle_cpp_dir" in global_config )
@@ -270,7 +264,7 @@ def main_process( output = None,
         print "Copying %s -> %s." % (dbfilename, dest)
         copy( dbfilename, dest )
     print "================================================================================"
-    print "dgroup2db.py - DONE."
+    print "dgroups2db.py - DONE."
     os.chdir( olddir )
     exit(0)
 
@@ -290,27 +284,27 @@ def process_config( args ):
     config_parser = ConfigParser.ConfigParser()
     config_parser.read( args.config )
     global_config = config_section_map( "global", config_parser )
-    main_config = config_section_map( "dgroup2db", config_parser )
+    main_config = config_section_map( "dgroups2db", config_parser )
     host_config = config_section_map( "hosts", config_parser )
-    worklist_config = config_section_map( "dgroup2db-worklist", config_parser )
-    objectinfo_config = config_section_map( "objectinfo", config_parser )
-    edgeinfo_config = config_section_map( "edgeinfo", config_parser )
-    stability_config = config_section_map( "stability-summary", config_parser )
+    worklist_config = config_section_map( "dgroups2db-worklist", config_parser )
+    dgroups_config = config_section_map( "etanalyze-output", config_parser )
+    # TODO objectinfo_config = config_section_map( "objectinfo", config_parser )
+    # TODO edgeinfo_config = config_section_map( "edgeinfo", config_parser )
+    # TODO stability_config = config_section_map( "stability-summary", config_parser )
     # MAYBE: summary_config = config_section_map( "summary_cpp", config_parser )
-    # DON'T KNOW: contextcount_config = config_section_map( "contextcount", config_parser )
     return { "global" : global_config,
              "main" : main_config,
              "worklist" : worklist_config,
              "hosts" : host_config,
-             "objectinfo" : objectinfo_config,
-             "edgeinfo" : edgeinfo_config,
-             "stability" : stability_config,
+             "dgroups" : dgroups_config,
+             # TODO "objectinfo" : objectinfo_config,
+             # TODO "edgeinfo" : edgeinfo_config,
+             # TODO "stability" : stability_config,
              }
 
 def create_parser():
     # set up arg parser
     parser = argparse.ArgumentParser()
-    parser.add_argument( "output", help = "Target output filename." )
     parser.add_argument( "--config",
                          help = "Specify configuration filename.",
                          action = "store" )
@@ -333,7 +327,7 @@ def create_parser():
     parser.add_argument( "--logfile",
                          help = "Specify logfile name.",
                          action = "store" )
-    parser.set_defaults( logfile = "dgroup2db.log",
+    parser.set_defaults( logfile = "dgroups2db.log",
                          debugflag = False,
                          config = None )
     return parser
@@ -349,9 +343,10 @@ def main():
     main_config = configdict["main"]
     worklist_config = process_worklist_config( configdict["worklist"] )
     host_config = process_host_config( configdict["hosts"] )
-    objectinfo_config = configdict["objectinfo"]
-    edgeinfo_config = configdict["edgeinfo"]
-    stability_config = configdict["stability"]
+    dgroups_config = configdict["dgroups"]
+    # TODO objectinfo_config = configdict["objectinfo"]
+    # TODO edgeinfo_config = configdict["edgeinfo"]
+    # TODO stability_config = configdict["stability"]
     # TODO DEBUG TODO
     print "================================================================================"
     pp.pprint( global_config )
@@ -359,15 +354,17 @@ def main():
     pp.pprint( main_config )
     print "================================================================================"
     pp.pprint( host_config )
+    print "================================================================================"
+    pp.pprint( dgroups_config )
     # TODO END DEBUG TODO
     # Set up logging
     logger = setup_logger( filename = args.logfile,
                            debugflag = global_config["debug"] )
+    exit(100)
     #
     # Main processing
     #
     return main_process( debugflag = global_config["debug"],
-                         output = args.output,
                          global_config = global_config,
                          main_config = main_config,
                          host_config = host_config,
