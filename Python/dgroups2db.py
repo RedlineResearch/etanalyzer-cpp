@@ -26,7 +26,8 @@ from mypytools import check_host, create_work_directory, process_host_config, \
 
 # The garbology related library. Import as follows.
 # Check garbology.py for other imports
-from garbology import ObjectInfoFile2DB, EdgeInfoFile2DB, StabilityReader
+from garbology import DeathGroupsReader, ObjectInfoReader
+#     ObjectInfoFile2DB, EdgeInfoFile2DB, StabilityReader
 
 # Needed to read in *-OBJECTINFO.txt and other files from
 # the simulator run
@@ -61,21 +62,43 @@ def setup_logger( targetdir = ".",
 # Main processing
 #
 
-def read_objectinfo_into_db( result = [],
-                             bmark = "",
-                             outdbname = "",
-                             mprflag = False,
-                             objectinfo_config = {},
-                             cycle_cpp_dir = "",
-                             logger = None ):
+def read_dgroups_into_db( result = [],
+                          bmark = "",
+                          outdbname = "",
+                          pickle_filename = "",
+                          mprflag = False,
+                          dgroups_config = {},
+                          cycle_cpp_dir = "",
+                          objectinfo_db_config = {},
+                          obj_cachesize = 5000000,
+                          debugflag = False,
+                          logger = None ):
     assert(logger != None)
     # print os.listdir( )
-    tracefile = os.path.join( cycle_cpp_dir, objectinfo_config[bmark] )
-    # The ObjectInfoFile2DB will create the DB connection. We just
-    # need to pass it the DB filename
-    objinforeader = ObjectInfoFile2DB( objinfo_filename = tracefile,
-                                       outdbfilename = outdbname,
-                                       logger = logger )
+    tracefile = os.path.join( cycle_cpp_dir, dgroups_config[bmark] )
+    #===========================================================================
+    # Read in OBJECTINFO
+    print "Reading in the OBJECTINFO file for benchmark:", bmark
+    sys.stdout.flush()
+    oread_start = time.clock()
+    print " - Using objectinfo DB:"
+    db_filename = os.path.join( cycle_cpp_dir,
+                                objectinfo_db_config[bmark] )
+    objreader = ObjectInfoReader( useDB_as_source = True,
+                                  db_filename = db_filename,
+                                  cachesize = obj_cachesize,
+                                  logger = logger )
+    objreader.read_objinfo_file()
+    #===========================================================================
+    # Read in DGROUPS
+    dgroups_reader = DeathGroupsReader( dgroup_file = tracefile,
+                                        clean_flag = True,
+                                        debugflag = debugflag,
+                                        logger = logger )
+    dgroups_reader.read_dgroup_file( objreader )
+    dgroups_reader.write_clean_dgroups_to_db( outdbname,
+                                              pickle_filename = None,
+                                              object_info_reader = objreader )
 
 def read_edgeinfo_with_stability_into_db( result = [],
                                           bmark = "",
@@ -101,14 +124,17 @@ def main_process( global_config = {},
                   main_config = {},
                   worklist_config = {},
                   host_config = {},
-                  objectinfo_config = {},
-                  edgeinfo_config = {},
-                  stability_config = {},
+                  dgroups_config = {},
+                  objectinfo_db_config = {},
+                  # TODO objectinfo_config = {},
+                  # TODO edgeinfo_config = {},
+                  # TODO stability_config = {},
                   mprflag = False,
                   debugflag = False,
                   logger = None ):
     global pp
-    # This is where the summary CSV files are
+    # This is where the summary CSV files are. We get the
+    # bmark-CYCLES.csv files here.
     cycle_cpp_dir = global_config["cycle_cpp_dir"]
     # Get the date and time to label the work directory.
     today = date.today()
@@ -130,10 +156,8 @@ def main_process( global_config = {},
     assert( "cycle_cpp_dir" in global_config )
     cycle_cpp_dir = global_config["cycle_cpp_dir"]
     manager = Manager()
-    results_obj = {}
-    procs_obj = {}
-    results_edge = {}
-    procs_edge = {}
+    results = {}
+    procs_dgroup = {}
     dblist = []
     for bmark in worklist_config.keys():
         hostlist = worklist_config[bmark]
@@ -142,110 +166,59 @@ def main_process( global_config = {},
                            host_config = host_config ):
             continue
         # Else we can run for 'bmark'
+        outdbname = os.path.join( workdir, bmark + "-DGROUPS.db" )
+        pickle_filename = os.path.join( workdir, bmark + "-DGROUPS.pickle" )
         if mprflag:
             print "=======[ Spawning %s ]================================================" \
                 % bmark
-            results_obj[bmark] = manager.list([ bmark, ])
-            # TODO
-            # - create function 'csvinfo2b' that does the work
-            #
+            results[bmark] = manager.list([ bmark, ])
             # NOTE: The order of the args tuple is important!
             # ======================================================================
-            # Read in the OBJECTINFO
-            outdbname_object = os.path.join( workdir, bmark + "-OBJECTINFO.db" )
-            p = Process( target = read_objectinfo_into_db,
-                         args = ( results_obj[bmark],
+            # Read in the CYCLES (death groups file from simulator) 
+            p = Process( target = read_dgroups_into_db,
+                         args = ( results[bmark],
                                   bmark,
-                                  outdbname_object,
+                                  outdbname,
+                                  pickle_filename,
                                   mprflag,
-                                  objectinfo_config,
+                                  dgroups_config,
                                   cycle_cpp_dir,
+                                  objectinfo_db_config,
+                                  debugflag,
                                   logger ) )
-            procs_obj[bmark] = p
-            dblist.append( outdbname_object )
-            p.start()
-            # ======================================================================
-            # Read in the EDGEINFO
-            # TODO TODO TODO
-            # Need to read in the StabilityReader
-            print "Reading in the STABILITY file for benchmark:", bmark
-            sys.stdout.flush()
-            stabreader = StabilityReader( os.path.join( cycle_cpp_dir,
-                                                        stability_config[bmark] ),
-                                          logger = logger )
-            stabreader.read_stability_file()
-            print "STAB done."
-            outdbname_edge = os.path.join( workdir, bmark + "-EDGEINFO.db" )
-            results_edge[bmark] = manager.list([ bmark, ])
-            # Start the process
-            p = Process( target = read_edgeinfo_with_stability_into_db,
-                         args = ( results_edge[bmark],
-                                  bmark,
-                                  outdbname_edge,
-                                  mprflag,
-                                  stabreader,
-                                  edgeinfo_config,
-                                  cycle_cpp_dir,
-                                  logger )
-                         )
-            procs_edge[bmark] = p
-            dblist.append( outdbname_edge )
+            procs_dgroup[bmark] = p
+            dblist.append( outdbname )
             p.start()
         else:
             print "=======[ Running %s ]=================================================" \
                 % bmark
-
-            print "     Reading in objectinfo..."
-            outdbname_object = os.path.join( workdir, bmark + "-OBJECTINFO.db" )
-            results_obj[bmark] = [ bmark, ]
-            read_objectinfo_into_db( result = results_obj[bmark],
-                                     bmark = bmark,
-                                     outdbname = outdbname_object,
-                                     mprflag = mprflag,
-                                     objectinfo_config = objectinfo_config,
-                                     cycle_cpp_dir = cycle_cpp_dir,
-                                     logger = logger )
-            dblist.append( outdbname_object )
-            stabreader = StabilityReader( os.path.join( cycle_cpp_dir,
-                                                        stability_config[bmark] ),
-                                          logger = logger )
-            stabreader.read_stability_file()
-            print "STAB done."
-            print "     Reading in edgeinfo..."
-            outdbname_edge = os.path.join( workdir, bmark + "-EDGEINFO.db" )
-            results_edge[bmark] = [ bmark, ]
-            read_edgeinfo_with_stability_into_db( result = results_edge[bmark],
-                                                  bmark = bmark,
-                                                  outdbname = outdbname_edge,
-                                                  mprflag = mprflag,
-                                                  edgeinfo_config = edgeinfo_config,
-                                                  cycle_cpp_dir = cycle_cpp_dir,
-                                                  logger = logger )
-            dblist.append( outdbname_edge )
+            print "     Reading in cycles (death groups)..."
+            results[bmark] = [ bmark, ]
+            read_dgroups_into_db( result = results[bmark],
+                                  bmark = bmark,
+                                  outdbname = outdbname,
+                                  pickle_filename = pickle_filename,
+                                  mprflag = mprflag,
+                                  dgroups_config = dgroups_config,
+                                  cycle_cpp_dir = cycle_cpp_dir,
+                                  objectinfo_db_config = objectinfo_db_config,
+                                  debugflag = debugflag,
+                                  logger = logger )
+            dblist.append( outdbname )
     if mprflag:
         # Poll the processes 
         done = False
         while not done:
             done = True
-            for bmark in set(procs_obj.keys() + procs_edge.keys()) :
-                if bmark in procs_obj:
-                    proc = procs_obj[bmark]
-                    proc.join(60)
-                    if proc.is_alive():
-                        done = False
-                    else:
-                        del procs_obj[bmark]
-                        timenow = time.asctime()
-                        logger.debug( "[%s] - done at %s" % (bmark, timenow) )
-                if bmark in procs_edge:
-                    proc = procs_edge[bmark]
-                    proc.join(60)
-                    if proc.is_alive():
-                        done = False
-                    else:
-                        del procs_edge[bmark]
-                        timenow = time.asctime()
-                        logger.debug( "[%s] - done at %s" % (bmark, timenow) )
+            for bmark in procs_dgroup.keys():
+                proc = procs_dgroup[bmark]
+                proc.join(60)
+                if proc.is_alive():
+                    done = False
+                else:
+                    del procs_dgroup[bmark]
+                    timenow = time.asctime()
+                    logger.debug( "[%s] - done at %s" % (bmark, timenow) )
         print "======[ Processes DONE ]========================================================"
         sys.stdout.flush()
     print "================================================================================"
@@ -254,13 +227,15 @@ def main_process( global_config = {},
     for dbfilename in dblist:
         # Check to see first if the destination exists:
         # print "XXX: %s -> %s" % (dbfilename, dbfilename.split())
+        # Split the absolute filename into a path and file pair:
         abspath, fname = os.path.split(dbfilename)
+        # Use the same filename added to the destination path
         tgt = os.path.join( dest, fname )
         if os.path.isfile(tgt):
             try:
                 os.remove(tgt)
             except:
-                logger.error( "Weird error: found the file [%s] but can't remove it." % tgt )
+                logger.error( "Weird error: found the file [%s] but can't remove it. The copy might fail." % tgt )
         print "Copying %s -> %s." % (dbfilename, dest)
         copy( dbfilename, dest )
     print "================================================================================"
@@ -288,6 +263,7 @@ def process_config( args ):
     host_config = config_section_map( "hosts", config_parser )
     worklist_config = config_section_map( "dgroups2db-worklist", config_parser )
     dgroups_config = config_section_map( "etanalyze-output", config_parser )
+    objectinfo_db_config = config_section_map( "objectinfo-db", config_parser )
     # TODO objectinfo_config = config_section_map( "objectinfo", config_parser )
     # TODO edgeinfo_config = config_section_map( "edgeinfo", config_parser )
     # TODO stability_config = config_section_map( "stability-summary", config_parser )
@@ -297,6 +273,7 @@ def process_config( args ):
              "worklist" : worklist_config,
              "hosts" : host_config,
              "dgroups" : dgroups_config,
+             "objectinfo_db" : objectinfo_db_config,
              # TODO "objectinfo" : objectinfo_config,
              # TODO "edgeinfo" : edgeinfo_config,
              # TODO "stability" : stability_config,
@@ -344,6 +321,7 @@ def main():
     worklist_config = process_worklist_config( configdict["worklist"] )
     host_config = process_host_config( configdict["hosts"] )
     dgroups_config = configdict["dgroups"]
+    objectinfo_db_config = configdict["objectinfo_db"]
     # TODO objectinfo_config = configdict["objectinfo"]
     # TODO edgeinfo_config = configdict["edgeinfo"]
     # TODO stability_config = configdict["stability"]
@@ -360,7 +338,6 @@ def main():
     # Set up logging
     logger = setup_logger( filename = args.logfile,
                            debugflag = global_config["debug"] )
-    exit(100)
     #
     # Main processing
     #
@@ -369,9 +346,11 @@ def main():
                          main_config = main_config,
                          host_config = host_config,
                          worklist_config = worklist_config,
-                         objectinfo_config = objectinfo_config,
-                         edgeinfo_config = edgeinfo_config,
-                         stability_config = stability_config,
+                         dgroups_config = dgroups_config,
+                         objectinfo_db_config = objectinfo_db_config,
+                         # TODO objectinfo_config = objectinfo_config,
+                         # TODO edgeinfo_config = edgeinfo_config,
+                         # TODO stability_config = stability_config,
                          mprflag = args.mprflag,
                          logger = logger )
 

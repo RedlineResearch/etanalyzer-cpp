@@ -13,7 +13,9 @@ import subprocess
 from collections import defaultdict, Counter
 import collections
 from functools import reduce
+import time
 import sqlite3
+import cPickle as pickle
 import pylru
 from sqorm import ObjectCache
 
@@ -1021,6 +1023,7 @@ class EdgeInfoFile2DB:
 class DeathGroupsReader:
     def __init__( self,
                   dgroup_file = None,
+                  clean_flag = False,
                   debugflag = False,
                   logger = None ):
         self.dgroup_file_name = dgroup_file
@@ -1033,6 +1036,7 @@ class DeathGroupsReader:
         # Map of group number to list of objects
         self.group2list= {}
         self.debugflag = debugflag
+        self.clean_flag = clean_flag
         self.logger = logger
         self._atend_gnum = None
 
@@ -1326,16 +1330,22 @@ class DeathGroupsReader:
                             sys.stdout.write("#")
                             sys.stdout.flush()
                             sys.stdout.write(str(len(line)) + " | ")
-        passnum = 1
-        done = False
-        while not done:
-            print "Pass number: %d" % passnum
-            done = self.clean_dtimes( objreader = oir )
-            passnum += 1
-        print "====[ PASS DONE ]==============================================================="
-        self.merge_groups_with_same_dtime( objreader = oir, verify = True )
-        #sys.stdout.write("\n")
-        #sys.stdout.flush()
+        if not self.clean_flag:
+            passnum = 1
+            done = False
+            while not done:
+                pass_start = time.clock()
+                sys.stdout.write( "Pass number: %d" % passnum )
+                done = self.clean_dtimes( objreader = oir )
+                passnum += 1
+                pass_end = time.clock()
+                self.logger.debug( "Pass %d: DONE in %f" % (passnum, (pass_end - pass_start)) )
+                sys.stdout.write(  "Pass %d: DONE in %f\n" % (passnum, (pass_end - pass_start)) )
+                sys.stdout.flush()
+            print "====[ PASS DONE ]==============================================================="
+            self.merge_groups_with_same_dtime( objreader = oir, verify = True )
+            #sys.stdout.write("\n")
+            #sys.stdout.flush()
         print "----------------------------------------------------------------------"
         # TODO grlen = sorted( [ len(mylist) for group, mylist in self.group2list.iteritems() if len(mylist) > 0 ],
         #                       reverse = True )
@@ -1356,6 +1366,91 @@ class DeathGroupsReader:
         print "Multiple key: %d" % multkey
         print "Without key: %d" % withoutkey
         print "----------------------------------------------------------------------"
+
+    def create_dgroup_db( self, outdbfilename = None ):
+        try:
+            self.outdbconn = sqlite3.connect( outdbfilename )
+        except:
+            logger.critical( "Unable to open %s" % outdbfilename )
+            print "Unable to open %s" % outdbfilename
+            exit(1)
+        conn = self.outdbconn
+        conn.text_factory = str
+        cur = conn.cursor()
+        # ----------------------------------------------------------------------
+        # Create the DGROUPS DB
+        # ----------------------------------------------------------------------
+        cur.execute( '''DROP TABLE IF EXISTS dgroups''' )
+        # Create the database. These are the fields in order.
+        # Decode as:
+        # num- fullname (sqlite name) : type
+        # 1- group number (gnum) : INTEGER
+        # 2- group size (size) : INTEGER
+        # 3- text list of object ids (objlist) : TEXT
+        # 4- death time (dtime) : INTEGER
+        cur.execute( """CREATE TABLE objinfo (gnum INTEGER PRIMARY KEY,
+                                              size INTEGER,
+                                              objlist TEXT,
+                                              dtime INTEGER)""" )
+        conn.execute( 'DROP INDEX IF EXISTS idx_dgroups_gnum' )
+
+    def write_clean_dgroups_to_db( self,
+                                   dbfilename = None,
+                                   pickle_filename = None,
+                                   object_info_reader = None ):
+        self.dbfilename = dbfilename
+        # This function writes out two files. The DB and this pickle file.
+        # The pickle file contains the obj2group and group2dtime dictionaries.
+        self.pickle_filename = pickle_filename
+        #----------------------------------------------------------------------
+        # Dumping the pickle first
+        with open(pickle_filname, "wb") as fp:
+            data = { "obj2group" : self.obj2group,
+                     "group2dtime" : self.group2dtime, }
+            pickle.dump( data, fp )
+        exit(111)
+        #----------------------------------------------------------------------
+        self.create_dgroup_db( outdbfilename = dbfilename )
+        # Sort group2list according to size. (Largest first.)
+        def keyfn( tup ):
+            return len(tup[1])
+        newgrouplist = sorted( self.group2list.iteritems(),
+                               key = keyfn,
+                               reverse = True )
+        exit(100) # TODO HERE TODO HERE TODO
+        # Declare our generator
+        # ----------------------------------------------------------------------
+        oir = object_info_reader # Use a shorter alias
+        def row_generator():
+            start = False
+            count = 0
+            for line in fp:
+                count += 1
+                line = line.rstrip()
+                if line.find("---------------[ CYCLES") == 0:
+                    start = True if not start else False
+                    if start:
+                        continue
+                    else:
+                        break
+                if start:
+                    line = line.rstrip()
+                    line = line.rstrip(",")
+                    # Remove all objects that died at program end.
+                    dg = [ int(x) for x in line.split(",") if not oir.died_at_end(int(x))  ]
+                    if len(dg) == 0:
+                        continue
+                    dtimes = list( set( [ oir.get_death_time(x) for x in dg ] ) )
+
+        # ----------------------------------------------------------------------
+        # TODO call executemany here
+        cur = self.outdbconn.cursor()
+        cur.executemany( "INSERT INTO objinfo VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", row_generator() )
+        cur.executemany( "INSERT INTO typetable VALUES (?,?)", type_row_generator() )
+        cur.execute( 'CREATE UNIQUE INDEX idx_objectinfo_objid ON objinfo (objid)' )
+        cur.execute( 'CREATE UNIQUE INDEX idx_typeinfo_typeid ON typetable (typeid)' )
+        self.outdbconn.commit()
+        self.outdbconn.close()
 
     def iteritems( self ):
         return self.group2list.iteritems()
