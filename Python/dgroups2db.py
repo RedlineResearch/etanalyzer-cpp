@@ -62,17 +62,17 @@ def setup_logger( targetdir = ".",
 # Main processing
 #
 
-def read_dgroups_into_db( result = [],
-                          bmark = "",
-                          outdbname = "",
-                          pickle_filename = "",
-                          mprflag = False,
-                          dgroups_config = {},
-                          cycle_cpp_dir = "",
-                          objectinfo_db_config = {},
-                          obj_cachesize = 5000000,
-                          debugflag = False,
-                          logger = None ):
+def read_dgroups_into_pickle( result = [],
+                              bmark = "",
+                              # outdbname = "",
+                              pickle_filename = "",
+                              mprflag = False,
+                              dgroups_config = {},
+                              cycle_cpp_dir = "",
+                              objectinfo_db_config = {},
+                              obj_cachesize = 5000000,
+                              debugflag = False,
+                              logger = None ):
     assert(logger != None)
     # print os.listdir( )
     tracefile = os.path.join( cycle_cpp_dir, dgroups_config[bmark] )
@@ -96,9 +96,9 @@ def read_dgroups_into_db( result = [],
                                         debugflag = debugflag,
                                         logger = logger )
     dgroups_reader.read_dgroup_file( objreader )
-    dgroups_reader.write_clean_dgroups_to_db( outdbname,
-                                              pickle_filename = pickle_filename,
-                                              object_info_reader = objreader )
+    dgroups_reader.write_clean_dgroups_to_file( # outdbname,
+                                                pickle_filename = pickle_filename,
+                                                object_info_reader = objreader )
 
 def read_edgeinfo_with_stability_into_db( result = [],
                                           bmark = "",
@@ -175,10 +175,10 @@ def main_process( global_config = {},
             # NOTE: The order of the args tuple is important!
             # ======================================================================
             # Read in the CYCLES (death groups file from simulator) 
-            p = Process( target = read_dgroups_into_db,
+            p = Process( target = read_dgroups_into_pickle,
                          args = ( results[bmark],
                                   bmark,
-                                  outdbname,
+                                  # outdbname,
                                   pickle_filename,
                                   mprflag,
                                   dgroups_config,
@@ -194,16 +194,16 @@ def main_process( global_config = {},
                 % bmark
             print "     Reading in cycles (death groups)..."
             results[bmark] = [ bmark, ]
-            read_dgroups_into_db( result = results[bmark],
-                                  bmark = bmark,
-                                  outdbname = outdbname,
-                                  pickle_filename = pickle_filename,
-                                  mprflag = mprflag,
-                                  dgroups_config = dgroups_config,
-                                  cycle_cpp_dir = cycle_cpp_dir,
-                                  objectinfo_db_config = objectinfo_db_config,
-                                  debugflag = debugflag,
-                                  logger = logger )
+            read_dgroups_into_pickle( result = results[bmark],
+                                      bmark = bmark,
+                                      # outdbname = outdbname,
+                                      pickle_filename = pickle_filename,
+                                      mprflag = mprflag,
+                                      dgroups_config = dgroups_config,
+                                      cycle_cpp_dir = cycle_cpp_dir,
+                                      objectinfo_db_config = objectinfo_db_config,
+                                      debugflag = debugflag,
+                                      logger = logger )
             dblist.append( outdbname )
     if mprflag:
         # Poll the processes 

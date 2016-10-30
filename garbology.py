@@ -1394,11 +1394,11 @@ class DeathGroupsReader:
                                               dtime INTEGER)""" )
         conn.execute( 'DROP INDEX IF EXISTS idx_dgroups_gnum' )
 
-    def write_clean_dgroups_to_db( self,
-                                   dbfilename = None,
-                                   pickle_filename = None,
-                                   object_info_reader = None ):
-        self.dbfilename = dbfilename
+    def write_clean_dgroups_to_file( self,
+                                     dbfilename = None,
+                                     pickle_filename = None,
+                                     object_info_reader = None,
+                                     save_to_db = False ):
         # This function writes out two files. The DB and this pickle file.
         # The pickle file contains the obj2group and group2dtime dictionaries.
         self.pickle_filename = pickle_filename
@@ -1406,51 +1406,55 @@ class DeathGroupsReader:
         # Dumping the pickle first
         with open(pickle_filename, "wb") as fp:
             data = { "obj2group" : self.obj2group,
-                     "group2dtime" : self.group2dtime, }
+                     "group2dtime" : self.group2dtime,
+                     "group2list" : self.group2list }
             pickle.dump( data, fp )
-        exit(111)
+        exit(111) # TODO TODO HERE HERE TODO TODO
         #----------------------------------------------------------------------
-        self.create_dgroup_db( outdbfilename = dbfilename )
-        # Sort group2list according to size. (Largest first.)
-        def keyfn( tup ):
-            return len(tup[1])
-        newgrouplist = sorted( self.group2list.iteritems(),
-                               key = keyfn,
-                               reverse = True )
-        exit(100) # TODO HERE TODO HERE TODO
-        # Declare our generator
-        # ----------------------------------------------------------------------
-        oir = object_info_reader # Use a shorter alias
-        def row_generator():
-            start = False
-            count = 0
-            for line in fp:
-                count += 1
-                line = line.rstrip()
-                if line.find("---------------[ CYCLES") == 0:
-                    start = True if not start else False
-                    if start:
-                        continue
-                    else:
-                        break
-                if start:
+        # TODO: Maybe we don't need the Sqlite DB for this.
+        if False:
+            self.dbfilename = dbfilename
+            self.create_dgroup_db( outdbfilename = dbfilename )
+            # Sort group2list according to size. (Largest first.)
+            def keyfn( tup ):
+                return len(tup[1])
+            newgrouplist = sorted( self.group2list.iteritems(),
+                                   key = keyfn,
+                                   reverse = True )
+            exit(100) # TODO HERE TODO HERE TODO
+            # Declare our generator
+            # ----------------------------------------------------------------------
+            oir = object_info_reader # Use a shorter alias
+            def row_generator():
+                start = False
+                count = 0
+                for line in fp:
+                    count += 1
                     line = line.rstrip()
-                    line = line.rstrip(",")
-                    # Remove all objects that died at program end.
-                    dg = [ int(x) for x in line.split(",") if not oir.died_at_end(int(x))  ]
-                    if len(dg) == 0:
-                        continue
-                    dtimes = list( set( [ oir.get_death_time(x) for x in dg ] ) )
+                    if line.find("---------------[ CYCLES") == 0:
+                        start = True if not start else False
+                        if start:
+                            continue
+                        else:
+                            break
+                    if start:
+                        line = line.rstrip()
+                        line = line.rstrip(",")
+                        # Remove all objects that died at program end.
+                        dg = [ int(x) for x in line.split(",") if not oir.died_at_end(int(x))  ]
+                        if len(dg) == 0:
+                            continue
+                        dtimes = list( set( [ oir.get_death_time(x) for x in dg ] ) )
 
-        # ----------------------------------------------------------------------
-        # TODO call executemany here
-        cur = self.outdbconn.cursor()
-        cur.executemany( "INSERT INTO objinfo VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", row_generator() )
-        cur.executemany( "INSERT INTO typetable VALUES (?,?)", type_row_generator() )
-        cur.execute( 'CREATE UNIQUE INDEX idx_objectinfo_objid ON objinfo (objid)' )
-        cur.execute( 'CREATE UNIQUE INDEX idx_typeinfo_typeid ON typetable (typeid)' )
-        self.outdbconn.commit()
-        self.outdbconn.close()
+            # ----------------------------------------------------------------------
+            # TODO call executemany here
+            cur = self.outdbconn.cursor()
+            cur.executemany( "INSERT INTO objinfo VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", row_generator() )
+            cur.executemany( "INSERT INTO typetable VALUES (?,?)", type_row_generator() )
+            cur.execute( 'CREATE UNIQUE INDEX idx_objectinfo_objid ON objinfo (objid)' )
+            cur.execute( 'CREATE UNIQUE INDEX idx_typeinfo_typeid ON typetable (typeid)' )
+            self.outdbconn.commit()
+            self.outdbconn.close()
 
     def iteritems( self ):
         return self.group2list.iteritems()
