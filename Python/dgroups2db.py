@@ -97,7 +97,7 @@ def read_dgroups_into_db( result = [],
                                         logger = logger )
     dgroups_reader.read_dgroup_file( objreader )
     dgroups_reader.write_clean_dgroups_to_db( outdbname,
-                                              pickle_filename = None,
+                                              pickle_filename = pickle_filename,
                                               object_info_reader = objreader )
 
 def read_edgeinfo_with_stability_into_db( result = [],
