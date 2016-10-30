@@ -1404,7 +1404,7 @@ class DeathGroupsReader:
         self.pickle_filename = pickle_filename
         #----------------------------------------------------------------------
         # Dumping the pickle first
-        with open(pickle_filname, "wb") as fp:
+        with open(pickle_filename, "wb") as fp:
             data = { "obj2group" : self.obj2group,
                      "group2dtime" : self.group2dtime, }
             pickle.dump( data, fp )
