@@ -1330,7 +1330,7 @@ class DeathGroupsReader:
                             sys.stdout.write("#")
                             sys.stdout.flush()
                             sys.stdout.write(str(len(line)) + " | ")
-        if not self.clean_flag:
+        if self.clean_flag:
             passnum = 1
             done = False
             while not done:
@@ -1395,10 +1395,16 @@ class DeathGroupsReader:
         conn.execute( 'DROP INDEX IF EXISTS idx_dgroups_gnum' )
 
     def write_clean_dgroups_to_file( self,
-                                     dbfilename = None,
+                                     # TODO dbfilename = None,
                                      pickle_filename = None,
+                                     group2list_filename = None,
+                                     obj2group_filename = None,
                                      object_info_reader = None,
                                      save_to_db = False ):
+        # TODO assert( type(dbfilename) == type("") )
+        assert( type(pickle_filename) == type("") )
+        assert( type(group2list_filename) == type("") )
+        assert( type(obj2group_filename) == type("") )
         # This function writes out two files. The DB and this pickle file.
         # The pickle file contains the obj2group and group2dtime dictionaries.
         self.pickle_filename = pickle_filename
@@ -1409,6 +1415,16 @@ class DeathGroupsReader:
                      "group2dtime" : self.group2dtime,
                      "group2list" : self.group2list }
             pickle.dump( data, fp )
+        with open(group2list_filename, "wb") as fp2:
+            csvwriter = csv.writer(fp2)
+            header = [ "group_Id", "number", "death_time", "list", ]
+            csvwriter.writerow( header )
+            for gnum, mylist in self.group2list.iteritems():
+                row = [ gnum ]
+                row.append( len(mylist) )
+                row.append( self.group2dtime[gnum] )
+                row.extend( mylist )
+                csvwriter.writerow( row )
         exit(111) # TODO TODO HERE HERE TODO TODO
         #----------------------------------------------------------------------
         # TODO: Maybe we don't need the Sqlite DB for this.

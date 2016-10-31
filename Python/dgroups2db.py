@@ -64,8 +64,7 @@ def setup_logger( targetdir = ".",
 
 def read_dgroups_into_pickle( result = [],
                               bmark = "",
-                              # outdbname = "",
-                              pickle_filename = "",
+                              workdir = "",
                               mprflag = False,
                               dgroups_config = {},
                               cycle_cpp_dir = "",
@@ -96,8 +95,16 @@ def read_dgroups_into_pickle( result = [],
                                         debugflag = debugflag,
                                         logger = logger )
     dgroups_reader.read_dgroup_file( objreader )
+    #===========================================================================
+    # Write out to pickle and csv files
+    # 
+    pickle_filename = os.path.join( workdir, bmark + "-DGROUPS.pickle" )
+    group2list_filename = os.path.join( workdir, bmark + "-DGROUPS-group2list.csv" )
+    obj2group_filename = os.path.join( workdir, bmark + "-DGROUPS-obj2group.csv" )
     dgroups_reader.write_clean_dgroups_to_file( # outdbname,
                                                 pickle_filename = pickle_filename,
+                                                group2list_filename = group2list_filename,
+                                                obj2group_filename = obj2group_filename,
                                                 object_info_reader = objreader )
 
 def read_edgeinfo_with_stability_into_db( result = [],
@@ -166,8 +173,6 @@ def main_process( global_config = {},
                            host_config = host_config ):
             continue
         # Else we can run for 'bmark'
-        outdbname = os.path.join( workdir, bmark + "-DGROUPS.db" )
-        pickle_filename = os.path.join( workdir, bmark + "-DGROUPS.pickle" )
         if mprflag:
             print "=======[ Spawning %s ]================================================" \
                 % bmark
@@ -178,8 +183,7 @@ def main_process( global_config = {},
             p = Process( target = read_dgroups_into_pickle,
                          args = ( results[bmark],
                                   bmark,
-                                  # outdbname,
-                                  pickle_filename,
+                                  workdir,
                                   mprflag,
                                   dgroups_config,
                                   cycle_cpp_dir,
@@ -187,7 +191,6 @@ def main_process( global_config = {},
                                   debugflag,
                                   logger ) )
             procs_dgroup[bmark] = p
-            dblist.append( outdbname )
             p.start()
         else:
             print "=======[ Running %s ]=================================================" \
@@ -196,8 +199,7 @@ def main_process( global_config = {},
             results[bmark] = [ bmark, ]
             read_dgroups_into_pickle( result = results[bmark],
                                       bmark = bmark,
-                                      # outdbname = outdbname,
-                                      pickle_filename = pickle_filename,
+                                      workdir = workdir,
                                       mprflag = mprflag,
                                       dgroups_config = dgroups_config,
                                       cycle_cpp_dir = cycle_cpp_dir,
