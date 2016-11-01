@@ -1058,7 +1058,7 @@ class DeathGroupsReader:
                        groupnum = 0 ):
         assert( groupnum > 0 )
         assert( objId >= 0 )
-        self.obj2group[obj] = groupnum
+        self.obj2group[objId] = groupnum
 
     def get_group( self, groupnum = 0 ):
         """Returns the group as a list for groupnum."""
@@ -1104,7 +1104,7 @@ class DeathGroupsReader:
         # The more conscientious thing to do would be to fix the bug in the simulator.
         dtimes = {}
         newgroup = defaultdict(set)
-        XXXX TODO dtime2group = {}
+        dtime2group = {}
         for gnum in self.group2list.keys():
             origdtime = self.group2dtime[gnum]
             dtimes[gnum] = set( [ oir.get_death_time(x) for x in self.group2list[gnum] ] )
@@ -1323,7 +1323,10 @@ class DeathGroupsReader:
                                 groupnum = last_groupnum
                             else:
                                 groupnum = self.dtime2group[dtime]
-                        self.map_obj2group( groupnum = groupnum, groupset = dg )
+                        else:
+                            groupnum = self.dtime2group[dtime]
+                        self.map_obj2group( objId = objId,
+                                            groupnum = groupnum )
                         self.map_group2dtime( groupnum = groupnum, dtime = dtime )
                     self.group2list[groupnum].extend( dg )
                     last_groupnum += 1
