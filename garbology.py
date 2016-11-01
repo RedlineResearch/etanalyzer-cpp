@@ -825,17 +825,7 @@ class EdgeInfoReader:
                                                 deathtime = dtime )
                         yield tuple(row)
             # End generator
-
-            # TODO
-            # Start OLD CODE
-            # TODO  self.edgedict[tuple([src, fieldId, tgt])] = { "tp" : timepair,
-            # TODO                                                "s" : stability }
-            # TODO  self.srcdict[src].add( tgt )
-            # TODO  self.tgtdict[tgt].add( src )
-            # TODO  self.update_last_edges( src = src,
-            # TODO                          tgt = tgt,
-            # TODO                          deathtime = dtime )
-            # END OLD CODE
+        #================================================================================
         cur = self.outdbconn.cursor()
         cur.executemany( "INSERT INTO edgeinfo VALUES (?,?,?,?,?,?)", row_generator() )
         cur.execute( 'CREATE INDEX idx_edgeinfo_srcid ON edgeinfo (srcid)' )
@@ -1023,7 +1013,6 @@ class EdgeInfoFile2DB:
 class DeathGroupsReader:
     def __init__( self,
                   dgroup_file = None,
-                  clean_flag = False,
                   debugflag = False,
                   logger = None ):
         self.dgroup_file_name = dgroup_file
@@ -1038,7 +1027,6 @@ class DeathGroupsReader:
         # Map of group number to list of objects
         self.group2list = defaultdict( list )
         self.debugflag = debugflag
-        self.clean_flag = clean_flag
         self.logger = logger
         self._atend_gnum = None
 
@@ -1102,6 +1090,30 @@ class DeathGroupsReader:
         else:
             self.logger.critical( "%d not found." % src )
 
+    def renumber_dgroups( self ):
+        newlist = sorted( [ (group, mylist) for group, mylist in self.group2list.iteritems() if len(mylist) > 0 ],
+                          key = lambda x: len(x[1]),
+                          reverse = True )
+        self.group2list = {}
+        g2l = self.group2list # New group2list. We don't need to save the old one here because it's
+        #                       already saved in 'newlist'.
+        new_o2g = {} # New obj2group
+        new_g2d = {} # New group2dtime
+        # new_key2g = {} new key2group but not sure if we need this
+        new_dtime2g = {} # new dtime2group
+        gnum = 1
+        for oldgnum, mylist in newlist:
+            dtime = self.group2dtime[oldgnum]
+            new_dtime2g[dtime] = gnum
+            new_g2d[gnum] = dtime
+            for objId in mylist:
+                new_o2g[objId] = gnum
+            g2l[gnum] = mylist
+            gnum += 1
+        self.obj2group = new_o2g
+        self.group2dtime = new_g2d
+        self.dtime2group = new_dtime2g
+
     def read_dgroup_file( self,
                           object_info_reader = None ):
         # We don't know which are the key objects. TODO TODO TODO
@@ -1133,10 +1145,8 @@ class DeathGroupsReader:
                     if len(dg) == 0:
                         continue
                     dg = list( set(dg) )
-                    # TODO dtimes = list( set( [ oir.get_death_time(x) for x in dg ] ) )
                     for objId in dg:
                         dtime = oir.get_death_time(objId)
-                        # TODO TODO TODO TODO HERE
                         if objId not in self.obj2group:
                             if dtime not in self.dtime2group:
                                 last_groupnum += 1
@@ -1156,8 +1166,17 @@ class DeathGroupsReader:
                             sys.stdout.flush()
                             sys.stdout.write(str(len(line)) + " | ")
         print "----------------------------------------------------------------------"
-        # TODO grlen = sorted( [ len(mylist) for group, mylist in self.group2list.iteritems() if len(mylist) > 0 ],
-        #                       reverse = True )
+        # Renumber according to size. Largest group first.
+        # TODO: We can make this an option if we want something like oldest first.
+        self.renumber_dgroups()
+        # Debug print out top 5 groups
+        tmpcount = 0
+        for gnum, mylist in self.group2list.iteritems():
+            print "Group num[ %d ]: => %d objects" % (gnum, len(mylist))
+            tmpcount += 1
+            if tmpcount > 4:
+                break
+        # END Debug
         nokey_set = set()
         for gnum, mylist in self.group2list.iteritems():
             keylist = get_key_objects( mylist, oir )

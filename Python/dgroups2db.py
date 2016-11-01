@@ -91,7 +91,6 @@ def read_dgroups_into_pickle( result = [],
     #===========================================================================
     # Read in DGROUPS
     dgroups_reader = DeathGroupsReader( dgroup_file = tracefile,
-                                        clean_flag = True,
                                         debugflag = debugflag,
                                         logger = logger )
     dgroups_reader.read_dgroup_file( objreader )
