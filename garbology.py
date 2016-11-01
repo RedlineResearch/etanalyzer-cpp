@@ -1031,10 +1031,12 @@ class DeathGroupsReader:
         self.obj2group = {}
         # Map of key to group number
         self.key2group = {}
-        # Map of key to death time
+        # Map of group number to death time
         self.group2dtime = {}
+        # Map of death time to groupnumber
+        self.dtime2group = defaultdict( set )
         # Map of group number to list of objects
-        self.group2list= {}
+        self.group2list = defaultdict( list )
         self.debugflag = debugflag
         self.clean_flag = clean_flag
         self.logger = logger
@@ -1052,15 +1054,11 @@ class DeathGroupsReader:
                 k2g[k] = [ groupnum ]
 
     def map_obj2group( self,
-                       groupnum = 0,
-                       groupset = set([]) ):
+                       objId = -1,
+                       groupnum = 0 ):
         assert( groupnum > 0 )
-        ogroup = self.obj2group
-        for obj in groupset:
-            if obj in ogroup:
-                ogroup[obj].add( groupnum )
-            else:
-                ogroup[obj] = set([ groupnum ])
+        assert( objId >= 0 )
+        self.obj2group[obj] = groupnum
 
     def get_group( self, groupnum = 0 ):
         """Returns the group as a list for groupnum."""
@@ -1068,21 +1066,26 @@ class DeathGroupsReader:
 
     def get_group_number( self, objId = 0 ):
         """Returns the group number for a given object Id 'objId'"""
-        def _group_len(gnum):
-            return len(self.group2list[gnum])
-        glist = list(self.obj2group[objId]) if (objId in self.obj2group) else []
-        if len(glist) > 1:
-            gmax = max( glist, key = _group_len )
-            self.logger.critical( "Multiple group numbers for objId[ %d ]: using %d"
-                                  % (objId, gmax) )
-            return gmax
-        return glist[0] if len(glist) == 1 else None
+        return self.obj2group[objId] if objId in self.obj2group else None 
+        # OLD CODE: def _group_len(gnum):
+        # OLD CODE:     return len(self.group2list[gnum])
+        # OLD CODE: glist = list(self.obj2group[objId]) if (objId in self.obj2group) else []
+        # OLD CODE: if len(glist) > 1:
+        # OLD CODE:     gmax = max( glist, key = _group_len )
+        # OLD CODE:     self.logger.critical( "Multiple group numbers for objId[ %d ]: using %d"
+        # OLD CODE:                           % (objId, gmax) )
+        # OLD CODE:     return gmax
+        # OLD CODE: return glist[0] if len(glist) == 1 else None
 
     def map_group2dtime( self,
                          groupnum = 0,
                          dtime = 0 ):
         assert( groupnum > 0 )
+        # We're only here if groupnum wasn't in the dictionary in the first place
+        assert( groupnum not in self.group2dtime )
         self.group2dtime[groupnum] = dtime
+        # Death time to group number mapping
+        self.dtime2group[dtime].add( groupnum )
         # NOTE: This is made into a function because there may be
         # other things we wish to do with saving the sets of death
         # times.
@@ -1090,6 +1093,7 @@ class DeathGroupsReader:
     def clean_dtimes( self,
                       objreader = {} ):
         # Rename into shorter aliases
+        return True
         o2g = self.obj2group
         oir = objreader
         counter = Counter()
@@ -1100,11 +1104,15 @@ class DeathGroupsReader:
         # The more conscientious thing to do would be to fix the bug in the simulator.
         dtimes = {}
         newgroup = defaultdict(set)
-        dtime2group = {}
+        XXXX TODO dtime2group = {}
         for gnum in self.group2list.keys():
             origdtime = self.group2dtime[gnum]
             dtimes[gnum] = set( [ oir.get_death_time(x) for x in self.group2list[gnum] ] )
             dtime2group[origdtime] = gnum
+        pp.pprint( self.group2dtime )
+        exit(100)
+        for gnum in self.group2list.keys():
+            origdtime = self.group2dtime[gnum]
             if len(dtimes[gnum]) > 1:
                 counter[len(dtimes[gnum])] += 1
                 # Clean up aisle greater than 1. (Bad joke).
@@ -1140,7 +1148,9 @@ class DeathGroupsReader:
         # Remove empty lists in group2list
         for gnum in self.group2list.keys():
             if len(self.group2list[gnum]) == 0:
-                self.group2list[gnum].remove(gnum)
+                del self.group2list[gnum]
+                if gnum in self.group2dtime:
+                    del self.group2dtime[gnum]
                 print "DEBUG: Group number %d removed" % gnum
                 self.logger.error( "Group number %d removed" % gnum )
         # Get the largest groupnumber in group2list
@@ -1276,20 +1286,17 @@ class DeathGroupsReader:
                           object_info_reader = None ):
         # We don't know which are the key objects. TODO TODO TODO
         assert(object_info_reader != None)
+        logger = self.logger
+        oir = object_info_reader
+        debugflag = self.debugflag
+        count = 0
+        start = False
+        done = False
+        multkey = 0
+        # withkey = 0
+        withoutkey = 0
+        last_groupnum = 0
         with open(self.dgroup_file_name, "rb") as fptr:
-            count = 0
-            dupeset = set([])
-            start = False
-            done = False
-            debugflag = self.debugflag
-            seenset = set([])
-            multkey = 0
-            # withkey = 0
-            withoutkey = 0
-            groupnum = 1
-            logger = self.logger
-            oir = object_info_reader
-            dtind = get_index("DTIME")
             for line in fptr:
                 if line.find("---------------[ CYCLES") == 0:
                     start = True if not start else False
@@ -1305,34 +1312,31 @@ class DeathGroupsReader:
                     dg = [ int(x) for x in line.split(",") if not oir.died_at_end(int(x))  ]
                     if len(dg) == 0:
                         continue
-                    dtimes = list( set( [ oir.get_death_time(x) for x in dg ] ) )
-                    # TODO TODO TODO
-                    # if (len(dtimes) > 1):
-                    #      # TODO: Should we split into groups according to death times?
-                    #      logger.debug( "Multiple death times: %s" % str(dtimes) )
-                    # dglist = []
-                    # for ind in xrange(len(dtimes)):
-                    #     dtime = dtimes[ind]
-                    #     mydg = [ x for x in dg if oir.get_record(x)[dtind] == dtime ]
-                    #     dglist.append( mydg )
-                    # assert(len(dglist) == len(dtimes))
-                    # for ind in xrange(len(dglist)):
-                    # dg = list( set( dglist[ind] ) )
                     dg = list( set(dg) )
-                    # dtime = dtimes[ind]
-                    dtime = oir.get_record(dg[0])[dtind]
-                    self.map_obj2group( groupnum = groupnum, groupset = dg )
-                    self.map_group2dtime( groupnum = groupnum, dtime = dtime )
-                    self.group2list[groupnum] = dg
-                    groupnum += 1
+                    # TODO dtimes = list( set( [ oir.get_death_time(x) for x in dg ] ) )
+                    for objId in dg:
+                        dtime = oir.get_death_time(objId)
+                        # TODO TODO TODO TODO HERE
+                        if objId not in self.obj2group:
+                            if dtime not in self.dtime2group:
+                                last_groupnum += 1
+                                groupnum = last_groupnum
+                            else:
+                                groupnum = self.dtime2group[dtime]
+                        self.map_obj2group( groupnum = groupnum, groupset = dg )
+                        self.map_group2dtime( groupnum = groupnum, dtime = dtime )
+                    self.group2list[groupnum].extend( dg )
+                    last_groupnum += 1
                     if debugflag:
                         if count % 1000 == 99:
                             sys.stdout.write("#")
                             sys.stdout.flush()
                             sys.stdout.write(str(len(line)) + " | ")
-        if self.clean_flag:
+        if False: # TODO This shouldn't be needed anymore.
             passnum = 1
             done = False
+            self.orig_group2dtime = dict(self.group2dtime)
+            self.orig_group2list = dict(self.group2list)
             while not done:
                 pass_start = time.clock()
                 sys.stdout.write( "Pass number: %d" % passnum )
@@ -1419,10 +1423,16 @@ class DeathGroupsReader:
             csvwriter = csv.writer(fp2)
             header = [ "group_Id", "number", "death_time", "list", ]
             csvwriter.writerow( header )
-            for gnum, mylist in self.group2list.iteritems():
+            for gnum, mylist in self.group2list.items():
                 row = [ gnum ]
                 row.append( len(mylist) )
-                row.append( self.group2dtime[gnum] )
+                try:
+                    row.append( self.group2dtime[gnum] )
+                except:
+                    print "ERROR:"
+                    print "%d not found in new g2dtime" % gnum
+                    print " - found in orig? %s" % str(gnum in self.orig_group2dtime)
+                    raise ValueError( "%d not found in new g2dtime" % gnum )
                 row.extend( mylist )
                 csvwriter.writerow( row )
         exit(111) # TODO TODO HERE HERE TODO TODO
