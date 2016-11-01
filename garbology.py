@@ -1091,6 +1091,7 @@ class DeathGroupsReader:
             self.logger.critical( "%d not found." % src )
 
     def renumber_dgroups( self ):
+        # Sort according to size of group. Note that this is a list and not a dictionary.
         newlist = sorted( [ (group, mylist) for group, mylist in self.group2list.iteritems() if len(mylist) > 0 ],
                           key = lambda x: len(x[1]),
                           reverse = True )
@@ -1110,6 +1111,7 @@ class DeathGroupsReader:
                 new_o2g[objId] = gnum
             g2l[gnum] = mylist
             gnum += 1
+        # Blow away the old metadata and save the new ones.
         self.obj2group = new_o2g
         self.group2dtime = new_g2d
         self.dtime2group = new_dtime2g
@@ -1117,6 +1119,91 @@ class DeathGroupsReader:
     def read_dgroup_file( self,
                           object_info_reader = None ):
         # We don't know which are the key objects. TODO TODO TODO
+        assert(object_info_reader != None)
+        logger = self.logger
+        oir = object_info_reader
+        debugflag = self.debugflag
+        count = 0
+        start = False
+        done = False
+        multkey = 0
+        # withkey = 0
+        withoutkey = 0
+        last_groupnum = 0
+        with open(self.dgroup_file_name, "rb") as fptr:
+            for line in fptr:
+                if line.find("---------------[ CYCLES") == 0:
+                    start = True if not start else False
+                    if start:
+                        continue
+                    else:
+                        done = True
+                        break
+                if start:
+                    line = line.rstrip()
+                    line = line.rstrip(",")
+                    # Remove all objects that died at program end.
+                    dg = [ int(x) for x in line.split(",") if not oir.died_at_end(int(x))  ]
+                    if len(dg) == 0:
+                        continue
+                    dg = list( set(dg) )
+                    for objId in dg:
+                        dtime = oir.get_death_time(objId)
+                        if objId not in self.obj2group:
+                            if dtime not in self.dtime2group:
+                                last_groupnum += 1
+                                groupnum = last_groupnum
+                            else:
+                                groupnum = self.dtime2group[dtime]
+                        else:
+                            groupnum = self.dtime2group[dtime]
+                        self.map_obj2group( objId = objId,
+                                            groupnum = groupnum )
+                        self.map_group2dtime( groupnum = groupnum, dtime = dtime )
+                    self.group2list[groupnum].extend( dg )
+                    last_groupnum += 1
+                    if debugflag:
+                        if count % 1000 == 99:
+                            sys.stdout.write("#")
+                            sys.stdout.flush()
+                            sys.stdout.write(str(len(line)) + " | ")
+        print "----------------------------------------------------------------------"
+        # Renumber according to size. Largest group first.
+        # TODO: We can make this an option if we want something like oldest first.
+        self.renumber_dgroups()
+        # Debug print out top 5 groups
+        tmpcount = 0
+        for gnum, mylist in self.group2list.iteritems():
+            print "Group num[ %d ]: => %d objects" % (gnum, len(mylist))
+            tmpcount += 1
+            if tmpcount > 4:
+                break
+        # END Debug
+        nokey_set = set()
+        for gnum, mylist in self.group2list.iteritems():
+            keylist = get_key_objects( mylist, oir )
+            self.map_key2group( groupnum = groupnum, keylist = keylist )
+            # Debug key objects. NOTE: This may not be used for now.
+            if len(keylist) > 1:
+                logger.debug( "multiple key objects: %s" % str(keylist) )
+                multkey += 1
+            elif len(keylist) == 0:
+                tmpset = frozenset(keylist)
+                if tmpset not in nokey_set:
+                    logger.debug( "NO key object in group: %s" % str(keylist) )
+                    withoutkey += 1
+                    nokey_set.add(tmpset)
+        print "Multiple key: %d" % multkey
+        print "Without key: %d" % withoutkey
+        print "----------------------------------------------------------------------"
+
+    def read_dgroup_pickles( self,
+                             pickle_filename = "",
+                             object_info_reader = None ):
+        # We don't know which are the key objects. TODO TODO TODO
+        raise RuntimeError("TODO: Need to implement this.")
+        # TODO: This reads in the cleaned up death groups so no more need to clean up
+        #       the data.
         assert(object_info_reader != None)
         logger = self.logger
         oir = object_info_reader
