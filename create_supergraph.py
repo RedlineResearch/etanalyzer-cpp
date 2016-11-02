@@ -186,9 +186,10 @@ def output_stable_supergraph_and_summary( bmark = "",
 
 def read_simulator_data( bmark = "",
                          cycle_cpp_dir = "",
+                         dgroups2db_dir = "",
                          objectinfo_config = {},
                          edgeinfo_config = {},
-                         dgroup_config = {},
+                         dgroup_pickle_config = {},
                          stability_config = {},
                          reference_config = {},
                          reverse_ref_config = {},
@@ -281,11 +282,15 @@ def read_simulator_data( bmark = "",
     print "Reading in the CYCLES (deathgroup) file for benchmark:", bmark
     sys.stdout.flush()
     dgroup_start = time.clock()
-    mydict["dgroupreader"] = DeathGroupsReader( os.path.join( cycle_cpp_dir,
-                                                              dgroup_config[bmark] ),
+    mydict["dgroupreader"] = DeathGroupsReader( os.path.join( dgroups2db_dir,
+                                                              dgroup_pickle_config[bmark] ),
+                                                pickle_flag = True,
                                                 logger = logger )
     dgroupreader = mydict["dgroupreader"]
-    dgroupreader.read_dgroup_file( objreader )
+    # TODO Delete as we never want to read in the 'dirty' trace file.
+    # TODO We always want to use the clean pickle files from Python scripts.
+    # TODO       dgroupreader.read_dgroup_file( objreader )
+    dgroupreader.read_dgroup_pickles( object_info_reader = objreader )
     dgroup_end = time.clock()
     logger.debug( "[%s]: DONE: %f" % (bmark, (dgroup_end - dgroup_start)) )
     sys.stdout.write(  "[%s]: DONE: %f\n" % (bmark, (dgroup_end - dgroup_start)) )
@@ -1148,7 +1153,7 @@ def create_supergraph_all_MPR( bmark = "",
                                cycle_cpp_dir = "",
                                main_config = {},
                                objectinfo_config = {},
-                               dgroup_config = {},
+                               dgroup_pickle_config = {},
                                stability_config = {},
                                reference_config = {},
                                reverse_ref_config = {},
@@ -1161,6 +1166,7 @@ def create_supergraph_all_MPR( bmark = "",
                                obj_cachesize_config = {},
                                edge_cachesize_config = {},
                                edgeinfo_config = {},
+                               dgroups2db_dir = "",
                                logger = None ):
     # Assumes that we are in the desired working directory.
     # Get all the objects and add as a node to the graph
@@ -1171,9 +1177,10 @@ def create_supergraph_all_MPR( bmark = "",
     # Read all the data in.
     read_result = read_simulator_data( bmark = bmark,
                                        cycle_cpp_dir = cycle_cpp_dir,
+                                       dgroups2db_dir = dgroups2db_dir,
                                        objectinfo_config = objectinfo_config,
                                        edgeinfo_config = edgeinfo_config,
-                                       dgroup_config = dgroup_config,
+                                       dgroup_pickle_config = dgroup_pickle_config,
                                        stability_config = stability_config,
                                        reference_config = reference_config,
                                        reverse_ref_config = reverse_ref_config,
@@ -1457,7 +1464,7 @@ def create_supergraph_all_MPR( bmark = "",
 
 def main_process( global_config = {},
                   objectinfo_config = {},
-                  dgroup_config = {},
+                  dgroup_pickle_config = {},
                   host_config = {},
                   worklist_config = {},
                   main_config = {},
@@ -1469,6 +1476,7 @@ def main_process( global_config = {},
                   obj_cachesize_config = {},
                   edge_cachesize_config = {},
                   edgeinfo_config = {},
+                  dgroups2db_config = {},
                   mprflag = False,
                   debugflag = False,
                   logger = None ):
@@ -1491,6 +1499,7 @@ def main_process( global_config = {},
     #     Make sure everything is honky-dory.
     assert( "cycle_cpp_dir" in global_config )
     cycle_cpp_dir = global_config["cycle_cpp_dir"]
+    dgroups2db_dir = dgroups2db_config["output"] 
     supergraph = {}
     manager = Manager()
     procs = {}
@@ -1520,7 +1529,7 @@ def main_process( global_config = {},
                                   cycle_cpp_dir,
                                   main_config,
                                   objectinfo_config,
-                                  dgroup_config,
+                                  dgroup_pickle_config,
                                   stability_config,
                                   reference_config,
                                   reverse_ref_config,
@@ -1533,6 +1542,7 @@ def main_process( global_config = {},
                                   obj_cachesize_config,
                                   edge_cachesize_config,
                                   edgeinfo_config,
+                                  dgroups2db_dir,
                                   logger ) )
             procs[bmark] = p
             p.start()
@@ -1545,7 +1555,7 @@ def main_process( global_config = {},
                                        cycle_cpp_dir = cycle_cpp_dir,
                                        main_config = main_config,
                                        objectinfo_config = objectinfo_config,
-                                       dgroup_config = dgroup_config,
+                                       dgroup_pickle_config = dgroup_pickle_config,
                                        stability_config = stability_config,
                                        reference_config = reference_config,
                                        reverse_ref_config = reverse_ref_config,
@@ -1558,6 +1568,7 @@ def main_process( global_config = {},
                                        obj_cachesize_config = obj_cachesize_config,
                                        edge_cachesize_config = edge_cachesize_config,
                                        edgeinfo_config = edgeinfo_config,
+                                       dgroups2db_dir = dgroups2db_dir,
                                        logger = logger )
 
     if mprflag:
@@ -1606,7 +1617,8 @@ def process_config( args ):
     host_config = config_section_map( "hosts", config_parser )
     objectinfo_config = config_section_map( "objectinfo", config_parser )
     edgeinfo_config = config_section_map( "edgeinfo", config_parser )
-    dgroup_config = config_section_map( "etanalyze-output", config_parser )
+    # TODO dgroup_config = config_section_map( "etanalyze-output", config_parser )
+    dgroup_pickle_config = config_section_map( "clean-dgroup-pickle", config_parser )
     worklist_config = config_section_map( "create-supergraph-worklist", config_parser )
     obj_cachesize_config = config_section_map( "create-supergraph-obj-cachesize", config_parser )
     edge_cachesize_config = config_section_map( "create-supergraph-edge-cachesize", config_parser )
@@ -1615,13 +1627,14 @@ def process_config( args ):
     stability_config = config_section_map( "stability-summary", config_parser )
     summary_config = config_section_map( "summary-cpp", config_parser )
     objectinfo_db_config = config_section_map( "objectinfo-db", config_parser )
+    dgroups2db_config = config_section_map( "dgroups2db", config_parser )
     # DON'T KNOW: contextcount_config = config_section_map( "contextcount", config_parser )
     # PROBABLY NOT:  host_config = config_section_map( "hosts", config_parser )
     return { "global" : global_config,
              "main" : main_config,
              "objectinfo" : objectinfo_config,
              "edgeinfo" : edgeinfo_config,
-             "dgroup" : dgroup_config,
+             "dgroup-pickle" : dgroup_pickle_config,
              "hosts" : host_config,
              "create-supergraph-worklist" : worklist_config,
              "reference" : reference_config,
@@ -1631,6 +1644,7 @@ def process_config( args ):
              "objectinfo_db" : objectinfo_db_config,
              "obj_cachesize" : obj_cachesize_config,
              "edge_cachesize" : edge_cachesize_config,
+             "dgroups2db" : dgroups2db_config,
              # "contextcount" : contextcount_config,
              # "host" : host_config,
              }
@@ -1692,7 +1706,7 @@ def main():
     main_config = configdict["main"]
     objectinfo_config = configdict["objectinfo"]
     edgeinfo_config = configdict["edgeinfo"]
-    dgroup_config = configdict["dgroup"]
+    dgroup_pickle_config = configdict["dgroup-pickle"]
     reference_config = configdict["reference"]
     reverse_ref_config = configdict["reverse-reference"]
     stability_config = configdict["stability"]
@@ -1700,6 +1714,7 @@ def main():
     objectinfo_db_config = configdict["objectinfo_db"]
     obj_cachesize_config = configdict["obj_cachesize"]
     edge_cachesize_config = configdict["edge_cachesize"]
+    dgroups2db_config = configdict["dgroups2db"]
     worklist_config = process_worklist_config( configdict["create-supergraph-worklist"] )
     # PROBABLY DELETE:
     # contextcount_config = configdict["contextcount"]
@@ -1715,7 +1730,7 @@ def main():
                          global_config = global_config,
                          main_config = main_config,
                          objectinfo_config = objectinfo_config,
-                         dgroup_config = dgroup_config,
+                         dgroup_pickle_config = dgroup_pickle_config,
                          host_config = host_config,
                          worklist_config = worklist_config,
                          reference_config = reference_config,
@@ -1726,6 +1741,7 @@ def main():
                          obj_cachesize_config = obj_cachesize_config,
                          edge_cachesize_config = edge_cachesize_config,
                          edgeinfo_config = edgeinfo_config,
+                         dgroups2db_config = dgroups2db_config,
                          logger = logger )
 
 if __name__ == "__main__":
