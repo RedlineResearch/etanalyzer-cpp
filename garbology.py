@@ -1325,14 +1325,19 @@ class DeathGroupsReader:
         self.pickle_filename = pickle_filename
         #----------------------------------------------------------------------
         # Dumping the pickle first
+        sys.stdout.write("Writing out the pickle file: %s" % pickle_filename)
+        sys.stdout.flush()
         with open(pickle_filename, "wb") as fp:
             data = { "obj2group" : self.obj2group,
                      "group2dtime" : self.group2dtime,
                      "group2list" : self.group2list }
             pickle.dump( data, fp )
+        # Now the group2list csv file:
+        sys.stdout.write("Writing out the group2list csv file: %s" % group2list_filename)
+        sys.stdout.flush()
         with open(group2list_filename, "wb") as fp2:
             csvwriter = csv.writer(fp2)
-            header = [ "group_Id", "number", "death_time", "list", ]
+            header = [ "groupId", "number", "death_time", "list", ]
             csvwriter.writerow( header )
             for gnum, mylist in self.group2list.items():
                 row = [ gnum ]
@@ -1345,6 +1350,17 @@ class DeathGroupsReader:
                     print " - found in orig? %s" % str(gnum in self.orig_group2dtime)
                     raise ValueError( "%d not found in new g2dtime" % gnum )
                 row.extend( mylist )
+                csvwriter.writerow( row )
+        # Now the obj2group csv file:
+        sys.stdout.write("Writing out the obj2group csv file: %s" % obj2group_filename)
+        sys.stdout.flush()
+        with open(obj2group_filename, "wb") as fp3:
+            csvwriter = csv.writer(fp3)
+            header = [ "objId", "groupId", ]
+            csvwriter.writerow( header )
+            for objId, gnum in self.obj2group.items():
+                row = [ objId, gnum, ]
+                row.append( len(mylist) )
                 csvwriter.writerow( row )
         exit(111) # TODO TODO HERE HERE TODO TODO
         #----------------------------------------------------------------------
