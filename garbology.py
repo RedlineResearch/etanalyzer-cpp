@@ -1325,7 +1325,7 @@ class DeathGroupsReader:
         self.pickle_filename = pickle_filename
         #----------------------------------------------------------------------
         # Dumping the pickle first
-        sys.stdout.write("Writing out the pickle file: %s" % pickle_filename)
+        sys.stdout.write("Writing out the pickle file: %s\n" % pickle_filename)
         sys.stdout.flush()
         with open(pickle_filename, "wb") as fp:
             data = { "obj2group" : self.obj2group,
@@ -1333,7 +1333,7 @@ class DeathGroupsReader:
                      "group2list" : self.group2list }
             pickle.dump( data, fp )
         # Now the group2list csv file:
-        sys.stdout.write("Writing out the group2list csv file: %s" % group2list_filename)
+        sys.stdout.write("Writing out the group2list csv file: %s\n" % group2list_filename)
         sys.stdout.flush()
         with open(group2list_filename, "wb") as fp2:
             csvwriter = csv.writer(fp2)
@@ -1352,7 +1352,7 @@ class DeathGroupsReader:
                 row.extend( mylist )
                 csvwriter.writerow( row )
         # Now the obj2group csv file:
-        sys.stdout.write("Writing out the obj2group csv file: %s" % obj2group_filename)
+        sys.stdout.write("Writing out the obj2group csv file: %s\n" % obj2group_filename)
         sys.stdout.flush()
         with open(obj2group_filename, "wb") as fp3:
             csvwriter = csv.writer(fp3)
@@ -1362,52 +1362,6 @@ class DeathGroupsReader:
                 row = [ objId, gnum, ]
                 row.append( len(mylist) )
                 csvwriter.writerow( row )
-        exit(111) # TODO TODO HERE HERE TODO TODO
-        #----------------------------------------------------------------------
-        # TODO: Maybe we don't need the Sqlite DB for this.
-        if False:
-            self.dbfilename = dbfilename
-            self.create_dgroup_db( outdbfilename = dbfilename )
-            # Sort group2list according to size. (Largest first.)
-            def keyfn( tup ):
-                return len(tup[1])
-            newgrouplist = sorted( self.group2list.iteritems(),
-                                   key = keyfn,
-                                   reverse = True )
-            exit(100) # TODO HERE TODO HERE TODO
-            # Declare our generator
-            # ----------------------------------------------------------------------
-            oir = object_info_reader # Use a shorter alias
-            def row_generator():
-                start = False
-                count = 0
-                for line in fp:
-                    count += 1
-                    line = line.rstrip()
-                    if line.find("---------------[ CYCLES") == 0:
-                        start = True if not start else False
-                        if start:
-                            continue
-                        else:
-                            break
-                    if start:
-                        line = line.rstrip()
-                        line = line.rstrip(",")
-                        # Remove all objects that died at program end.
-                        dg = [ int(x) for x in line.split(",") if not oir.died_at_end(int(x))  ]
-                        if len(dg) == 0:
-                            continue
-                        dtimes = list( set( [ oir.get_death_time(x) for x in dg ] ) )
-
-            # ----------------------------------------------------------------------
-            # TODO call executemany here
-            cur = self.outdbconn.cursor()
-            cur.executemany( "INSERT INTO objinfo VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", row_generator() )
-            cur.executemany( "INSERT INTO typetable VALUES (?,?)", type_row_generator() )
-            cur.execute( 'CREATE UNIQUE INDEX idx_objectinfo_objid ON objinfo (objid)' )
-            cur.execute( 'CREATE UNIQUE INDEX idx_typeinfo_typeid ON typetable (typeid)' )
-            self.outdbconn.commit()
-            self.outdbconn.close()
 
     def iteritems( self ):
         return self.group2list.iteritems()

@@ -179,3 +179,50 @@
                 print "EXITING."
                 exit(1)
 
+
+        #----------------------------------------------------------------------
+        # TODO: Maybe we don't need the Sqlite DB for this.
+        if False:
+            self.dbfilename = dbfilename
+            self.create_dgroup_db( outdbfilename = dbfilename )
+            # Sort group2list according to size. (Largest first.)
+            def keyfn( tup ):
+                return len(tup[1])
+            newgrouplist = sorted( self.group2list.iteritems(),
+                                   key = keyfn,
+                                   reverse = True )
+            exit(100) # TODO HERE TODO HERE TODO
+            # Declare our generator
+            # ----------------------------------------------------------------------
+            oir = object_info_reader # Use a shorter alias
+            def row_generator():
+                start = False
+                count = 0
+                for line in fp:
+                    count += 1
+                    line = line.rstrip()
+                    if line.find("---------------[ CYCLES") == 0:
+                        start = True if not start else False
+                        if start:
+                            continue
+                        else:
+                            break
+                    if start:
+                        line = line.rstrip()
+                        line = line.rstrip(",")
+                        # Remove all objects that died at program end.
+                        dg = [ int(x) for x in line.split(",") if not oir.died_at_end(int(x))  ]
+                        if len(dg) == 0:
+                            continue
+                        dtimes = list( set( [ oir.get_death_time(x) for x in dg ] ) )
+
+            # ----------------------------------------------------------------------
+            # TODO call executemany here
+            cur = self.outdbconn.cursor()
+            cur.executemany( "INSERT INTO objinfo VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", row_generator() )
+            cur.executemany( "INSERT INTO typetable VALUES (?,?)", type_row_generator() )
+            cur.execute( 'CREATE UNIQUE INDEX idx_objectinfo_objid ON objinfo (objid)' )
+            cur.execute( 'CREATE UNIQUE INDEX idx_typeinfo_typeid ON typetable (typeid)' )
+            self.outdbconn.commit()
+            self.outdbconn.close()
+

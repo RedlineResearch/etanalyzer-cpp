@@ -205,7 +205,6 @@ def main_process( global_config = {},
                                       objectinfo_db_config = objectinfo_db_config,
                                       debugflag = debugflag,
                                       logger = logger )
-            dblist.append( outdbname )
     if mprflag:
         # Poll the processes 
         done = False
@@ -225,20 +224,19 @@ def main_process( global_config = {},
     print "================================================================================"
     # Copy all the databases into MAIN directory.
     dest = main_config["output"]
-    for dbfilename in dblist:
+    for filename in os.listdir( workdir ):
         # Check to see first if the destination exists:
-        # print "XXX: %s -> %s" % (dbfilename, dbfilename.split())
+        # print "XXX: %s -> %s" % (filename, filename.split())
         # Split the absolute filename into a path and file pair:
-        abspath, fname = os.path.split(dbfilename)
         # Use the same filename added to the destination path
-        tgt = os.path.join( dest, fname )
-        if os.path.isfile(tgt):
+        tgtfile = os.path.join( dest, filename )
+        if os.path.isfile(tgtfile):
             try:
-                os.remove(tgt)
+                os.remove(tgtfile)
             except:
-                logger.error( "Weird error: found the file [%s] but can't remove it. The copy might fail." % tgt )
-        print "Copying %s -> %s." % (dbfilename, dest)
-        copy( dbfilename, dest )
+                logger.error( "Weird error: found the file [%s] but can't remove it. The copy might fail." % tgtfile )
+        print "Copying %s -> %s." % (filename, dest)
+        copy( filename, dest )
     print "================================================================================"
     print "dgroups2db.py - DONE."
     os.chdir( olddir )
