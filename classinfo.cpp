@@ -17,13 +17,34 @@ AllocSiteMap ClassInfo::TheAllocSites;
 // -- Debug flag
 bool ClassInfo::debug_names = false;
 
+// Should we check for main method? Default is true.
+bool ClassInfo::main_flag = true;
+
 // Main method
 Method * ClassInfo::_main_method = NULL;
 
 // -- Read in the names file
+void ClassInfo::read_names_file_nomain( const char *filename )
+{
+    ClassInfo::unset_main_flag();
+    ClassInfo::__read_names_file( filename, "", "" );
+}
+
+// -- Read in the names file with main
 void ClassInfo::read_names_file( const char *filename,
                                  string main_class,
                                  string main_function )
+{
+    ClassInfo::set_main_flag();
+    ClassInfo::__read_names_file( filename,
+                                  main_class,
+                                  main_function );
+}
+
+// -- Read in the names file
+void ClassInfo::__read_names_file( const char *filename,
+                                   string main_class,
+                                   string main_function )
 {
     FILE* f = fopen(filename, "r");
     if ( ! f) {
@@ -76,10 +97,12 @@ void ClassInfo::read_names_file( const char *filename,
                     Method *m = new Method(t.getInt(1), cls, t.getString(4), t.getString(5), t.getString(6));
                     // DEBUG
                     // cout << classname << " | " <<  methodname << endl;
-                    if ( (classname.compare(main_class) == 0) &&
-                         (methodname.compare(main_function) == 0) ) {
-                        // this is the main_package
-                        ClassInfo::_main_method = m;
+                    if (ClassInfo::main_flag) {
+                        if ( (classname.compare(main_class) == 0) &&
+                             (methodname.compare(main_function) == 0) ) {
+                            // this is the main_package
+                            ClassInfo::_main_method = m;
+                        }
                     }
                     TheMethods[m->getId()] = m;
                     cls->addMethod(m);

@@ -40,7 +40,13 @@ ObjectPtrMap_t whereis;
 HeapState Heap( whereis, keyset );
 
 // -- Execution state
-ExecState Exec(2); // Method-only context
+#ifdef ENABLE_TYPE1
+ExecMode cckind = ExecMode::Full; // Full calling context
+#else
+ExecMode cckind = ExecMode::StackOnly; // Stack-only context
+#endif // ENABLE_TYPE1
+
+ExecState Exec(cckind);
 
 // -- Turn on debugging
 bool debug = false;
@@ -380,7 +386,7 @@ int main(int argc, char* argv[])
     mem_sizes.push_back( memsize );
     Heap.initialize_memory( mem_sizes );
     cout << "Read names file..." << endl;
-    ClassInfo::read_names_file(argv[1]);
+    ClassInfo::read_names_file_nomain( argv[1] );
 
     cout << "Start trace..." << endl;
     FILE* f = fdopen(0, "r");

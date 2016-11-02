@@ -29,11 +29,18 @@ enum Reason {
 };
 
 enum LastEvent {
-    ROOT = 1,
-    UPDATE = 2,
-    DECRC = 3,
-    OBJECT_DEATH = 10,
-    END_OF_PROGRAM_EVENT = 11,
+    NEWOBJECT = 1,
+    ROOT = 2,
+    DECRC = 6,
+    UPDATE_UNKNOWN = 89,
+    UPDATE_AWAY_TO_NULL = 7,
+    UPDATE_AWAY_TO_VALID = 8,
+    OBJECT_DEATH_AFTER_ROOT = 9,
+    OBJECT_DEATH_AFTER_UPDATE = 10,
+    OBJECT_DEATH_AFTER_ROOT_DECRC = 11, // from OBJECT_DEATH_AFTER_ROOT
+    OBJECT_DEATH_AFTER_UPDATE_DECRC = 12, // from OBJECT_DEATH_AFTER_UPDATE
+    OBJECT_DEATH_AFTER_UNKNOWN = 13,
+    END_OF_PROGRAM_EVENT = 21,
     UNKNOWN_EVENT = 99,
 };
 
@@ -44,14 +51,23 @@ enum DecRCReason {
     UNKNOWN_DEC_EVENT = 99,
 };
 
+enum class CPairType {
+    CP_Call = 1,
+    CP_Return = 2,
+    CP_Both = 3,
+    CP_None = 99,
+};
+
 typedef unsigned int ObjectId_t;
 typedef unsigned int FieldId_t;
+typedef unsigned int VTime_t;
 typedef map<ObjectId_t, Object *> ObjectMap;
 typedef map<ObjectId_t, Edge *> EdgeMap;
 typedef set<Object *> ObjectSet;
 typedef set<Edge *> EdgeSet;
 typedef deque< pair<int, int> > EdgeList;
 typedef std::map< Object *, std::set< Object * > * > KeySet_t;
+
 
 using namespace boost;
 using namespace boost::logic;
@@ -153,7 +169,6 @@ class HeapState
         // Map of key object to set of objects
         KeySet_t& m_keyset;
 
-        void update_death_counters( Object *obj );
         Method * get_method_death_site( Object *obj );
 
         NodeId_t getNodeId( ObjectId_t objId, bimap< ObjectId_t, NodeId_t >& bmap );
@@ -339,7 +354,20 @@ class Object
         Object *m_last_object;
 
         // Simple (ContextPair) context of where this object died. Type is defined in classinfo.h
+        // And the associated type.
         ContextPair m_death_cpair;
+        CPairType  m_death_cptype;
+        // Simple (ContextPair) context of where this object was allocated. Type is defined in classinfo.h
+        // And the associated type.
+        ContextPair m_alloc_cpair;
+        CPairType  m_alloc_cptype;
+        // NOTE: This could have been made into a single class which felt like overkill.
+        // The option is there if it seems better to do so, but chose to go the simpler route.
+
+        DequeId_t m_alloc_context;
+        // If ExecMode is Full, this contains the full list of the stack trace at allocation.
+        DequeId_t m_death_context;
+        // If ExecMode is Full, this contains the full list of the stack trace at death.
 
         // Who's my key object? 0 means unassigned.
         Object *m_death_root;
@@ -477,14 +505,41 @@ class Object
         void setDeathRoot( Object *newroot ) { this->m_death_root = newroot; }
         Object * getDeathRoot() const { return this->m_death_root; }
 
-        // Get death context pair. Note that if <NULL, NULL> then none yet assigned.
+        // Get Allocation context pair. Note that if <NULL, NULL> then none yet assigned.
+        ContextPair getAllocContextPair() const { return this->m_alloc_cpair; }
+        // Set Allocation context pair. Note that if <NULL, NULL> then none yet assigned.
+        ContextPair setAllocContextPair( ContextPair cpair, CPairType cptype ) {
+            this->m_alloc_cpair = cpair;
+            this->m_alloc_cptype = cptype;
+            return this->m_alloc_cpair;
+        }
+        // Get Allocation context type
+        CPairType getAllocContextType() const { return this->m_alloc_cptype; }
+
+        // Get Death context pair. Note that if <NULL, NULL> then none yet assigned.
         ContextPair getDeathContextPair() const { return this->m_death_cpair; }
-        // Set death context pair. Note that if <NULL, NULL> then none yet assigned.
-        ContextPair setDeathContextPair( ContextPair cpair ) {
+        // Set Death context pair. Note that if <NULL, NULL> then none yet assigned.
+        ContextPair setDeathContextPair( ContextPair cpair, CPairType cptype ) {
             this->m_death_cpair = cpair;
+            this->m_death_cptype = cptype;
             return this->m_death_cpair;
         }
+        // Get Death context type
+        CPairType getDeathContextType() const { return this->m_death_cptype; }
 
+        // Set allocation context list
+        void setAllocContextList( DequeId_t acontext_list ) {
+            this->m_alloc_context = acontext_list;
+        }
+        // Get allocation context type
+        DequeId_t getAllocContextList() const { return this->m_alloc_context; }
+
+        // Set death context list
+        void setDeathContextList( DequeId_t dcontext_list ) {
+            this->m_alloc_context = dcontext_list;
+        }
+        // Get death context type
+        DequeId_t getDeathContextList() const { return this->m_death_context; }
 
         // -- Ref counting
         unsigned int getRefCount() const { return m_refCount; }

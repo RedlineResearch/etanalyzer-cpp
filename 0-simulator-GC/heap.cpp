@@ -95,102 +95,6 @@ void HeapState::makeDead(Object * obj, unsigned int death_time)
     // obj->makeDead(death_time);
 }
 
-// TODO Documentation :)
-void HeapState::update_death_counters( Object *obj )
-{
-    unsigned int obj_size = obj->getSize();
-    // VERSION 1
-    // TODO: This could use some refactoring.
-    //
-    // Check for end of program kind first.
-    if ( obj->getReason() ==  Reason::END_OF_PROGRAM_REASON ) {
-        this->m_totalDiedAtEnd++;
-        this->m_sizeDiedAtEnd += obj_size;
-    } else if ( obj->getDiedByStackFlag() ||
-         ( ((obj->getReason() == Reason::STACK) ||
-            (obj->getLastEvent() == LastEvent::ROOT)) &&
-            !obj->getDiedByHeapFlag() )
-         ) {
-        if (m_obj_debug_flag) {
-            cout << "S> " << obj->info2();
-        }
-        this->m_totalDiedByStack_ver2++;
-        this->m_sizeDiedByStack += obj_size;
-        if (obj->wasPointedAtByHeap()) {
-            this->m_diedByStackAfterHeap++;
-            this->m_diedByStackAfterHeap_size += obj_size;
-            if (m_obj_debug_flag) {
-                cout << " AH>" << endl;
-            }
-        } else {
-            this->m_diedByStackOnly++;
-            this->m_diedByStackOnly_size += obj_size;
-            if (m_obj_debug_flag) {
-                cout << " SO>" << endl;
-            }
-        }
-        if (obj->wasLastUpdateNull()) {
-            this->m_totalUpdateNullStack++;
-            this->m_totalUpdateNullStack_size += obj_size;
-        }
-    } else if ( obj->getDiedByHeapFlag() ||
-                (obj->getReason() == Reason::HEAP) ||
-                (obj->getLastEvent() == LastEvent::UPDATE) ||
-                obj->wasPointedAtByHeap() ) {
-        if (m_obj_debug_flag) {
-            cout << "H> " << obj->info2();
-        }
-        // Check to see if the last update was from global
-        this->m_totalDiedByHeap_ver2++;
-        this->m_sizeDiedByHeap += obj_size;
-        obj->setDiedByHeapFlag();
-        if (obj->wasLastUpdateNull()) {
-            this->m_totalUpdateNullHeap++;
-            this->m_totalUpdateNullHeap_size += obj_size;
-            if (m_obj_debug_flag) {
-                cout << " NL>" << endl;
-            }
-        } else {
-            if (m_obj_debug_flag) {
-                cout << " VA>" << endl;
-            }
-        }
-    } else {
-        // cout << "X: ObjectID [" << obj->getId() << "][" << obj->getType()
-        //      << "] RC = " << obj->getRefCount() << " maxRC: " << obj->getMaxRefCount()
-        //      << " Atype: " << obj->getKind() << endl;
-        // All these objects were never a target of an Update event. For example,
-        // most VM allocated objects (by event V) are never targeted by
-        // the Java user program, and thus end up here. We consider these
-        // to be "STACK" caused death as we can associate these with the main function.
-        if (m_obj_debug_flag) {
-            cout << "S> " << obj->info2() << " SO>" << endl;
-        }
-        this->m_totalDiedByStack_ver2++;
-        this->m_sizeDiedByStack += obj_size;
-        this->m_diedByStackOnly++;
-        this->m_diedByStackOnly_size += obj_size;
-        if (obj->wasLastUpdateNull()) {
-            this->m_totalUpdateNullStack++;
-            this->m_totalUpdateNullStack_size += obj_size;
-        }
-    }
-    if (obj->wasLastUpdateNull()) {
-        this->m_totalUpdateNull++;
-        this->m_totalUpdateNull_size += obj_size;
-    }
-    // END VERSION 1
-    
-    // VM type objects
-    if (obj->getKind() == 'V') {
-        if (obj->getRefCount() == 0) {
-            m_vm_refcount_0++;
-        } else {
-            m_vm_refcount_positive++;
-        }
-    }
-}
-
 Method * HeapState::get_method_death_site( Object *obj )
 {
     Method *dsite = obj->getDeathSite();
@@ -249,8 +153,6 @@ void HeapState::end_of_program(unsigned int cur_time)
             }
             obj->setLastEvent( LastEvent::ROOT );
         }
-        // Do the count of heap vs stack loss here.
-        this->update_death_counters(obj);
     }
 }
 
@@ -532,11 +434,6 @@ void Object::decrementRefCountReal( unsigned int cur_time,
 {
     this->decrementRefCount();
     this->m_lastMethodDecRC = method;
-    if (reason == STACK) {
-        this->setLastEvent( LastEvent::ROOT );
-    } else if (reason == HEAP) {
-        this->setLastEvent( LastEvent::UPDATE);
-    }
     if (this->m_refCount == 0) {
         ObjectPtrMap_t& whereis = this->m_heapptr->get_whereis();
         KeySet_t& keyset = this->m_heapptr->get_keyset();

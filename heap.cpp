@@ -872,14 +872,7 @@ void Object::decrementRefCountReal( unsigned int cur_time,
 {
     this->decrementRefCount();
     this->m_lastMethodDecRC = method;
-    // Originally this is what happened here:
-    // if (reason == STACK) {
-    //     this->setLastEvent( LastEvent::ROOT );
-    // } else if (reason == HEAP) {
-    //     this->setLastEvent( LastEvent::UPDATE);
-    // }
     // NOW: Our reason is clearly because of the DECRC.
-    // TODO TODO TODO TODO TODO TODO
     this->setLastEvent( lastevent );
     if (this->m_refCount == 0) {
         ObjectPtrMap_t& whereis = this->m_heapptr->get_whereis();

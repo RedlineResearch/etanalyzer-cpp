@@ -48,13 +48,26 @@ class ClassInfo
         static AllocSiteMap TheAllocSites;
         // -- Debug flag
         static bool debug_names;
+        // -- Flag whether we check for the main function or not
+        static bool main_flag;
         // -- Read the names file
         static void read_names_file( const char *filename,
                                      string main_package,
                                      string main_function );
+        static void read_names_file_nomain( const char *filename );
+        static void __read_names_file( const char *filename,
+                                       string main_class,
+                                       string main_function );
         static Method * get_main_method() {
             return _main_method;
         }
+        static void set_main_flag() {
+            ClassInfo::main_flag = true;
+        }
+        static void unset_main_flag() {
+            ClassInfo::main_flag = false;
+        }
+
     private:
         static Method *_main_method;
 };
