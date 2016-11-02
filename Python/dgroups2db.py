@@ -132,6 +132,7 @@ def main_process( global_config = {},
                   host_config = {},
                   dgroups_config = {},
                   objectinfo_db_config = {},
+                  cachesize_config = {},
                   # TODO objectinfo_config = {},
                   # TODO edgeinfo_config = {},
                   # TODO stability_config = {},
@@ -172,6 +173,7 @@ def main_process( global_config = {},
                            host_config = host_config ):
             continue
         # Else we can run for 'bmark'
+        cachesize = int(cachesize_config[bmark])
         if mprflag:
             print "=======[ Spawning %s ]================================================" \
                 % bmark
@@ -187,6 +189,7 @@ def main_process( global_config = {},
                                   dgroups_config,
                                   cycle_cpp_dir,
                                   objectinfo_db_config,
+                                  cachesize,
                                   debugflag,
                                   logger ) )
             procs_dgroup[bmark] = p
@@ -203,6 +206,7 @@ def main_process( global_config = {},
                                       dgroups_config = dgroups_config,
                                       cycle_cpp_dir = cycle_cpp_dir,
                                       objectinfo_db_config = objectinfo_db_config,
+                                      obj_cachesize = cachesize,
                                       debugflag = debugflag,
                                       logger = logger )
     if mprflag:
@@ -263,6 +267,7 @@ def process_config( args ):
     worklist_config = config_section_map( "dgroups2db-worklist", config_parser )
     dgroups_config = config_section_map( "etanalyze-output", config_parser )
     objectinfo_db_config = config_section_map( "objectinfo-db", config_parser )
+    cachesize_config = config_section_map( "create-supergraph-obj-cachesize", config_parser )
     # TODO objectinfo_config = config_section_map( "objectinfo", config_parser )
     # TODO edgeinfo_config = config_section_map( "edgeinfo", config_parser )
     # TODO stability_config = config_section_map( "stability-summary", config_parser )
@@ -273,6 +278,7 @@ def process_config( args ):
              "hosts" : host_config,
              "dgroups" : dgroups_config,
              "objectinfo_db" : objectinfo_db_config,
+             "cachesize" : cachesize_config
              # TODO "objectinfo" : objectinfo_config,
              # TODO "edgeinfo" : edgeinfo_config,
              # TODO "stability" : stability_config,
@@ -321,6 +327,7 @@ def main():
     host_config = process_host_config( configdict["hosts"] )
     dgroups_config = configdict["dgroups"]
     objectinfo_db_config = configdict["objectinfo_db"]
+    cachesize_config = configdict["cachesize"]
     # TODO objectinfo_config = configdict["objectinfo"]
     # TODO edgeinfo_config = configdict["edgeinfo"]
     # TODO stability_config = configdict["stability"]
@@ -347,6 +354,7 @@ def main():
                          worklist_config = worklist_config,
                          dgroups_config = dgroups_config,
                          objectinfo_db_config = objectinfo_db_config,
+                         cachesize_config = cachesize_config,
                          # TODO objectinfo_config = objectinfo_config,
                          # TODO edgeinfo_config = edgeinfo_config,
                          # TODO stability_config = stability_config,

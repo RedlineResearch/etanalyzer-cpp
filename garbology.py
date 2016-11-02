@@ -1360,7 +1360,6 @@ class DeathGroupsReader:
             csvwriter.writerow( header )
             for objId, gnum in self.obj2group.items():
                 row = [ objId, gnum, ]
-                row.append( len(mylist) )
                 csvwriter.writerow( row )
 
     def iteritems( self ):
