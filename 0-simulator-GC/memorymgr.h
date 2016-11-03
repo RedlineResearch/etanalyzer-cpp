@@ -89,7 +89,7 @@ private:
     // ...
     // Level n - promotions from Level n-1 go here.
     ObjectSet_t m_live_set;
-    ObjectSet_t m_garbage_waiting;
+    ObjectSet_t m_garbage_waiting; // TODO What is m_garbage_waiting?
 
     // Collection history
     deque<GCRecord_t> m_gc_history;
@@ -153,7 +153,7 @@ private:
     // Maps from level to region name
     map< int, string > m_level2name_map;
     // The designated allocation region (ie level 0)
-    Region *m_alloc_region;
+    Region *m_alloc_region; // TODO Maybe this can be an index?
     // Garbage collection threshold if used by collector.
     // In the base class configuration with 1 region, this is the
     // heap occupancy percentage threshold that triggers garbage

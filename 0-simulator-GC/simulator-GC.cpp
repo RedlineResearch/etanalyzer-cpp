@@ -19,6 +19,8 @@ using namespace std;
 #include "summary.hpp"
 #include "version.hpp"
 
+#include "memorymgr.h"
+
 // ----------------------------------------------------------------------
 // Types
 class Object;
@@ -397,6 +399,7 @@ int main(int argc, char* argv[])
     cout << "Heap.size:     " << Heap.size() << endl;
     // assert( total_objects == Heap.size() );
 
+    if (0) {
     deque<GCRecord_t> GC_history = Heap.get_GC_history();
     debug_GC_history( GC_history );
 
@@ -427,5 +430,6 @@ int main(int argc, char* argv[])
     summary_file << "---------------[ SUMMARY INFO END ]------------------------------------------------" << endl;
     summary_file.close();
     //---------------------------------------------------------------------
+    }
 }
 
