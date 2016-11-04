@@ -35,12 +35,6 @@ Object* HeapState::allocate( unsigned int id,
     if (m_objects.size() % 100000 == 0) {
         cout << "OBJECTS: " << m_objects.size() << endl;
     }
-    unsigned long int temp = this->m_liveSize + obj->getSize();
-    // Max live size calculation
-    this->m_liveSize = ( (temp < this->m_liveSize) ? ULONG_MAX : temp );
-    if (this->m_maxLiveSize < this->m_liveSize) {
-        this->m_maxLiveSize = this->m_liveSize;
-    }
     // Call the Memory Manager allocate
     bool success = this->m_memmgr.allocate( obj, create_time, this->getAllocTime() );
     if (!success) {
@@ -87,19 +81,6 @@ Edge* HeapState::make_edge( Object* source,
 void HeapState::makeDead(Object * obj, unsigned int death_time)
 {
     if (this->m_memmgr.is_in_live_set(obj)) {
-        unsigned long int temp = this->m_liveSize - obj->getSize();
-        if (temp > this->m_liveSize) {
-            // OVERFLOW, underflow?
-            this->m_liveSize = 0;
-            cerr << "UNDERFLOW of substraction." << endl;
-            // TODO If this happens, maybe we should think about why it happens.
-        } else {
-            // All good. Fight on.
-            this->m_liveSize = temp;
-        }
-        if (!obj->isDead()) {
-            obj->makeDead( death_time, this->m_alloc_time );
-        }
         this->m_memmgr.makeDead( obj, death_time );
     }
 }

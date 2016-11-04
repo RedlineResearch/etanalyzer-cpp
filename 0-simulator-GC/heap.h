@@ -112,7 +112,6 @@ class HeapState
         // Memory manager
         MemoryMgr m_memmgr;
 
-        unsigned long int m_liveSize; // current live size of program in bytes
         unsigned long int m_maxLiveSize; // max live size of program in bytes
         unsigned int m_alloc_time; // current alloc time
 
@@ -140,7 +139,6 @@ class HeapState
             , m_whereis( whereis )
             , m_keyset( keyset )
             , m_maxLiveSize(0)
-            , m_liveSize(0)
             , m_alloc_time(0)
             , m_no_dsites_count(0)
             , m_vm_refcount_positive(0)
@@ -173,7 +171,7 @@ class HeapState
         ObjectMap::iterator begin() { return m_objects.begin(); }
         ObjectMap::iterator end() { return m_objects.end(); }
         unsigned int size() const { return m_objects.size(); }
-        unsigned long int liveSize() const { return m_liveSize; }
+        unsigned long int getLiveSize() const { return this->m_memmgr.getLiveSize(); }
         unsigned long int maxLiveSize() const { return m_maxLiveSize; }
         unsigned int getAllocTime() const { return m_alloc_time; }
 

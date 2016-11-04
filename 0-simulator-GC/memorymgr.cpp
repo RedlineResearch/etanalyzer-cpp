@@ -184,6 +184,17 @@ bool MemoryMgr::allocate( Object *object,
         // go through all regions trying to find free space. And returning
         // 'false' means an Out Of Memory Error (OOM).
     }
+    if (done) {
+        unsigned long int temp = this->m_liveSize + object->getSize();
+        // Max live size calculation
+        // We silently peg to ULONG_MAX the wraparound.
+        // TODO: Maybe we should just error here as this probably isn't possible.
+        this->m_liveSize = ( (temp < this->m_liveSize) ? ULONG_MAX : temp );
+        // Keep tally of what our maximum live size is for the program run
+        if (this->m_maxLiveSize < this->m_liveSize) {
+            this->m_maxLiveSize = this->m_liveSize;
+        }
+    }
     return done;
 }
 
@@ -206,8 +217,20 @@ Region *MemoryMgr::new_region( string &region_name,
 bool MemoryMgr::makeDead( Object *object, unsigned int death_time )
 {
     // Which region? Since we only have one region in this basic MemmoryMgr:
+    unsigned long int temp = this->m_liveSize - object->getSize();
+    if (temp > this->m_liveSize) {
+        // OVERFLOW, underflow?
+        this->m_liveSize = 0;
+        cerr << "UNDERFLOW of substraction." << endl;
+        // TODO If this happens, maybe we should think about why it happens.
+    } else {
+        // All good. Fight on.
+        this->m_liveSize = temp;
+    }
     this->m_alloc_region->makeDead( object );
-    object->makeDead( death_time, this->m_alloc_time );
+    if (!object->isDead()) {
+        object->makeDead( death_time, this->m_alloc_time );
+    }
     // TODO: Think about whether calling object->makeDead is better in region::makeDead
     return true;
 }

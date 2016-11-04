@@ -143,6 +143,11 @@ public:
     // Check if object is in live set
     bool is_in_live_set( Object *object );
 
+    // Return the live size total in bytes
+    unsigned long int getLiveSize() const { return this->m_liveSize; }
+    // Return the current maximum live size total in bytes
+    unsigned long int maxLiveSize() const { return this->m_maxLiveSize; }
+
 private:
     // Create new region with the given name.
     // Returns a reference to the region.
@@ -171,6 +176,10 @@ private:
     // MemoryMgr is expected to keep track of objects so that we can handle
     // duplicate allocations properly
     ObjectSet_t m_live_set;
+    
+    // Live size should be here because this is where the live set it managed.
+    unsigned long int m_liveSize; // current live size of program heap in bytes
+    unsigned long int m_maxLiveSize; // current maximum live size of program heap in bytes
 };
 
 #endif
