@@ -146,7 +146,7 @@ public:
     // Return the live size total in bytes
     unsigned long int getLiveSize() const { return this->m_liveSize; }
     // Return the current maximum live size total in bytes
-    unsigned long int maxLiveSize() const { return this->m_maxLiveSize; }
+    unsigned long int getMaxLiveSize() const { return this->m_maxLiveSize; }
 
 private:
     // Create new region with the given name.

@@ -172,7 +172,8 @@ class HeapState
         ObjectMap::iterator end() { return m_objects.end(); }
         unsigned int size() const { return m_objects.size(); }
         unsigned long int getLiveSize() const { return this->m_memmgr.getLiveSize(); }
-        unsigned long int maxLiveSize() const { return m_maxLiveSize; }
+        // TODO unsigned long int maxLiveSize() const { return m_maxLiveSize; }
+        unsigned long int getMaxLiveSize() const { return this->m_memmgr.getMaxLiveSize(); }
         unsigned int getAllocTime() const { return m_alloc_time; }
 
         unsigned int getNumberNoDeathSites() const { return m_no_dsites_count; }

@@ -411,7 +411,7 @@ int main(int argc, char* argv[])
                  << "number_of_edges," << Heap.numberEdges() << endl
                  << "vm_RC_zero," << Heap.getVMObjectsRefCountZero() << endl
                  << "vm_RC_positive," << Heap.getVMObjectsRefCountPositive() << endl
-                 << "max_live_size," << Heap.maxLiveSize() << endl
+                 << "max_live_size," << Heap.getMaxLiveSize() << endl
                  << "final_time," << final_time << endl;
     summary_file << "---------------[ SUMMARY INFO END ]------------------------------------------------" << endl;
     summary_file.close();
