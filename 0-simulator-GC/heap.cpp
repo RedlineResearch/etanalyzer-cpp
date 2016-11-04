@@ -42,7 +42,15 @@ Object* HeapState::allocate( unsigned int id,
         this->m_maxLiveSize = this->m_liveSize;
     }
     // Call the Memory Manager allocate
-    this->m_memmgr.allocate( obj, create_time, this->getAllocTime() );
+    bool success = this->m_memmgr.allocate( obj, create_time, this->getAllocTime() );
+    if (!success) {
+        cout << "Out of Memory Error." << endl;
+        cout << "    Object id : " << obj->getId() << endl;
+        cout << "    type      : " << obj->getType() << endl;
+        cout << "    size      : " << obj->getSize() << endl;
+        cout << "Stopping." << endl;
+        exit(1);
+    }
     return obj;
 }
 
