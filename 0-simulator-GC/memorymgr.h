@@ -58,7 +58,7 @@ public:
     //        false otherwise.
     bool remove( Object *object );
     bool makeDead( Object *object );
-    bool add_to_garbage_set( Object *object );
+    void add_to_garbage_set( Object *object );
 
     int getLevel() const  { return this->m_level; }
 
@@ -88,8 +88,8 @@ private:
     // Level 1 - promotions from Level 0 go here.
     // ...
     // Level n - promotions from Level n-1 go here.
-    ObjectSet_t m_live_set;
     ObjectSet_t m_garbage_waiting; // TODO What is m_garbage_waiting?
+    ObjectSet_t m_live_set;
 
     // Collection history
     deque<GCRecord_t> m_gc_history;
@@ -117,6 +117,7 @@ public:
         : m_region_map()
         , m_level_map()
         , m_level2name_map()
+        , m_live_set()
         , m_alloc_region(NULL)
         , m_GC_threshold(GC_threshold)
         , m_alloc_time(0) {
@@ -138,6 +139,9 @@ public:
 
     // Get the GC history
     deque<GCRecord_t> get_GC_history();
+
+    // Check if object is in live set
+    bool is_in_live_set( Object *object );
 
 private:
     // Create new region with the given name.
@@ -164,6 +168,9 @@ private:
     float m_GC_threshold;
     // Logical allocation time
     unsigned int m_alloc_time;
+    // MemoryMgr is expected to keep track of objects so that we can handle
+    // duplicate allocations properly
+    ObjectSet_t m_live_set;
 };
 
 #endif

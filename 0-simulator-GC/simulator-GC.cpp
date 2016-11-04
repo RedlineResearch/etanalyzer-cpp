@@ -409,20 +409,6 @@ int main(int argc, char* argv[])
     summary_file << "---------------[ SUMMARY INFO ]----------------------------------------------------" << endl;
     summary_file << "number_of_objects," << Heap.size() << endl
                  << "number_of_edges," << Heap.numberEdges() << endl
-                 << "died_by_stack," << Heap.getTotalDiedByStack2() << endl
-                 << "died_by_heap," << Heap.getTotalDiedByHeap2() << endl
-                 << "last_update_null," << Heap.getTotalLastUpdateNull() << endl
-                 << "last_update_null_heap," << Heap.getTotalLastUpdateNullHeap() << endl
-                 << "last_update_null_stack," << Heap.getTotalLastUpdateNullStack() << endl
-                 << "last_update_null_size," << Heap.getSizeLastUpdateNull() << endl
-                 << "last_update_null_heap_size," << Heap.getSizeLastUpdateNullHeap() << endl
-                 << "last_update_null_stack_size," << Heap.getSizeLastUpdateNullStack() << endl
-                 << "died_by_stack_only," << Heap.getDiedByStackOnly() << endl
-                 << "died_by_stack_after_heap," << Heap.getDiedByStackAfterHeap() << endl
-                 << "died_by_stack_only_size," << Heap.getSizeDiedByStackOnly() << endl
-                 << "died_by_stack_after_heap_size," << Heap.getSizeDiedByStackAfterHeap() << endl
-                 << "size_died_by_stack," << Heap.getSizeDiedByStack() << endl
-                 << "size_died_by_heap," << Heap.getSizeDiedByHeap() << endl
                  << "vm_RC_zero," << Heap.getVMObjectsRefCountZero() << endl
                  << "vm_RC_positive," << Heap.getVMObjectsRefCountPositive() << endl
                  << "max_live_size," << Heap.maxLiveSize() << endl

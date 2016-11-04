@@ -23,13 +23,14 @@ bool Region::allocate( Object *object,
     if (objSize > this->m_free) {
         return false;
     }
-    // TODO If object is already in the set, log a warning message.
+    // Duplicate allocates are a problem.
+    // We do this check in the MemoryMgr as the object MAY have
+    // been allocated in a different region.
     this->m_live_set.insert( object );
     this->m_free -= objSize; // Free goes down.
     this->m_used += objSize; // Used goes up.
 
-    return true; // TODO Do we want to do something else different
-    // if object is already in the set?
+    return true;
     // TODO: do i need create_time? And if yes, how do I save it?
 }
 
@@ -49,23 +50,17 @@ bool Region::remove( Object *object )
     return true;
 }
 
-bool Region::add_to_garbage_set( Object *object )
+void Region::add_to_garbage_set( Object *object )
 {
-    ObjectSet_t::iterator iter = this->m_live_set.find(object);
-    object->setGarbageFlag();
-    if (iter == this->m_live_set.end()) {
-        // Not in live set.
-        cerr << "X";
-        return false;
-    }
     unsigned int objSize = object->getSize();
-    // Remove from live_set
-    this->m_live_set.erase(iter);
-    this->m_live -= objSize; // Live goes down.
+    // Livesize goes down.
+    this->m_live -= objSize;
     // Add to garbage waiting set
     this->m_garbage_waiting.insert(object);
+    // Keep a running total of how much garbage there is.
     this->addToGarbage( objSize );
-    return true;
+    // Set the flag. This is the ONLY place this flag is set.
+    object->setGarbageFlag();
 }
 
 bool Region::makeDead( Object *object )
@@ -73,10 +68,28 @@ bool Region::makeDead( Object *object )
     // Found object.
     // Remove from m_live_set and put into m_garbage_waiting
     bool flag = false;
-    if (!object->isGarbage()) {
-        flag = this->add_to_garbage_set( object );
-        // TODO: Anything else I need to do here?
+    ObjectSet_t::iterator iter = this->m_live_set.find(object);
+    if (iter == this->m_live_set.end()) {
+        // Not in live set.
+        cerr << "ERROR: makeDead on object Id[ " << object->getId()
+             << " ] but can not find in live set.";
+        return false;
     }
+    if (!object->isGarbage()) {
+        this->add_to_garbage_set( object );
+        // TODO: Anything else I need to do here?
+        // If flag (result) is false, that means I tried to add to 
+        // the garbage set but didn't find it there.
+    } else {
+        // What do we do if the object was already garbage?
+        cerr << "ERROR: makeDead on object Id[ " << object->getId()
+             << " ] already set to garbage.";
+    }
+    // Remove from live_set regardless.
+    this->m_live_set.erase(iter);
+    // Note that we don't adjust the sizes here. This is done in
+    // 'add_to_garbage_set'.
+    // return whether or not we were able to make the object garbage.
     return flag;
 }
 
@@ -153,13 +166,23 @@ bool MemoryMgr::allocate( Object *object,
 {
     assert(this->m_alloc_region);
     this->m_alloc_time = new_alloc_time;
+    ObjectSet_t::iterator iter = this->m_live_set.find( object );
+    if (iter != this->m_live_set.end()) {
+        // Found a dupe.
+        // Always return true, but ignore the actual allocation.
+        return true;
+    }
     // Decisions for collection should be done here at the MemoryMgr level.
     bool done = this->m_alloc_region->allocate( object, create_time );
     if (!done) {
         // Not enough free space.
         int collected = this->m_alloc_region->collect( create_time );
-        // Try again.
+        // Try again. Note that we only try one more time as the 
+        // basic collector will give back all possible free memory.
         done = this->m_alloc_region->allocate( object, create_time );
+        // NOTE: In a setup with more than one region, the MemoryMgr could
+        // go through all regions trying to find free space. And returning
+        // 'false' means an Out Of Memory Error (OOM).
     }
     return done;
 }
@@ -185,6 +208,7 @@ bool MemoryMgr::makeDead( Object *object, unsigned int death_time )
     // Which region? Since we only have one region in this basic MemmoryMgr:
     this->m_alloc_region->makeDead( object );
     object->makeDead( death_time, this->m_alloc_time );
+    // TODO: Think about whether calling object->makeDead is better in region::makeDead
     return true;
 }
 
@@ -199,4 +223,10 @@ deque<GCRecord_t> MemoryMgr::get_GC_history()
         result.insert( result.end(), myhist.begin(), myhist.end() );
     }
     return result;
+}
+
+bool MemoryMgr::is_in_live_set( Object *object )
+{
+    ObjectSet_t::iterator iter = this->m_live_set.find( object );
+    return (iter != this->m_live_set.end());
 }

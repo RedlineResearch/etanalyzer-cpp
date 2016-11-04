@@ -78,7 +78,7 @@ Edge* HeapState::make_edge( Object* source,
 
 void HeapState::makeDead(Object * obj, unsigned int death_time)
 {
-    if (!obj->isDead()) {
+    if (this->m_memmgr.is_in_live_set(obj)) {
         unsigned long int temp = this->m_liveSize - obj->getSize();
         if (temp > this->m_liveSize) {
             // OVERFLOW, underflow?
@@ -89,10 +89,11 @@ void HeapState::makeDead(Object * obj, unsigned int death_time)
             // All good. Fight on.
             this->m_liveSize = temp;
         }
-        obj->makeDead( death_time, this->m_alloc_time );
+        if (!obj->isDead()) {
+            obj->makeDead( death_time, this->m_alloc_time );
+        }
+        this->m_memmgr.makeDead( obj, death_time );
     }
-    this->m_memmgr.makeDead( obj, death_time );
-    // obj->makeDead(death_time);
 }
 
 Method * HeapState::get_method_death_site( Object *obj )
@@ -125,35 +126,7 @@ Method * HeapState::get_method_death_site( Object *obj )
 // TODO Documentation :)
 void HeapState::end_of_program(unsigned int cur_time)
 {
-    // -- Set death time of all remaining live objects
-    //    Also set the flags for the interesting classifications.
-    for ( ObjectMap::iterator i = m_objects.begin();
-          i != m_objects.end();
-          ++i ) {
-        Object* obj = i->second;
-        if (obj->isLive(cur_time)) {
-            // Go ahead and ignore the call to HeapState::makeDead
-            // as we won't need to update maxLiveSize here anymore.
-            if (!obj->isDead()) {
-                // A hack: not sure why this check may be needed.
-                // TODO: Debug this.
-                obj->makeDead( cur_time, this->m_alloc_time );
-            }
-            obj->unsetDiedByStackFlag();
-            obj->unsetDiedByHeapFlag();
-            obj->setDiedAtEndFlag();
-            obj->setReason( Reason::END_OF_PROGRAM_REASON, cur_time );
-            obj->setLastEvent( LastEvent::END_OF_PROGRAM_EVENT );
-        } else {
-            if (obj->getReason() == HEAP) {
-                // if (obj->) // TODO TODO GLOBAL type
-                obj->setDiedByHeapFlag();
-            } else {
-                obj->setDiedByStackFlag();
-            }
-            obj->setLastEvent( LastEvent::ROOT );
-        }
-    }
+    // We don't really care to clean up anything at the end of the program.
 }
 
 // TODO Documentation :)

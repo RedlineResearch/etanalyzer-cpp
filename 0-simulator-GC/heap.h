@@ -116,46 +116,6 @@ class HeapState
         unsigned long int m_maxLiveSize; // max live size of program in bytes
         unsigned int m_alloc_time; // current alloc time
 
-        // Total number of objects that died by loss of heap reference version 2
-        unsigned int m_totalDiedByHeap_ver2;
-        // Total number of objects that died by stack frame going out of scope version 2
-        unsigned int m_totalDiedByStack_ver2;
-        // Total number of objects that died by loss of global/static reference
-        unsigned int m_totalDiedByGlobal;
-        // Total number of objects that live till the end of the program
-        unsigned int m_totalDiedAtEnd;
-        // Total number of objects unknown using version 2 method
-        unsigned int m_totalDiedUnknown_ver2;
-        // Size of objects that died by loss of heap reference
-        unsigned int m_sizeDiedByHeap;
-        // Size of objects that died by stack frame going out of scope
-        unsigned int m_sizeDiedByStack;
-        // Size of objects that live till the end of the program
-        unsigned int m_sizeDiedAtEnd;
-
-        // Total number of objects whose last update away from the object
-        // was null
-        unsigned int m_totalUpdateNull;
-        //    -- that was part of the heap
-        unsigned int m_totalUpdateNullHeap;
-        //    -- that was part of the stack
-        unsigned int m_totalUpdateNullStack;
-        // Size of objects whose last update away from the object was null
-        unsigned int m_totalUpdateNull_size;
-        //    -- that was part of the heap
-        unsigned int m_totalUpdateNullHeap_size;
-        //    -- that was part of the stack
-        unsigned int m_totalUpdateNullStack_size;
-
-        // Died by stack with previous heap action
-        unsigned int m_diedByStackAfterHeap;
-        // Died by stack only
-        unsigned int m_diedByStackOnly;
-        // Died by stack with previous heap action -- size
-        unsigned int m_diedByStackAfterHeap_size;
-        // Died by stack only -- size
-        unsigned int m_diedByStackOnly_size;
-
         // Number of objects with no death sites
         unsigned int m_no_dsites_count;
         // Number of VM objects that always have RC 0
@@ -182,22 +142,6 @@ class HeapState
             , m_maxLiveSize(0)
             , m_liveSize(0)
             , m_alloc_time(0)
-            , m_totalDiedByHeap_ver2(0)
-            , m_totalDiedByStack_ver2(0)
-            , m_totalDiedByGlobal(0)
-            , m_totalDiedAtEnd(0)
-            , m_sizeDiedByHeap(0)
-            , m_sizeDiedByStack(0)
-            , m_sizeDiedAtEnd(0)
-            , m_totalDiedUnknown_ver2(0)
-            , m_totalUpdateNull(0)
-            , m_totalUpdateNullHeap(0)
-            , m_totalUpdateNullStack(0)
-            , m_totalUpdateNull_size(0)
-            , m_totalUpdateNullHeap_size(0)
-            , m_totalUpdateNullStack_size(0)
-            , m_diedByStackAfterHeap(0)
-            , m_diedByStackOnly(0)
             , m_no_dsites_count(0)
             , m_vm_refcount_positive(0)
             , m_vm_refcount_0(0)
@@ -232,27 +176,6 @@ class HeapState
         unsigned long int liveSize() const { return m_liveSize; }
         unsigned long int maxLiveSize() const { return m_maxLiveSize; }
         unsigned int getAllocTime() const { return m_alloc_time; }
-
-        unsigned int getTotalDiedByStack2() const { return m_totalDiedByStack_ver2; }
-        unsigned int getTotalDiedByHeap2() const { return m_totalDiedByHeap_ver2; }
-        unsigned int getTotalDiedByGlobal() const { return m_totalDiedByGlobal; }
-        unsigned int getTotalDiedAtEnd() const { return m_totalDiedAtEnd; }
-        unsigned int getTotalDiedUnknown() const { return m_totalDiedUnknown_ver2; }
-        unsigned int getSizeDiedByHeap() const { return m_sizeDiedByHeap; }
-        unsigned int getSizeDiedByStack() const { return m_sizeDiedByStack; }
-        unsigned int getSizeDiedAtEnd() const { return m_sizeDiedAtEnd; }
-
-        unsigned int getTotalLastUpdateNull() const { return m_totalUpdateNull; }
-        unsigned int getTotalLastUpdateNullHeap() const { return m_totalUpdateNullHeap; }
-        unsigned int getTotalLastUpdateNullStack() const { return m_totalUpdateNullStack; }
-        unsigned int getSizeLastUpdateNull() const { return m_totalUpdateNull_size; }
-        unsigned int getSizeLastUpdateNullHeap() const { return m_totalUpdateNullHeap_size; }
-        unsigned int getSizeLastUpdateNullStack() const { return m_totalUpdateNullStack_size; }
-
-        unsigned int getDiedByStackAfterHeap() const { return m_diedByStackAfterHeap; }
-        unsigned int getDiedByStackOnly() const { return m_diedByStackOnly; }
-        unsigned int getSizeDiedByStackAfterHeap() const { return m_diedByStackAfterHeap_size; }
-        unsigned int getSizeDiedByStackOnly() const { return m_diedByStackOnly_size; }
 
         unsigned int getNumberNoDeathSites() const { return m_no_dsites_count; }
 
@@ -444,6 +367,7 @@ class Object
         bool isDead() const { return m_deadFlag; }
         bool isGarbage() const { return m_garbageFlag; }
         void setGarbageFlag() { this->m_garbageFlag = true; }
+        // NOTE: setGarbageFlag is only ever called from Region::add_to_garbage_set()
         void unSetGarbageFlag() { this->m_garbageFlag = false; }
 
         bool wasPointedAtByHeap() const { return m_pointed_by_heap; }
