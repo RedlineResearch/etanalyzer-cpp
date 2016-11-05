@@ -133,6 +133,8 @@ class HeapState
     private:
         // -- Map from IDs to objects
         ObjectMap m_objects;
+        // Live set
+        ObjectSet m_liveset;
 
         // -- Set of edges (all pointers)
         EdgeSet m_edges;
@@ -210,6 +212,7 @@ class HeapState
     public:
         HeapState( ObjectPtrMap_t& whereis, KeySet_t& keyset )
             : m_objects()
+            , m_liveset()
             , m_candidate_map()
             , m_death_sites_map()
             , m_whereis( whereis )

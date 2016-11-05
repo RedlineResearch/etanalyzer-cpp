@@ -1,0 +1,290 @@
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <cstdio>
+#include <map>
+#include <set>
+#include <vector>
+#include <deque>
+#include <string>
+#include <utility>
+
+using namespace std;
+
+#include "tokenizer.h"
+#include "classinfo.h"
+#include "execution.h"
+#include "heap.h"
+// #include "refstate.h"
+// #include "summary.hpp"
+#include "version.hpp"
+
+// ----------------------------------------------------------------------
+// Types
+// TODO DELETE TODO class Object;
+// TODO DELETE TODO class CCNode;
+
+// ----------------------------------------------------------------------
+//   Globals
+
+ExecState Exec(ExecMode::StackOnly);
+
+// -- Turn on debugging
+bool debug = false;
+
+// ----------------------------------------------------------------------
+//   Analysis
+
+unsigned int count_live( ObjectSet & objects, unsigned int at_time )
+{
+    int count = 0;
+    // -- How many are actually live
+    for ( ObjectSet::iterator p = objects.begin();
+          p != objects.end();
+          p++ ) {
+        Object* obj = *p;
+        if (obj->isLive(at_time)) {
+            count++;
+        }
+    }
+
+    return count;
+}
+
+
+// ----------------------------------------------------------------------
+//   Read and process trace events
+
+unsigned int read_trace_file(FILE* f)
+{
+    Tokenizer tokenizer(f);
+
+    unsigned int method_id;
+    unsigned int object_id;
+    unsigned int target_id;
+    unsigned int field_id;
+    unsigned int thread_id;
+    unsigned int exception_id;
+    Object *obj;
+    Object *target;
+    Method *method;
+    unsigned int total_objects;
+
+    // -- Allocation time
+    unsigned int AllocationTime = 0;
+    while ( !tokenizer.isDone() ) {
+        tokenizer.getLine();
+        if (tokenizer.isDone()) {
+            break;
+        }
+        if (Exec.NowUp() % 1000000 == 1) {
+            cout << "  Method time: " << Exec.NowUp() << "   Alloc time: " << AllocationTime << endl;
+        }
+
+        switch (tokenizer.getChar(0)) {
+            case 'A':
+            case 'I':
+            case 'N':
+            case 'P':
+            case 'V':
+                {
+                    // A/I/N/P/V <id> <size> <type> <site> [<els>] <threadid>
+                    //     0       1    2      3      4      5         5/6
+                    unsigned int thrdid = (tokenizer.numTokens() == 6) ? tokenizer.getInt(5)
+                                                                       : tokenizer.getInt(6);
+                    Thread* thread = Exec.getThread(thrdid);
+                    unsigned int els  = (tokenizer.numTokens() == 6) ? 0
+                                                                     : tokenizer.getInt(5);
+                    AllocSite* as = ClassInfo::TheAllocSites[tokenizer.getInt(4)];
+                    obj = Heap.allocate( tokenizer.getInt(1),
+                                         tokenizer.getInt(2),
+                                         tokenizer.getChar(0),
+                                         tokenizer.getString(3),
+                                         as,
+                                         els,
+                                         thread,
+                                         Exec.NowUp() );
+                    unsigned int old_alloc_time = AllocationTime;
+                    AllocationTime += obj->getSize();
+                    total_objects++;
+                }
+                break;
+
+            case 'U':
+                {
+                    // U <old-target> <object> <new-target> <field> <thread>
+                    // 0      1          2         3           4        5
+                    // -- Look up objects and perform update
+                    unsigned int objId = tokenizer.getInt(2);
+                    unsigned int tgtId = tokenizer.getInt(3);
+                    unsigned int oldTgtId = tokenizer.getInt(1);
+                    unsigned int threadId = tokenizer.getInt(5);
+                    Thread *thread = Exec.getThread(threadId);
+                    Object *oldObj = Heap.getObject(oldTgtId);
+                    obj = Heap.getObject(objId);
+                    target = ((tgtId > 0) ? Heap.getObject(tgtId) : NULL);
+                    if (obj) {
+                        obj->setPointedAtByHeap();
+                    }
+                    if (oldObj) {
+                        if (target) {
+                            oldObj->unsetLastUpdateNull();
+                        } else {
+                            oldObj->setLastUpdateNull();
+                        }
+                    }
+                    // Increment and decrement refcounts
+                    if (obj && target) {
+                        unsigned int field_id = tokenizer.getInt(4);
+                        Edge* new_edge = Heap.make_edge( obj, field_id,
+                                                         target, Exec.NowUp() );
+                        if (thread) {
+                            Method *topMethod = thread->TopMethod();
+                            if (topMethod) {
+                                topMethod->getName();
+                            }
+                            obj->updateField( new_edge,
+                                              field_id,
+                                              Exec.NowUp(),
+                                              topMethod, // for death site info
+                                              HEAP, // reason
+                                              NULL ); // death root 0 because may not be a root
+                            // NOTE: topMethod COULD be NULL here.
+                        }
+                        // DEBUG ONLY IF NEEDED
+                        // Example:
+                        // if ( (objId == tgtId) && (objId == 166454) ) {
+                        // if ( (objId == 166454) ) {
+                        //     tokenizer.debugCurrent();
+                        // }
+                    }
+                }
+                break;
+
+            case 'D':
+                {
+                    // D <object> <thread-id>
+                    // 0    1
+                    unsigned int objId = tokenizer.getInt(1);
+                    obj = Heap.getObject(objId);
+                    if (obj) {
+                        unsigned int threadId = tokenizer.getInt(2);
+                        Thread *thread = Exec.getThread(threadId);
+                        Heap.makeDead(obj, Exec.NowUp());
+                        // Get the current method
+                        Method *topMethod = NULL;
+                        if (thread) {
+                            topMethod = thread->TopMethod();
+                            if (topMethod) {
+                                obj->setDeathSite(topMethod);
+                            } 
+                            if (thread->isLocalVariable(obj)) {
+                                for ( EdgeMap::iterator p = obj->getEdgeMapBegin();
+                                      p != obj->getEdgeMapEnd();
+                                      ++p ) {
+                                    Edge* target_edge = p->second;
+                                    if (target_edge) {
+                                        unsigned int fieldId = target_edge->getSourceField();
+                                        obj->updateField( NULL,
+                                                          fieldId,
+                                                          Exec.NowUp(),
+                                                          topMethod,
+                                                          STACK,
+                                                          obj );
+                                        // NOTE: STACK is used because the object that died,
+                                        // died by STACK.
+                                    }
+                                }
+                            }
+                        }
+                        unsigned int rc = obj->getRefCount();
+                        deathrc_map[objId] = rc;
+                    } else {
+                        assert(false);
+                    }
+                }
+                break;
+
+            case 'M':
+                {
+                    // M <methodid> <receiver> <threadid>
+                    // 0      1         2           3
+                    // current_cc = current_cc->DemandCallee(method_id, object_id, thread_id);
+                    // TEMP TODO ignore method events
+                    method_id = tokenizer.getInt(1);
+                    method = ClassInfo::TheMethods[method_id];
+                    thread_id = tokenizer.getInt(3);
+                    Exec.Call(method, thread_id);
+                }
+                break;
+
+            case 'E':
+            case 'X':
+                {
+                    // E <methodid> <receiver> [<exceptionobj>] <threadid>
+                    // 0      1         2             3             3/4
+                    method_id = tokenizer.getInt(1);
+                    method = ClassInfo::TheMethods[method_id];
+                    thread_id = (tokenizer.numTokens() == 4) ? tokenizer.getInt(3)
+                                                             : tokenizer.getInt(4);
+                    Exec.Return(method, thread_id);
+                }
+                break;
+
+            case 'T':
+                // T <methodid> <receiver> <exceptionobj>
+                // 0      1          2           3
+                break;
+
+            case 'H':
+                // H <methodid> <receiver> <exceptionobj>
+                break;
+
+            case 'R':
+                // R <objid> <threadid>
+                // 0    1        2
+                {
+                    unsigned int objId = tokenizer.getInt(1);
+                    Object *object = Heap.getObject(objId);
+                    unsigned int threadId = tokenizer.getInt(2);
+                    // cout << "objId: " << objId << "     threadId: " << threadId << endl;
+                    if (object) {
+                        object->setRootFlag(Exec.NowUp());
+                        Thread *thread = Exec.getThread(threadId);
+                        if (thread) {
+                            thread->objectRoot(object);
+                        }
+                    }
+                    root_set.insert(objId);
+                    // TODO last_map.setLast( threadId, LastEvent::ROOT, object );
+                }
+                break;
+
+            default:
+                // cout << "ERROR: Unknown entry " << tokenizer.curChar() << endl;
+                break;
+        }
+    }
+    return total_objects;
+}
+
+// ----------------------------------------------------------------------
+
+int main(int argc, char* argv[])
+{
+    if (argc != 2) {
+        cout << "Usage: " << argv[0] << " <namesfile>" << endl;
+        cout << "      git version: " <<  build_git_sha << endl;
+        cout << "      build date : " <<  build_git_time << endl;
+        exit(1);
+    }
+
+    cout << "Read names file..." << endl;
+    ClassInfo::read_names_file_nomain( argv[1] );
+
+    cout << "Start trace..." << endl;
+    FILE *f = fdopen(0, "r");
+    unsigned int max_livesize = read_trace_file(f);
+    cout << "Max livesize: " << max_livesize << endl;
+}
+

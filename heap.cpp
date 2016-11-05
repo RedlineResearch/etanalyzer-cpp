@@ -85,10 +85,13 @@ Object* HeapState::allocate( unsigned int id,
                               thread,
                               create_time,
                               this );
-    m_objects[obj->getId()] = obj;
+    // Add to object map
+    this->m_objects[obj->getId()] = obj;
+    // Add to live set. Given that it's a set, duplicates are not a problem.
+    this->m_liveset.insert(obj);
 
-    if (m_objects.size() % 100000 == 0) {
-        cout << "OBJECTS: " << m_objects.size() << endl;
+    if (this->m_objects.size() % 100000 == 0) {
+        cout << "OBJECTS: " << this->m_objects.size() << endl;
     }
     unsigned long int temp = this->m_liveSize + obj->getSize();
     // Max live size calculation
@@ -132,15 +135,18 @@ Edge* HeapState::make_edge( Object* source,
 void HeapState::makeDead(Object * obj, unsigned int death_time)
 {
     if (!obj->isDead()) {
-        unsigned long int temp = this->m_liveSize - obj->getSize();
-        if (temp > this->m_liveSize) {
-            // OVERFLOW, underflow?
-            this->m_liveSize = 0;
-            cerr << "UNDERFLOW of substraction." << endl;
-            // TODO If this happens, maybe we should think about why it happens.
-        } else {
-            // All good. Fight on.
-            this->m_liveSize = temp;
+        ObjectSet::iterator iter = this->m_liveset.find(obj);
+        if (iter != this->m_liveset.end()) {
+            unsigned long int temp = this->m_liveSize - obj->getSize();
+            if (temp > this->m_liveSize) {
+                // OVERFLOW, underflow?
+                this->m_liveSize = 0;
+                cerr << "UNDERFLOW of substraction." << endl;
+                // TODO If this happens, maybe we should think about why it happens.
+            } else {
+                // All good. Fight on.
+                this->m_liveSize = temp;
+            }
         }
         obj->makeDead( death_time, this->m_alloc_time );
     }
