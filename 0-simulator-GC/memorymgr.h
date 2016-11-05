@@ -43,6 +43,7 @@ public:
         : m_name(name)
         , m_size(size)
         , m_free(size)
+        , m_garbage(0)
         , m_level(level)
         , m_live_set()
         , m_garbage_waiting()
@@ -56,7 +57,7 @@ public:
     // The following three functions:
     // return true if allocation was successful.
     //        false otherwise.
-    bool remove( Object *object );
+    // bool remove( Object *object );
     bool makeDead( Object *object );
     void add_to_garbage_set( Object *object );
 
@@ -81,6 +82,7 @@ private:
     int m_free; // free space = size - used
     int m_live; // live space (reachable, not garbage)
     int m_garbage; // garbage = in use - live
+    // => also the total size in bytes of all objects in m_garbage_waiting set
 
     int m_level;
     // Signifies the level in the hierarchy of regional generations.
@@ -119,6 +121,7 @@ public:
         , m_level2name_map()
         , m_live_set()
         , m_alloc_region(NULL)
+        , m_times_GC(0)
         , m_GC_threshold(GC_threshold)
         , m_alloc_time(0) {
     }
@@ -134,6 +137,9 @@ public:
     // Do a garbage collection
     int do_collection();
 
+    // Do a garbage collection only if needed.
+    bool should_do_collection();
+
     // On a D(eath) event
     bool makeDead( Object *object, unsigned int death_time );
 
@@ -147,8 +153,15 @@ public:
     unsigned long int getLiveSize() const { return this->m_liveSize; }
     // Return the current maximum live size total in bytes
     unsigned long int getMaxLiveSize() const { return this->m_maxLiveSize; }
+    // Get total size capacity in bytes
+    unsigned long int getTotalSize() const { return this->m_total_size; }
 
 private:
+    // Total size being managed
+    unsigned long int m_total_size;
+    // Total number of collections done
+    unsigned int m_times_GC;
+
     // Create new region with the given name.
     // Returns a reference to the region.
     Region *new_region( string &region_name,
@@ -171,6 +184,8 @@ private:
     // needed, then 'initialize_memory' needs to be overridden in the 
     // inheriting class.
     float m_GC_threshold;
+    // GC threshold in bytes
+    unsigned long int m_GC_byte_threshold;
     // Logical allocation time
     unsigned int m_alloc_time;
     // MemoryMgr is expected to keep track of objects so that we can handle

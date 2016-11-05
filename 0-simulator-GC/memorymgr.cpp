@@ -34,21 +34,21 @@ bool Region::allocate( Object *object,
     // TODO: do i need create_time? And if yes, how do I save it?
 }
 
-bool Region::remove( Object *object )
-{
-    ObjectSet_t::iterator iter = this->m_live_set.find(object);
-    if (iter == this->m_live_set.end()) {
-        return false;
-    }
-    unsigned int objSize = object->getSize();
-    this->m_live_set.erase(iter);
-    this->m_free += objSize; // Free goes up.
-    this->m_used -= objSize; // Used goes down.
-    this->m_live -= objSize; // Live goes down.
-    assert(this->m_free <= this->m_size);
-    assert(this->m_used >= 0);
-    return true;
-}
+// TODO bool Region::remove( Object *object )
+// TODO {
+// TODO     ObjectSet_t::iterator iter = this->m_live_set.find(object);
+// TODO     if (iter == this->m_live_set.end()) {
+// TODO         return false;
+// TODO     }
+// TODO     unsigned int objSize = object->getSize();
+// TODO     this->m_live_set.erase(iter);
+// TODO     this->m_free += objSize; // Free goes up.
+// TODO     this->m_used -= objSize; // Used goes down.
+// TODO     this->m_live -= objSize; // Live goes down.
+// TODO     assert(this->m_free <= this->m_size);
+// TODO     assert(this->m_used >= 0);
+// TODO     return true;
+// TODO }
 
 void Region::add_to_garbage_set( Object *object )
 {
@@ -57,6 +57,8 @@ void Region::add_to_garbage_set( Object *object )
     this->m_live -= objSize;
     // Add to garbage waiting set
     this->m_garbage_waiting.insert(object);
+    // Remove from live set
+    this->m_live_set.erase(object);
     // Keep a running total of how much garbage there is.
     this->addToGarbage( objSize );
     // Set the flag. This is the ONLY place this flag is set.
@@ -99,25 +101,30 @@ int Region::collect( unsigned int timestamp )
     int collected = this->m_garbage;
 
     this->m_garbage_waiting.clear();
-    // this->m_garbage = 0;
+    // Garbage in this region is now 0.
     this->setGarbage(0);
+    // TODO TODO: This is only DEBUG TODO TODO
     cout << "GC[ " << timestamp << ", " << collected << "]" << endl;
+    // TODO TODO: End DEBUG
+    // Add the collected space back to free
     this->m_free += collected;
+    assert(this->m_free <= this->m_size); // Sanity check
+    // Record this collection
     GCRecord_t rec = make_pair( timestamp, collected );
     this->m_gc_history.push_back( rec );
+    // Return how much we collected
     return collected;
 }
 
 inline void Region::addToGarbage( int add )
 {
+    // Garbage available goes up
     this->m_garbage += add;
-    // DEBUG cout << "ADD: " << this->m_garbage << endl;
 }
 
 int Region::setGarbage( int newval )
 {
     this->m_garbage = newval;
-    // DEBUG cout << "SET: " << this->m_garbage << endl;
     return newval;
 }
 
@@ -137,16 +144,32 @@ bool MemoryMgr::initialize_memory( vector<int> sizes )
     this->m_alloc_region = this->new_region( MemoryMgr::ALLOC,
                                              *iter,
                                              level ); // Level 0 is required.
-    ++iter;
-    ++level;
-    string myname("OTHER");
-    while (iter != sizes.end()) {
-        this->new_region( myname,
-                          *iter,
-                          level );
-        ++iter;
-        ++level;
+    // ++iter;
+    // ++level;
+    // string myname("OTHER");
+    // while (iter != sizes.end()) {
+    //     this->new_region( myname,
+    //                       *iter,
+    //                       level );
+    //     ++iter;
+    //     ++level;
+    // }
+    if (this->m_alloc_region) {
+        this->m_total_size += *iter;
+    } else {
+        cerr << "Unable to allocate in our simulator. REAL OOM in your system. Quitting." << endl;
+        exit(1);
     }
+    // Calculate our GC threshold for the system.
+    this->m_GC_byte_threshold = static_cast<int>(this->m_total_size * this->m_GC_threshold);
+    if ( (this->m_GC_byte_threshold == 0) ||
+         (this->m_GC_byte_threshold > this->m_total_size) ){
+        cerr << "Invalid GC byte threshold: " << this->m_GC_byte_threshold << endl;
+        cerr << "GC percentage threshold  : " << this->m_GC_threshold << endl;
+        cerr << "Total heap size          : " << this->m_total_size << endl;
+        exit(2);
+    }
+
     return true;
 }
 
@@ -157,6 +180,13 @@ int MemoryMgr::do_collection()
     return 0;
 }
 
+// Returns true if GC threshold has been exceeded
+//         false otherwise.
+bool MemoryMgr::should_do_collection()
+{
+    // Assume that threshold is always valid.
+    return (this->m_liveSize >= this->m_GC_byte_threshold);
+}
 
 // Returns true if allocation caused garbage collection.
 //         false otherwise.
@@ -165,6 +195,9 @@ bool MemoryMgr::allocate( Object *object,
                           unsigned int new_alloc_time )
 {
     assert(this->m_alloc_region);
+    int collected = 0; // Amount collected
+    bool GCdone = false;
+
     this->m_alloc_time = new_alloc_time;
     ObjectSet_t::iterator iter = this->m_live_set.find( object );
     if (iter != this->m_live_set.end()) {
@@ -176,9 +209,11 @@ bool MemoryMgr::allocate( Object *object,
     bool done = this->m_alloc_region->allocate( object, create_time );
     if (!done) {
         // Not enough free space.
-        int collected = this->m_alloc_region->collect( create_time );
-        // Try again. Note that we only try one more time as the 
-        // basic collector will give back all possible free memory.
+        // 1. We collect on a failed allocation.
+        collected = this->m_alloc_region->collect( create_time );
+        GCdone = true;
+        // 2. Try again. Note that we only try one more time as the 
+        //    basic collector will give back all possible free memory.
         done = this->m_alloc_region->allocate( object, create_time );
         // NOTE: In a setup with more than one region, the MemoryMgr could
         // go through all regions trying to find free space. And returning
@@ -194,6 +229,14 @@ bool MemoryMgr::allocate( Object *object,
         if (this->m_maxLiveSize < this->m_liveSize) {
             this->m_maxLiveSize = this->m_liveSize;
         }
+        if (!GCdone && this->should_do_collection()) {
+            collected += this->m_alloc_region->collect( create_time );
+            GCdone = true;
+        }
+    }
+    if (GCdone) {
+        // Increment the GC count
+        this->m_times_GC++;
     }
     return done;
 }
