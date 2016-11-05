@@ -23,6 +23,7 @@ using namespace std;
 // Types
 // TODO DELETE TODO class Object;
 // TODO DELETE TODO class CCNode;
+typedef std::map< unsigned int, unsigned int > ObjIdMap;
 
 // ----------------------------------------------------------------------
 //   Globals
@@ -61,7 +62,7 @@ unsigned int read_trace_file(FILE* f)
 
     unsigned int object_id;
     unsigned int total_objects;
-    std::set< unsigned int > liveset;
+    ObjIdMap livemap;
     unsigned int long curlive;
     unsigned int long maxlive;
     // UNUSED CODE. TODO: Here just in case, but probably deleted later
@@ -106,14 +107,41 @@ unsigned int read_trace_file(FILE* f)
                     // TODO:
                     unsigned int objId = tokenizer.getInt(1);
                     unsigned int size = tokenizer.getInt(2);
-                    // 1. Add to live set
-                    liveset.insert(objId);
-                    curlive += size;
-                    // 2. Increase current live size
-                    // 3. Increase max live size if greater than current max
+                    // 1. Add to live set if not a dupe
+                    ObjIdMap::iterator iter = livemap.find(objId);
+                    if (iter == livemap.end()) {
+                        // Found it
+                        livemap[objId] = size;
+                        // 2. Increase current live size
+                        curlive += size;
+                        // 3. Increase max live size if greater than current max
+                        maxlive = (curlive > maxlive ? curlive : maxlive);
+                    }
+                    // ELSE it's a dupe, so ignore it
                 }
                 break;
 
+            case 'D':
+                {
+                    // D <object> <thread-id>
+                    // 0    1
+                    unsigned int objId = tokenizer.getInt(1);
+                    // 1. Check live set
+                    ObjIdMap::iterator iter = livemap.find(objId);
+                    if (iter != livemap.end()) {
+                        // Found it
+                        curlive -= iter->second;
+                    }
+                    // 2. Increase current live size
+                    // 3. Increase max live size if greater than current max
+                    // TODO:
+                    // 1. Check if in live set
+                    // 2. Decrease current live size if in.
+                    // 3. Ignore if not and add to ignored total.
+                }
+                break;
+
+            // All other events after this is ignored.
             case 'U':
                 {
                     // U <old-target> <object> <new-target> <field> <thread>
@@ -125,18 +153,6 @@ unsigned int read_trace_file(FILE* f)
                     // TODO unsigned int threadId = tokenizer.getInt(5);
                     // TODO Thread *thread = Exec.getThread(threadId);
                     // TODO target = ((tgtId > 0) ? Heap.getObject(tgtId) : NULL);
-                }
-                break;
-
-            case 'D':
-                {
-                    // D <object> <thread-id>
-                    // 0    1
-                    unsigned int objId = tokenizer.getInt(1);
-                    // TODO:
-                    // 1. Check if in live set
-                    // 2. Decrease current live size if in.
-                    // 3. Ignore if not and add to ignored total.
                 }
                 break;
 

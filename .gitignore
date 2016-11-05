@@ -4,6 +4,7 @@
 *.o
 simulator
 simulator-GC
+simulator-livesize
 cscope.*
 MYWORK
 *.pyc
