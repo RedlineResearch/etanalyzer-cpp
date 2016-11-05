@@ -59,16 +59,20 @@ unsigned int read_trace_file(FILE* f)
 {
     Tokenizer tokenizer(f);
 
-    unsigned int method_id;
     unsigned int object_id;
-    unsigned int target_id;
-    unsigned int field_id;
-    unsigned int thread_id;
-    unsigned int exception_id;
-    Object *obj;
-    Object *target;
-    Method *method;
     unsigned int total_objects;
+    std::set< unsigned int > liveset;
+    unsigned int long curlive;
+    unsigned int long maxlive;
+    // UNUSED CODE. TODO: Here just in case, but probably deleted later
+    // unsigned int target_id;
+    // unsigned int field_id;
+    // unsigned int thread_id;
+    // unsigned int exception_id;
+    // unsigned int method_id;
+    // Object *obj;
+    // Object *target;
+    // Method *method;
 
     // -- Allocation time
     unsigned int AllocationTime = 0;
@@ -90,17 +94,21 @@ unsigned int read_trace_file(FILE* f)
                 {
                     // A/I/N/P/V <id> <size> <type> <site> [<els>] <threadid>
                     //     0       1    2      3      4      5         5/6
-                    unsigned int thrdid = (tokenizer.numTokens() == 6) ? tokenizer.getInt(5)
-                                                                       : tokenizer.getInt(6);
-                    // TODO Thread* thread = Exec.getThread(thrdid);
-                    unsigned int els  = (tokenizer.numTokens() == 6) ? 0
-                                                                     : tokenizer.getInt(5);
+                    // TODO unsigned int thrdid = (tokenizer.numTokens() == 6) ? tokenizer.getInt(5)
+                    // TODO                                                    : tokenizer.getInt(6);
+                    // TODO // TODO Thread* thread = Exec.getThread(thrdid);
+                    // TODO unsigned int els  = (tokenizer.numTokens() == 6) ? 0
+                    // TODO                                                  : tokenizer.getInt(5);
                     // TODO AllocSite* as = ClassInfo::TheAllocSites[tokenizer.getInt(4)];
                     // TODO unsigned int old_alloc_time = AllocationTime;
                     // TODO AllocationTime += obj->getSize();
                     total_objects++;
                     // TODO:
+                    unsigned int objId = tokenizer.getInt(1);
+                    unsigned int size = tokenizer.getInt(2);
                     // 1. Add to live set
+                    liveset.insert(objId);
+                    curlive += size;
                     // 2. Increase current live size
                     // 3. Increase max live size if greater than current max
                 }
@@ -180,7 +188,7 @@ unsigned int read_trace_file(FILE* f)
                 break;
         }
     }
-    return total_objects;
+    return maxlive;
 }
 
 // ----------------------------------------------------------------------
