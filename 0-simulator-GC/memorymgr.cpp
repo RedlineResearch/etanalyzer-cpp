@@ -296,3 +296,18 @@ bool MemoryMgr::is_in_live_set( Object *object )
     ObjectSet_t::iterator iter = this->m_live_set.find( object );
     return (iter != this->m_live_set.end());
 }
+
+//==============================================================================
+// Debug functions
+void Region::print_status()
+{
+    cout << "Region[ " << this->m_name << " ]" << endl
+         << "    - size: " << this->m_size << endl
+         << "    - live: " << this->m_live << endl
+         << "    - free: " << this->m_free << endl
+         << "    - used: " << this->m_used << endl;
+}
+
+void MemoryMgr::print_status()
+{
+}

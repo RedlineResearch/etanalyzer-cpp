@@ -73,6 +73,9 @@ public:
 
     int collect( unsigned int timestamp );
 
+    // Debug functions
+    void print_status();
+
 private:
     string m_name;
 
@@ -155,6 +158,9 @@ public:
     unsigned long int getMaxLiveSize() const { return this->m_maxLiveSize; }
     // Get total size capacity in bytes
     unsigned long int getTotalSize() const { return this->m_total_size; }
+
+    // Debug functions
+    void print_status();
 
 private:
     // Total size being managed
