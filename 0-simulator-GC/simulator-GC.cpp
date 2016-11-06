@@ -166,7 +166,7 @@ unsigned int read_trace_file(FILE* f)
         if (tokenizer.isDone()) {
             break;
         }
-        if (Exec.NowUp() % 1000000 == 1) {
+        if (Exec.NowUp() % 10000000 == 1) {
             cout << "  Method time: " << Exec.NowUp() << "   Alloc time: " << AllocationTime << endl;
         }
 

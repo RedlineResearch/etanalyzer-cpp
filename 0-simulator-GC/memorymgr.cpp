@@ -106,7 +106,7 @@ int Region::collect( unsigned int timestamp )
     // Garbage in this region is now 0.
     this->setGarbage(0);
     // TODO TODO: This is only DEBUG TODO TODO
-    // cout << "GC[ " << timestamp << ", " << collected << "]" << endl;
+    cout << "GC[ " << timestamp << ", " << collected << "]" << endl;
     // TODO TODO: End DEBUG
     // Add the collected space back to free
     this->m_free += collected;
