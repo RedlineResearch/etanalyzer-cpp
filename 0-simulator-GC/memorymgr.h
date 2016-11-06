@@ -43,6 +43,8 @@ public:
         : m_name(name)
         , m_size(size)
         , m_free(size)
+        , m_used(0)
+        , m_live(0)
         , m_garbage(0)
         , m_level(level)
         , m_live_set()
@@ -68,6 +70,7 @@ public:
     int getFree() const { return m_free; }
     int getLive() const { return m_live; }
     int getGarbage() const { return m_garbage; }
+    unsigned int long get_num_GC_attempts() const { return this->GC_attempts; }
 
     deque<GCRecord_t> get_GC_history() const { return m_gc_history; }
 
@@ -98,6 +101,7 @@ private:
 
     // Collection history
     deque<GCRecord_t> m_gc_history;
+    unsigned long int GC_attempts;
 
     void addToGarbage( int add );
     int setGarbage( int newval );
@@ -161,6 +165,7 @@ public:
 
     // Debug functions
     void print_status();
+    unsigned long int get_num_GC_attempts( bool printflag );
 
 private:
     // Total size being managed
@@ -201,6 +206,9 @@ private:
     // Live size should be here because this is where the live set it managed.
     unsigned long int m_liveSize; // current live size of program heap in bytes
     unsigned long int m_maxLiveSize; // current maximum live size of program heap in bytes
+
+    // Debugging GC
+    unsigned long int GC_attempts;
 };
 
 #endif

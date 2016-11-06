@@ -62,8 +62,6 @@ bool debug = false;
 deque< deque<Object*> > cycle_list;
 set<unsigned int> root_set;
 
-map<unsigned int, unsigned int> deathrc_map;
-
 void sanity_check()
 {
 /*
@@ -262,34 +260,6 @@ unsigned int read_trace_file(FILE* f)
                         unsigned int threadId = tokenizer.getInt(2);
                         Thread *thread = Exec.getThread(threadId);
                         Heap.makeDead(obj, Exec.NowUp());
-                        // Get the current method
-                        Method *topMethod = NULL;
-                        if (thread) {
-                            topMethod = thread->TopMethod();
-                            if (topMethod) {
-                                obj->setDeathSite(topMethod);
-                            } 
-                            if (thread->isLocalVariable(obj)) {
-                                for ( EdgeMap::iterator p = obj->getEdgeMapBegin();
-                                      p != obj->getEdgeMapEnd();
-                                      ++p ) {
-                                    Edge* target_edge = p->second;
-                                    if (target_edge) {
-                                        unsigned int fieldId = target_edge->getSourceField();
-                                        obj->updateField( NULL,
-                                                          fieldId,
-                                                          Exec.NowUp(),
-                                                          topMethod,
-                                                          STACK,
-                                                          obj );
-                                        // NOTE: STACK is used because the object that died,
-                                        // died by STACK.
-                                    }
-                                }
-                            }
-                        }
-                        unsigned int rc = obj->getRefCount();
-                        deathrc_map[objId] = rc;
                     } else {
                         assert(false);
                     }

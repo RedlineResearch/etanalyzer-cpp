@@ -29,6 +29,7 @@ bool Region::allocate( Object *object,
     this->m_live_set.insert( object );
     this->m_free -= objSize; // Free goes down.
     this->m_used += objSize; // Used goes up.
+    this->m_live += objSize; // Live also goes up.
 
     return true;
     // TODO: do i need create_time? And if yes, how do I save it?
@@ -60,7 +61,7 @@ void Region::add_to_garbage_set( Object *object )
     // Remove from live set
     this->m_live_set.erase(object);
     // Keep a running total of how much garbage there is.
-    this->addToGarbage( objSize );
+    this->m_garbage += objSize;
     // Set the flag. This is the ONLY place this flag is set.
     object->setGarbageFlag();
 }
@@ -73,7 +74,7 @@ bool Region::makeDead( Object *object )
     ObjectSet_t::iterator iter = this->m_live_set.find(object);
     if (iter == this->m_live_set.end()) {
         // Not in live set.
-        cerr << "ERROR: makeDead on object Id[ " << object->getId()
+        cout << "ERROR: makeDead on object Id[ " << object->getId()
              << " ] but can not find in live set.";
         return false;
     }
@@ -84,11 +85,11 @@ bool Region::makeDead( Object *object )
         // the garbage set but didn't find it there.
     } else {
         // What do we do if the object was already garbage?
-        cerr << "ERROR: makeDead on object Id[ " << object->getId()
+        cout << "ERROR: makeDead on object Id[ " << object->getId()
              << " ] already set to garbage.";
     }
     // Remove from live_set regardless.
-    this->m_live_set.erase(iter);
+    this->m_live_set.erase(object);
     // Note that we don't adjust the sizes here. This is done in
     // 'add_to_garbage_set'.
     // return whether or not we were able to make the object garbage.
@@ -99,12 +100,13 @@ int Region::collect( unsigned int timestamp )
 {
     // Clear the garbage waiting set and return the space to free.
     int collected = this->m_garbage;
+    this->GC_attempts++;
 
     this->m_garbage_waiting.clear();
     // Garbage in this region is now 0.
     this->setGarbage(0);
     // TODO TODO: This is only DEBUG TODO TODO
-    cout << "GC[ " << timestamp << ", " << collected << "]" << endl;
+    // cout << "GC[ " << timestamp << ", " << collected << "]" << endl;
     // TODO TODO: End DEBUG
     // Add the collected space back to free
     this->m_free += collected;
@@ -114,12 +116,6 @@ int Region::collect( unsigned int timestamp )
     this->m_gc_history.push_back( rec );
     // Return how much we collected
     return collected;
-}
-
-inline void Region::addToGarbage( int add )
-{
-    // Garbage available goes up
-    this->m_garbage += add;
 }
 
 int Region::setGarbage( int newval )
@@ -225,6 +221,8 @@ bool MemoryMgr::allocate( Object *object,
         // We silently peg to ULONG_MAX the wraparound.
         // TODO: Maybe we should just error here as this probably isn't possible.
         this->m_liveSize = ( (temp < this->m_liveSize) ? ULONG_MAX : temp );
+        // Add to live set.
+        this->m_live_set.insert( object );
         // Keep tally of what our maximum live size is for the program run
         if (this->m_maxLiveSize < this->m_liveSize) {
             this->m_maxLiveSize = this->m_liveSize;
@@ -247,6 +245,10 @@ Region *MemoryMgr::new_region( string &region_name,
                                unsigned int region_size,
                                int level )
 {
+    // Debug
+    cerr << "Creating a new region[ " << region_name << " ]: "
+         << " size = " << region_size
+         << "  | level = " << level << endl;
     RegionMap_t::iterator iter = this->m_region_map.find(region_name);
     // Blow up if we create a new region with the same name.
     assert(iter == this->m_region_map.end());
@@ -264,7 +266,7 @@ bool MemoryMgr::makeDead( Object *object, unsigned int death_time )
     if (temp > this->m_liveSize) {
         // OVERFLOW, underflow?
         this->m_liveSize = 0;
-        cerr << "UNDERFLOW of substraction." << endl;
+        cout << "UNDERFLOW of substraction." << endl;
         // TODO If this happens, maybe we should think about why it happens.
     } else {
         // All good. Fight on.
@@ -310,4 +312,12 @@ void Region::print_status()
 
 void MemoryMgr::print_status()
 {
+}
+
+unsigned long int MemoryMgr::get_num_GC_attempts( bool printflag )
+{
+    // For every region that we manage:
+
+    //      get the number of GC attempts per region.
+    //      if printflag: print
 }

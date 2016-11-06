@@ -38,12 +38,16 @@ Object* HeapState::allocate( unsigned int id,
     // Call the Memory Manager allocate
     bool success = this->m_memmgr.allocate( obj, create_time, this->getAllocTime() );
     if (!success) {
-        cout << "Out of Memory Error." << endl;
-        cout << "    Object id : " << obj->getId() << endl;
-        cout << "    type      : " << obj->getType() << endl;
-        cout << "    size      : " << obj->getSize() << endl;
-        cout << "Stopping." << endl;
-        exit(1);
+        // cout << "Out of Memory Error." << endl;
+        // cout << "    Object id : " << obj->getId() << endl;
+        // cout << "    type      : " << obj->getType() << endl;
+        // cout << "    size      : " << obj->getSize() << endl;
+        // cout << "Stopping." << endl;
+        // exit(1);
+        cout << "OOM Error:"
+             << " ObjId: " << obj->getId()
+             << " type: " << obj->getType()
+             << " size: " << obj->getSize() << endl;
     }
     return obj;
 }
