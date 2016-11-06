@@ -61,13 +61,12 @@ enum class CPairType {
 typedef unsigned int ObjectId_t;
 typedef unsigned int FieldId_t;
 typedef unsigned int VTime_t;
-typedef map<ObjectId_t, Object *> ObjectMap;
-typedef map<ObjectId_t, Edge *> EdgeMap;
-typedef set<Object *> ObjectSet;
-typedef set<Edge *> EdgeSet;
-typedef deque< pair<int, int> > EdgeList;
+typedef std::map<ObjectId_t, Object *> ObjectMap;
+typedef std::map<ObjectId_t, Edge *> EdgeMap;
+typedef std::set<Object *> ObjectSet;
+typedef std::set<Edge *> EdgeSet;
+typedef std::deque< pair<int, int> > EdgeList;
 typedef std::map< Object *, std::set< Object * > * > KeySet_t;
-
 
 using namespace boost;
 using namespace boost::logic;

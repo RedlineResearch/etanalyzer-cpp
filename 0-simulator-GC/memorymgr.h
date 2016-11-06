@@ -30,6 +30,19 @@ typedef set< Object * > ObjectSet_t;
 typedef pair<int, int> GCRecord_t;
 //      - first is timestamp, second is bytes
 
+typedef unsigned int EdgeId_t;
+// A pair of edge Ids
+typedef std::pair< EdgeId_t, EdgeId_t > EdgeIdPair_t;
+// A set of Edge pairs
+typedef std::set< EdgeIdPair_t > EdgeIdPairSet_t;
+// A set of Edge Ids
+typedef std::set< EdgeId_t > EdgeIdSet_t;
+// A map:
+// key: edge id
+//     -> val: edge id set
+typedef std::map< EdgeId_t, EdgeIdSet_t > EdgeId2PairMap_t;
+
+
 class Region
 {
 public:
@@ -127,6 +140,9 @@ public:
         , m_level_map()
         , m_level2name_map()
         , m_live_set()
+        , m_region_edges()
+        , m_in_edges()
+        , m_out_edges()
         , m_alloc_region(NULL)
         , m_times_GC(0)
         , m_GC_threshold(GC_threshold)
@@ -149,6 +165,9 @@ public:
 
     // On a D(eath) event
     bool makeDead( Object *object, unsigned int death_time );
+
+    // On an U(pdate) event
+    void addEdge( EdgeId_t source, EdgeId_t target );
 
     // Get the GC history
     deque<GCRecord_t> get_GC_history();
@@ -206,6 +225,14 @@ private:
     // Live size should be here because this is where the live set it managed.
     unsigned long int m_liveSize; // current live size of program heap in bytes
     unsigned long int m_maxLiveSize; // current maximum live size of program heap in bytes
+
+    // Edge sets and remember sets
+    //     * edges where source and target are in the region
+    EdgeIdPairSet_t m_region_edges;
+    //     * edges where source is outside and target is in the region
+    EdgeId2PairMap_t m_in_edges;
+    //     * edges where source is inside and target is outside the region
+    EdgeId2PairMap_t m_out_edges;
 
     // Debugging GC
     unsigned long int GC_attempts;

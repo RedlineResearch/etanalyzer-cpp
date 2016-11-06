@@ -280,6 +280,13 @@ bool MemoryMgr::makeDead( Object *object, unsigned int death_time )
     return true;
 }
 
+// On an U(pdate) event
+void MemoryMgr::addEdge( EdgeId_t source,
+                         EdgeId_t target )
+{
+
+}
+
 deque<GCRecord_t> MemoryMgr::get_GC_history()
 {
     deque<GCRecord_t> result;

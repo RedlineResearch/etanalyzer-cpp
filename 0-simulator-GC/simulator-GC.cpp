@@ -212,16 +212,6 @@ unsigned int read_trace_file(FILE* f)
                     Object *oldObj = Heap.getObject(oldTgtId);
                     obj = Heap.getObject(objId);
                     target = ((tgtId > 0) ? Heap.getObject(tgtId) : NULL);
-                    if (obj) {
-                        obj->setPointedAtByHeap();
-                    }
-                    if (oldObj) {
-                        if (target) {
-                            oldObj->unsetLastUpdateNull();
-                        } else {
-                            oldObj->setLastUpdateNull();
-                        }
-                    }
                     // Increment and decrement refcounts
                     if (obj && target) {
                         unsigned int field_id = tokenizer.getInt(4);
