@@ -7,6 +7,7 @@
 //
 #include <algorithm>
 #include <iostream>
+#include <fstream>
 #include <map>
 #include <deque>
 #include <vector>
@@ -25,10 +26,14 @@ using namespace std;
 class Region;
 class Object;
 
-typedef map<string, Region *> RegionMap_t;
-typedef set< Object * > ObjectSet_t;
+typedef unsigned int ObjectId_t;
+
+typedef std::map<string, Region *> RegionMap_t;
+typedef std::set< Object * > ObjectSet_t;
 typedef pair<int, int> GCRecord_t;
 //      - first is timestamp, second is bytes
+
+typedef std::set< ObjectId_t > ObjectIdSet_t;
 
 typedef unsigned int EdgeId_t;
 // A pair of edge Ids
@@ -140,6 +145,7 @@ public:
         , m_level_map()
         , m_level2name_map()
         , m_live_set()
+        , m_specgroup()
         , m_region_edges()
         , m_in_edges()
         , m_out_edges()
@@ -153,6 +159,9 @@ public:
     // of how things are laid out. Virtual so you can reimplement
     // with different layouts.
     virtual bool initialize_memory( std::vector<int> sizes );
+
+    // Initialize the grouped region of objects
+    virtual void initialize_special_group( string &group_filename );
 
     // Get number of regions
     int numberRegions() const { return this->m_region_map.size(); }
@@ -221,6 +230,8 @@ private:
     // MemoryMgr is expected to keep track of objects so that we can handle
     // duplicate allocations properly
     ObjectSet_t m_live_set;
+    // The special group of objects that we are to ignore during collections
+    std::vector< ObjectId_t > m_specgroup;
     
     // Live size should be here because this is where the live set it managed.
     unsigned long int m_liveSize; // current live size of program heap in bytes

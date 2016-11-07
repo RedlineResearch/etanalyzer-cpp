@@ -58,7 +58,6 @@ enum class CPairType {
     CP_None = 99,
 };
 
-typedef unsigned int ObjectId_t;
 typedef unsigned int FieldId_t;
 typedef unsigned int VTime_t;
 typedef std::map<ObjectId_t, Object *> ObjectMap;

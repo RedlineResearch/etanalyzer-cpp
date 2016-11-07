@@ -169,6 +169,39 @@ bool MemoryMgr::initialize_memory( vector<int> sizes )
     return true;
 }
 
+// Initialize the grouped region of objects
+std::vector< ObjectId_t > MemoryMgr::initialize_special_group( string &group_filename )
+{
+    // The file is a CSV file with the following header:
+    //    groupId,number,death_time,list
+    std::ifstream infile( group_filename );
+    string line;
+    while (std::getline(infile, line)) {
+        size_t pos = 0;
+        string token;
+        unsigned long int num;
+        int count = 0;
+        // Get the group Id
+        pos = line.find(",");
+        assert( pos != string::npos );
+        int groupId = std::stoi(line.substr(0, pos));
+        s.erase(0, pos + 1);
+        // Get the number of objects in the group
+        pos = line.find(",");
+        assert( pos != string::npos );
+        int total = std::stoi(line.substr(0, pos));
+        while ((pos = line.find(",")) != string::npos) {
+            token = line.substr(0, pos);
+            num = std::stoi(token);
+            s.erase(0, pos + 1);
+        }
+        // Get the last number
+        num = std::stoi(line);
+    }
+    return result;
+}
+
+
 // Do a garbage collection
 // Returns number of bytes collected
 int MemoryMgr::do_collection()

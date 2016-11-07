@@ -10,6 +10,11 @@ bool HeapState::initialize_memory( std::vector<int> sizes )
     return this->m_memmgr.initialize_memory( sizes );
 }
 
+void HeapState::initialize_special_group( string &group_filename )
+{
+    this->m_memmgr.initialize_special_group( group_filename );
+}
+
 Object* HeapState::allocate( unsigned int id,
                              unsigned int size,
                              char kind,
