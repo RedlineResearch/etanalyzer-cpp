@@ -166,6 +166,9 @@ class HeapState
 
         Edge* make_edge( Object* source, unsigned int field_id, Object* target, unsigned int cur_time);
 
+        void make_edge2( unsigned int objId, unsigned int tgtId );
+        void remove_edge2( unsigned int objId, unsigned int oldTgtId );
+
         void makeDead(Object * obj, unsigned int death_time);
 
         ObjectMap::iterator begin() { return m_objects.begin(); }

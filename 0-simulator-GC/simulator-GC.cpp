@@ -207,36 +207,40 @@ unsigned int read_trace_file(FILE* f)
                     unsigned int objId = tokenizer.getInt(2);
                     unsigned int tgtId = tokenizer.getInt(3);
                     unsigned int oldTgtId = tokenizer.getInt(1);
-                    unsigned int threadId = tokenizer.getInt(5);
-                    Thread *thread = Exec.getThread(threadId);
-                    Object *oldObj = Heap.getObject(oldTgtId);
-                    obj = Heap.getObject(objId);
-                    target = ((tgtId > 0) ? Heap.getObject(tgtId) : NULL);
-                    // Increment and decrement refcounts
-                    if (obj && target) {
-                        unsigned int field_id = tokenizer.getInt(4);
-                        Edge* new_edge = Heap.make_edge( obj, field_id,
-                                                         target, Exec.NowUp() );
-                        if (thread) {
-                            Method *topMethod = thread->TopMethod();
-                            if (topMethod) {
-                                topMethod->getName();
-                            }
-                            obj->updateField( new_edge,
-                                              field_id,
-                                              Exec.NowUp(),
-                                              topMethod, // for death site info
-                                              HEAP, // reason
-                                              NULL ); // death root 0 because may not be a root
-                            // NOTE: topMethod COULD be NULL here.
-                        }
+                    Heap.make_edge2( objId, tgtId );
+                    Heap.remove_edge2( objId, oldTgtId );
+                    // TODO ============================================================ TODO
+                    // TODO unsigned int threadId = tokenizer.getInt(5);
+                    // TODO: Not sure if we need this code
+                    // TODO Thread *thread = Exec.getThread(threadId);
+                    // TODO Object *oldObj = Heap.getObject(oldTgtId);
+                    // TODO obj = Heap.getObject(objId);
+                    // TODO target = ((tgtId > 0) ? Heap.getObject(tgtId) : NULL);
+                    // TODO if (obj && target) {
+                        // TODO unsigned int field_id = tokenizer.getInt(4);
+                        // TODO Edge* new_edge = Heap.make_edge( obj, field_id,
+                        // TODO                                  target, Exec.NowUp() );
+                        // TODO if (thread) {
+                        // TODO     Method *topMethod = thread->TopMethod();
+                        // TODO     if (topMethod) {
+                        // TODO         topMethod->getName();
+                        // TODO     }
+                        // TODO     obj->updateField( new_edge,
+                        // TODO                       field_id,
+                        // TODO                       Exec.NowUp(),
+                        // TODO                       topMethod, // for death site info
+                        // TODO                       HEAP, // reason
+                        // TODO                       NULL ); // death root 0 because may not be a root
+                        // TODO     // NOTE: topMethod COULD be NULL here.
+                        // TODO }
                         // DEBUG ONLY IF NEEDED
                         // Example:
                         // if ( (objId == tgtId) && (objId == 166454) ) {
                         // if ( (objId == 166454) ) {
                         //     tokenizer.debugCurrent();
                         // }
-                    }
+                    // TODO }
+                    // TODO ============================================================ TODO
                 }
                 break;
 

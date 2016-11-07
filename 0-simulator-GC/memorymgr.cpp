@@ -176,6 +176,7 @@ void MemoryMgr::initialize_special_group( string &group_filename,
     std::ifstream infile( group_filename );
     string line;
     string s;
+    this->m_numgroups = numgroups;
     int group_count = 0;
     // The file is a CSV file with the following header:
     //    groupId,number,death_time,list
@@ -237,12 +238,12 @@ void MemoryMgr::initialize_special_group( string &group_filename,
 }
 
 
-// Do a garbage collection
-// Returns number of bytes collected
-int MemoryMgr::do_collection()
-{
-    return 0;
-}
+// TODO // Do a garbage collection
+// TODO // Returns number of bytes collected
+// TODO int MemoryMgr::do_collection()
+// TODO {
+// TODO     return 0;
+// TODO }
 
 // Returns true if GC threshold has been exceeded
 //         false otherwise.
@@ -349,10 +350,90 @@ bool MemoryMgr::makeDead( Object *object, unsigned int death_time )
 }
 
 // On an U(pdate) event
-void MemoryMgr::addEdge( EdgeId_t source,
-                         EdgeId_t target )
+void MemoryMgr::add_edge( ObjectId_t src,
+                          ObjectId_t tgt )
 {
+    ObjectIdSet_t::iterator iter = this->m_specgroup.find(src);
+    ObjectIdSet_t::iterator tgt_iter = this->m_specgroup.find(tgt);
+    EdgeIdPair_t edge = std::make_pair( src, tgt );
+    if (iter != this->m_specgroup.end()) {
+        // Source is in special group
+        if (tgt_iter != this->m_specgroup.end()) {
+            // Target is in special group
+            this->m_region_edges.insert( edge );
+        } else {
+            // Target is NOT in special group
+            this->m_out_edges.insert( edge );
+        }
+    } else {
+        // Source is NOT in special group
+        if (tgt_iter != this->m_specgroup.end()) {
+            // Target is in special group
+            this->m_in_edges.insert( edge );
+        } else {
+            // Target is NOT in special group
+            this->m_nonregion_edges.insert( edge );
+        }
+    }
+    //
+    // Add to look up maps
+    // Src map
+    ObjectId2SetMap_t::iterator miter = this->m_srcidmap.find(src);
+    if (miter != this->m_srcidmap.end()) {
+        // Already exists
+        this->m_srcidmap[src].insert(tgt);
+    } else {
+        // Doesn't exist
+        ObjectIdSet_t tmpset;
+        tmpset.insert(tgt);
+        this->m_srcidmap[src] = tmpset;
+    }
+    // Tgt map
+    miter = this->m_tgtidmap.find(tgt);
+    if (miter != this->m_tgtidmap.end()) {
+        // Already exists
+        this->m_tgtidmap[src].insert(src);
+    } else {
+        // Doesn't exist
+        ObjectIdSet_t tmpset;
+        tmpset.insert(src);
+        this->m_tgtidmap[tgt] = tmpset;
+    }
+}
 
+void MemoryMgr::remove_edge( ObjectId_t src,
+                             ObjectId_t oldTgtId )
+{
+    EdgeIdPair_t edge = std::make_pair( src, oldTgtId );
+    ObjectIdPairSet_t::iterator iter;
+    // Look in the special region
+    iter = this->m_region_edges.find(edge);
+    if (iter != this->m_region_edges.end()) {
+        // Found in region
+        this->m_region_edges.erase(iter);
+        return;
+    }
+    // Look outside the special region
+    iter = this->m_nonregion_edges.find(edge);
+    if (iter != this->m_nonregion_edges.end()) {
+        // Found in nonregion
+        this->m_nonregion_edges.erase(iter);
+        return;
+    }
+    // Look in the in to out 
+    iter = this->m_in_edges.find(edge);
+    if (iter != this->m_in_edges.end()) {
+        // Found in IN region 
+        this->m_in_edges.erase(iter);
+        return;
+    }
+    // Look in the out to in 
+    iter = this->m_out_edges.find(edge);
+    if (iter != this->m_out_edges.end()) {
+        // Found in IN region 
+        this->m_out_edges.erase(iter);
+        return;
+    }
 }
 
 deque<GCRecord_t> MemoryMgr::get_GC_history()

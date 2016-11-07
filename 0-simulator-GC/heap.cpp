@@ -87,6 +87,19 @@ Edge* HeapState::make_edge( Object* source,
     return new_edge;
 }
 
+// - TODO
+void HeapState::make_edge2( unsigned int objId, unsigned int tgtId )
+{
+    this->m_memmgr.add_edge( objId, tgtId );
+}
+
+// - TODO
+void HeapState::remove_edge2( unsigned int objId, unsigned int oldTgtId )
+{
+    this->m_memmgr.remove_edge( objId, oldTgtId );
+}
+
+
 void HeapState::makeDead(Object * obj, unsigned int death_time)
 {
     if (this->m_memmgr.is_in_live_set(obj)) {
