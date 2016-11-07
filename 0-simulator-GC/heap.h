@@ -146,7 +146,9 @@ class HeapState
 
         // Initializes all the regions. Vector contains size of regions
         // corresponding to levels of regions according to index.
-        virtual bool initialize_memory( std::vector<int> sizes );
+        virtual bool initialize_memory( std::vector<int> sizes,
+                                        string &group_filename,
+                                        int numgroups );
 
         void enableObjectDebug() { m_obj_debug_flag = true; }
         void disableObjectDebug() { m_obj_debug_flag = false; }

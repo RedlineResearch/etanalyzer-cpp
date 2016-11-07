@@ -30,10 +30,10 @@ typedef unsigned int ObjectId_t;
 
 typedef std::map<string, Region *> RegionMap_t;
 typedef std::set< Object * > ObjectSet_t;
+typedef std::set< ObjectId_t > ObjectIdSet_t;
 typedef pair<int, int> GCRecord_t;
 //      - first is timestamp, second is bytes
 
-typedef std::set< ObjectId_t > ObjectIdSet_t;
 
 typedef unsigned int EdgeId_t;
 // A pair of edge Ids
@@ -161,7 +161,8 @@ public:
     virtual bool initialize_memory( std::vector<int> sizes );
 
     // Initialize the grouped region of objects
-    virtual void initialize_special_group( string &group_filename );
+    virtual void initialize_special_group( string &group_filename,
+                                           int numgroups );
 
     // Get number of regions
     int numberRegions() const { return this->m_region_map.size(); }
@@ -231,7 +232,7 @@ private:
     // duplicate allocations properly
     ObjectSet_t m_live_set;
     // The special group of objects that we are to ignore during collections
-    std::vector< ObjectId_t > m_specgroup;
+    ObjectIdSet_t m_specgroup;
     
     // Live size should be here because this is where the live set it managed.
     unsigned long int m_liveSize; // current live size of program heap in bytes

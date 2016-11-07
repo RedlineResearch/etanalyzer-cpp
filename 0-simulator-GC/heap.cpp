@@ -5,16 +5,16 @@ bool HeapState::do_refcounting = true;
 bool HeapState::debug = false;
 unsigned int Object::g_counter = 0;
 
-bool HeapState::initialize_memory( std::vector<int> sizes )
+bool HeapState::initialize_memory( std::vector<int> sizes,
+                                   string &group_filename,
+                                   int numgroups )
 {
-    return this->m_memmgr.initialize_memory( sizes );
+    bool result = this->m_memmgr.initialize_memory( sizes );
+    this->m_memmgr.initialize_special_group( group_filename, numgroups );
+    return result;
 }
 
-void HeapState::initialize_special_group( string &group_filename )
-{
-    this->m_memmgr.initialize_special_group( group_filename );
-}
-
+// - TODO
 Object* HeapState::allocate( unsigned int id,
                              unsigned int size,
                              char kind,

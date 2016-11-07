@@ -170,35 +170,70 @@ bool MemoryMgr::initialize_memory( vector<int> sizes )
 }
 
 // Initialize the grouped region of objects
-std::vector< ObjectId_t > MemoryMgr::initialize_special_group( string &group_filename )
+void MemoryMgr::initialize_special_group( string &group_filename,
+                                          int numgroups )
 {
-    // The file is a CSV file with the following header:
-    //    groupId,number,death_time,list
     std::ifstream infile( group_filename );
     string line;
+    string s;
+    int group_count = 0;
+    // The file is a CSV file with the following header:
+    //    groupId,number,death_time,list
+    // First line is a header:
+    std::getline(infile, line);
+    // TODO: Maybe make sure we have the right file?
     while (std::getline(infile, line)) {
         size_t pos = 0;
         string token;
         unsigned long int num;
         int count = 0;
+        //------------------------------------------------------------
         // Get the group Id
         pos = line.find(",");
         assert( pos != string::npos );
-        int groupId = std::stoi(line.substr(0, pos));
-        s.erase(0, pos + 1);
+        s = line.substr(0, pos);
+        // DEBUG: cout << "GID: " << s << endl;
+        int groupId = std::stoi(s);
+        line.erase(0, pos + 1);
+        //------------------------------------------------------------
         // Get the number of objects in the group
         pos = line.find(",");
         assert( pos != string::npos );
-        int total = std::stoi(line.substr(0, pos));
+        s = line.substr(0, pos);
+        // DEBUG: cout << "NUM: " << s << endl;
+        int total = std::stoi(s);
+        line.erase(0, pos + 1);
+        //------------------------------------------------------------
+        // Get the deathtime
+        pos = line.find(",");
+        assert( pos != string::npos );
+        s = line.substr(0, pos);
+        // DEBUG: cout << "DTIME: " << s << endl;
+        int dtime = std::stoi(s);
+        line.erase(0, pos + 1);
+        //------------------------------------------------------------
+        // Get the object Ids
         while ((pos = line.find(",")) != string::npos) {
             token = line.substr(0, pos);
             num = std::stoi(token);
-            s.erase(0, pos + 1);
+            line.erase(0, pos + 1);
+            ++count;
+            this->m_specgroup.insert(num);
         }
         // Get the last number
         num = std::stoi(line);
+        this->m_specgroup.insert(num);
+        ++count;
+        ++group_count;
+        // DEBUG
+        cout << "Special group[ " << groupId << " ]:  "
+             << "total objects read in = " << total << " | "
+             << "set size = " << this->m_specgroup.size() << endl;
+        // END DEBUG
+        if (group_count >= numgroups) {
+            break;
+        }
     }
-    return result;
 }
 
 
