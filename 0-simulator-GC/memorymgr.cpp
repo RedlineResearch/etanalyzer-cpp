@@ -157,16 +157,18 @@ bool MemoryMgr::initialize_memory( vector<int> sizes )
         exit(1);
     }
     // Calculate our GC threshold for the system.
-    this->m_GC_byte_threshold = static_cast<int>(this->m_total_size * this->m_GC_threshold);
-    if ( (this->m_GC_byte_threshold == 0) ||
-         (this->m_GC_byte_threshold > this->m_total_size) ){
-        cerr << "Invalid GC byte threshold: " << this->m_GC_byte_threshold << endl;
-        cerr << "GC percentage threshold  : " << this->m_GC_threshold << endl;
-        cerr << "Total heap size          : " << this->m_total_size << endl;
-        exit(2);
-    }
-
+    // OLD CODE: when GC threshold is less than total size
+    //           this->m_GC_byte_threshold = static_cast<int>(this->m_total_size * this->m_GC_threshold);
+    this->m_GC_byte_threshold = this->m_total_size;
     return true;
+
+    // NOT NEEDED NOW: if ( (this->m_GC_byte_threshold == 0) ||
+    // NOT NEEDED NOW:      (this->m_GC_byte_threshold > this->m_total_size) ){
+    // NOT NEEDED NOW:     cerr << "Invalid GC byte threshold: " << this->m_GC_byte_threshold << endl;
+    // NOT NEEDED NOW:     cerr << "GC percentage threshold  : " << this->m_GC_threshold << endl;
+    // NOT NEEDED NOW:     cerr << "Total heap size          : " << this->m_total_size << endl;
+    // NOT NEEDED NOW:     exit(2);
+    // NOT NEEDED NOW: }
 }
 
 // Initialize the grouped region of objects
@@ -249,6 +251,8 @@ void MemoryMgr::initialize_special_group( string &group_filename,
 //         false otherwise.
 bool MemoryMgr::should_do_collection()
 {
+    assert(false);
+    // NOT NEEDED NOW.
     // Assume that threshold is always valid.
     return (this->m_liveSize >= this->m_GC_byte_threshold);
 }
@@ -296,10 +300,10 @@ bool MemoryMgr::allocate( Object *object,
         if (this->m_maxLiveSize < this->m_liveSize) {
             this->m_maxLiveSize = this->m_liveSize;
         }
-        if (!GCdone && this->should_do_collection()) {
-            collected += this->m_alloc_region->collect( create_time );
-            GCdone = true;
-        }
+        // NOT NEEDED NOW: if (!GCdone && this->should_do_collection()) {
+        // NOT NEEDED NOW:     collected += this->m_alloc_region->collect( create_time );
+        // NOT NEEDED NOW:     GCdone = true;
+        // NOT NEEDED NOW: }
     }
     if (GCdone) {
         // Increment the GC count

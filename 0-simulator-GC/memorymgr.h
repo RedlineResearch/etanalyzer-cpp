@@ -165,7 +165,7 @@ public:
         , m_tgtidmap()
         , m_alloc_region(NULL)
         , m_times_GC(0)
-        , m_GC_threshold(GC_threshold)
+        // TODO , m_GC_threshold(GC_threshold)
         , m_alloc_time(0)
         , m_attempts_edges_removed(0)
         , m_edges_removed(0) {
@@ -253,9 +253,10 @@ private:
     // If more complex generational/region types of memory management is
     // needed, then 'initialize_memory' needs to be overridden in the 
     // inheriting class.
-    float m_GC_threshold;
     // GC threshold in bytes
     unsigned long int m_GC_byte_threshold;
+    // TODO DELETE float m_GC_threshold;
+
     // Logical allocation time
     unsigned int m_alloc_time;
     // MemoryMgr is expected to keep track of objects so that we can handle
