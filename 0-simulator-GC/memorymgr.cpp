@@ -443,6 +443,7 @@ void MemoryMgr::remove_edge( ObjectId_t src,
         // that a bug's introduced.
     }
     END:
+    this->m_edges_removed++;
     return;
 }
 

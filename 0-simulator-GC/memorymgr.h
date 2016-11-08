@@ -161,7 +161,8 @@ public:
         , m_alloc_region(NULL)
         , m_times_GC(0)
         , m_GC_threshold(GC_threshold)
-        , m_alloc_time(0) {
+        , m_alloc_time(0)
+        , m_edges_removed(0) {
     }
 
     // Initializes all the regions. This should contain all knowledge
@@ -286,6 +287,7 @@ private:
 
     // Debugging GC
     unsigned long int GC_attempts;
+    int m_edges_removed;
 };
 
 #endif
