@@ -357,7 +357,7 @@ void MemoryMgr::add_edge( ObjectId_t src,
     ObjectIdSet_t::iterator tgt_iter = this->m_specgroup.find(tgt);
     //----------------------------------------------------------------------
     // Add to edge maps
-    EdgeIdPair_t edge = std::make_pair( src, tgt );
+    ObjectIdPair_t edge = std::make_pair( src, tgt );
     if (iter != this->m_specgroup.end()) {
         // Source is in special group
         if (tgt_iter != this->m_specgroup.end()) {
@@ -407,8 +407,9 @@ void MemoryMgr::add_edge( ObjectId_t src,
 void MemoryMgr::remove_edge( ObjectId_t src,
                              ObjectId_t oldTgtId )
 {
-    EdgeIdPair_t edge = std::make_pair( src, oldTgtId );
+    ObjectIdPair_t edge = std::make_pair( src, oldTgtId );
     ObjectIdPairSet_t::iterator iter;
+    this->m_attempts_edges_removed++;
     //----------------------------------------------------------------------
     // Remove edge from region maps
     // Look in the special region
@@ -416,6 +417,7 @@ void MemoryMgr::remove_edge( ObjectId_t src,
     if (iter != this->m_region_edges.end()) {
         // Found in region
         this->m_region_edges.erase(iter);
+        this->m_edges_removed++;
         goto END;
     }
     // Look outside the special region
@@ -423,6 +425,7 @@ void MemoryMgr::remove_edge( ObjectId_t src,
     if (iter != this->m_nonregion_edges.end()) {
         // Found in nonregion
         this->m_nonregion_edges.erase(iter);
+        this->m_edges_removed++;
         goto END;
     }
     // Look in the in to out 
@@ -430,6 +433,7 @@ void MemoryMgr::remove_edge( ObjectId_t src,
     if (iter != this->m_in_edges.end()) {
         // Found in IN region 
         this->m_in_edges.erase(iter);
+        this->m_edges_removed++;
         goto END;
     }
     // Look in the out to in 
@@ -437,13 +441,13 @@ void MemoryMgr::remove_edge( ObjectId_t src,
     if (iter != this->m_out_edges.end()) {
         // Found in IN region 
         this->m_out_edges.erase(iter);
+        this->m_edges_removed++;
         goto END;
         // Well this isn't needed but symmetric.
         // If ever there's any new code after this, this makes it less likely
         // that a bug's introduced.
     }
     END:
-    this->m_edges_removed++;
     return;
 }
 

@@ -196,7 +196,10 @@ class HeapState
         ObjectPtrMap_t& get_whereis() { return m_whereis; }
         KeySet_t& get_keyset() { return m_keyset; }
 
+        // Debug
         deque<GCRecord_t> get_GC_history() { return this->m_memmgr.get_GC_history(); }
+        int get_number_edges_removed() const { this->m_memmgr.get_number_edges_removed(); }
+        int get_number_attempts_edges_removed() const { return this->m_memmgr.get_number_attempts_edges_removed(); }
 };
 
 enum Color {

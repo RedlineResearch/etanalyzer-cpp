@@ -34,20 +34,25 @@ typedef std::set< ObjectId_t > ObjectIdSet_t;
 typedef pair<int, int> GCRecord_t;
 //      - first is timestamp, second is bytes
 
+typedef unsigned int EdgeId_t;
+// A pair of edge Ids
+typedef std::pair< ObjectId_t, ObjectId_t > ObjectIdPair_t;
+
 // If doing sets of things that aren't primitives, then you need
 // to supply a comparator class to the set definition.
 struct _compclass {
-    bool operator() ( const std::pair< ObjectId_t, unsigned int >& lhs,
-                      const std::pair< ObjectId_t, unsigned int >& rhs ) const {
-        return lhs.second > rhs.second;
+    bool operator() ( const ObjectIdPair_t &lhs,
+                      const ObjectIdPair_t &rhs ) const {
+        if (lhs.first == rhs.first) {
+            return lhs.second < rhs.second;
+        } else {
+            return lhs.first < rhs.first;
+        }
     }
 };
 
-typedef unsigned int EdgeId_t;
-// A pair of edge Ids
-typedef std::pair< ObjectId_t, ObjectId_t > EdgeIdPair_t;
 // A set of Edge pairs
-typedef std::set< EdgeIdPair_t, _compclass > ObjectIdPairSet_t;
+typedef std::set< ObjectIdPair_t, _compclass > ObjectIdPairSet_t;
 // A map:
 // key: edge id
 //     -> val: edge id set
@@ -162,6 +167,7 @@ public:
         , m_times_GC(0)
         , m_GC_threshold(GC_threshold)
         , m_alloc_time(0)
+        , m_attempts_edges_removed(0)
         , m_edges_removed(0) {
     }
 
@@ -196,9 +202,6 @@ public:
     void remove_from_tgtidmap( ObjectId_t src,
                                ObjectId_t tgtId );
 
-    // Get the GC history
-    deque<GCRecord_t> get_GC_history();
-
     // Check if object is in live set
     bool is_in_live_set( Object *object );
 
@@ -209,9 +212,19 @@ public:
     // Get total size capacity in bytes
     unsigned long int getTotalSize() const { return this->m_total_size; }
 
+    //----------------------------------------------------------------------
     // Debug functions
-    void print_status();
+    //
+    // Get the GC history
+    deque<GCRecord_t> get_GC_history();
     unsigned long int get_num_GC_attempts( bool printflag );
+
+    // - TODO
+    int get_number_edges_removed() const { return this->m_edges_removed; }
+    int get_number_attempts_edges_removed() const { return this->m_attempts_edges_removed; }
+
+    // - TODO
+    void print_status();
 
 private:
     // Total size being managed
@@ -288,6 +301,7 @@ private:
     // Debugging GC
     unsigned long int GC_attempts;
     int m_edges_removed;
+    int m_attempts_edges_removed;
 };
 
 #endif

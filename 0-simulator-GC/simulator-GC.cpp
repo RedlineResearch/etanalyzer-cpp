@@ -361,9 +361,11 @@ int main(int argc, char* argv[])
     FILE* f = fdopen(0, "r");
     unsigned int total_objects = read_trace_file(f);
     unsigned int final_time = Exec.NowUp();
-    cout << "Done at time " << Exec.NowUp() << endl;
-    cout << "Total objects: " << total_objects << endl;
-    cout << "Heap.size:     " << Heap.size() << endl;
+    cout << "Done at time " << Exec.NowUp() << endl
+         << "Total objects: " << total_objects << endl
+         << "Heap.size:     " << Heap.size() << endl
+         << " - number of edges removed: " << Heap.get_number_edges_removed() << endl
+         << " - number of edges removal attempts: " << Heap.get_number_attempts_edges_removed() << endl;
     // assert( total_objects == Heap.size() );
 
     if (0) {
