@@ -462,6 +462,9 @@ void MemoryMgr::remove_from_srcidmap( ObjectId_t src,
             // Remove old target
             myset.erase(itmp);
         }
+        // DEBUG
+        // itmp = myset.find(oldTgtId);
+        // assert( itmp == myset.end() );
     }
 }
 
@@ -478,6 +481,9 @@ void MemoryMgr::remove_from_tgtidmap( ObjectId_t src,
         if (itmp != myset.end()) {
             myset.erase(itmp);
         }
+        // DEBUG
+        // itmp = myset.find(src);
+        // assert( itmp == myset.end() );
     }
 }
 
