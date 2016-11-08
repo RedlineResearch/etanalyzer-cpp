@@ -355,6 +355,8 @@ void MemoryMgr::add_edge( ObjectId_t src,
 {
     ObjectIdSet_t::iterator iter = this->m_specgroup.find(src);
     ObjectIdSet_t::iterator tgt_iter = this->m_specgroup.find(tgt);
+    //----------------------------------------------------------------------
+    // Add to edge maps
     EdgeIdPair_t edge = std::make_pair( src, tgt );
     if (iter != this->m_specgroup.end()) {
         // Source is in special group
@@ -375,7 +377,7 @@ void MemoryMgr::add_edge( ObjectId_t src,
             this->m_nonregion_edges.insert( edge );
         }
     }
-    //
+    //----------------------------------------------------------------------
     // Add to look up maps
     // Src map
     ObjectId2SetMap_t::iterator miter = this->m_srcidmap.find(src);
@@ -388,6 +390,7 @@ void MemoryMgr::add_edge( ObjectId_t src,
         tmpset.insert(tgt);
         this->m_srcidmap[src] = tmpset;
     }
+    //----------------------------------------------------------------------
     // Tgt map
     miter = this->m_tgtidmap.find(tgt);
     if (miter != this->m_tgtidmap.end()) {
@@ -406,33 +409,111 @@ void MemoryMgr::remove_edge( ObjectId_t src,
 {
     EdgeIdPair_t edge = std::make_pair( src, oldTgtId );
     ObjectIdPairSet_t::iterator iter;
+    //----------------------------------------------------------------------
+    // Remove edge from region maps
     // Look in the special region
     iter = this->m_region_edges.find(edge);
     if (iter != this->m_region_edges.end()) {
         // Found in region
         this->m_region_edges.erase(iter);
-        return;
+        goto END;
     }
     // Look outside the special region
     iter = this->m_nonregion_edges.find(edge);
     if (iter != this->m_nonregion_edges.end()) {
         // Found in nonregion
         this->m_nonregion_edges.erase(iter);
-        return;
+        goto END;
     }
     // Look in the in to out 
     iter = this->m_in_edges.find(edge);
     if (iter != this->m_in_edges.end()) {
         // Found in IN region 
         this->m_in_edges.erase(iter);
-        return;
+        goto END;
     }
     // Look in the out to in 
     iter = this->m_out_edges.find(edge);
     if (iter != this->m_out_edges.end()) {
         // Found in IN region 
         this->m_out_edges.erase(iter);
-        return;
+        goto END;
+        // Well this isn't needed but symmetric.
+        // If ever there's any new code after this, this makes it less likely
+        // that a bug's introduced.
+    }
+    END:
+    return;
+}
+
+// - TODO
+void MemoryMgr::remove_from_srcidmap( ObjectId_t src,
+                                      ObjectId_t oldTgtId )
+{
+    //----------------------------------------------------------------------
+    // Remove from appropriate lookup maps
+    ObjectId2SetMap_t::iterator miter = this->m_srcidmap.find(src);
+    if (miter != this->m_srcidmap.end()) {
+        // Found the source.
+        // Look for the old target id in the set
+        ObjectIdSet_t &myset = miter->second;
+        ObjectIdSet_t::iterator itmp = myset.find(oldTgtId);
+        if (itmp != myset.end()) {
+            // Remove old target
+            myset.erase(itmp);
+        }
+    }
+}
+
+// - TODO
+void MemoryMgr::remove_from_tgtidmap( ObjectId_t src,
+                                      ObjectId_t tgtId )
+{
+    ObjectId2SetMap_t::iterator miter = this->m_tgtidmap.find(tgtId);
+    if (miter != this->m_tgtidmap.end()) {
+        // Found the old target.
+        // Look for the source id in the set
+        ObjectIdSet_t &myset = miter->second;
+        ObjectIdSet_t::iterator itmp = myset.find(src);
+        if (itmp != myset.end()) {
+            myset.erase(itmp);
+        }
+    }
+}
+
+// - TODO Documentation
+void MemoryMgr::remove_object( ObjectId_t objId )
+{
+    ObjectId2SetMap_t::iterator iter;
+    //------------------------------------------------------------
+    // Look for objId in m_srcidmap
+    iter = this->m_srcidmap.find(objId);
+    if (iter != this->m_srcidmap.end()) {
+        // Found the objId as source.
+        // Go through the and remove all outgoing edges:
+        ObjectIdSet_t &myset = iter->second;
+        ObjectIdSet_t::iterator siter = myset.begin();
+        while (siter != myset.end()) {
+            // Remove target (src, *siter)
+            this->remove_edge( objId, *siter );
+            siter++;
+        }
+        this->m_srcidmap.erase(iter);
+    }
+    //------------------------------------------------------------
+    // Look for objId in m_tgtidmap
+    iter = this->m_tgtidmap.find(objId);
+    if (iter != this->m_tgtidmap.end()) {
+        // Found the objId as target.
+        // Go through the and remove all incoming edges:
+        ObjectIdSet_t &myset = iter->second;
+        ObjectIdSet_t::iterator siter = myset.begin();
+        while (siter != myset.end()) {
+            // Remove target (src, *siter)
+            this->remove_edge( *siter, objId );
+            siter++;
+        }
+        this->m_tgtidmap.erase(iter);
     }
 }
 

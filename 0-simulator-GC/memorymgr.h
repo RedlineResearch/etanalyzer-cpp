@@ -188,7 +188,12 @@ public:
     // On an U(pdate) event
     void add_edge( ObjectId_t src, ObjectId_t tgt );
     void remove_edge( ObjectId_t src, ObjectId_t oldTgtId );
+    void remove_object( ObjectId_t objId );
 
+    void remove_from_srcidmap( ObjectId_t src,
+                               ObjectId_t oldTgtId );
+    void remove_from_tgtidmap( ObjectId_t src,
+                               ObjectId_t tgtId );
 
     // Get the GC history
     deque<GCRecord_t> get_GC_history();

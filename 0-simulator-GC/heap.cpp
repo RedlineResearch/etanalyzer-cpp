@@ -97,6 +97,10 @@ void HeapState::make_edge2( unsigned int objId, unsigned int tgtId )
 void HeapState::remove_edge2( unsigned int objId, unsigned int oldTgtId )
 {
     this->m_memmgr.remove_edge( objId, oldTgtId );
+    this->m_memmgr.remove_from_srcidmap( objId,
+                                         oldTgtId );
+    this->m_memmgr.remove_from_tgtidmap( objId,
+                                         oldTgtId );
 }
 
 
