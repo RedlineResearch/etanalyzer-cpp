@@ -357,28 +357,74 @@ bool MemoryMgr::makeDead( Object *object, unsigned int death_time )
 void MemoryMgr::add_edge( ObjectId_t src,
                           ObjectId_t tgt )
 {
+    // DEBUG
+    // DEBUG cout << "Adding edge (" << src << "," << tgt << ")" << endl;
     ObjectIdSet_t::iterator iter = this->m_specgroup.find(src);
     ObjectIdSet_t::iterator tgt_iter = this->m_specgroup.find(tgt);
     //----------------------------------------------------------------------
     // Add to edge maps
-    ObjectIdPair_t edge = std::make_pair( src, tgt );
+    // TODO DELETE ObjectIdPair_t edge = std::make_pair( src, tgt );
     if (iter != this->m_specgroup.end()) {
         // Source is in special group
         if (tgt_iter != this->m_specgroup.end()) {
             // Target is in special group
-            this->m_region_edges.insert( edge );
+            ObjectId2SetMap_t::iterator itmp = this->m_region_edges.find(src);
+            if (itmp != this->m_region_edges.end()) {
+                // Already in the map
+                ObjectIdSet_t &myset = itmp->second;
+                myset.insert(tgt);
+            } else {
+                // Not in the map
+                ObjectIdSet_t myset;
+                myset.insert(tgt);
+                this->m_region_edges[src] = myset;
+            }
+            this->m_region_edges_count++;
         } else {
             // Target is NOT in special group
-            this->m_out_edges.insert( edge );
+            ObjectId2SetMap_t::iterator itmp = this->m_out_edges.find(src);
+            if (itmp != this->m_out_edges.end()) {
+                // Already in the map
+                ObjectIdSet_t &myset = itmp->second;
+                myset.insert(tgt);
+            } else {
+                // Not in the map
+                ObjectIdSet_t myset;
+                myset.insert(tgt);
+                this->m_out_edges[src] = myset;
+            }
+            this->m_out_edges_count++;
         }
     } else {
         // Source is NOT in special group
         if (tgt_iter != this->m_specgroup.end()) {
             // Target is in special group
-            this->m_in_edges.insert( edge );
+            ObjectId2SetMap_t::iterator itmp = this->m_in_edges.find(src);
+            if (itmp != this->m_in_edges.end()) {
+                // Already in the map
+                ObjectIdSet_t &myset = itmp->second;
+                myset.insert(tgt);
+            } else {
+                // Not in the map
+                ObjectIdSet_t myset;
+                myset.insert(tgt);
+                this->m_in_edges[src] = myset;
+            }
+            this->m_in_edges_count++;
         } else {
             // Target is NOT in special group
-            this->m_nonregion_edges.insert( edge );
+            ObjectId2SetMap_t::iterator itmp = this->m_nonregion_edges.find(src);
+            if (itmp != this->m_nonregion_edges.end()) {
+                // Already in the map
+                ObjectIdSet_t &myset = itmp->second;
+                myset.insert(tgt);
+            } else {
+                // Not in the map
+                ObjectIdSet_t myset;
+                myset.insert(tgt);
+                this->m_nonregion_edges[src] = myset;
+            }
+            this->m_nonregion_edges_count++;
         }
     }
     //----------------------------------------------------------------------
@@ -406,45 +452,49 @@ void MemoryMgr::add_edge( ObjectId_t src,
         tmpset.insert(src);
         this->m_tgtidmap[tgt] = tmpset;
     }
-}
-
+} 
 void MemoryMgr::remove_edge( ObjectId_t src,
                              ObjectId_t oldTgtId )
 {
-    ObjectIdPair_t edge = std::make_pair( src, oldTgtId );
-    ObjectIdPairSet_t::iterator iter;
+    // DEBUG
+    // DEBUG cout << "Remove edge (" << src << "," << oldTgtId << ")" << endl;
+    ObjectId2SetMap_t::iterator iter;
     this->m_attempts_edges_removed++;
     //----------------------------------------------------------------------
     // Remove edge from region maps
     // Look in the special region
-    iter = this->m_region_edges.find(edge);
+    iter = this->m_region_edges.find(src);
     if (iter != this->m_region_edges.end()) {
         // Found in region
-        this->m_region_edges.erase(iter);
+        ObjectIdSet_t &myset = iter->second;
+        myset.erase(oldTgtId);
         this->m_edges_removed++;
         goto END;
     }
     // Look outside the special region
-    iter = this->m_nonregion_edges.find(edge);
+    iter = this->m_nonregion_edges.find(src);
     if (iter != this->m_nonregion_edges.end()) {
         // Found in nonregion
-        this->m_nonregion_edges.erase(iter);
+        ObjectIdSet_t &myset = iter->second;
+        myset.erase(oldTgtId);
         this->m_edges_removed++;
         goto END;
     }
     // Look in the in to out 
-    iter = this->m_in_edges.find(edge);
+    iter = this->m_in_edges.find(src);
     if (iter != this->m_in_edges.end()) {
         // Found in IN region 
-        this->m_in_edges.erase(iter);
+        ObjectIdSet_t &myset = iter->second;
+        myset.erase(oldTgtId);
         this->m_edges_removed++;
         goto END;
     }
     // Look in the out to in 
-    iter = this->m_out_edges.find(edge);
+    iter = this->m_out_edges.find(src);
     if (iter != this->m_out_edges.end()) {
         // Found in IN region 
-        this->m_out_edges.erase(iter);
+        ObjectIdSet_t &myset = iter->second;
+        myset.erase(oldTgtId);
         this->m_edges_removed++;
         goto END;
         // Well this isn't needed but symmetric.

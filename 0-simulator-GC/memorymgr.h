@@ -52,7 +52,10 @@ struct _compclass {
 };
 
 // A set of Edge pairs
-typedef std::set< ObjectIdPair_t, _compclass > ObjectIdPairSet_t;
+// TODO: TO DELETE
+// Using a set with a pair wasn't working and I don't have time to 
+// debug. So I'm just going to use a map to a set.
+// TODO: DELETE typedef std::set< ObjectIdPair_t, _compclass > ObjectIdPairSet_t;
 // A map:
 // key: edge id
 //     -> val: edge id set
@@ -219,11 +222,16 @@ public:
     deque<GCRecord_t> get_GC_history();
     unsigned long int get_num_GC_attempts( bool printflag );
 
-    // - TODO
+    // - TODO Documentation
+    // Getter functions for getting the number of edges
     int get_number_edges_removed() const { return this->m_edges_removed; }
     int get_number_attempts_edges_removed() const { return this->m_attempts_edges_removed; }
+    unsigned int get_region_edges_count() const { return this->m_region_edges_count; }
+    unsigned int get_in_edges_count() const { return this->m_in_edges_count; }
+    unsigned int get_out_edges_count() const { return this->m_out_edges_count; }
+    unsigned int get_nonregion_edges_count() const { return this->m_nonregion_edges_count; }
 
-    // - TODO
+    // - TODO Documentation
     void print_status();
 
 private:
@@ -286,13 +294,19 @@ private:
 
     // Edge sets and remember sets
     //     * edges where source and target are in the region
-    ObjectIdPairSet_t m_region_edges;
+    ObjectId2SetMap_t m_region_edges;
     //     * edges where source is outside and target is in the region
-    ObjectIdPairSet_t m_in_edges;
+    ObjectId2SetMap_t m_in_edges;
     //     * edges where source is inside and target is outside the region
-    ObjectIdPairSet_t m_out_edges;
+    ObjectId2SetMap_t m_out_edges;
     //     * edges where both source and target are outside the region
-    ObjectIdPairSet_t m_nonregion_edges;
+    ObjectId2SetMap_t m_nonregion_edges;
+
+    // Counts of total edges added
+    unsigned int m_region_edges_count;
+    unsigned int m_in_edges_count;
+    unsigned int m_out_edges_count;
+    unsigned int m_nonregion_edges_count;
 
     // Src id to set of tgt ids
     ObjectId2SetMap_t m_srcidmap;

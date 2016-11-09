@@ -207,8 +207,12 @@ unsigned int read_trace_file(FILE* f)
                     unsigned int objId = tokenizer.getInt(2);
                     unsigned int tgtId = tokenizer.getInt(3);
                     unsigned int oldTgtId = tokenizer.getInt(1);
-                    Heap.make_edge2( objId, tgtId );
-                    Heap.remove_edge2( objId, oldTgtId );
+                    if ((objId > 0) && (tgtId > 0)) {
+                        Heap.make_edge2( objId, tgtId );
+                    }
+                    if ((objId > 0) && (oldTgtId > 0)) {
+                        Heap.remove_edge2( objId, oldTgtId );
+                    }
                     // TODO ============================================================ TODO
                     // TODO unsigned int threadId = tokenizer.getInt(5);
                     // TODO: Not sure if we need this code
@@ -365,7 +369,11 @@ int main(int argc, char* argv[])
          << "Total objects: " << total_objects << endl
          << "Heap.size:     " << Heap.size() << endl
          << " - number of edges removed: " << Heap.get_number_edges_removed() << endl
-         << " - number of edges removal attempts: " << Heap.get_number_attempts_edges_removed() << endl;
+         << " - number of edges removal attempts: " << Heap.get_number_attempts_edges_removed() << endl
+         << " - number of region edges: " << Heap.get_region_edges_count() << endl
+         << " - number of in edges: " << Heap.get_in_edges_count() << endl
+         << " - number of out edges: " << Heap.get_out_edges_count() << endl
+         << " - number of nonregion edges: " << Heap.get_nonregion_edges_count() << endl;
     // assert( total_objects == Heap.size() );
 
     if (0) {
