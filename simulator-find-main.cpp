@@ -139,7 +139,7 @@ unsigned int read_trace_file(FILE* f)
     Object *obj;
     Object *target;
     Method *method;
-    unsigned int total_objects;
+    unsigned int total_objects = 0;
 
     Method *main_method = ClassInfo::get_main_method();
     unsigned int main_id = main_method->getId();

@@ -243,7 +243,7 @@ unsigned int read_trace_file(FILE* f)
     Object *obj;
     Object *target;
     Method *method;
-    unsigned int total_objects;
+    unsigned int total_objects = 0;
 
     Method *main_method = ClassInfo::get_main_method();
     unsigned int main_id = main_method->getId();
@@ -963,7 +963,7 @@ void output_cycles( KeySet_t &keyset,
 unsigned int output_edges( HeapState &myheap,
                            string &edgeinfo_filename )
 {
-    unsigned int total_edges;
+    unsigned int total_edges = 0;
     ofstream edge_info_file(edgeinfo_filename);
     edge_info_file << "---------------[ EDGE INFO ]----------------------------------------------------" << endl;
     // srcId, tgtId, allocTime, deathTime
