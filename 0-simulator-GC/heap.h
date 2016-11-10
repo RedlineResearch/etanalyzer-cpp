@@ -198,7 +198,7 @@ class HeapState
 
         // Debug
         deque<GCRecord_t> get_GC_history() { return this->m_memmgr.get_GC_history(); }
-        int get_number_edges_removed() const { this->m_memmgr.get_number_edges_removed(); }
+        int get_number_edges_removed() const { return this->m_memmgr.get_number_edges_removed(); }
         int get_number_attempts_edges_removed() const { return this->m_memmgr.get_number_attempts_edges_removed(); }
         unsigned int get_region_edges_count() const { return this->m_memmgr.get_region_edges_count(); }
         unsigned int get_in_edges_count() const { return this->m_memmgr.get_in_edges_count(); }

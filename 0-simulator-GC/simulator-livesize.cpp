@@ -61,7 +61,7 @@ unsigned int read_trace_file(FILE* f)
     Tokenizer tokenizer(f);
 
     unsigned int object_id;
-    unsigned int total_objects;
+    unsigned int total_objects = 0;
     ObjIdMap livemap;
     unsigned int long curlive;
     unsigned int long maxlive;

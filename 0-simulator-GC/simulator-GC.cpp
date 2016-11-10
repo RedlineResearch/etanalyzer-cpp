@@ -157,7 +157,7 @@ unsigned int read_trace_file(FILE* f)
     Object *obj;
     Object *target;
     Method *method;
-    unsigned int total_objects;
+    unsigned int total_objects = 0;
 
     // -- Allocation time
     unsigned int AllocationTime = 0;
@@ -374,7 +374,6 @@ int main(int argc, char* argv[])
          << " - number of in edges: " << Heap.get_in_edges_count() << endl
          << " - number of out edges: " << Heap.get_out_edges_count() << endl
          << " - number of nonregion edges: " << Heap.get_nonregion_edges_count() << endl;
-    // assert( total_objects == Heap.size() );
 
     if (0) {
     deque<GCRecord_t> GC_history = Heap.get_GC_history();

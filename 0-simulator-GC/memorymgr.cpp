@@ -363,7 +363,6 @@ void MemoryMgr::add_edge( ObjectId_t src,
     ObjectIdSet_t::iterator tgt_iter = this->m_specgroup.find(tgt);
     //----------------------------------------------------------------------
     // Add to edge maps
-    // TODO DELETE ObjectIdPair_t edge = std::make_pair( src, tgt );
     if (iter != this->m_specgroup.end()) {
         // Source is in special group
         if (tgt_iter != this->m_specgroup.end()) {
@@ -379,6 +378,13 @@ void MemoryMgr::add_edge( ObjectId_t src,
                 myset.insert(tgt);
                 this->m_region_edges[src] = myset;
             }
+            // // DEBUG ONLY
+            // itmp = this->m_region_edges.find(src);
+            // assert(itmp != this->m_region_edges.end());
+            // ObjectIdSet_t &myset = itmp->second;
+            // ObjectIdSet_t::iterator tmpiter = myset.find(tgt);
+            // assert(tmpiter != myset.end());
+            // // END DEBUG
             this->m_region_edges_count++;
         } else {
             // Target is NOT in special group
