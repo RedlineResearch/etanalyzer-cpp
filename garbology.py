@@ -1577,6 +1577,10 @@ class SummaryReader:
         assert("died_by_global" in self.summarydict)
         return self.summarydict["died_by_global"]
 
+    def get_max_live_size( self ):
+        assert("max_live_size" in self.summarydict)
+        return self.summarydict["max_live_size"]
+
     def keys( self ):
         return self.summarydict.keys()
 
