@@ -74,8 +74,8 @@ bool Region::makeDead( Object *object )
     ObjectSet_t::iterator iter = this->m_live_set.find(object);
     if (iter == this->m_live_set.end()) {
         // Not in live set.
-        cout << "ERROR: makeDead on object Id[ " << object->getId()
-             << " ] but can not find in live set.";
+        // cout << "ERROR: makeDead on object Id[ " << object->getId()
+        //      << " ] but can not find in live set.";
         return false;
     }
     if (!object->isGarbage()) {
@@ -85,8 +85,8 @@ bool Region::makeDead( Object *object )
         // the garbage set but didn't find it there.
     } else {
         // What do we do if the object was already garbage?
-        cout << "ERROR: makeDead on object Id[ " << object->getId()
-             << " ] already set to garbage.";
+        // cout << "ERROR: makeDead on object Id[ " << object->getId()
+        //      << " ] already set to garbage.";
     }
     // Remove from live_set regardless.
     this->m_live_set.erase(object);
@@ -96,7 +96,8 @@ bool Region::makeDead( Object *object )
     return flag;
 }
 
-int Region::collect( unsigned int timestamp )
+int Region::collect( unsigned int timestamp,
+                     unsigned int timestamp_alloc )
 {
     // Clear the garbage waiting set and return the space to free.
     int collected = this->m_garbage;
@@ -106,13 +107,14 @@ int Region::collect( unsigned int timestamp )
     // Garbage in this region is now 0.
     this->setGarbage(0);
     // TODO TODO: This is only DEBUG TODO TODO
-    cout << "GC[ " << timestamp << ", " << collected << "]" << endl;
+    cout << "GC[" << timestamp << "," << timestamp_alloc << ","
+         << collected << "]" << endl;
     // TODO TODO: End DEBUG
     // Add the collected space back to free
     this->m_free += collected;
     assert(this->m_free <= this->m_size); // Sanity check
     // Record this collection
-    GCRecord_t rec = make_pair( timestamp, collected );
+    GCRecord_t rec = make_pair( timestamp_alloc, collected );
     this->m_gc_history.push_back( rec );
     // Return how much we collected
     return collected;
@@ -279,7 +281,7 @@ bool MemoryMgr::allocate( Object *object,
     if (!done) {
         // Not enough free space.
         // 1. We collect on a failed allocation.
-        collected = this->m_alloc_region->collect( create_time );
+        collected = this->m_alloc_region->collect( create_time, new_alloc_time );
         GCdone = true;
         // 2. Try again. Note that we only try one more time as the 
         //    basic collector will give back all possible free memory.

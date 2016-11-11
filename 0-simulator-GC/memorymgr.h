@@ -106,7 +106,7 @@ public:
 
     deque<GCRecord_t> get_GC_history() const { return m_gc_history; }
 
-    int collect( unsigned int timestamp );
+    int collect( unsigned int timestamp, unsigned int timestamp_alloc );
 
     // Debug functions
     void print_status();
