@@ -61,6 +61,24 @@ def run_GC_simulator( result = {},
                       cycle_cpp_dir = None,
                       debugflag = False,
                       logger = None ):
+    # The GC simulator command looks like:
+    #    simulator-GC lusearch.names lusearch-DGROUPS-group2list.csv lusearch 5000000
+    # Parameters in order:
+    #     names file
+    #     group2list from dgroups2db.py run
+    #     benchmark name (or base name)
+    #     heap size
+    # Things we need:
+    #   - simulator-GC location
+    #   - names file location
+    #   - group2list
+    #   - heap size
+    # 
+    #  To get the heap size, we start at the initial heap size given in main_config.
+    #  We iterate until we get to maximum process per benchmark OR we reach the maximum.
+    #  If the maximum given is 0, then we go on until no GC is needed.
+    #  
+    #  Q: How do we name the files?
     print "DEBUG."
     exit(100)
 
@@ -220,6 +238,9 @@ def create_parser():
     parser.add_argument( "--config",
                          help = "Specify configuration filename.",
                          action = "store" )
+    parser.add_argument( "--simconfig",
+                         help = "Specify simulator configuration filename.",
+                         action = "store" )
     parser.add_argument( "--debug",
                          dest = "debugflag",
                          help = "Enable debug output.",
@@ -244,6 +265,20 @@ def create_parser():
                          config = None )
     return parser
 
+def process_sim_config( args ):
+    assert( args.simconfig != None )
+    simconfig_parser = ConfigParser.ConfigParser()
+    simconfig_parser.read( args.simconfig )
+    return { "benchmarks" : config_section_map( "benchmarks", simconfig_parser ),
+             "worklist" : config_section_map( "worklist", simconfig_parser ),
+             "dacapo" : config_section_map( "dacapo", simconfig_parser ),
+             "dacapo_names" : config_section_map( "dacapo_names", simconfig_parser ),
+             "specjvm" : config_section_map( "specjvm", simconfig_parser ),
+             "specjvm_names" : config_section_map( "specjvm_names", simconfig_parser ),
+             "minibench" : config_section_map( "minibench", simconfig_parser ),
+             "minibench_names" : config_section_map( "minibench_names", simconfig_parser ),
+             "main_function" : config_section_map( "main_function", simconfig_parser ), }
+
 def main():
     parser = create_parser()
     args = parser.parse_args()
@@ -256,6 +291,14 @@ def main():
     worklist_config = process_worklist_config( configdict["worklist"] )
     host_config = process_host_config( configdict["hosts"] )
     dgroups2db_config = configdict["dgroups2db"]
+    # Benchmark configurations
+    sim_result = process_sim_config( args )
+    dacapo_config = sim_result["dacapo"]
+    dacapo_names = sim_result["dacapo_names"]
+    specjvm_config = sim_result["specjvm"]
+    specjvm_names = sim_result["specjvm_names"]
+    minibench_config = sim_result["minibench"]
+    minibench_names = sim_result["minibench_names"]
     # TODO DEBUG TODO
     print "================================================================================"
     pp.pprint( global_config )
@@ -275,6 +318,8 @@ def main():
     return main_process( global_config = global_config,
                          main_config = main_config,
                          host_config = host_config,
+                         bmark_config = dict( dict(specjvm_config, **dacapo_config), **minibench_config ),
+                         names_config = dict( dict(specjvm_names, **dacapo_names), **minibench_names ),
                          worklist_config = worklist_config,
                          dgroups2db_config = dgroups2db_config,
                          mprflag = args.mprflag,
