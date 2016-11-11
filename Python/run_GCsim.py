@@ -19,7 +19,7 @@ from shutil import copy
 #   - This one is my own library:
 # from mypytools import mean, stdev, variance
 from mypytools import check_host, create_work_directory, process_host_config, \
-    process_worklist_config
+    process_worklist_config, is_specjvm, is_dacapo, is_minibench
 
 # The garbology related library. Import as follows.
 # Check garbology.py for other imports
@@ -53,11 +53,39 @@ def setup_logger( targetdir = ".",
     logger.addHandler( filehandler )
     return logger
 
+def get_trace_and_name_file( bmark = None,
+                             bmark_config = {},
+                             names_config = {} ):
+    if is_specjvm(bmark):
+        tracefile = specjvm_dir + bmark_config[bmark] 
+        namesfile = specjvm_dir + names_config[bmark]
+    elif is_dacapo(bmark):
+        tracefile = dacapo_dir + bmark_config[bmark]
+        namesfile = dacapo_dir + names_config[bmark]
+    elif is_minibench(bmark):
+        tracefile = minibench_dir + bmark_config[bmark]
+        namesfile = minibench_dir + names_config[bmark]
+    else:
+        print "Benchmark not found: %s" % bmark
+        assert(False)
+    try:
+        assert(os.path.isfile(tracefile))
+    except:
+        print "%s NOT FOUND." % tracefile
+        raise ValueError("%s NOT FOUND." % tracefile)
+    try:
+        assert(os.path.isfile(namesfile))
+    except:
+        print "%s NOT FOUND." % namesfile
+        raise ValueError("%s NOT FOUND." % namesfile)
+
 def run_GC_simulator( result = {},
                       bmark = None,
                       workdir = None,
                       mprflag = False,
                       dgroups2db_config = {},
+                      bmark_config = {},
+                      names_config = {},
                       cycle_cpp_dir = None,
                       debugflag = False,
                       logger = None ):
@@ -90,6 +118,8 @@ def main_process( global_config = {},
                   main_config = {},
                   worklist_config = {},
                   host_config = {},
+                  bmark_config = {},
+                  names_config = {},
                   dgroups2db_config = {},
                   mprflag = False,
                   debugflag = False,
@@ -140,6 +170,8 @@ def main_process( global_config = {},
                                   workdir,
                                   mprflag,
                                   dgroups2db_config,
+                                  bmark_config,
+                                  names_config,
                                   cycle_cpp_dir,
                                   debugflag,
                                   logger ) )
@@ -155,6 +187,8 @@ def main_process( global_config = {},
                               workdir = workdir,
                               mprflag = mprflag,
                               dgroups2db_config = dgroups2db_config,
+                              bmark_config = bmark_config,
+                              names_config = names_config,
                               cycle_cpp_dir = cycle_cpp_dir,
                               debugflag = debugflag,
                               logger = logger )

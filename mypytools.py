@@ -259,10 +259,43 @@ def process_worklist_config( worklist_config = {} ):
         mydict[bmark] = hostlist
     return mydict
 
+def is_specjvm( bmark ):
+    print "================================================================================"
+    print "  TODO: Fix to dynamically populate is_***** benchmark functions from"
+    print "        configuration files."
+    print "================================================================================"
+    return ( bmark == "_201_compress" or
+             bmark == "_202_jess" or
+             bmark == "_205_raytrace" or
+             bmark == "_209_db" or
+             bmark == "_213_javac" or
+             bmark == "_222_mpegaudio" or
+             bmark == "_227_mtrt" or
+             bmark == "_228_jack" )
+
+def is_dacapo( bmark ):
+    print "================================================================================"
+    print "  TODO: Fix to dynamically populate is_***** benchmark functions from"
+    print "        configuration files."
+    print "================================================================================"
+    return bmark in [ "avrora", "batik", "eclipse", "fop", "h2", "jython",
+                      "luindex", "lusearch", "pmd", "specjbb", "sunflow",
+                      "tomcat", "tradebeans", "tradesoap", "xalan", ]
+
+def is_minibench( bmark ):
+    print "================================================================================"
+    print "  TODO: Fix to dynamically populate is_***** benchmark functions from"
+    print "        configuration files."
+    print "================================================================================"
+    return bmark in [ "seq-seqdel", "seq-enddel", "rand-seqdel", "rand-enddel", "stackonly",
+                      "seq-use", "seq-dontuse", "static-use", "static-dontuse",
+                      "stable_example", ]
+
 
 __all__ = [ "mean", "merge_two_dicts", "stdev", "variance", "email_message",
             "get_file_fp", "check_host", "get_actual_hostname", "process_host_config",
-            "process_worklist_config", ]
+            "process_worklist_config",
+            "is_specjvm", "is_dacapo", "is_minibench", ]
 
 if __name__ == "__main__":
     import doctest

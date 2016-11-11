@@ -19,7 +19,8 @@ from multiprocessing import Process
 import socket
 import shutil
 
-from mypytools import mean, stdev, variance
+from mypytools import mean, stdev, variance, \
+    is_specjvm, is_dacapo, is_minibench
 
 pp = pprint.PrettyPrinter( indent = 4 )
 
@@ -127,46 +128,6 @@ def backup_old_simulator_output( cycle_cpp_dir, backup_cycle_cpp_dir ):
                 os.remove( tgtfile )
             shutil.move( abs_fname, backup_cycle_cpp_dir )
 
-# TODO TODO TODO
-# These is_***** benchmark functions should be one of the following:
-#  1- Dynamically constructed from the config file
-#  2- In mypytools?
-#  3- In garbology.py?
-#   
-#  Number 1 seems the best.
-#  TODO: For now just hardcode here.
-def is_specjvm( bmark ):
-    print "================================================================================"
-    print "  TODO: Fix to dynamically populate is_***** benchmark functions from"
-    print "        configuration files."
-    print "================================================================================"
-    return ( bmark == "_201_compress" or
-             bmark == "_202_jess" or
-             bmark == "_205_raytrace" or
-             bmark == "_209_db" or
-             bmark == "_213_javac" or
-             bmark == "_222_mpegaudio" or
-             bmark == "_227_mtrt" or
-             bmark == "_228_jack" )
-
-def is_dacapo( bmark ):
-    print "================================================================================"
-    print "  TODO: Fix to dynamically populate is_***** benchmark functions from"
-    print "        configuration files."
-    print "================================================================================"
-    return bmark in [ "avrora", "batik", "eclipse", "fop", "h2", "jython",
-                      "luindex", "lusearch", "pmd", "specjbb", "sunflow",
-                      "tomcat", "tradebeans", "tradesoap", "xalan", ]
-
-def is_minibench( bmark ):
-    print "================================================================================"
-    print "  TODO: Fix to dynamically populate is_***** benchmark functions from"
-    print "        configuration files."
-    print "================================================================================"
-    return bmark in [ "seq-seqdel", "seq-enddel", "rand-seqdel", "rand-enddel", "stackonly",
-                      "seq-use", "seq-dontuse", "static-use", "static-dontuse",
-                      "stable_example", ]
-
 
 def run_subprocess( cmd = None,
                     stdout = None,
@@ -257,7 +218,6 @@ def main_process( output = None,
     num_backed_up = backup_old_simulator_output( cycle_cpp_dir, backup_cycle_cpp_dir )
     # Sub process related stuff
     procdict = {}
-    pp.pprint(bmark_config)
     procs = {}
     for bmark in worklist.keys():
         hostlist = worklist[bmark]
