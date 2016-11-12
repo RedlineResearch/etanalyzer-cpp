@@ -55,7 +55,10 @@ def setup_logger( targetdir = ".",
 
 def get_trace_and_name_file( bmark = None,
                              bmark_config = {},
-                             names_config = {} ):
+                             names_config = {},
+                             specjvm_dir = None,
+                             dacapo_dir = None,
+                             minibench_dir = None ):
     if is_specjvm(bmark):
         tracefile = specjvm_dir + bmark_config[bmark] 
         namesfile = specjvm_dir + names_config[bmark]
@@ -78,35 +81,65 @@ def get_trace_and_name_file( bmark = None,
     except:
         print "%s NOT FOUND." % namesfile
         raise ValueError("%s NOT FOUND." % namesfile)
+    return { "trace" : tracefile,
+             "names" : namesfile, }
 
 def run_GC_simulator( result = {},
+                      simulator = None,
                       bmark = None,
                       workdir = None,
                       mprflag = False,
+                      main_config = {},
                       dgroups2db_config = {},
-                      bmark_config = {},
-                      names_config = {},
+                      tracefile = {},
+                      namesfile = {},
                       cycle_cpp_dir = None,
                       debugflag = False,
+                      numprocs = 1,
                       logger = None ):
-    # The GC simulator command looks like:
-    #    simulator-GC lusearch.names lusearch-DGROUPS-group2list.csv lusearch 5000000
-    # Parameters in order:
-    #     names file
-    #     group2list from dgroups2db.py run
-    #     benchmark name (or base name)
-    #     heap size
-    # Things we need:
-    #   - simulator-GC location
-    #   - names file location
-    #   - group2list
-    #   - heap size
     # 
     #  To get the heap size, we start at the initial heap size given in main_config.
     #  We iterate until we get to maximum process per benchmark OR we reach the maximum.
     #  If the maximum given is 0, then we go on until no GC is needed.
     #  
     #  Q: How do we name the files?
+    # 
+    # Setup the necessary information for running 'simulator'
+    #
+    # Get the location for the *-DGROUPS-group2list.csv files
+    group2list_dir = dgroups2db_config["output"]
+    assert( os .path.isdir(group2list_dir) )
+    # -    because the output dir of the script is where we can find the output.
+    template = dgroups2db_config["file-group2list"]
+    group2list_filename = os.path.join( group2list_dir, bmark + template )
+    done = False
+    while not done:
+        count = 0
+        for index in xrange(numprocs):
+            # Output file
+            count += 1
+            output_file = os.path.join( workdir, bmark + "-simulator-GC-%d.txt" % count )
+            logger.debug( "Tracefile: %s" % tracefile )
+            logger.debug( "Output name: %s" % output_file )
+            with open(output_file, "wb") as out_fileptr:
+                # Command looks like this:
+                #     cat tracefile | simulator-GC lusearch.names lusearch-DGROUPS-group2list.csv lusearch 5000000
+                myargs = [ namesfile, group2list_filename, bmark, ]
+                stdout_filename = bmark + main_config["file-output-template"]
+                cmd = [ simulator ] + myargs
+                print "XXX:", cmd
+                continue
+                logger.debug( "Process[ %d ]: command[ %s ]" % (count, str(cmd)) )
+                # TODO logger.debug( "Process[%d: %s] - starting at %s" % (bmark, timenow) )
+                # TODO: implement this so we can use it in a 'with ... as' statement
+                tracefp = get_trace_fp( tracefile, logger )
+                sproc = subprocess.Popen( cmd,
+                                          stdout = out_fileptr,
+                                          stdin = tracefp,
+                                          stderr = out_fileptr,
+                                          cwd = workdir )
+                sproc.communicate()
+        done = True
     print "DEBUG."
     exit(100)
 
@@ -121,6 +154,7 @@ def main_process( global_config = {},
                   bmark_config = {},
                   names_config = {},
                   dgroups2db_config = {},
+                  simulator_config = {},
                   mprflag = False,
                   debugflag = False,
                   logger = None ):
@@ -150,6 +184,9 @@ def main_process( global_config = {},
     manager = Manager()
     results = {}
     procs = {}
+    # Get the simulator executable
+    simulator = simulator_config["simulatorgc"]
+    assert( os.path.isfile(simulator) )
     for bmark in worklist_config.keys():
         hostlist = worklist_config[bmark]
         if not check_host( benchmark = bmark,
@@ -157,6 +194,15 @@ def main_process( global_config = {},
                            host_config = host_config ):
             continue
         # Else we can run for 'bmark'
+        tmpresult = get_trace_and_name_file( bmark = bmark,
+                                             bmark_config = bmark_config,
+                                             names_config = names_config,
+                                             specjvm_dir = global_config["specjvm_dir"],
+                                             dacapo_dir = global_config["dacapo_dir"],
+                                             minibench_dir = global_config["minibench_dir"] )
+        # Number of processes
+        pp.pprint(main_config)
+        number_procs_per_benchmark = int(main_config["number-procs-per-benchmark"])
         if mprflag:
             print "=======[ Spawning %s ]================================================" \
                 % bmark
@@ -166,14 +212,17 @@ def main_process( global_config = {},
             # Read in the CYCLES (death groups file from simulator) 
             p = Process( target = run_GC_simulator,
                          args = ( results[bmark],
+                                  simulator,
                                   bmark,
                                   workdir,
                                   mprflag,
+                                  main_config,
                                   dgroups2db_config,
-                                  bmark_config,
-                                  names_config,
+                                  tmpresult["trace"],
+                                  tmpresult["names"],
                                   cycle_cpp_dir,
                                   debugflag,
+                                  number_procs_per_benchmark,
                                   logger ) )
             procs[bmark] = p
             p.start()
@@ -183,14 +232,17 @@ def main_process( global_config = {},
             print "     Reading in cycles (death groups)..."
             results[bmark] = [ bmark, ]
             run_GC_simulator( result = results[bmark],
+                              simulator = simulator,
                               bmark = bmark,
                               workdir = workdir,
                               mprflag = mprflag,
+                              main_config = main_config,
                               dgroups2db_config = dgroups2db_config,
-                              bmark_config = bmark_config,
-                              names_config = names_config,
+                              tracefile = tmpresult["trace"],
+                              namesfile = tmpresult["names"],
                               cycle_cpp_dir = cycle_cpp_dir,
                               debugflag = debugflag,
+                              numprocs = number_procs_per_benchmark,
                               logger = logger )
     if mprflag:
         # Poll the processes 
@@ -249,8 +301,7 @@ def process_config( args ):
     host_config = config_section_map( "hosts", config_parser )
     worklist_config = config_section_map( "run-GCsim-worklist", config_parser )
     dgroups2db_config = config_section_map( "dgroups2db", config_parser )
-    objectinfo_db_config = config_section_map( "objectinfo-db", config_parser )
-    cachesize_config = config_section_map( "create-supergraph-obj-cachesize", config_parser )
+    simulator_config = config_section_map( "simulator", config_parser )
     # TODO objectinfo_config = config_section_map( "objectinfo", config_parser )
     # TODO edgeinfo_config = config_section_map( "edgeinfo", config_parser )
     # TODO stability_config = config_section_map( "stability-summary", config_parser )
@@ -260,6 +311,7 @@ def process_config( args ):
              "worklist" : worklist_config,
              "hosts" : host_config,
              "dgroups2db" : dgroups2db_config,
+             "simulator" : simulator_config,
              # TODO "objectinfo_db" : objectinfo_db_config,
              # TODO "objectinfo" : objectinfo_config,
              # TODO "edgeinfo" : edgeinfo_config,
@@ -325,6 +377,7 @@ def main():
     worklist_config = process_worklist_config( configdict["worklist"] )
     host_config = process_host_config( configdict["hosts"] )
     dgroups2db_config = configdict["dgroups2db"]
+    simulator_config = configdict["simulator"]
     # Benchmark configurations
     sim_result = process_sim_config( args )
     dacapo_config = sim_result["dacapo"]
@@ -333,16 +386,6 @@ def main():
     specjvm_names = sim_result["specjvm_names"]
     minibench_config = sim_result["minibench"]
     minibench_names = sim_result["minibench_names"]
-    # TODO DEBUG TODO
-    print "================================================================================"
-    pp.pprint( global_config )
-    print "================================================================================"
-    pp.pprint( main_config )
-    print "================================================================================"
-    pp.pprint( host_config )
-    print "================================================================================"
-    pp.pprint( dgroups2db_config )
-    # TODO END DEBUG TODO
     # Set up logging
     logger = setup_logger( filename = args.logfile,
                            debugflag = global_config["debug"] )
@@ -356,6 +399,7 @@ def main():
                          names_config = dict( dict(specjvm_names, **dacapo_names), **minibench_names ),
                          worklist_config = worklist_config,
                          dgroups2db_config = dgroups2db_config,
+                         simulator_config = simulator_config,
                          mprflag = args.mprflag,
                          debugflag = global_config["debug"],
                          logger = logger )
