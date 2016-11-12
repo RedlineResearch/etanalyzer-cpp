@@ -94,7 +94,7 @@ def run_GC_simulator( result = {},
                       dgroups2db_config = {},
                       tracefile = {},
                       namesfile = {},
-                      cycle_cpp_dir = None,
+                      max_live_size = None,
                       debugflag = False,
                       numprocs = 1,
                       logger = None ):
@@ -117,6 +117,8 @@ def run_GC_simulator( result = {},
     while not done:
         count = 0
         numprocs = 1
+        # TODO
+        heapsize = (int(max_live_size * 1.05) + 8) // 8
         for index in xrange(numprocs):
             # Output file
             count += 1
@@ -126,7 +128,7 @@ def run_GC_simulator( result = {},
             with open(output_file, "wb") as out_fileptr:
                 # Command looks like this:
                 #     cat tracefile | simulator-GC lusearch.names lusearch-DGROUPS-group2list.csv lusearch 5000000
-                myargs = [ namesfile, group2list_filename, bmark, "5000000" ]
+                myargs = [ namesfile, group2list_filename, bmark, str(heapsize) ]
                 stdout_filename = bmark + main_config["file-output-template"]
                 cmd = [ simulator ] + myargs
                 print "CMD:", cmd
@@ -156,6 +158,7 @@ def main_process( global_config = {},
                   names_config = {},
                   dgroups2db_config = {},
                   simulator_config = {},
+                  summary_config = {},
                   mprflag = False,
                   debugflag = False,
                   logger = None ):
@@ -201,9 +204,19 @@ def main_process( global_config = {},
                                              specjvm_dir = global_config["specjvm_dir"],
                                              dacapo_dir = global_config["dacapo_dir"],
                                              minibench_dir = global_config["minibench_dir"] )
+        #===========================================================================
+        # Read in SUMMARY
+        print "Reading in the SUMMARY file for benchmark:", bmark
+        summary_fname = os.path.join( cycle_cpp_dir,
+                                      summary_config[bmark] )
+        summary_reader = SummaryReader( summary_file = summary_fname,
+                                        logger = logger )
+        summary_reader.read_summary_file()
+        #===========================================================================
         # Number of processes
         pp.pprint(main_config)
         number_procs_per_benchmark = int(main_config["number-procs-per-benchmark"])
+        max_live_size = summary_reader.get_max_live_size()
         if mprflag:
             print "=======[ Spawning %s ]================================================" \
                 % bmark
@@ -221,7 +234,7 @@ def main_process( global_config = {},
                                   dgroups2db_config,
                                   tmpresult["trace"],
                                   tmpresult["names"],
-                                  cycle_cpp_dir,
+                                  max_live_size,
                                   debugflag,
                                   number_procs_per_benchmark,
                                   logger ) )
@@ -241,7 +254,7 @@ def main_process( global_config = {},
                               dgroups2db_config = dgroups2db_config,
                               tracefile = tmpresult["trace"],
                               namesfile = tmpresult["names"],
-                              cycle_cpp_dir = cycle_cpp_dir,
+                              max_live_size = max_live_size,
                               debugflag = debugflag,
                               numprocs = number_procs_per_benchmark,
                               logger = logger )
@@ -303,16 +316,17 @@ def process_config( args ):
     worklist_config = config_section_map( "run-GCsim-worklist", config_parser )
     dgroups2db_config = config_section_map( "dgroups2db", config_parser )
     simulator_config = config_section_map( "simulator", config_parser )
+    summary_config = config_section_map( "summary-cpp", config_parser )
     # TODO objectinfo_config = config_section_map( "objectinfo", config_parser )
     # TODO edgeinfo_config = config_section_map( "edgeinfo", config_parser )
     # TODO stability_config = config_section_map( "stability-summary", config_parser )
-    # MAYBE: summary_config = config_section_map( "summary_cpp", config_parser )
     return { "global" : global_config,
              "main" : main_config,
              "worklist" : worklist_config,
              "hosts" : host_config,
              "dgroups2db" : dgroups2db_config,
              "simulator" : simulator_config,
+             "summary" : summary_config,
              # TODO "objectinfo_db" : objectinfo_db_config,
              # TODO "objectinfo" : objectinfo_config,
              # TODO "edgeinfo" : edgeinfo_config,
@@ -379,6 +393,7 @@ def main():
     host_config = process_host_config( configdict["hosts"] )
     dgroups2db_config = configdict["dgroups2db"]
     simulator_config = configdict["simulator"]
+    summary_config = configdict["summary"]
     # Benchmark configurations
     sim_result = process_sim_config( args )
     dacapo_config = sim_result["dacapo"]
@@ -401,6 +416,7 @@ def main():
                          worklist_config = worklist_config,
                          dgroups2db_config = dgroups2db_config,
                          simulator_config = simulator_config,
+                         summary_config = summary_config,
                          mprflag = args.mprflag,
                          debugflag = global_config["debug"],
                          logger = logger )
