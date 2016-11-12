@@ -122,6 +122,8 @@ private:
     int m_garbage; // garbage = in use - live
     // => also the total size in bytes of all objects in m_garbage_waiting set
 
+    int m_number_of_collections;
+
     int m_level;
     // Signifies the level in the hierarchy of regional generations.
     // Level 0 - where the memory manager allocates from
@@ -188,6 +190,8 @@ public:
 
     // TODO // Do a garbage collection
     // TODO int do_collection();
+
+    int get_number_of_collections() const { return this->m_times_GC; }
 
     // Do a garbage collection only if needed.
     bool should_do_collection();

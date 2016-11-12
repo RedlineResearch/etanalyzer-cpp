@@ -368,6 +368,7 @@ int main(int argc, char* argv[])
     cout << "Done at time " << Exec.NowUp() << endl
          << "Total objects: " << total_objects << endl
          << "Heap.size:     " << Heap.size() << endl
+         << "Number of collections: " << Heap.get_number_of_collections() << endl
          << " - number of edges removed: " << Heap.get_number_edges_removed() << endl
          << " - number of edges removal attempts: " << Heap.get_number_attempts_edges_removed() << endl
          << " - number of region edges: " << Heap.get_region_edges_count() << endl
