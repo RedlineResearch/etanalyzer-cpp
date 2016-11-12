@@ -291,11 +291,37 @@ def is_minibench( bmark ):
                       "seq-use", "seq-dontuse", "static-use", "static-dontuse",
                       "stable_example", ]
 
+def get_trace_fp( tracefile = None,
+                  logger = None ):
+    if not os.path.isfile( tracefile ) and not os.path.islink( tracefile ):
+        # File does not exist
+        logger.error( "Unable to open %s" % str(tracefile) )
+        print "Unable to open %s" % str(tracefile)
+        raise RuntimeError( "Unable to open %s" % str(tracefile) )
+    bz2re = re.compile( "(.*)\.bz2$", re.IGNORECASE )
+    gzre = re.compile( "(.*)\.gz$", re.IGNORECASE )
+    bz2match = bz2re.search( tracefile )
+    gzmatch = gzre.search( tracefile )
+    if bz2match: 
+        # bzip2 file
+        fp = subprocess.Popen( [ "bzcat", tracefile ],
+                               stdout = subprocess.PIPE,
+                               stderr = subprocess.PIPE ).stdout
+    elif gzmatch: 
+        # gz file
+        fp = subprocess.Popen( [ "zcat", tracefile ],
+                               stdout = subprocess.PIPE,
+                               stderr = subprocess.PIPE ).stdout
+    else:
+        fp = open( tracefile, "r")
+    return fp
+
 
 __all__ = [ "mean", "merge_two_dicts", "stdev", "variance", "email_message",
             "get_file_fp", "check_host", "get_actual_hostname", "process_host_config",
             "process_worklist_config",
-            "is_specjvm", "is_dacapo", "is_minibench", ]
+            "is_specjvm", "is_dacapo", "is_minibench",
+            "get_trace_fp", ]
 
 if __name__ == "__main__":
     import doctest

@@ -11,6 +11,7 @@ import re
 import ConfigParser
 from multiprocessing import Process, Manager
 from shutil import copy 
+import subprocess
 # import sqlite3
 # Possible useful libraries, classes and functions:
 # from operator import itemgetter
@@ -19,7 +20,7 @@ from shutil import copy
 #   - This one is my own library:
 # from mypytools import mean, stdev, variance
 from mypytools import check_host, create_work_directory, process_host_config, \
-    process_worklist_config, is_specjvm, is_dacapo, is_minibench
+    process_worklist_config, is_specjvm, is_dacapo, is_minibench, get_trace_fp
 
 # The garbology related library. Import as follows.
 # Check garbology.py for other imports
@@ -115,6 +116,7 @@ def run_GC_simulator( result = {},
     done = False
     while not done:
         count = 0
+        numprocs = 1
         for index in xrange(numprocs):
             # Output file
             count += 1
@@ -124,11 +126,10 @@ def run_GC_simulator( result = {},
             with open(output_file, "wb") as out_fileptr:
                 # Command looks like this:
                 #     cat tracefile | simulator-GC lusearch.names lusearch-DGROUPS-group2list.csv lusearch 5000000
-                myargs = [ namesfile, group2list_filename, bmark, ]
+                myargs = [ namesfile, group2list_filename, bmark, "5000000" ]
                 stdout_filename = bmark + main_config["file-output-template"]
                 cmd = [ simulator ] + myargs
-                print "XXX:", cmd
-                continue
+                print "CMD:", cmd
                 logger.debug( "Process[ %d ]: command[ %s ]" % (count, str(cmd)) )
                 # TODO logger.debug( "Process[%d: %s] - starting at %s" % (bmark, timenow) )
                 # TODO: implement this so we can use it in a 'with ... as' statement
