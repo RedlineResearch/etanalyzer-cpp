@@ -80,7 +80,7 @@ bool Region::makeDead( Object *object )
     }
     if (!object->isGarbage()) {
         this->add_to_garbage_set( object );
-        // TODO: Anything else I need to do here?
+        flag = true;
         // If flag (result) is false, that means I tried to add to 
         // the garbage set but didn't find it there.
     } else {
@@ -347,12 +347,12 @@ bool MemoryMgr::makeDead( Object *object, unsigned int death_time )
         // All good. Fight on.
         this->m_liveSize = temp;
     }
-    this->m_alloc_region->makeDead( object );
+    bool result = this->m_alloc_region->makeDead( object );
     if (!object->isDead()) {
         object->makeDead( death_time, this->m_alloc_time );
     }
     // TODO: Think about whether calling object->makeDead is better in region::makeDead
-    return true;
+    return result;
 }
 
 // On an U(pdate) event

@@ -84,6 +84,9 @@ public:
         , m_gc_history() {
     }
 
+    ~Region() {
+    }
+
     // Returns true if there was space and thus successful.
     //         false otherwise.
     bool allocate( Object *object,
@@ -95,6 +98,9 @@ public:
     bool makeDead( Object *object );
     void add_to_garbage_set( Object *object );
 
+    int collect( unsigned int timestamp, unsigned int timestamp_alloc );
+
+    //----------------------------------------------------------------------
     int getLevel() const  { return this->m_level; }
 
     int getSize() const { return m_size; }
@@ -106,13 +112,14 @@ public:
 
     deque<GCRecord_t> get_GC_history() const { return m_gc_history; }
 
-    int collect( unsigned int timestamp, unsigned int timestamp_alloc );
-
     // Debug functions
     void print_status();
 
 private:
     string m_name;
+
+    void addToGarbage( int add );
+    int setGarbage( int newval );
 
     // The following 4 fields are in bytes.
     const unsigned int m_size; // Total capacity
@@ -137,8 +144,12 @@ private:
     deque<GCRecord_t> m_gc_history;
     unsigned long int GC_attempts;
 
-    void addToGarbage( int add );
-    int setGarbage( int newval );
+};
+
+enum class ManagerType {
+    Simple,
+    Deferred,
+    Undefined
 };
 
 class MemoryMgr
@@ -156,8 +167,9 @@ public:
                    unsigned int create_time,
                    unsigned int new_alloc_time );
 
-    MemoryMgr( float GC_threshold )
-        : m_region_map()
+    MemoryMgr( ManagerType mgrtype )
+        : m_mgrtype( mgrtype )
+        , m_region_map()
         , m_level_map()
         , m_level2name_map()
         , m_live_set()
@@ -176,14 +188,17 @@ public:
         , m_edges_removed(0) {
     }
 
+    ~MemoryMgr() {
+    }
+
     // Initializes all the regions. This should contain all knowledge
     // of how things are laid out. Virtual so you can reimplement
     // with different layouts.
-    virtual bool initialize_memory( std::vector<int> sizes );
+    bool initialize_memory( std::vector<int> sizes );
 
     // Initialize the grouped region of objects
-    virtual void initialize_special_group( string &group_filename,
-                                           int numgroups );
+    void initialize_special_group( string &group_filename,
+                                   int numgroups );
 
     // Get number of regions
     int numberRegions() const { return this->m_region_map.size(); }
@@ -239,6 +254,8 @@ public:
     void print_status();
 
 private:
+    // Memory Manager type
+    ManagerType m_mgrtype;
     // Total size being managed
     unsigned long int m_total_size;
     // Total number of collections done

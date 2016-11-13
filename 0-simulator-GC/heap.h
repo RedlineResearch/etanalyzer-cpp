@@ -107,8 +107,10 @@ class HeapState
         ObjectMap m_objects;
         // -- Set of edges (all pointers)
         EdgeSet m_edges;
-        // Memory manager
+        // Memory manager - basic GC
         MemoryMgr m_memmgr;
+        // Memory manager 2 -  deferred GC
+        // ????
 
         unsigned long int m_maxLiveSize; // max live size of program in bytes
         unsigned int m_alloc_time; // current alloc time
@@ -133,7 +135,7 @@ class HeapState
     public:
         HeapState( ObjectPtrMap_t& whereis, KeySet_t& keyset )
             : m_objects()
-            , m_memmgr(0.80) // default GC threshold of 80 percent
+            , m_memmgr( ManagerType::Simple )
             , m_whereis( whereis )
             , m_keyset( keyset )
             , m_maxLiveSize(0)
