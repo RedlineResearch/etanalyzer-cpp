@@ -163,9 +163,9 @@ public:
 
     // Returns true if allocation caused garbage collection.
     //         false otherwise.
-    bool allocate( Object *object,
-                   unsigned int create_time,
-                   unsigned int new_alloc_time );
+    virtual bool allocate( Object *object,
+                           unsigned int create_time,
+                           unsigned int new_alloc_time );
 
     MemoryMgr( ManagerType mgrtype )
         : m_mgrtype( mgrtype )
@@ -209,15 +209,15 @@ public:
     int get_number_of_collections() const { return this->m_times_GC; }
 
     // Do a garbage collection only if needed.
-    bool should_do_collection();
+    virtual bool should_do_collection();
 
     // On a D(eath) event
-    bool makeDead( Object *object, unsigned int death_time );
+    virtual bool makeDead( Object *object, unsigned int death_time );
 
     // On an U(pdate) event
-    void add_edge( ObjectId_t src, ObjectId_t tgt );
-    void remove_edge( ObjectId_t src, ObjectId_t oldTgtId );
-    void remove_object( ObjectId_t objId );
+    virtual void add_edge( ObjectId_t src, ObjectId_t tgt );
+    virtual void remove_edge( ObjectId_t src, ObjectId_t oldTgtId );
+    virtual void remove_object( ObjectId_t objId );
 
     void remove_from_srcidmap( ObjectId_t src,
                                ObjectId_t oldTgtId );
@@ -338,6 +338,10 @@ private:
     unsigned long int GC_attempts;
     int m_edges_removed;
     int m_attempts_edges_removed;
+};
+
+class MemoryMgrDef : public MemoryMgr
+{
 };
 
 #endif
