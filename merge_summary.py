@@ -495,6 +495,8 @@ def backup_old_graphs( graph_dir_path = None,
     # TODO Check result?
     print "DONE."
     bz2filename = tfilename + ".bz2"
+    print "--------------------------------------------------------------------------------"
+    print "DBG:", bz2filename
     assert( os.path.isfile(bz2filename) )
     # Check to see if the target exists already.
     tgtfile = os.path.join( backup_graph_dir_path, bz2filename )
@@ -722,7 +724,7 @@ def process_config( args ):
     edge_config = config_section_map( "edgeinfo", config_parser )
     edgeinfo_config = config_section_map( "edgeinfo", config_parser )
     objectinfo_config = config_section_map( "objectinfo", config_parser )
-    summary_config = config_section_map( "summary_cpp", config_parser )
+    summary_config = config_section_map( "summary-cpp", config_parser )
     pdfs_config = config_section_map( "pdfs", config_parser )
     return ( global_config, etanalyze_config, main_config, edge_config,
              edgeinfo_config, objectinfo_config, summary_config, pdfs_config )
