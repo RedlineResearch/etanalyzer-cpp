@@ -258,6 +258,7 @@ xlabel <- "Benchmark"
 ylabel <- "Objects"
 # deathreason.out <- "/data/rveroy/pulsrc/data-ismm-2016/y-GRAPHS/STACK-01-deathcause-stack.pdf"
 deathreason.out <- paste0( targetdir, "STACK-01-deathcause-stack.pdf" )
+deathreason.landscape.out <- paste0( targetdir, "STACK-01-deathcause-stack-landscape.pdf" )
 result = tryCatch( {
         p <- ggplot( xcsv.stack.melt,
                      aes( x = benchmark,
@@ -272,6 +273,7 @@ result = tryCatch( {
                                                "Program end") )
         p <- p + labs( x = xlabel, y = ylabel )
         ggsave(filename = deathreason.out, plot = p)
+        ggsave(filename = deathreason.landscape.out, plot = p, width = 6, height = 4)
     }, warning = function(w) {
         print(paste("WARNING: failed on death reason stack vs heap - OBJECT COUNT"))
     }, error = function(e) {
