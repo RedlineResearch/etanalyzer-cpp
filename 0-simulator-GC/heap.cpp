@@ -66,6 +66,7 @@ Object* HeapState::allocate( unsigned int id,
              << " ObjId: " << obj->getId()
              << " type: " << obj->getType()
              << " size: " << obj->getSize() << endl;
+        exit(1);
     }
     return obj;
 }

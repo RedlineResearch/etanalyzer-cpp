@@ -21,16 +21,10 @@ bool Region::allocate( Object *object,
 {
     // Check to see if there's space
     unsigned int objSize = object->getSize();
-    if (objSize > this->m_free) {
-        return false;
-    }
     // Duplicate allocates are a problem.
     // We do this check in the MemoryMgr as the object MAY have
     // been allocated in a different region.
     this->m_live_set.insert( object );
-    this->m_free -= objSize; // Free goes down.
-    this->m_used += objSize; // Used goes up.
-    this->m_live += objSize; // Live also goes up.
 
     return true;
     // TODO: do i need create_time? And if yes, how do I save it?
@@ -63,12 +57,14 @@ void Region::add_to_garbage_set( Object *object )
     this->m_live_set.erase(object);
     // Keep a running total of how much garbage there is.
     this->m_garbage += objSize;
+    // TODO DEBUG cerr << "    add_to_garbage_set <= " << this->m_garbage << endl;
     // Set the flag. This is the ONLY place this flag is set.
     object->setGarbageFlag();
 }
 
 bool Region::makeDead( Object *object )
 {
+    // TODO DEBUG cerr << "Region::makeDead" << endl;
     // Found object.
     // Remove from m_live_set and put into m_garbage_waiting
     bool flag = false;
@@ -103,17 +99,13 @@ int Region::collect( unsigned int timestamp,
     // Clear the garbage waiting set and return the space to free.
     int collected = this->m_garbage;
     this->GC_attempts++;
-
     this->m_garbage_waiting.clear();
     // Garbage in this region is now 0.
     this->setGarbage(0);
-    // TODO TODO: This is only DEBUG TODO TODO
+    // The GC record printed out
     cout << "GC[" << timestamp << "," << timestamp_alloc << ","
          << collected << "]" << endl;
-    // TODO TODO: End DEBUG
-    // Add the collected space back to free
-    this->m_free += collected;
-    assert(this->m_free <= this->m_size); // Sanity check
+    // TODO TODO: ADD THE GC NUMBER
     // Record this collection
     GCRecord_t rec = make_pair( timestamp_alloc, collected );
     this->m_gc_history.push_back( rec );
@@ -141,8 +133,9 @@ bool MemoryMgr::initialize_memory( vector<int> sizes )
     assert(sizes.size() == 1); // This is a single region collector.
     vector<int>::iterator iter = sizes.begin();
     this->m_alloc_region = this->new_region( MemoryMgr::ALLOC,
-                                             *iter,
                                              level ); // Level 0 is required.
+    this->m_size += *iter;
+    this->m_free += *iter;
     // ++iter;
     // ++level;
     // string myname("OTHER");
@@ -201,58 +194,64 @@ bool MemoryMgr::allocate( Object *object,
         return true;
     }
     // Decisions for collection should be done here at the MemoryMgr level.
-    bool done = this->m_alloc_region->allocate( object, create_time );
-    if (!done) {
+    unsigned int objSize = object->getSize();
+    if (objSize > this->m_free) {
         // Not enough free space.
         // 1. We collect on a failed allocation.
         collected = this->m_alloc_region->collect( create_time, new_alloc_time );
+        this->m_free += collected;
         GCdone = true;
         // 2. Try again. Note that we only try one more time as the 
         //    basic collector will give back all possible free memory.
-        done = this->m_alloc_region->allocate( object, create_time );
-        // NOTE: In a setup with more than one region, the MemoryMgr could
-        // go through all regions trying to find free space. And returning
-        // 'false' means an Out Of Memory Error (OOM).
-    }
-    if (done) {
-        unsigned long int temp = this->m_liveSize + object->getSize();
-        // Max live size calculation
-        // We silently peg to ULONG_MAX the wraparound.
-        // TODO: Maybe we should just error here as this probably isn't possible.
-        this->m_liveSize = ( (temp < this->m_liveSize) ? ULONG_MAX : temp );
-        // Add to live set.
-        this->m_live_set.insert( object );
-        // Keep tally of what our maximum live size is for the program run
-        if (this->m_maxLiveSize < this->m_liveSize) {
-            this->m_maxLiveSize = this->m_liveSize;
+        if (objSize > this->m_free) {
+            // Out Of Memory.
+            cerr << "OOM: free = " << this->m_free
+                 << " | objsize = " << objSize
+                 << " | collected = " << collected << endl;
+            return false;
         }
-        // NOT NEEDED NOW: if (!GCdone && this->should_do_collection()) {
-        // NOT NEEDED NOW:     collected += this->m_alloc_region->collect( create_time );
-        // NOT NEEDED NOW:     GCdone = true;
-        // NOT NEEDED NOW: }
     }
+    this->m_alloc_region->allocate( object, create_time );
+    this->m_free -= objSize; // Free goes down.
+    this->m_used += objSize; // Used goes up.
+    unsigned long int temp = this->m_liveSize + object->getSize();
+    // Max live size calculation
+    // We silently peg to ULONG_MAX the wraparound.
+    // TODO: Maybe we should just error here as this probably isn't possible.
+    if (temp < this->m_liveSize) {
+        cerr << "ERROR: Wraparound " << temp << " < " << this->m_liveSize << endl;
+    }
+    this->m_liveSize = temp;
+    // Add to live set.
+    this->m_live_set.insert( object );
+    // Keep tally of what our maximum live size is for the program run
+    if (this->m_maxLiveSize < this->m_liveSize) {
+        this->m_maxLiveSize = this->m_liveSize;
+    }
+    // NOT NEEDED NOW: if (!GCdone && this->should_do_collection()) {
+    // NOT NEEDED NOW:     collected += this->m_alloc_region->collect( create_time );
+    // NOT NEEDED NOW:     GCdone = true;
+    // NOT NEEDED NOW: }
     if (GCdone) {
         // Increment the GC count
         this->m_times_GC++;
     }
-    return done;
+    return true;
 }
 
 // Create new region with the given name.
 // Returns a reference to the region.
 Region *MemoryMgr::new_region( string &region_name,
-                               unsigned int region_size,
                                int level )
 {
     // Debug
     cerr << "Creating a new region[ " << region_name << " ]: "
-         << " size = " << region_size
          << "  | level = " << level << endl;
     RegionMap_t::iterator iter = this->m_region_map.find(region_name);
     // Blow up if we create a new region with the same name.
     assert(iter == this->m_region_map.end());
     assert(level >= 0); // TODO make this more informative
-    Region *regptr = new Region( region_name, region_size, level );
+    Region *regptr = new Region( region_name, level );
     assert(regptr); // TODO make this more informative
     this->m_region_map[region_name] = regptr;
     return regptr;
@@ -451,10 +450,8 @@ bool MemoryMgr::is_in_live_set( Object *object )
 void Region::print_status()
 {
     cout << "Region[ " << this->m_name << " ]" << endl
-         << "    - size: " << this->m_size << endl
-         << "    - live: " << this->m_live << endl
-         << "    - free: " << this->m_free << endl
-         << "    - used: " << this->m_used << endl;
+         << "    - live   : " << this->m_live << endl
+         << "    - garbage: " << this->m_garbage << endl;
 }
 
 void MemoryMgr::print_status()
@@ -694,7 +691,6 @@ bool MemoryMgrDef::initialize_memory( vector<int> sizes )
     assert(sizes.size() == 1); // This is a single region collector.
     vector<int>::iterator iter = sizes.begin();
     this->m_alloc_region = this->new_region( MemoryMgr::ALLOC,
-                                             *iter,
                                              level ); // Level 0 is required.
     // ++iter;
     // ++level;

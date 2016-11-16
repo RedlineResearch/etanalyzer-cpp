@@ -118,7 +118,7 @@ def run_GC_simulator( result = {},
         count = 0
         numprocs = 1
         # TODO
-        heapsize = (int(max_live_size * 1.05) + 8) // 8
+        heapsize = ((int(max_live_size * 1.05) + 8) // 8) * 8
         for index in xrange(numprocs):
             # Output file
             count += 1
@@ -141,6 +141,9 @@ def run_GC_simulator( result = {},
                                           stdin = tracefp,
                                           stderr = out_fileptr,
                                           cwd = workdir )
+                # TODO
+                # Spawn all at once and communicate at the end
+                # TODO
                 sproc.communicate()
         done = True
     print "DEBUG."

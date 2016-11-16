@@ -70,12 +70,8 @@ public:
 
     // Constructor
     Region( string &name,
-            unsigned int size,
             int level )
         : m_name(name)
-        , m_size(size)
-        , m_free(size)
-        , m_used(0)
         , m_live(0)
         , m_garbage(0)
         , m_level(level)
@@ -107,9 +103,6 @@ public:
     //----------------------------------------------------------------------
     int getLevel() const  { return this->m_level; }
 
-    int getSize() const { return m_size; }
-    int getUsed() const { return m_used; }
-    int getFree() const { return m_free; }
     int getLive() const { return m_live; }
     int getGarbage() const { return m_garbage; }
     unsigned int long get_num_GC_attempts() const {
@@ -147,13 +140,9 @@ private:
     void addToGarbage( int add );
     int setGarbage( int newval );
 
-    // The following 4 fields are in bytes.
-    const unsigned int m_size; // Total capacity
-    int m_used; // Currently in use = live + garbage
-    int m_free; // free space = size - used
+    // The following fields are in bytes.
     int m_live; // live space (reachable, not garbage)
-    int m_garbage; // garbage = in use - live
-    // => also the total size in bytes of all objects in m_garbage_waiting set
+    int m_garbage; // garbage
 
     int m_number_of_collections;
 
@@ -199,6 +188,10 @@ public:
         , m_level_map()
         , m_level2name_map()
         , m_live_set()
+        , m_free(0)
+        , m_used(0)
+        , m_liveSize(0)
+        , m_garbage(0)
         , m_specgroup()
         , m_nonregion_edges()
         , m_srcidmap()
@@ -288,7 +281,6 @@ protected:
     // Create new region with the given name.
     // Returns a reference to the region.
     Region *new_region( string &region_name,
-                        unsigned int size,
                         int level );
 
     // Maps from region name to Region pointer
@@ -315,12 +307,18 @@ protected:
     // MemoryMgr is expected to keep track of objects so that we can handle
     // duplicate allocations properly
     ObjectSet_t m_live_set;
+
     // The special group of objects that we are to ignore during collections
     ObjectIdSet_t m_specgroup;
     // Number of groups
     int m_numgroups;
     
-    // Live size should be here because this is where the live set it managed.
+    // Space related variables (in bytes)
+    // These should be here because this is where the live set is managed.
+    unsigned long int m_size; // How much memory total
+    unsigned long int m_free; // How much free space = size - used
+    unsigned long int m_used; // How much is used = live + garbage
+    unsigned long int m_garbage; // How much is used but unreachable
     unsigned long int m_liveSize; // current live size of program heap in bytes
     unsigned long int m_maxLiveSize; // current maximum live size of program heap in bytes
 
