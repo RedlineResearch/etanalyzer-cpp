@@ -354,10 +354,10 @@ int main(int argc, char* argv[])
 
     std::vector<int> mem_sizes;
     mem_sizes.push_back( memsize );
-    Heap.initialize_memory( mem_sizes,
-                            dgroups_csvfile,
-                            1 ); // Number of groups to use
-                            // Hard coded number at this point. TODO
+    Heap.initialize_memory_basic( mem_sizes,
+                                  // TODO dgroups_csvfile,
+                                  1 ); // Number of groups to use
+    // Hard coded number at this point. TODO
     cout << "Read names file..." << endl;
     ClassInfo::read_names_file_nomain( argv[1] );
 

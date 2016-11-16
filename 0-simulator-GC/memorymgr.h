@@ -80,6 +80,10 @@ public:
         , m_garbage(0)
         , m_level(level)
         , m_live_set()
+        , m_region_edges()
+        , m_dtime(0)
+        , m_in_edges()
+        , m_out_edges()
         , m_garbage_waiting()
         , m_gc_history() {
     }
@@ -108,12 +112,34 @@ public:
     int getFree() const { return m_free; }
     int getLive() const { return m_live; }
     int getGarbage() const { return m_garbage; }
-    unsigned int long get_num_GC_attempts() const { return this->GC_attempts; }
+    unsigned int long get_num_GC_attempts() const {
+        return this->GC_attempts;
+    }
+
+    void set_region_deathtime( unsigned int dtime ) {
+        this->m_dtime = dtime;
+    }
+
+    unsigned int get_region_deathtime() {
+        return this->m_dtime;
+    }
 
     deque<GCRecord_t> get_GC_history() const { return m_gc_history; }
 
     // Debug functions
     void print_status();
+
+protected:
+    // Edge sets and remember sets
+    //     * edges where source and target are in the region
+    ObjectId2SetMap_t m_region_edges;
+    //     * edges where source is outside and target is in the region
+    ObjectId2SetMap_t m_in_edges;
+    //     * edges where source is inside and target is outside the region
+    ObjectId2SetMap_t m_out_edges;
+
+    // Expected death time in allocation byte time
+    unsigned int m_dtime;
 
 private:
     string m_name;
@@ -146,11 +172,12 @@ private:
 
 };
 
-enum class ManagerType {
-    Simple,
-    Deferred,
-    Undefined
-};
+// TODO DELETE
+// enum class ManagerType {
+//     Simple,
+//     Deferred,
+//     Undefined
+// };
 
 class MemoryMgr
 {
@@ -167,17 +194,13 @@ public:
                            unsigned int create_time,
                            unsigned int new_alloc_time );
 
-    MemoryMgr( ManagerType mgrtype )
-        : m_mgrtype( mgrtype )
-        , m_region_map()
+    MemoryMgr()
+        : m_region_map()
         , m_level_map()
         , m_level2name_map()
         , m_live_set()
         , m_specgroup()
-        , m_region_edges()
         , m_nonregion_edges()
-        , m_in_edges()
-        , m_out_edges()
         , m_srcidmap()
         , m_tgtidmap()
         , m_alloc_region(NULL)
@@ -194,11 +217,14 @@ public:
     // Initializes all the regions. This should contain all knowledge
     // of how things are laid out. Virtual so you can reimplement
     // with different layouts.
-    bool initialize_memory( std::vector<int> sizes );
+    virtual bool initialize_memory( std::vector<int> sizes );
 
     // Initialize the grouped region of objects
-    void initialize_special_group( string &group_filename,
-                                   int numgroups );
+    virtual bool initialize_special_group( string &group_filename,
+                                           int numgroups ) {
+        // DO NOTHING.
+        // There's no special gropu in the BASIC MemoryMgr.
+    }
 
     // Get number of regions
     int numberRegions() const { return this->m_region_map.size(); }
@@ -253,9 +279,7 @@ public:
     // - TODO Documentation
     void print_status();
 
-private:
-    // Memory Manager type
-    ManagerType m_mgrtype;
+protected:
     // Total size being managed
     unsigned long int m_total_size;
     // Total number of collections done
@@ -295,33 +319,15 @@ private:
     ObjectIdSet_t m_specgroup;
     // Number of groups
     int m_numgroups;
-    // NOTE: This is temporarily at 1 for experimental purposes.
-    //       If ever there's a need for more groups, then the following
-    //       need to be changed:
-    // 1. m_specgroup - There will be more than one group, so this has to be a
-    //                  map from group Id to the set comprising the actual group.
-    // 2. All the set of edges
-    //     - m_region_edges
-    //     - m_in_edges
-    //     - m_out_edges
-    //     - m_nonregion_edges
-    //    Note that this may get exponentially more complicated as keeping track
-    //    of edges between groups will be complicated under the current scheme.
-    //    - RLV 7 Nov 2016
     
     // Live size should be here because this is where the live set it managed.
     unsigned long int m_liveSize; // current live size of program heap in bytes
     unsigned long int m_maxLiveSize; // current maximum live size of program heap in bytes
 
-    // Edge sets and remember sets
-    //     * edges where source and target are in the region
-    ObjectId2SetMap_t m_region_edges;
-    //     * edges where source is outside and target is in the region
-    ObjectId2SetMap_t m_in_edges;
-    //     * edges where source is inside and target is outside the region
-    ObjectId2SetMap_t m_out_edges;
+    // Edge set
     //     * edges where both source and target are outside the region
     ObjectId2SetMap_t m_nonregion_edges;
+    // Well for the base MemoryMgr, this is the only edge set.
 
     // Counts of total edges added
     unsigned int m_region_edges_count;
@@ -342,6 +348,44 @@ private:
 
 class MemoryMgrDef : public MemoryMgr
 {
+private:
+    static string EMPTY;
+
+public:
+    MemoryMgrDef()
+        : m_region_edges_p( NULL )
+        , m_in_edges_p( NULL )
+        , m_out_edges_p( NULL )
+        , m_defregion_p( NULL )
+        , MemoryMgr() {
+        }
+    // Returns true if allocation caused garbage collection.
+    //         false otherwise.
+    virtual bool allocate( Object *object,
+                           unsigned int create_time,
+                           unsigned int new_alloc_time );
+
+    virtual void add_edge( ObjectId_t src, ObjectId_t tgt );
+    virtual void remove_edge( ObjectId_t src, ObjectId_t oldTgtId );
+    //
+    // Initializes all the regions. This should contain all knowledge
+    // of how things are laid out.
+    virtual bool initialize_memory( std::vector<int> sizes );
+
+    // Initialize the grouped region of objects
+    virtual bool initialize_special_group( string &group_filename,
+                                           int numgroups );
+
+protected:
+    // Edge sets and remember sets
+    //     * edges where source and target are in the region
+    ObjectId2SetMap_t *m_region_edges_p;
+    //     * edges where source is outside and target is in the region
+    ObjectId2SetMap_t *m_in_edges_p;
+    //     * edges where source is inside and target is outside the region
+    ObjectId2SetMap_t *m_out_edges_p;
+
+    Region *m_defregion_p;
 };
 
 #endif

@@ -110,7 +110,7 @@ class HeapState
         // Memory manager - basic GC
         MemoryMgr m_memmgr;
         // Memory manager 2 -  deferred GC
-        // ????
+        MemoryMgrDef *m_memmgrdef_p;
 
         unsigned long int m_maxLiveSize; // max live size of program in bytes
         unsigned int m_alloc_time; // current alloc time
@@ -135,7 +135,8 @@ class HeapState
     public:
         HeapState( ObjectPtrMap_t& whereis, KeySet_t& keyset )
             : m_objects()
-            , m_memmgr( ManagerType::Simple )
+            , m_memmgr()
+            , m_memmgrdef_p(NULL)
             , m_whereis( whereis )
             , m_keyset( keyset )
             , m_maxLiveSize(0)
@@ -148,9 +149,11 @@ class HeapState
 
         // Initializes all the regions. Vector contains size of regions
         // corresponding to levels of regions according to index.
-        virtual bool initialize_memory( std::vector<int> sizes,
-                                        string &group_filename,
-                                        int numgroups );
+        virtual bool initialize_memory_basic( std::vector<int> sizes,
+                                              int numgroups );
+        bool initialize_memory_deferred( std::vector<int> sizes,
+                                         string &group_filename,
+                                         int numgroups );
 
         void enableObjectDebug() { m_obj_debug_flag = true; }
         void disableObjectDebug() { m_obj_debug_flag = false; }

@@ -7,6 +7,7 @@
 bool MemoryMgr::debug = false;
 string MemoryMgr::ALLOC = "ALLOC";
 bool Region::debug = false;
+string MemoryMgrDef::EMPTY = "EMPTY";
 
 // TODO using namespace boost;
 
@@ -159,86 +160,9 @@ bool MemoryMgr::initialize_memory( vector<int> sizes )
         exit(1);
     }
     // Calculate our GC threshold for the system.
-    // OLD CODE: when GC threshold is less than total size
-    //           this->m_GC_byte_threshold = static_cast<int>(this->m_total_size * this->m_GC_threshold);
     this->m_GC_byte_threshold = this->m_total_size;
+
     return true;
-
-    // NOT NEEDED NOW: if ( (this->m_GC_byte_threshold == 0) ||
-    // NOT NEEDED NOW:      (this->m_GC_byte_threshold > this->m_total_size) ){
-    // NOT NEEDED NOW:     cerr << "Invalid GC byte threshold: " << this->m_GC_byte_threshold << endl;
-    // NOT NEEDED NOW:     cerr << "GC percentage threshold  : " << this->m_GC_threshold << endl;
-    // NOT NEEDED NOW:     cerr << "Total heap size          : " << this->m_total_size << endl;
-    // NOT NEEDED NOW:     exit(2);
-    // NOT NEEDED NOW: }
-}
-
-// Initialize the grouped region of objects
-void MemoryMgr::initialize_special_group( string &group_filename,
-                                          int numgroups )
-{
-    std::ifstream infile( group_filename );
-    string line;
-    string s;
-    this->m_numgroups = numgroups;
-    int group_count = 0;
-    // The file is a CSV file with the following header:
-    //    groupId,number,death_time,list
-    // First line is a header:
-    std::getline(infile, line);
-    // TODO: Maybe make sure we have the right file?
-    while (std::getline(infile, line)) {
-        size_t pos = 0;
-        string token;
-        unsigned long int num;
-        int count = 0;
-        //------------------------------------------------------------
-        // Get the group Id
-        pos = line.find(",");
-        assert( pos != string::npos );
-        s = line.substr(0, pos);
-        // DEBUG: cout << "GID: " << s << endl;
-        int groupId = std::stoi(s);
-        line.erase(0, pos + 1);
-        //------------------------------------------------------------
-        // Get the number of objects in the group
-        pos = line.find(",");
-        assert( pos != string::npos );
-        s = line.substr(0, pos);
-        // DEBUG: cout << "NUM: " << s << endl;
-        int total = std::stoi(s);
-        line.erase(0, pos + 1);
-        //------------------------------------------------------------
-        // Get the deathtime
-        pos = line.find(",");
-        assert( pos != string::npos );
-        s = line.substr(0, pos);
-        // DEBUG: cout << "DTIME: " << s << endl;
-        int dtime = std::stoi(s);
-        line.erase(0, pos + 1);
-        //------------------------------------------------------------
-        // Get the object Ids
-        while ((pos = line.find(",")) != string::npos) {
-            token = line.substr(0, pos);
-            num = std::stoi(token);
-            line.erase(0, pos + 1);
-            ++count;
-            this->m_specgroup.insert(num);
-        }
-        // Get the last number
-        num = std::stoi(line);
-        this->m_specgroup.insert(num);
-        ++count;
-        ++group_count;
-        // DEBUG
-        cout << "Special group[ " << groupId << " ]:  "
-             << "total objects read in = " << total << " | "
-             << "set size = " << this->m_specgroup.size() << endl;
-        // END DEBUG
-        if (group_count >= numgroups) {
-            break;
-        }
-    }
 }
 
 
@@ -359,82 +283,23 @@ bool MemoryMgr::makeDead( Object *object, unsigned int death_time )
 void MemoryMgr::add_edge( ObjectId_t src,
                           ObjectId_t tgt )
 {
-    // DEBUG
     // DEBUG cout << "Adding edge (" << src << "," << tgt << ")" << endl;
-    ObjectIdSet_t::iterator iter = this->m_specgroup.find(src);
-    ObjectIdSet_t::iterator tgt_iter = this->m_specgroup.find(tgt);
     //----------------------------------------------------------------------
     // Add to edge maps
-    if (iter != this->m_specgroup.end()) {
-        // Source is in special group
-        if (tgt_iter != this->m_specgroup.end()) {
-            // Target is in special group
-            ObjectId2SetMap_t::iterator itmp = this->m_region_edges.find(src);
-            if (itmp != this->m_region_edges.end()) {
-                // Already in the map
-                ObjectIdSet_t &myset = itmp->second;
-                myset.insert(tgt);
-            } else {
-                // Not in the map
-                ObjectIdSet_t myset;
-                myset.insert(tgt);
-                this->m_region_edges[src] = myset;
-            }
-            // // DEBUG ONLY
-            // itmp = this->m_region_edges.find(src);
-            // assert(itmp != this->m_region_edges.end());
-            // ObjectIdSet_t &myset = itmp->second;
-            // ObjectIdSet_t::iterator tmpiter = myset.find(tgt);
-            // assert(tmpiter != myset.end());
-            // // END DEBUG
-            this->m_region_edges_count++;
-        } else {
-            // Target is NOT in special group
-            ObjectId2SetMap_t::iterator itmp = this->m_out_edges.find(src);
-            if (itmp != this->m_out_edges.end()) {
-                // Already in the map
-                ObjectIdSet_t &myset = itmp->second;
-                myset.insert(tgt);
-            } else {
-                // Not in the map
-                ObjectIdSet_t myset;
-                myset.insert(tgt);
-                this->m_out_edges[src] = myset;
-            }
-            this->m_out_edges_count++;
-        }
+    // Source is NOT in special group because there IS no special group.
+    // Target is NOT in special group for the same reason.
+    ObjectId2SetMap_t::iterator itmp = this->m_nonregion_edges.find(src);
+    if (itmp != this->m_nonregion_edges.end()) {
+        // Already in the map
+        ObjectIdSet_t &myset = itmp->second;
+        myset.insert(tgt);
     } else {
-        // Source is NOT in special group
-        if (tgt_iter != this->m_specgroup.end()) {
-            // Target is in special group
-            ObjectId2SetMap_t::iterator itmp = this->m_in_edges.find(src);
-            if (itmp != this->m_in_edges.end()) {
-                // Already in the map
-                ObjectIdSet_t &myset = itmp->second;
-                myset.insert(tgt);
-            } else {
-                // Not in the map
-                ObjectIdSet_t myset;
-                myset.insert(tgt);
-                this->m_in_edges[src] = myset;
-            }
-            this->m_in_edges_count++;
-        } else {
-            // Target is NOT in special group
-            ObjectId2SetMap_t::iterator itmp = this->m_nonregion_edges.find(src);
-            if (itmp != this->m_nonregion_edges.end()) {
-                // Already in the map
-                ObjectIdSet_t &myset = itmp->second;
-                myset.insert(tgt);
-            } else {
-                // Not in the map
-                ObjectIdSet_t myset;
-                myset.insert(tgt);
-                this->m_nonregion_edges[src] = myset;
-            }
-            this->m_nonregion_edges_count++;
-        }
+        // Not in the map
+        ObjectIdSet_t myset;
+        myset.insert(tgt);
+        this->m_nonregion_edges[src] = myset;
     }
+    this->m_nonregion_edges_count++;
     //----------------------------------------------------------------------
     // Add to look up maps
     // Src map
@@ -461,55 +326,27 @@ void MemoryMgr::add_edge( ObjectId_t src,
         this->m_tgtidmap[tgt] = tmpset;
     }
 } 
+
 void MemoryMgr::remove_edge( ObjectId_t src,
                              ObjectId_t oldTgtId )
 {
-    // DEBUG
     // DEBUG cout << "Remove edge (" << src << "," << oldTgtId << ")" << endl;
     ObjectId2SetMap_t::iterator iter;
     this->m_attempts_edges_removed++;
     //----------------------------------------------------------------------
     // Remove edge from region maps
-    // Look in the special region
-    iter = this->m_region_edges.find(src);
-    if (iter != this->m_region_edges.end()) {
-        // Found in region
-        ObjectIdSet_t &myset = iter->second;
-        myset.erase(oldTgtId);
-        this->m_edges_removed++;
-        goto END;
-    }
-    // Look outside the special region
+    // Look in nonregion because we know everything else is empty
+    // in the base MemoryMgr.
     iter = this->m_nonregion_edges.find(src);
     if (iter != this->m_nonregion_edges.end()) {
         // Found in nonregion
         ObjectIdSet_t &myset = iter->second;
         myset.erase(oldTgtId);
         this->m_edges_removed++;
-        goto END;
+    } else {
+        // TODO: DEBUG for edges not found?
+        // TODO: At least keep track of how many edges weren't found.
     }
-    // Look in the in to out 
-    iter = this->m_in_edges.find(src);
-    if (iter != this->m_in_edges.end()) {
-        // Found in IN region 
-        ObjectIdSet_t &myset = iter->second;
-        myset.erase(oldTgtId);
-        this->m_edges_removed++;
-        goto END;
-    }
-    // Look in the out to in 
-    iter = this->m_out_edges.find(src);
-    if (iter != this->m_out_edges.end()) {
-        // Found in IN region 
-        ObjectIdSet_t &myset = iter->second;
-        myset.erase(oldTgtId);
-        this->m_edges_removed++;
-        goto END;
-        // Well this isn't needed but symmetric.
-        // If ever there's any new code after this, this makes it less likely
-        // that a bug's introduced.
-    }
-    END:
     return;
 }
 
@@ -631,3 +468,328 @@ unsigned long int MemoryMgr::get_num_GC_attempts( bool printflag )
     //      get the number of GC attempts per region.
     //      if printflag: print
 }
+
+
+//==============================================================================
+// MemoryMgrDef
+//==============================================================================
+
+bool MemoryMgrDef::allocate( Object *object,
+                             unsigned int create_time,
+                             unsigned int new_alloc_time )
+{
+    assert(this->m_alloc_region);
+    int collected = 0; // Amount collected
+    bool GCdone = false;
+
+    this->m_alloc_time = new_alloc_time;
+    ObjectSet_t::iterator iter = this->m_live_set.find( object );
+    if (iter != this->m_live_set.end()) {
+        // Found a dupe.
+        // Always return true, but ignore the actual allocation.
+        return true;
+    }
+    // Decisions for collection should be done here at the MemoryMgr level.
+    bool done = this->m_alloc_region->allocate( object, create_time );
+    if (!done) {
+        // Not enough free space.
+        // 1. We collect on a failed allocation.
+        collected = this->m_alloc_region->collect( create_time, new_alloc_time );
+        GCdone = true;
+        // 2. Try again. Note that we only try one more time as the 
+        //    basic collector will give back all possible free memory.
+        done = this->m_alloc_region->allocate( object, create_time );
+        // NOTE: In a setup with more than one region, the MemoryMgr could
+        // go through all regions trying to find free space. And returning
+        // 'false' means an Out Of Memory Error (OOM).
+    }
+    if (done) {
+        unsigned long int temp = this->m_liveSize + object->getSize();
+        // Max live size calculation
+        // We silently peg to ULONG_MAX the wraparound.
+        // TODO: Maybe we should just error here as this probably isn't possible.
+        this->m_liveSize = ( (temp < this->m_liveSize) ? ULONG_MAX : temp );
+        // Add to live set.
+        this->m_live_set.insert( object );
+        // Keep tally of what our maximum live size is for the program run
+        if (this->m_maxLiveSize < this->m_liveSize) {
+            this->m_maxLiveSize = this->m_liveSize;
+        }
+        // NOT NEEDED NOW: if (!GCdone && this->should_do_collection()) {
+        // NOT NEEDED NOW:     collected += this->m_alloc_region->collect( create_time );
+        // NOT NEEDED NOW:     GCdone = true;
+        // NOT NEEDED NOW: }
+    }
+    if (GCdone) {
+        // Increment the GC count
+        this->m_times_GC++;
+    }
+    return done;
+}
+
+// On an U(pdate) event
+void MemoryMgrDef::add_edge( ObjectId_t src,
+                             ObjectId_t tgt )
+{
+    // DEBUG
+    // DEBUG cout << "Adding edge (" << src << "," << tgt << ")" << endl;
+    ObjectIdSet_t::iterator iter = this->m_specgroup.find(src);
+    ObjectIdSet_t::iterator tgt_iter = this->m_specgroup.find(tgt);
+    //----------------------------------------------------------------------
+    // Add to edge maps
+    if (iter != this->m_specgroup.end()) {
+        // Source is in special group
+        if (tgt_iter != this->m_specgroup.end()) {
+            // Target is in special group
+            ObjectId2SetMap_t::iterator itmp = this->m_region_edges_p->find(src);
+            if (itmp != this->m_region_edges_p->end()) {
+                // Already in the map
+                ObjectIdSet_t &myset = itmp->second;
+                myset.insert(tgt);
+            } else {
+                // Not in the map
+                ObjectIdSet_t myset;
+                myset.insert(tgt);
+                (*this->m_region_edges_p)[src] = myset;
+            }
+            // // DEBUG ONLY
+            // itmp = this->m_region_edges_p->find(src);
+            // assert(itmp != this->m_region_edges_p->end());
+            // ObjectIdSet_t &myset = itmp->second;
+            // ObjectIdSet_t::iterator tmpiter = myset.find(tgt);
+            // assert(tmpiter != myset.end());
+            // // END DEBUG
+            this->m_region_edges_count++;
+        } else {
+            // Target is NOT in special group
+            ObjectId2SetMap_t::iterator itmp = this->m_out_edges_p->find(src);
+            if (itmp != this->m_out_edges_p->end()) {
+                // Already in the map
+                ObjectIdSet_t &myset = itmp->second;
+                myset.insert(tgt);
+            } else {
+                // Not in the map
+                ObjectIdSet_t myset;
+                myset.insert(tgt);
+                (*this->m_out_edges_p)[src] = myset;
+            }
+            this->m_out_edges_count++;
+        }
+    } else {
+        // Source is NOT in special group
+        if (tgt_iter != this->m_specgroup.end()) {
+            // Target is in special group
+            ObjectId2SetMap_t::iterator itmp = this->m_in_edges_p->find(src);
+            if (itmp != this->m_in_edges_p->end()) {
+                // Already in the map
+                ObjectIdSet_t &myset = itmp->second;
+                myset.insert(tgt);
+            } else {
+                // Not in the map
+                ObjectIdSet_t myset;
+                myset.insert(tgt);
+                (*this->m_in_edges_p)[src] = myset;
+            }
+            this->m_in_edges_count++;
+        } else {
+            // Target is NOT in special group
+            ObjectId2SetMap_t::iterator itmp = this->m_nonregion_edges.find(src);
+            if (itmp != this->m_nonregion_edges.end()) {
+                // Already in the map
+                ObjectIdSet_t &myset = itmp->second;
+                myset.insert(tgt);
+            } else {
+                // Not in the map
+                ObjectIdSet_t myset;
+                myset.insert(tgt);
+                this->m_nonregion_edges[src] = myset;
+            }
+            this->m_nonregion_edges_count++;
+        }
+    }
+    //----------------------------------------------------------------------
+    // Add to look up maps
+    // Src map
+    ObjectId2SetMap_t::iterator miter = this->m_srcidmap.find(src);
+    if (miter != this->m_srcidmap.end()) {
+        // Already exists
+        this->m_srcidmap[src].insert(tgt);
+    } else {
+        // Doesn't exist
+        ObjectIdSet_t tmpset;
+        tmpset.insert(tgt);
+        this->m_srcidmap[src] = tmpset;
+    }
+    //----------------------------------------------------------------------
+    // Tgt map
+    miter = this->m_tgtidmap.find(tgt);
+    if (miter != this->m_tgtidmap.end()) {
+        // Already exists
+        this->m_tgtidmap[src].insert(src);
+    } else {
+        // Doesn't exist
+        ObjectIdSet_t tmpset;
+        tmpset.insert(src);
+        this->m_tgtidmap[tgt] = tmpset;
+    }
+} 
+
+void MemoryMgrDef::remove_edge( ObjectId_t src,
+                                ObjectId_t oldTgtId )
+{
+    // DEBUG
+    // DEBUG cout << "Remove edge (" << src << "," << oldTgtId << ")" << endl;
+    ObjectId2SetMap_t::iterator iter;
+    this->m_attempts_edges_removed++;
+    //----------------------------------------------------------------------
+    // Remove edge from region maps
+    // Look in the special region
+    iter = this->m_region_edges_p->find(src);
+    if (iter != this->m_region_edges_p->end()) {
+        // Found in region
+        ObjectIdSet_t &myset = iter->second;
+        myset.erase(oldTgtId);
+        this->m_edges_removed++;
+        goto END;
+    }
+    // Look outside the special region
+    iter = this->m_nonregion_edges.find(src);
+    if (iter != this->m_nonregion_edges.end()) {
+        // Found in nonregion
+        ObjectIdSet_t &myset = iter->second;
+        myset.erase(oldTgtId);
+        this->m_edges_removed++;
+        goto END;
+    }
+    // Look in the in to out 
+    iter = this->m_in_edges_p->find(src);
+    if (iter != this->m_in_edges_p->end()) {
+        // Found in IN region 
+        ObjectIdSet_t &myset = iter->second;
+        myset.erase(oldTgtId);
+        this->m_edges_removed++;
+        goto END;
+    }
+    // Look in the out to in 
+    iter = this->m_out_edges_p->find(src);
+    if (iter != this->m_out_edges_p->end()) {
+        // Found in IN region 
+        ObjectIdSet_t &myset = iter->second;
+        myset.erase(oldTgtId);
+        this->m_edges_removed++;
+        goto END;
+        // Well this isn't needed but symmetric.
+        // If ever there's any new code after this, this makes it less likely
+        // that a bug's introduced.
+    }
+    END:
+    return;
+}
+
+bool MemoryMgrDef::initialize_memory( vector<int> sizes )
+{
+    int level = 0;
+    // This needs fixing: TODO
+    // Do I send in a vector of NAMES for the regions?
+    assert(sizes.size() == 1); // This is a single region collector.
+    vector<int>::iterator iter = sizes.begin();
+    this->m_alloc_region = this->new_region( MemoryMgr::ALLOC,
+                                             *iter,
+                                             level ); // Level 0 is required.
+    // ++iter;
+    // ++level;
+    // string myname("OTHER");
+    // while (iter != sizes.end()) {
+    //     this->new_region( myname,
+    //                       *iter,
+    //                       level );
+    //     ++iter;
+    //     ++level;
+    // }
+    if (this->m_alloc_region) {
+        this->m_total_size += *iter;
+    } else {
+        cerr << "Unable to allocate in our simulator. REAL OOM in your system. Quitting." << endl;
+        exit(1);
+    }
+    // Calculate our GC threshold for the system.
+    this->m_GC_byte_threshold = this->m_total_size;
+
+    return true;
+}
+
+// Initialize the grouped region of objects
+bool MemoryMgrDef::initialize_special_group( string &group_filename,
+                                             int numgroups )
+{
+    std::ifstream infile( group_filename );
+    string line;
+    string s;
+    this->m_numgroups = numgroups;
+    int group_count = 0;
+    // The file is a CSV file with the following header:
+    //    groupId,number,death_time,list
+    // First line is a header:
+    std::getline(infile, line);
+    // TODO: Maybe make sure we have the right file?
+    while (std::getline(infile, line)) {
+        size_t pos = 0;
+        string token;
+        unsigned long int num;
+        int count = 0;
+        //------------------------------------------------------------
+        // Get the group Id
+        pos = line.find(",");
+        assert( pos != string::npos );
+        s = line.substr(0, pos);
+        // DEBUG: cout << "GID: " << s << endl;
+        int groupId = std::stoi(s);
+        line.erase(0, pos + 1);
+        //------------------------------------------------------------
+        // Get the number of objects in the group
+        pos = line.find(",");
+        assert( pos != string::npos );
+        s = line.substr(0, pos);
+        // DEBUG: cout << "NUM: " << s << endl;
+        int total = std::stoi(s);
+        line.erase(0, pos + 1);
+        //------------------------------------------------------------
+        // Get the deathtime
+        pos = line.find(",");
+        assert( pos != string::npos );
+        s = line.substr(0, pos);
+        // DEBUG: cout << "DTIME: " << s << endl;
+        int dtime = std::stoi(s);
+        // TODO TODO TODO TODO
+        // This assumes that there's only one region here, so it doesn't work if
+        // there are multiple regions. To do multiple regions, we need a map from
+        // region number to region. This way it should match the groups text file
+        // we are getting the death groups information.
+        this->m_defregion_p->set_region_deathtime(dtime);
+        line.erase(0, pos + 1);
+        //------------------------------------------------------------
+        // Get the object Ids
+        while ((pos = line.find(",")) != string::npos) {
+            token = line.substr(0, pos);
+            num = std::stoi(token);
+            line.erase(0, pos + 1);
+            ++count;
+            this->m_specgroup.insert(num);
+        }
+        // Get the last number
+        num = std::stoi(line);
+        this->m_specgroup.insert(num);
+        ++count;
+        ++group_count;
+        // DEBUG
+        cout << "Special group[ " << groupId << " ]:  "
+             << "total objects read in = " << total << " | "
+             << "set size = " << this->m_specgroup.size() << endl;
+        // END DEBUG
+        if (group_count >= numgroups) {
+            break;
+        }
+    }
+    return true;
+}
+
