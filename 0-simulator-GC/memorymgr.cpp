@@ -103,7 +103,9 @@ int Region::collect( unsigned int timestamp,
     // Garbage in this region is now 0.
     this->setGarbage(0);
     // The GC record printed out
-    cout << "GC[" << timestamp << "," << timestamp_alloc << ","
+    cout << "GC[" << this->GC_attempts << ","
+         << timestamp << ","
+         << timestamp_alloc << ","
          << collected << "]" << endl;
     // TODO TODO: ADD THE GC NUMBER
     // Record this collection
