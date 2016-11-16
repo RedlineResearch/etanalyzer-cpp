@@ -115,12 +115,14 @@ def run_GC_simulator( result = {},
     group2list_filename = os.path.join( group2list_dir, bmark + template )
     heapsize = ((int(max_live_size * 1.05) + 8) // 8) * 8
     start_heapsize = heapsize
+    count = 0
+    procs = {}
     while True:
-        count = 0
-        procs = {}
-        for index in xrange(numprocs):
-            # Output file
+        index = len(procs)
+        while index < numprocs:
+            index += 1
             count += 1
+            # Output file
             print "================================================================================"
             print "  STARTING %s - %d" % (bmark, count)
             output_file = os.path.join( workdir, bmark + "-simulator-GC-%d.txt" % count )
@@ -144,20 +146,20 @@ def run_GC_simulator( result = {},
                                           cwd = workdir )
                 # Spawn all at once and communicate at the end
                 procs[count] = sproc
-            heapsize = heapsize + (((int(max_live_size * 0.1) + 8) // 8) * 8)
+            heapsize = heapsize + (((int(max_live_size * 0.2) + 8) // 8) * 8)
         check_done = False
         while not check_done:
-            check_done = True
             for procnum in procs.keys():
                 proc = procs[procnum]
                 proc.poll()
-                if proc.returncode == None:
-                    check_done = False
-                else:
+                if proc.returncode != None:
                     del procs[procnum]
                     timenow = time.asctime()
                     logger.debug( "[%s : %d] - done at %s" % (bmark, procnum, timenow) )
-        if heapsize >= (start_heapsize * 5):
+                    break
+            time.sleep(10)
+        if ( (len(procs) == 0) and
+             (heapsize >= (start_heapsize * 5)) ):
             break
     print "DEBUG."
     exit(100)
