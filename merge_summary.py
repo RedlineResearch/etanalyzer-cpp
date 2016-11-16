@@ -447,7 +447,8 @@ def summary_by_size( objinfo = None,
 def skip_file( fname = None ):
     return ( (fname == "docopy.sh") or
              (fname == "email.sh") or
-             (fname == "README.txt") )
+             (fname == "README.txt") or
+             os.path.isdir( fname ) )
 
 def backup_old_graphs( graph_dir_path = None,
                        backup_graph_dir_path = None,
@@ -471,7 +472,8 @@ def backup_old_graphs( graph_dir_path = None,
     os.chdir( graph_dir_path )
     flist = []
     for fname in os.listdir( graph_dir_path ):
-        if skip_file( fname ):
+        if ( skip_file( fname ) or
+             os.path.samefile( tfilename, fname ) ):
             continue
         flist.append( fname )
     if len(flist) == 0:
@@ -480,12 +482,14 @@ def backup_old_graphs( graph_dir_path = None,
         rmtree( temp_dir )
         return
     for fname in flist:
-        tarfp.add( fname )
-        print "  adding %s..." % fname
+        if os.path.isfile( fname ):
+            print "  adding %s..." % fname
+            tarfp.add( fname )
     tarfp.close()
     for fname in flist:
-        os.remove( fname )
-        print "  deleting %s." % fname
+        if os.path.isfile( fname ):
+            print "  deleting %s." % fname
+            os.remove( fname )
     cmd = [ "bzip2", "-9", tfilename ]
     print "Bzipping...",
     proc = subprocess.Popen( cmd,
@@ -494,17 +498,14 @@ def backup_old_graphs( graph_dir_path = None,
     result = proc.communicate()
     # TODO Check result?
     print "DONE."
+    print os.listdir( temp_dir )
     bz2filename = tfilename + ".bz2"
     print "--------------------------------------------------------------------------------"
-    print "DBG:", bz2filename
     assert( os.path.isfile(bz2filename) )
     # Check to see if the target exists already.
     tgtfile = os.path.join( backup_graph_dir_path, bz2filename )
     print "Moving: %s --> %s" % (bz2filename, backup_graph_dir_path)
     move( bz2filename, backup_graph_dir_path )
-    print "BGD:", backup_graph_dir_path
-    print "bz2filename:", bz2filename
-    assert( os.path.isfile( os.path.join( backup_graph_dir_path, bz2filename ) ) )
     print "Attempting to remove %s" % temp_dir
     rmtree( temp_dir )
 
