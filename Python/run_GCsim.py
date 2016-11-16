@@ -113,15 +113,16 @@ def run_GC_simulator( result = {},
     # -    because the output dir of the script is where we can find the output.
     template = dgroups2db_config["file-group2list"]
     group2list_filename = os.path.join( group2list_dir, bmark + template )
-    done = False
-    while not done:
+    heapsize = ((int(max_live_size * 1.05) + 8) // 8) * 8
+    start_heapsize = heapsize
+    while True:
         count = 0
-        numprocs = 1
-        # TODO
-        heapsize = ((int(max_live_size * 1.05) + 8) // 8) * 8
+        procs = {}
         for index in xrange(numprocs):
             # Output file
             count += 1
+            print "================================================================================"
+            print "  STARTING %s - %d" % (bmark, count)
             output_file = os.path.join( workdir, bmark + "-simulator-GC-%d.txt" % count )
             logger.debug( "Tracefile: %s" % tracefile )
             logger.debug( "Output name: %s" % output_file )
@@ -141,11 +142,23 @@ def run_GC_simulator( result = {},
                                           stdin = tracefp,
                                           stderr = out_fileptr,
                                           cwd = workdir )
-                # TODO
                 # Spawn all at once and communicate at the end
-                # TODO
-                sproc.communicate()
-        done = True
+                procs[count] = sproc
+            heapsize = heapsize + (((int(max_live_size * 0.1) + 8) // 8) * 8)
+        check_done = False
+        while not check_done:
+            check_done = True
+            for procnum in procs.keys():
+                proc = procs[procnum]
+                proc.poll()
+                if proc.returncode == None:
+                    check_done = False
+                else:
+                    del procs[procnum]
+                    timenow = time.asctime()
+                    logger.debug( "[%s : %d] - done at %s" % (bmark, procnum, timenow) )
+        if heapsize >= (start_heapsize * 5):
+            break
     print "DEBUG."
     exit(100)
 
