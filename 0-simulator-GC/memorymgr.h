@@ -78,6 +78,7 @@ public:
         , m_live_set()
         , m_region_edges()
         , m_dtime(0)
+        , m_mark_total(0)
         , m_in_edges()
         , m_out_edges()
         , m_garbage_waiting()
@@ -117,7 +118,9 @@ public:
         return this->m_dtime;
     }
 
-    deque<GCRecord_t> get_GC_history() const { return m_gc_history; }
+    unsigned int get_mark_total() const { return this->m_mark_total; }
+
+    deque<GCRecord_t> get_GC_history() const { return this->m_gc_history; }
 
     // Debug functions
     void print_status();
@@ -133,6 +136,8 @@ protected:
 
     // Expected death time in allocation byte time
     unsigned int m_dtime;
+    // Number of marks done by the collector
+    unsigned int m_mark_total;
 
 private:
     string m_name;

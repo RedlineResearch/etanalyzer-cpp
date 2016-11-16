@@ -111,6 +111,10 @@ int Region::collect( unsigned int timestamp,
     // Record this collection
     GCRecord_t rec = make_pair( timestamp_alloc, collected );
     this->m_gc_history.push_back( rec );
+    // Record how many edges were traced and add to total
+    this->m_mark_total += ( this->m_region_edges.size() +
+                            this->m_in_edges.size() +
+                            this->m_out_edges.size() );
     // Return how much we collected
     return collected;
 }
