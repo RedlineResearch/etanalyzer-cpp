@@ -108,7 +108,7 @@ class HeapState
         // -- Set of edges (all pointers)
         EdgeSet m_edges;
         // Memory manager - basic GC
-        MemoryMgr m_memmgr;
+        MemoryMgr *m_memmgr_p;
         // Memory manager 2 -  deferred GC
         MemoryMgrDef *m_memmgrdef_p;
 
@@ -135,7 +135,7 @@ class HeapState
     public:
         HeapState( ObjectPtrMap_t& whereis, KeySet_t& keyset )
             : m_objects()
-            , m_memmgr()
+            , m_memmgr_p(NULL)
             , m_memmgrdef_p(NULL)
             , m_whereis( whereis )
             , m_keyset( keyset )
@@ -149,8 +149,7 @@ class HeapState
 
         // Initializes all the regions. Vector contains size of regions
         // corresponding to levels of regions according to index.
-        virtual bool initialize_memory_basic( unsigned int heapsize,
-                                              int numgroups );
+        virtual bool initialize_memory_basic( unsigned int heapsize );
         bool initialize_memory_deferred( unsigned int heapsize,
                                          string &group_filename,
                                          int numgroups );
@@ -179,9 +178,9 @@ class HeapState
         ObjectMap::iterator begin() { return m_objects.begin(); }
         ObjectMap::iterator end() { return m_objects.end(); }
         unsigned int size() const { return m_objects.size(); }
-        unsigned long int getLiveSize() const { return this->m_memmgr.getLiveSize(); }
+        unsigned long int getLiveSize() const { return this->m_memmgr_p->getLiveSize(); }
         // TODO unsigned long int maxLiveSize() const { return m_maxLiveSize; }
-        unsigned long int getMaxLiveSize() const { return this->m_memmgr.getMaxLiveSize(); }
+        unsigned long int getMaxLiveSize() const { return this->m_memmgr_p->getMaxLiveSize(); }
         unsigned int getAllocTime() const { return m_alloc_time; }
 
         unsigned int getNumberNoDeathSites() const { return m_no_dsites_count; }
@@ -202,16 +201,16 @@ class HeapState
         KeySet_t& get_keyset() { return m_keyset; }
 
         // GC related functions
-        deque<GCRecord_t> get_GC_history() { return this->m_memmgr.get_GC_history(); }
-        int get_number_of_collections() const { return this->m_memmgr.get_number_of_collections(); }
+        deque<GCRecord_t> get_GC_history() { return this->m_memmgr_p->get_GC_history(); }
+        int get_number_of_collections() const { return this->m_memmgr_p->get_number_of_collections(); }
 
         // Debug
-        int get_number_edges_removed() const { return this->m_memmgr.get_number_edges_removed(); }
-        int get_number_attempts_edges_removed() const { return this->m_memmgr.get_number_attempts_edges_removed(); }
-        unsigned int get_region_edges_count() const { return this->m_memmgr.get_region_edges_count(); }
-        unsigned int get_in_edges_count() const { return this->m_memmgr.get_in_edges_count(); }
-        unsigned int get_out_edges_count() const { return this->m_memmgr.get_out_edges_count(); }
-        unsigned int get_nonregion_edges_count() const { return this->m_memmgr.get_nonregion_edges_count(); }
+        int get_number_edges_removed() const { return this->m_memmgr_p->get_number_edges_removed(); }
+        int get_number_attempts_edges_removed() const { return this->m_memmgr_p->get_number_attempts_edges_removed(); }
+        unsigned int get_region_edges_count() const { return this->m_memmgr_p->get_region_edges_count(); }
+        unsigned int get_in_edges_count() const { return this->m_memmgr_p->get_in_edges_count(); }
+        unsigned int get_out_edges_count() const { return this->m_memmgr_p->get_out_edges_count(); }
+        unsigned int get_nonregion_edges_count() const { return this->m_memmgr_p->get_nonregion_edges_count(); }
 };
 
 enum Color {

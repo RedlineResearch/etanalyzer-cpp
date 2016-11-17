@@ -340,8 +340,8 @@ void debug_GC_history( deque< GCRecord_t > &GC_history )
 
 int main(int argc, char* argv[])
 {
-    if (argc != 5) {
-        cout << "Usage: " << argv[0] << " <namesfile> <dgroups-csv-file> <output base name> <memsize>" << endl;
+    if (argc != 6) {
+        cout << "Usage: " << argv[0] << " <namesfile> <dgroups-csv-file> <output base name> <memsize> <BASIC/DEF>" << endl;
         cout << "      git version: " <<  build_git_sha << endl;
         cout << "      build date : " <<  build_git_time << endl;
         exit(1);
@@ -351,10 +351,21 @@ int main(int argc, char* argv[])
     string summary_filename( basename + "-SUMMARY.csv" );
     int memsize = std::stoi(argv[4]);
     cout << "Memory size: " << memsize << " bytes." << endl;
+    
+    string gctype(argv[5]);
+    if (gctype != "BASIC" && gctype != "DEF") {
+        cout << "Invalid GC type: " << gctype << endl
+             << "Exiting." << endl;
+        exit(2);
+    }
 
-    Heap.initialize_memory_basic( memsize,
-                                  // TODO dgroups_csvfile,
-                                  1 ); // Number of groups to use
+    if (gctype == "BASIC") {
+        Heap.initialize_memory_basic( memsize );
+    } else if (gctype == "DEF") {
+        Heap.initialize_memory_deferred( memsize,
+                                         dgroups_csvfile,
+                                         1 ); // Number of groups to use
+    }
     // Hard coded number at this point. TODO
     cout << "Read names file..." << endl;
     ClassInfo::read_names_file_nomain( argv[1] );

@@ -5,11 +5,11 @@ bool HeapState::do_refcounting = true;
 bool HeapState::debug = false;
 unsigned int Object::g_counter = 0;
 
-bool HeapState::initialize_memory_basic( unsigned int heapsize,
-                                         int numgroups )
+bool HeapState::initialize_memory_basic( unsigned int heapsize )
 {
     // Initialize the BASIC memory manager
-    bool result = this->m_memmgr.initialize_memory( heapsize );
+    this->m_memmgr_p = new MemoryMgr();
+    bool result = this->m_memmgr_p->initialize_memory( heapsize );
     return result;
 }
 
@@ -19,6 +19,7 @@ bool HeapState::initialize_memory_deferred( unsigned int heapsize,
 {
     // Initialize the BASIC memory manager
     this->m_memmgrdef_p = new MemoryMgrDef();
+    this->m_memmgr_p = static_cast<MemoryMgr *>(this->m_memmgrdef_p);
     bool result = this->m_memmgrdef_p->initialize_memory( heapsize );
     if (!result) {
         return false;
@@ -51,7 +52,7 @@ Object* HeapState::allocate( unsigned int id,
     m_objects[obj->getId()] = obj;
 
     // Call the Memory Manager allocate
-    bool success = this->m_memmgr.allocate( obj, create_time, this->getAllocTime() );
+    bool success = this->m_memmgr_p->allocate( obj, create_time, this->getAllocTime() );
     if (!success) {
         cout << "OOM Error:"
              << " ObjId: " << obj->getId()
@@ -95,24 +96,24 @@ Edge* HeapState::make_edge( Object* source,
 // - TODO
 void HeapState::make_edge2( unsigned int objId, unsigned int tgtId )
 {
-    this->m_memmgr.add_edge( objId, tgtId );
+    this->m_memmgr_p->add_edge( objId, tgtId );
 }
 
 // - TODO
 void HeapState::remove_edge2( unsigned int objId, unsigned int oldTgtId )
 {
-    this->m_memmgr.remove_edge( objId, oldTgtId );
-    this->m_memmgr.remove_from_srcidmap( objId,
+    this->m_memmgr_p->remove_edge( objId, oldTgtId );
+    this->m_memmgr_p->remove_from_srcidmap( objId,
                                          oldTgtId );
-    this->m_memmgr.remove_from_tgtidmap( objId,
+    this->m_memmgr_p->remove_from_tgtidmap( objId,
                                          oldTgtId );
 }
 
 
 void HeapState::makeDead(Object * obj, unsigned int death_time)
 {
-    if (this->m_memmgr.is_in_live_set(obj)) {
-        this->m_memmgr.makeDead( obj, death_time );
+    if (this->m_memmgr_p->is_in_live_set(obj)) {
+        this->m_memmgr_p->makeDead( obj, death_time );
     }
 }
 

@@ -131,7 +131,7 @@ def run_GC_simulator( result = {},
             with open(output_file, "wb") as out_fileptr:
                 # Command looks like this:
                 #     cat tracefile | simulator-GC lusearch.names lusearch-DGROUPS-group2list.csv lusearch 5000000
-                myargs = [ namesfile, group2list_filename, bmark, str(heapsize) ]
+                myargs = [ namesfile, group2list_filename, bmark, str(heapsize), "DEF", ]
                 stdout_filename = bmark + main_config["file-output-template"]
                 cmd = [ simulator ] + myargs
                 print "CMD:", cmd
@@ -146,7 +146,7 @@ def run_GC_simulator( result = {},
                                           cwd = workdir )
                 # Spawn all at once and communicate at the end
                 procs[count] = sproc
-            heapsize = heapsize + (((int(max_live_size * 0.2) + 8) // 8) * 8)
+            heapsize = heapsize + (((int(max_live_size * 0.25) + 8) // 8) * 8)
         check_done = False
         while not check_done:
             for procnum in procs.keys():
@@ -159,7 +159,7 @@ def run_GC_simulator( result = {},
                     break
             time.sleep(10)
         if ( (len(procs) == 0) and
-             (heapsize >= (start_heapsize * 5)) ):
+             (heapsize >= (start_heapsize * 2)) ):
             break
     print "DEBUG."
     exit(100)

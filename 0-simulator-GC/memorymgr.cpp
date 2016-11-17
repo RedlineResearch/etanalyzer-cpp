@@ -134,10 +134,9 @@ int Region::setGarbage( int newval )
 // Assuming index of size corresponds to level
 bool MemoryMgr::initialize_memory( unsigned int heapsize )
 {
-    int level = 0;
     // Do I send in a vector of NAMES for the regions?
     this->m_alloc_region = this->new_region( MemoryMgr::ALLOC,
-                                             level ); // Level 0 is required.
+                                             0 ); // Level 0 is required.
     this->m_size = heapsize;
     this->m_free = heapsize;
 
@@ -626,7 +625,7 @@ void MemoryMgrDef::remove_edge( ObjectId_t src,
                                 ObjectId_t oldTgtId )
 {
     // DEBUG
-    // DEBUG cout << "Remove edge (" << src << "," << oldTgtId << ")" << endl;
+    cout << "DEF: Remove edge (" << src << "," << oldTgtId << ")" << endl;
     ObjectId2SetMap_t::iterator iter;
     this->m_attempts_edges_removed++;
     //----------------------------------------------------------------------
@@ -677,9 +676,9 @@ void MemoryMgrDef::remove_edge( ObjectId_t src,
 bool MemoryMgrDef::initialize_memory( unsigned int heapsize )
 {
     // Do I send in a vector of NAMES for the regions?
-    this->m_alloc_region = this->new_region( MemoryMgr::ALLOC,
-                                             0 ); // Level 0 is required.
-
+    MemoryMgr::initialize_memory( heapsize );
+    this->m_defregion_p = this->new_region( MemoryMgrDef::SPECIAL,
+                                            1 );
     return true;
 }
 
@@ -691,6 +690,7 @@ bool MemoryMgrDef::initialize_special_group( string &group_filename,
     string line;
     string s;
     this->m_numgroups = numgroups;
+    assert( numgroups == 1 );
     int group_count = 0;
     // The file is a CSV file with the following header:
     //    groupId,number,death_time,list
