@@ -5,21 +5,21 @@ bool HeapState::do_refcounting = true;
 bool HeapState::debug = false;
 unsigned int Object::g_counter = 0;
 
-bool HeapState::initialize_memory_basic( std::vector<int> sizes,
+bool HeapState::initialize_memory_basic( unsigned int heapsize,
                                          int numgroups )
 {
     // Initialize the BASIC memory manager
-    bool result = this->m_memmgr.initialize_memory( sizes );
+    bool result = this->m_memmgr.initialize_memory( heapsize );
     return result;
 }
 
-bool HeapState::initialize_memory_deferred( std::vector<int> sizes,
+bool HeapState::initialize_memory_deferred( unsigned int heapsize,
                                             string &group_filename,
                                             int numgroups )
 {
     // Initialize the BASIC memory manager
     this->m_memmgrdef_p = new MemoryMgrDef();
-    bool result = this->m_memmgrdef_p->initialize_memory( sizes );
+    bool result = this->m_memmgrdef_p->initialize_memory( heapsize );
     if (!result) {
         return false;
     }

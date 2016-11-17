@@ -215,7 +215,7 @@ public:
     // Initializes all the regions. This should contain all knowledge
     // of how things are laid out. Virtual so you can reimplement
     // with different layouts.
-    virtual bool initialize_memory( std::vector<int> sizes );
+    virtual bool initialize_memory( unsigned int heapsize );
 
     // Initialize the grouped region of objects
     virtual bool initialize_special_group( string &group_filename,
@@ -352,7 +352,8 @@ protected:
 class MemoryMgrDef : public MemoryMgr
 {
 private:
-    static string EMPTY;
+    // static string ALLOC;
+    static string SPECIAL;
 
 public:
     MemoryMgrDef()
@@ -373,7 +374,7 @@ public:
     //
     // Initializes all the regions. This should contain all knowledge
     // of how things are laid out.
-    virtual bool initialize_memory( std::vector<int> sizes );
+    virtual bool initialize_memory( unsigned int heapsize );
 
     // Initialize the grouped region of objects
     virtual bool initialize_special_group( string &group_filename,

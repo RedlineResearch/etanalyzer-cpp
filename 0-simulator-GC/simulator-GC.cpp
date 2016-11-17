@@ -352,9 +352,7 @@ int main(int argc, char* argv[])
     int memsize = std::stoi(argv[4]);
     cout << "Memory size: " << memsize << " bytes." << endl;
 
-    std::vector<int> mem_sizes;
-    mem_sizes.push_back( memsize );
-    Heap.initialize_memory_basic( mem_sizes,
+    Heap.initialize_memory_basic( memsize,
                                   // TODO dgroups_csvfile,
                                   1 ); // Number of groups to use
     // Hard coded number at this point. TODO

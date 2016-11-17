@@ -7,7 +7,8 @@
 bool MemoryMgr::debug = false;
 string MemoryMgr::ALLOC = "ALLOC";
 bool Region::debug = false;
-string MemoryMgrDef::EMPTY = "EMPTY";
+string MemoryMgrDef::SPECIAL= "SPECIAL";
+// string MemoryMgrDef::ALLOC = "ALLOC";
 
 // TODO using namespace boost;
 
@@ -131,35 +132,19 @@ int Region::setGarbage( int newval )
 // Initialize all the memory and regions
 // Takes a std::vector list of sizes.
 // Assuming index of size corresponds to level
-bool MemoryMgr::initialize_memory( vector<int> sizes )
+bool MemoryMgr::initialize_memory( unsigned int heapsize )
 {
     int level = 0;
-    // This needs fixing: TODO
     // Do I send in a vector of NAMES for the regions?
-    assert(sizes.size() == 1); // This is a single region collector.
-    vector<int>::iterator iter = sizes.begin();
     this->m_alloc_region = this->new_region( MemoryMgr::ALLOC,
                                              level ); // Level 0 is required.
-    this->m_size += *iter;
-    this->m_free += *iter;
-    // ++iter;
-    // ++level;
-    // string myname("OTHER");
-    // while (iter != sizes.end()) {
-    //     this->new_region( myname,
-    //                       *iter,
-    //                       level );
-    //     ++iter;
-    //     ++level;
-    // }
-    if (this->m_alloc_region) {
-        this->m_total_size += *iter;
-    } else {
+    this->m_size = heapsize;
+    this->m_free = heapsize;
+
+    if (this->m_alloc_region == NULL) {
         cerr << "Unable to allocate in our simulator. REAL OOM in your system. Quitting." << endl;
         exit(1);
     }
-    // Calculate our GC threshold for the system.
-    this->m_GC_byte_threshold = this->m_total_size;
 
     return true;
 }
@@ -689,33 +674,11 @@ void MemoryMgrDef::remove_edge( ObjectId_t src,
     return;
 }
 
-bool MemoryMgrDef::initialize_memory( vector<int> sizes )
+bool MemoryMgrDef::initialize_memory( unsigned int heapsize )
 {
-    int level = 0;
-    // This needs fixing: TODO
     // Do I send in a vector of NAMES for the regions?
-    assert(sizes.size() == 1); // This is a single region collector.
-    vector<int>::iterator iter = sizes.begin();
     this->m_alloc_region = this->new_region( MemoryMgr::ALLOC,
-                                             level ); // Level 0 is required.
-    // ++iter;
-    // ++level;
-    // string myname("OTHER");
-    // while (iter != sizes.end()) {
-    //     this->new_region( myname,
-    //                       *iter,
-    //                       level );
-    //     ++iter;
-    //     ++level;
-    // }
-    if (this->m_alloc_region) {
-        this->m_total_size += *iter;
-    } else {
-        cerr << "Unable to allocate in our simulator. REAL OOM in your system. Quitting." << endl;
-        exit(1);
-    }
-    // Calculate our GC threshold for the system.
-    this->m_GC_byte_threshold = this->m_total_size;
+                                             0 ); // Level 0 is required.
 
     return true;
 }
