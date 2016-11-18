@@ -122,6 +122,9 @@ public:
 
     deque<GCRecord_t> get_GC_history() const { return this->m_gc_history; }
 
+    // Get region name
+    string get_name() const { return this->m_name; }
+
     // Debug functions
     void print_status();
 
@@ -249,7 +252,7 @@ public:
                                ObjectId_t tgtId );
 
     // Check if object is in live set
-    bool is_in_live_set( Object *object );
+    virtual bool is_in_live_set( Object *object );
 
     // Return the live size total in bytes
     unsigned long int getLiveSize() const { return this->m_liveSize; }
@@ -369,6 +372,10 @@ public:
                            unsigned int create_time,
                            unsigned int new_alloc_time );
 
+    // On a D(eath) event
+    virtual bool makeDead( Object *object, unsigned int death_time );
+
+    // Edges (adding and removing)
     virtual void add_edge( ObjectId_t src, ObjectId_t tgt );
     virtual void remove_edge( ObjectId_t src, ObjectId_t oldTgtId );
     //

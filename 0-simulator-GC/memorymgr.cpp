@@ -100,11 +100,12 @@ int Region::collect( unsigned int timestamp,
     // Clear the garbage waiting set and return the space to free.
     int collected = this->m_garbage;
     this->GC_attempts++;
-    this->m_garbage_waiting.clear();
+    this->m_garbage_waiting.clear(); // this is the waiting set of garbage
     // Garbage in this region is now 0.
     this->setGarbage(0);
     // The GC record printed out
-    cout << "GC[" << this->GC_attempts << ","
+    cout << "GC[" << this->get_name() << ","
+        << this->GC_attempts << ","
          << timestamp << ","
          << timestamp_alloc << ","
          << collected << "]" << endl;
@@ -466,52 +467,75 @@ bool MemoryMgrDef::allocate( Object *object,
                              unsigned int new_alloc_time )
 {
     assert(this->m_alloc_region);
-    int collected = 0; // Amount collected
-    bool GCdone = false;
+    int collected_regular = 0; // Amount collected from the REGULAR region
+    int collected_special = 0; // Amount collected from the SPECIAL region
 
     this->m_alloc_time = new_alloc_time;
-    ObjectSet_t::iterator iter = this->m_live_set.find( object );
-    if (iter != this->m_live_set.end()) {
+    // Decisions for collection should be done here at the MemoryMgr level.
+    // Check if we have space
+    unsigned int objSize = object->getSize();
+    if (objSize > this->m_free) {
+        // Not enough free space.
+        // 1. We collect the REGULAR region first on a failed allocation.
+        collected_regular = this->m_alloc_region->collect( create_time, new_alloc_time );
+        // Increment the GC count
+        this->m_times_GC++;
+        // Add back the collected 
+        this->m_free += collected_regular;
+        if (objSize > this->m_free) {
+            // 2. Try again with the SPECIAL region.
+            collected_special += this->m_defregion_p->collect( create_time, new_alloc_time );
+            // Add back the SPECIAL collected 
+            this->m_free += collected_special;
+            if (objSize > this->m_free) {
+                // Out Of Memory.
+                cerr << "OOM: free = " << this->m_free
+                     << " | objsize = " << objSize
+                     << " | collected regular = " << collected_regular
+                     << " | collected special = " << collected_special << endl;
+                return false;
+            }
+        }
+        // TODO TODO TODO TODO
+        // How do we send back how much we collected per collector?
+        // Option 1: use pointers(or references) in parameters for OUT params
+        // Option 2: use a pair return value
+        // Option 3: OOps we may not need this. GC record may be outputed in 'collect'
+        // We reach this point then we know we have space.
+        // TODO TODO TODO TODO
+    }
+    // This has to be true because of the collections
+    assert( objSize <= this->m_free );
+    // Check for duplicates
+    auto iter_live = this->m_live_set.find( object );
+    if (iter_live != this->m_live_set.end()) {
         // Found a dupe.
         // Always return true, but ignore the actual allocation.
         return true;
     }
-    // Decisions for collection should be done here at the MemoryMgr level.
-    bool done = this->m_alloc_region->allocate( object, create_time );
-    if (!done) {
-        // Not enough free space.
-        // 1. We collect on a failed allocation.
-        collected = this->m_alloc_region->collect( create_time, new_alloc_time );
-        GCdone = true;
-        // 2. Try again. Note that we only try one more time as the 
-        //    basic collector will give back all possible free memory.
-        done = this->m_alloc_region->allocate( object, create_time );
-        // NOTE: In a setup with more than one region, the MemoryMgr could
-        // go through all regions trying to find free space. And returning
-        // 'false' means an Out Of Memory Error (OOM).
+    // Check which region to allocate into
+    ObjectId_t objId = object->getId();
+    auto iter_sgroup = this->m_specgroup.find(objId);
+    if (iter_sgroup != this->m_specgroup.end()) {
+        // allocate into SPECIAL (aka DEFERRED) group
+        this->m_defregion_p->allocate( object, create_time );
+    } else {
+        // allocate into REGULAR group
+        this->m_alloc_region->allocate( object, create_time );
     }
-    if (done) {
-        unsigned long int temp = this->m_liveSize + object->getSize();
-        // Max live size calculation
-        // We silently peg to ULONG_MAX the wraparound.
-        // TODO: Maybe we should just error here as this probably isn't possible.
-        this->m_liveSize = ( (temp < this->m_liveSize) ? ULONG_MAX : temp );
-        // Add to live set.
-        this->m_live_set.insert( object );
-        // Keep tally of what our maximum live size is for the program run
-        if (this->m_maxLiveSize < this->m_liveSize) {
-            this->m_maxLiveSize = this->m_liveSize;
-        }
-        // NOT NEEDED NOW: if (!GCdone && this->should_do_collection()) {
-        // NOT NEEDED NOW:     collected += this->m_alloc_region->collect( create_time );
-        // NOT NEEDED NOW:     GCdone = true;
-        // NOT NEEDED NOW: }
+    unsigned long int temp = this->m_liveSize + object->getSize();
+    // Max live size calculation
+    // We silently peg to ULONG_MAX the wraparound.
+    // TODO: Maybe we should just error here as this probably isn't possible.
+    this->m_liveSize = ( (temp < this->m_liveSize) ? ULONG_MAX : temp );
+    // Add to live set.
+    this->m_live_set.insert( object );
+    // Keep tally of what our maximum live size is for the program run
+    if (this->m_maxLiveSize < this->m_liveSize) {
+        this->m_maxLiveSize = this->m_liveSize;
     }
-    if (GCdone) {
-        // Increment the GC count
-        this->m_times_GC++;
-    }
-    return done;
+    this->m_free -= objSize;
+    return true;
 }
 
 // On an U(pdate) event
@@ -519,7 +543,7 @@ void MemoryMgrDef::add_edge( ObjectId_t src,
                              ObjectId_t tgt )
 {
     // DEBUG
-    // DEBUG cout << "Adding edge (" << src << "," << tgt << ")" << endl;
+    // cout << "Adding edge (" << src << "," << tgt << ")";
     ObjectIdSet_t::iterator iter = this->m_specgroup.find(src);
     ObjectIdSet_t::iterator tgt_iter = this->m_specgroup.find(tgt);
     //----------------------------------------------------------------------
@@ -527,6 +551,7 @@ void MemoryMgrDef::add_edge( ObjectId_t src,
     if (iter != this->m_specgroup.end()) {
         // Source is in special group
         if (tgt_iter != this->m_specgroup.end()) {
+            // DEBUG: cout << "..[src in SPECIAL] ";
             // Target is in special group
             ObjectId2SetMap_t::iterator itmp = this->m_region_edges_p->find(src);
             if (itmp != this->m_region_edges_p->end()) {
@@ -549,6 +574,7 @@ void MemoryMgrDef::add_edge( ObjectId_t src,
             this->m_region_edges_count++;
         } else {
             // Target is NOT in special group
+            // cout << "..[src in REGULAR] ";
             ObjectId2SetMap_t::iterator itmp = this->m_out_edges_p->find(src);
             if (itmp != this->m_out_edges_p->end()) {
                 // Already in the map
@@ -564,8 +590,10 @@ void MemoryMgrDef::add_edge( ObjectId_t src,
         }
     } else {
         // Source is NOT in special group
+        // cout << "..[src in REGULAR] ";
         if (tgt_iter != this->m_specgroup.end()) {
             // Target is in special group
+            // DEBUG: cout << "..[tgt in SPECIAL] ";
             ObjectId2SetMap_t::iterator itmp = this->m_in_edges_p->find(src);
             if (itmp != this->m_in_edges_p->end()) {
                 // Already in the map
@@ -579,6 +607,7 @@ void MemoryMgrDef::add_edge( ObjectId_t src,
             }
             this->m_in_edges_count++;
         } else {
+            // cout << "..[tgt in REGULAR] ";
             // Target is NOT in special group
             ObjectId2SetMap_t::iterator itmp = this->m_nonregion_edges.find(src);
             if (itmp != this->m_nonregion_edges.end()) {
@@ -625,7 +654,7 @@ void MemoryMgrDef::remove_edge( ObjectId_t src,
                                 ObjectId_t oldTgtId )
 {
     // DEBUG
-    cout << "DEF: Remove edge (" << src << "," << oldTgtId << ")" << endl;
+    // cout << "DEF: Remove edge (" << src << "," << oldTgtId << ")" << endl;
     ObjectId2SetMap_t::iterator iter;
     this->m_attempts_edges_removed++;
     //----------------------------------------------------------------------
@@ -679,6 +708,10 @@ bool MemoryMgrDef::initialize_memory( unsigned int heapsize )
     MemoryMgr::initialize_memory( heapsize );
     this->m_defregion_p = this->new_region( MemoryMgrDef::SPECIAL,
                                             1 );
+    // The super-edge sets
+    this->m_region_edges_p = new ObjectId2SetMap_t();
+    this->m_in_edges_p = new ObjectId2SetMap_t();
+    this->m_out_edges_p = new ObjectId2SetMap_t();
     return true;
 }
 
@@ -686,6 +719,7 @@ bool MemoryMgrDef::initialize_memory( unsigned int heapsize )
 bool MemoryMgrDef::initialize_special_group( string &group_filename,
                                              int numgroups )
 {
+    cout << "initialize_special_group: ";
     std::ifstream infile( group_filename );
     string line;
     string s;
@@ -758,3 +792,32 @@ bool MemoryMgrDef::initialize_special_group( string &group_filename,
     return true;
 }
 
+// TODO DOC
+bool MemoryMgrDef::makeDead( Object *object, unsigned int death_time )
+{
+    // Check which region the object belongs to:
+    bool result;
+    ObjectId_t objId = object->getId();
+    auto iter_sgroup = this->m_specgroup.find(objId);
+    if (iter_sgroup != this->m_specgroup.end()) {
+        // In the SPECIAL (aka DEFERRED) group
+        result = this->m_defregion_p->makeDead( object );
+    } else {
+        // In the REGULAR group
+        result = this->m_alloc_region->makeDead( object );
+    }
+    unsigned long int temp = this->m_liveSize - object->getSize();
+    if (temp > this->m_liveSize) {
+        // OVERFLOW, underflow?
+        this->m_liveSize = 0;
+        cout << "UNDERFLOW of substraction." << endl;
+        // TODO If this happens, maybe we should think about why it happens.
+    } else {
+        // All good. Fight on.
+        this->m_liveSize = temp;
+    }
+    if (!object->isDead()) {
+        object->makeDead( death_time, this->m_alloc_time );
+    }
+    return result;
+}

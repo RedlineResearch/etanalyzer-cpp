@@ -17,6 +17,7 @@ bool HeapState::initialize_memory_deferred( unsigned int heapsize,
                                             string &group_filename,
                                             int numgroups )
 {
+    cout << "initialize_memory_deferred:" << endl;
     // Initialize the BASIC memory manager
     this->m_memmgrdef_p = new MemoryMgrDef();
     this->m_memmgr_p = static_cast<MemoryMgr *>(this->m_memmgrdef_p);

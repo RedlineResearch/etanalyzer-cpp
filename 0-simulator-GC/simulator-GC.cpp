@@ -365,6 +365,8 @@ int main(int argc, char* argv[])
         Heap.initialize_memory_deferred( memsize,
                                          dgroups_csvfile,
                                          1 ); // Number of groups to use
+    } else {
+        assert(false);
     }
     // Hard coded number at this point. TODO
     cout << "Read names file..." << endl;
