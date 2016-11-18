@@ -113,10 +113,6 @@ int Region::collect( unsigned int timestamp,
     // Record this collection
     GCRecord_t rec = make_pair( timestamp_alloc, collected );
     this->m_gc_history.push_back( rec );
-    // Record how many edges were traced and add to total
-    this->m_mark_total += ( this->m_region_edges.size() +
-                            this->m_in_edges.size() +
-                            this->m_out_edges.size() );
     // Return how much we collected
     return collected;
 }
@@ -190,12 +186,13 @@ bool MemoryMgr::allocate( Object *object,
         // Not enough free space.
         // 1. We collect on a failed allocation.
         collected = this->m_alloc_region->collect( create_time, new_alloc_time );
+        // Record how many edges were traced and add to total
+        this->m_mark_nonregion_total += this->m_nonregion_edges.size();
+        // Add the freed space back to free.
         this->m_free += collected;
         GCdone = true;
-        // 2. Try again. Note that we only try one more time as the 
-        //    basic collector will give back all possible free memory.
         if (objSize > this->m_free) {
-            // Out Of Memory.
+            // Out Of Memory. Game over.
             cerr << "OOM: free = " << this->m_free
                  << " | objsize = " << objSize
                  << " | collected = " << collected << endl;
@@ -480,6 +477,10 @@ bool MemoryMgrDef::allocate( Object *object,
         collected_regular = this->m_alloc_region->collect( create_time, new_alloc_time );
         // Increment the GC count
         this->m_times_GC++;
+        // Count the mark count
+        this->m_mark_nonregion_total += ( this->m_nonregion_edges.size() +
+                                          this->m_in_edges_p->size() +
+                                          this->m_in_edges_p->size() );
         // Add back the collected 
         this->m_free += collected_regular;
         if (objSize > this->m_free) {
@@ -487,6 +488,8 @@ bool MemoryMgrDef::allocate( Object *object,
             collected_special += this->m_defregion_p->collect( create_time, new_alloc_time );
             // Add back the SPECIAL collected 
             this->m_free += collected_special;
+            // Count the mark cost since we had to collect the SPECIAL region
+            this->m_mark_region_total += this->m_nonregion_edges.size();
             if (objSize > this->m_free) {
                 // Out Of Memory.
                 cerr << "OOM: free = " << this->m_free
@@ -495,14 +498,10 @@ bool MemoryMgrDef::allocate( Object *object,
                      << " | collected special = " << collected_special << endl;
                 return false;
             }
+        } else {
+            // This is the mark savings.
+            this->m_mark_saved_total += this->m_region_edges_p->size();
         }
-        // TODO TODO TODO TODO
-        // How do we send back how much we collected per collector?
-        // Option 1: use pointers(or references) in parameters for OUT params
-        // Option 2: use a pair return value
-        // Option 3: OOps we may not need this. GC record may be outputed in 'collect'
-        // We reach this point then we know we have space.
-        // TODO TODO TODO TODO
     }
     // This has to be true because of the collections
     assert( objSize <= this->m_free );

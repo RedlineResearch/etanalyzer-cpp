@@ -76,11 +76,10 @@ public:
         , m_garbage(0)
         , m_level(level)
         , m_live_set()
-        , m_region_edges()
+        // TODO , m_region_edges()
+        // TODO , m_in_edges()
+        // TODO , m_out_edges()
         , m_dtime(0)
-        , m_mark_total(0)
-        , m_in_edges()
-        , m_out_edges()
         , m_garbage_waiting()
         , m_gc_history() {
     }
@@ -118,8 +117,6 @@ public:
         return this->m_dtime;
     }
 
-    unsigned int get_mark_total() const { return this->m_mark_total; }
-
     deque<GCRecord_t> get_GC_history() const { return this->m_gc_history; }
 
     // Get region name
@@ -129,18 +126,16 @@ public:
     void print_status();
 
 protected:
-    // Edge sets and remember sets
-    //     * edges where source and target are in the region
-    ObjectId2SetMap_t m_region_edges;
-    //     * edges where source is outside and target is in the region
-    ObjectId2SetMap_t m_in_edges;
-    //     * edges where source is inside and target is outside the region
-    ObjectId2SetMap_t m_out_edges;
+    // TODO // Edge sets and remember sets
+    // TODO //     * edges where source and target are in the region
+    // TODO ObjectId2SetMap_t m_region_edges;
+    // TODO //     * edges where source is outside and target is in the region
+    // TODO ObjectId2SetMap_t m_in_edges;
+    // TODO //     * edges where source is inside and target is outside the region
+    // TODO ObjectId2SetMap_t m_out_edges;
 
     // Expected death time in allocation byte time
     unsigned int m_dtime;
-    // Number of marks done by the collector
-    unsigned int m_mark_total;
 
 private:
     string m_name;
@@ -200,6 +195,8 @@ public:
         , m_used(0)
         , m_liveSize(0)
         , m_garbage(0)
+        , m_total_size(0)
+        , m_mark_nonregion_total(0)
         , m_specgroup()
         , m_nonregion_edges()
         , m_srcidmap()
@@ -234,6 +231,7 @@ public:
     // TODO int do_collection();
 
     int get_number_of_collections() const { return this->m_times_GC; }
+
 
     // Do a garbage collection only if needed.
     virtual bool should_do_collection();
@@ -277,6 +275,29 @@ public:
     unsigned int get_out_edges_count() const { return this->m_out_edges_count; }
     unsigned int get_nonregion_edges_count() const { return this->m_nonregion_edges_count; }
 
+    // Mark related getters
+    virtual unsigned int get_mark_total() const {
+        return this->m_mark_nonregion_total;
+    }
+
+    virtual unsigned int get_mark_saved() const {
+        return this->m_mark_saved_total;
+    }
+
+    virtual unsigned int get_mark_nonregion_total() const {
+        return this->m_mark_nonregion_total;
+    }
+    //
+    // These return 0 in the basic MemoryMgr because we don't use them.
+    virtual unsigned int get_mark_saved_total() const {
+        return 0;
+    }
+
+    virtual unsigned int get_mark_region_total() const {
+        return 0;
+    }
+
+
     // - TODO Documentation
     void print_status();
 
@@ -285,6 +306,10 @@ protected:
     unsigned long int m_total_size;
     // Total number of collections done
     unsigned int m_times_GC;
+    // Mark totals
+    unsigned int m_mark_nonregion_total;
+    unsigned int m_mark_saved_total;
+    unsigned int m_mark_region_total;
 
     // Create new region with the given name.
     // Returns a reference to the region.
@@ -387,6 +412,11 @@ public:
     virtual bool initialize_special_group( string &group_filename,
                                            int numgroups );
 
+    // Mark count getter functions
+    // Mark related getters
+    virtual unsigned int get_mark_saved_total() const { return this->m_mark_saved_total; }
+    virtual unsigned int get_mark_region_total() const { return this->m_mark_region_total; }
+
 protected:
     // Edge sets and remember sets
     //     * edges where source and target are in the region
@@ -397,6 +427,7 @@ protected:
     ObjectId2SetMap_t *m_out_edges_p;
 
     Region *m_defregion_p;
+
 };
 
 #endif

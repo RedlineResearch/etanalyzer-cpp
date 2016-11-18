@@ -168,6 +168,10 @@ class HeapState
 
         Object* getObject(unsigned int id);
 
+        unsigned int get_total_alloc() const {
+            return this->m_alloc_time;
+        }
+
         Edge* make_edge( Object* source, unsigned int field_id, Object* target, unsigned int cur_time);
 
         void make_edge2( unsigned int objId, unsigned int tgtId );
@@ -203,6 +207,8 @@ class HeapState
         // GC related functions
         deque<GCRecord_t> get_GC_history() { return this->m_memmgr_p->get_GC_history(); }
         int get_number_of_collections() const { return this->m_memmgr_p->get_number_of_collections(); }
+        unsigned int get_mark_total() const { return this->m_memmgr_p->get_mark_total(); }
+        unsigned int get_mark_saved() const { return this->m_memmgr_p->get_mark_saved(); }
 
         // Debug
         int get_number_edges_removed() const { return this->m_memmgr_p->get_number_edges_removed(); }

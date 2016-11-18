@@ -379,31 +379,21 @@ int main(int argc, char* argv[])
     cout << "Done at time " << Exec.NowUp() << endl
          << "Total objects: " << total_objects << endl
          << "Heap.size:     " << Heap.size() << endl
-         << "Number of collections: " << Heap.get_number_of_collections() << endl
-         << " - number of edges removed: " << Heap.get_number_edges_removed() << endl
-         << " - number of edges removal attempts: " << Heap.get_number_attempts_edges_removed() << endl
-         << " - number of region edges: " << Heap.get_region_edges_count() << endl
-         << " - number of in edges: " << Heap.get_in_edges_count() << endl
-         << " - number of out edges: " << Heap.get_out_edges_count() << endl
-         << " - number of nonregion edges: " << Heap.get_nonregion_edges_count() << endl;
-
-    if (0) {
-    deque<GCRecord_t> GC_history = Heap.get_GC_history();
-    debug_GC_history( GC_history );
-
-    Heap.end_of_program(Exec.NowUp());
-
-    ofstream summary_file(summary_filename);
-    summary_file << "---------------[ SUMMARY INFO ]----------------------------------------------------" << endl;
-    summary_file << "number_of_objects," << Heap.size() << endl
-                 << "number_of_edges," << Heap.numberEdges() << endl
-                 << "vm_RC_zero," << Heap.getVMObjectsRefCountZero() << endl
-                 << "vm_RC_positive," << Heap.getVMObjectsRefCountPositive() << endl
-                 << "max_live_size," << Heap.getMaxLiveSize() << endl
-                 << "final_time," << final_time << endl;
-    summary_file << "---------------[ SUMMARY INFO END ]------------------------------------------------" << endl;
-    summary_file.close();
-    //---------------------------------------------------------------------
+         << "Number of collections: " << Heap.get_number_of_collections() << endl;
+    if (gctype == "BASIC") {
+        cout << "Mark total   : " << Heap.get_mark_total() << endl
+             << "- total alloc: " << Heap.get_total_alloc() << endl;
+    } else if (gctype == "DEF") {
+        cout << "Mark total   : " << Heap.get_mark_total() << endl
+             << "- mark saved : " << Heap.get_mark_saved() << endl
+             << "- total alloc: " << Heap.get_total_alloc() << endl;
     }
+    // TODO << " - number of edges removed: " << Heap.get_number_edges_removed() << endl
+    // TODO << " - number of edges removal attempts: " << Heap.get_number_attempts_edges_removed() << endl
+    // TODO << " - number of region edges: " << Heap.get_region_edges_count() << endl
+    // TODO << " - number of in edges: " << Heap.get_in_edges_count() << endl
+    // TODO << " - number of out edges: " << Heap.get_out_edges_count() << endl
+    // TODO << " - number of nonregion edges: " << Heap.get_nonregion_edges_count() << endl;
+
 }
 
