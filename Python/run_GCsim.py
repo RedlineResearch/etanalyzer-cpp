@@ -146,8 +146,9 @@ def run_GC_simulator( result = {},
                                           cwd = workdir )
                 # Spawn all at once and communicate at the end
                 procs[count] = sproc
-            heapsize = heapsize + (((int(max_live_size * 0.25) + 8) // 8) * 8)
+            heapsize = heapsize + (((int(max_live_size * 0.5) + 8) // 8) * 8)
         check_done = False
+        check_count = 0
         while not check_done:
             for procnum in procs.keys():
                 proc = procs[procnum]
@@ -156,10 +157,14 @@ def run_GC_simulator( result = {},
                     del procs[procnum]
                     timenow = time.asctime()
                     logger.debug( "[%s : %d] - done at %s" % (bmark, procnum, timenow) )
+                    print ">>> [%s : %d] - done at %s" % (bmark, procnum, timenow)
                     break
+                else:
+                    check_count += 1
             time.sleep(10)
+        logger.debug( ">>> NUM PROCS[ %d ]" % len(procs) )
         if ( (len(procs) == 0) and
-             (heapsize >= (start_heapsize * 2)) ):
+             (heapsize >= (start_heapsize * 4)) ):
             break
     print "DEBUG."
     exit(100)
