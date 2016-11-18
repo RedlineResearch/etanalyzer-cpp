@@ -158,6 +158,7 @@ def run_GC_simulator( result = {},
                     timenow = time.asctime()
                     logger.debug( "[%s : %d] - done at %s" % (bmark, procnum, timenow) )
                     print ">>> [%s : %d] - done at %s" % (bmark, procnum, timenow)
+                    check_done = True
                     break
                 else:
                     check_count += 1
