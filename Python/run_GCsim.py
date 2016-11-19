@@ -119,7 +119,8 @@ def run_GC_simulator( result = {},
     procs = {}
     while True:
         index = len(procs)
-        while index < numprocs:
+        while ( (index < numprocs) and
+                (heapsize <= (start_heapsize * 4)) ):
             index += 1
             count += 1
             # Output file
