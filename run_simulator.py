@@ -213,9 +213,9 @@ def main_process( output = None,
     minibench_dir = global_config["minibench_dir"]
     # Trace drop location for simulator output
     cycle_cpp_dir = global_config["cycle_cpp_dir"]
-    backup_cycle_cpp_dir = global_config["backup_cycle_cpp_dir"]
-    # Backup old simulator output into backup directory
-    num_backed_up = backup_old_simulator_output( cycle_cpp_dir, backup_cycle_cpp_dir )
+    # TODO backup_cycle_cpp_dir = global_config["backup_cycle_cpp_dir"]
+    # TODO # Backup old simulator output into backup directory
+    # TODO num_backed_up = backup_old_simulator_output( cycle_cpp_dir, backup_cycle_cpp_dir )
     # Sub process related stuff
     procdict = {}
     procs = {}

@@ -7,7 +7,8 @@ import csv
 filelist = glob( "*.txt" )
 print "Number of files: %d" % len(filelist)
 
-with open("lusearch-sim.csv", "wb") as csvfptr:
+# TODO replace the hard coded benchmark and filename with a commmand line parameter
+with open("specjbb-sim.csv", "wb") as csvfptr:
     writer = csv.writer( csvfptr, quoting = csv.QUOTE_NONE )
     # print "'RUN','Heap_size','Num_collections','mark_deferred','mark_saved','total_alloc','mark_regular','markcons_def','markcons_reg'"
     header = [ "RUN",
@@ -21,7 +22,7 @@ with open("lusearch-sim.csv", "wb") as csvfptr:
                "markcons_reg", ]
     writer.writerow( header )
     for ind in xrange(1, len(filelist) + 1):
-        fname = "lusearch-simulator-GC-%d.txt" % ind
+        fname = "specjbb-simulator-GC-%d.txt" % ind
         with open(fname, "rb") as fptr:
             row = [ ind, ]
             data = fptr.readlines()
