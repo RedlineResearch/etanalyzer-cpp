@@ -257,34 +257,23 @@ void debug_GC_history( deque< GCRecord_t > &GC_history )
 
 int main(int argc, char* argv[])
 {
-    if (argc != 6) {
-        cout << "Usage: " << argv[0] << " <namesfile> <dgroups-csv-file> <output base name> <memsize> <BASIC/DEF>" << endl;
-        cout << "      git version: " <<  build_git_sha << endl;
-        cout << "      build date : " <<  build_git_time << endl;
+    if (argc != 5) {
+        cout << "simulator-GC VERSION 2" << endl
+             << "Usage: " << argv[0] << " <namesfile> <dgroups-csv-file> <output base name> <memsize>" << endl
+             << "      git version: " <<  build_git_sha << endl
+             << "      build date : " <<  build_git_time << endl;
         exit(1);
     }
     string dgroups_csvfile(argv[2]);
     string basename(argv[3]);
-    string summary_filename( basename + "-SUMMARY.csv" );
+
     int memsize = std::stoi(argv[4]);
     cout << "Memory size: " << memsize << " bytes." << endl;
     
-    string gctype(argv[5]);
-    if (gctype != "BASIC" && gctype != "DEF") {
-        cout << "Invalid GC type: " << gctype << endl
-             << "Exiting." << endl;
-        exit(2);
-    }
+    Heap.initialize_memory_deferred_VER2( memsize,
+                                          dgroups_csvfile,
+                                          1 ); // Number of groups to use
 
-    if (gctype == "BASIC") {
-        Heap.initialize_memory_basic( memsize );
-    } else if (gctype == "DEF") {
-        Heap.initialize_memory_deferred( memsize,
-                                         dgroups_csvfile,
-                                         1 ); // Number of groups to use
-    } else {
-        assert(false);
-    }
     // Hard coded number at this point. TODO
     cout << "Read names file..." << endl;
     ClassInfo::read_names_file_nomain( argv[1] );
@@ -297,14 +286,9 @@ int main(int argc, char* argv[])
          << "Total objects: " << total_objects << endl
          << "Heap.size:     " << Heap.size() << endl
          << "Number of collections: " << Heap.get_number_of_collections() << endl;
-    if (gctype == "BASIC") {
-        cout << "Mark total   : " << Heap.get_mark_total() << endl
-             << "- total alloc: " << Heap.get_total_alloc() << endl;
-    } else if (gctype == "DEF") {
-        cout << "Mark total   : " << Heap.get_mark_total() << endl
-             << "- mark saved : " << Heap.get_mark_saved() << endl
-             << "- total alloc: " << Heap.get_total_alloc() << endl;
-    }
+    cout << "Mark total   : " << Heap.get_mark_total() << endl
+         << "- mark saved : " << Heap.get_mark_saved() << endl
+         << "- total alloc: " << Heap.get_total_alloc() << endl;
     // TODO << " - number of edges removed: " << Heap.get_number_edges_removed() << endl
     // TODO << " - number of edges removal attempts: " << Heap.get_number_attempts_edges_removed() << endl
     // TODO << " - number of region edges: " << Heap.get_region_edges_count() << endl

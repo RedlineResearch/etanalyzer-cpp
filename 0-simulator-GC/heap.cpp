@@ -29,6 +29,22 @@ bool HeapState::initialize_memory_deferred( unsigned int heapsize,
     return result;
 }
 
+bool HeapState::initialize_memory_deferred_VER2( unsigned int heapsize,
+                                                 string &group_filename,
+                                                 int numgroups )
+{
+    cout << "initialize_memory_deferred:" << endl;
+    // Initialize the BASIC memory manager
+    this->m_memmgrdef_p = new MemoryMgrDef();
+    this->m_memmgr_p = static_cast<MemoryMgr *>(this->m_memmgrdef_p);
+    bool result = this->m_memmgrdef_p->initialize_memory( heapsize );
+    if (!result) {
+        return false;
+    }
+    result = this->m_memmgrdef_p->initialize_special_group( group_filename, numgroups );
+    return result;
+}
+
 // - TODO
 Object* HeapState::allocate( unsigned int id,
                              unsigned int size,

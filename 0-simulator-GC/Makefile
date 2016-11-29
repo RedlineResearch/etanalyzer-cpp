@@ -4,7 +4,7 @@ GIT=git
 FLAGS=-O2 -std=c++11 -g -Werror -I./boost_1_60_0
 .PHONY: clean gitversion
 
-all: gitversion simulator-GC simulator-livesize
+all: gitversion simulator-GC simulator-GC-ver2 simulator-livesize 
 
 gitversion:
 	$(GIT) rev-parse HEAD | awk ' BEGIN {print "#include \"version.hpp\""} {print "const char *build_git_sha = \"" $$0"\";"} END {}' > version.cpp
@@ -12,7 +12,14 @@ gitversion:
 
 simulator-GC: simulator-GC.o execution.o heap.o classinfo.o tokenizer.o version.o\
 				summary.hpp memorymgr.o
+	echo $(FLAGS)
 	g++ $(FLAGS) -o simulator-GC simulator-GC.o execution.o heap.o classinfo.o version.o \
+			tokenizer.o  memorymgr.o
+
+simulator-GC-ver2: simulator-GC-ver2.o execution.o heap.o classinfo.o tokenizer.o version.o\
+				summary.hpp memorymgr.o
+	echo $(FLAGS)
+	g++ $(FLAGS) -o simulator-GC-ver2 simulator-GC-ver2.o execution.o heap.o classinfo.o version.o \
 			tokenizer.o  memorymgr.o
 
 simulator-livesize: simulator-livesize.o execution.o heap.o classinfo.o tokenizer.o version.o \
@@ -25,6 +32,9 @@ simulator-GC.o: simulator-GC.cpp classinfo.h tokenizer.h heap.h
 
 simulator-livesize.o: simulator-livesize.cpp classinfo.h tokenizer.h heap.h
 	g++ $(FLAGS)  -c simulator-livesize.cpp
+
+simulator-GC-ver2.o: simulator-GC-ver2.cpp classinfo.h tokenizer.h heap.h
+	g++ $(FLAGS)  -c simulator-GC-ver2.cpp
 
 execution.o: execution.cpp classinfo.h tokenizer.h
 	g++ $(FLAGS) -c execution.cpp

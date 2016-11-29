@@ -154,6 +154,10 @@ class HeapState
                                          string &group_filename,
                                          int numgroups );
 
+        bool initialize_memory_deferred_VER2( unsigned int heapsize,
+                                              string &group_filename,
+                                              int numgroups );
+
         void enableObjectDebug() { m_obj_debug_flag = true; }
         void disableObjectDebug() { m_obj_debug_flag = false; }
 

@@ -4,6 +4,7 @@
 *.o
 simulator
 simulator-GC
+simulator-GC-ver2
 simulator-livesize
 cscope.*
 MYWORK
