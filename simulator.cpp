@@ -29,21 +29,21 @@ typedef std::map< string, std::vector< Summary * > > GroupSum_t;
 typedef std::map< string, Summary * > TypeTotalSum_t;
 typedef std::map< unsigned int, Summary * > SizeSum_t;
 
-// A reference is an object and it's specific field.
-// Global references have a NULL object pointer.
-typedef std::pair< Object *, FieldId_t > Reference_t; 
-// We then map References to a vector/list of Object pointers.
-// For every reference, we keep a list of all the objects (pointers)
+// An Edge Source is an object and it's specific field.
+// Global edge sources have a NULL object pointer.
+typedef std::pair< Object *, FieldId_t > EdgeSrc_t; 
+// We then map Edge Sources to a vector/list of Object pointers.
+// For every edge source, we keep a list of all the objects (pointers)
 // it has ever pointed to.
-typedef std::map< Reference_t, std::vector< Object * > > RefSummary_t;
-// We need a reverse map from object pointer to the references that ever
+typedef std::map< EdgeSrc_t, std::vector< Object * > > EdgeSummary_t;
+// We need a reverse map from object pointer to the edge sources that ever
 // pointed to that object.
-typedef std::map< Object *, std::vector< Reference_t > > Object2RefMap_t;
-// RefSummary_t and Object2RefMap_t contain the raw data. We need some
+typedef std::map< Object *, std::vector< EdgeSrc_t > > Object2EdgeSrcMap_t;
+// EdgeSummary_t and Object2EdgeSrcMap_t contain the raw data. We need some
 // summaries.
 // enum class RefTargetType moved to heap.h - RLV
 
-enum class RefType {
+enum class EdgeSrcType {
     STABLE = 1, // Like True Love. Only one target ever.
     SERIAL_STABLE = 2, // Kind of like a serial monogamist.
                        // Can point to different objects but never shares the
@@ -53,26 +53,26 @@ enum class RefType {
     UNKNOWN = 1024
 };
 
-string reftype2str( RefType r)
+string edgesrctype2str( EdgeSrcType r)
 {
-    if (r == RefType::STABLE) {
+    if (r == EdgeSrcType::STABLE) {
         return "STABLE";
-    } else if (r == RefType::SERIAL_STABLE) {
+    } else if (r == EdgeSrcType::SERIAL_STABLE) {
         return "SERIAL_STABLE";
-    } else if (r == RefType::UNSTABLE) {
+    } else if (r == EdgeSrcType::UNSTABLE) {
         return "UNSTABLE";
     } else {
         return "UNKNOWN";
     }
 }
 
-string reftype2shortstr( RefType r)
+string edgesrctype2shortstr( EdgeSrcType r)
 {
-    if (r == RefType::STABLE) {
+    if (r == EdgeSrcType::STABLE) {
         return "S"; // STABLE
-    } else if (r == RefType::SERIAL_STABLE) {
+    } else if (r == EdgeSrcType::SERIAL_STABLE) {
         return "ST"; // SERIAL_STABLE
-    } else if (r == RefType::UNSTABLE) {
+    } else if (r == EdgeSrcType::UNSTABLE) {
         return "U"; // UNSTABLE
     } else {
         return "X"; // UNKNOWN
@@ -80,8 +80,9 @@ string reftype2shortstr( RefType r)
 }
 
 // Map a reference to its type
-typedef std::map< Reference_t, RefType > Ref2Type_t;
+typedef std::map< EdgeSrc_t, EdgeSrcType > EdgeSrc2Type_t;
 // Map an object to its type
+// TODO: Is this needed?
 typedef std::map< Object *, RefTargetType > Object2Type_t;
 
 // ----------------------------------------------------------------------
@@ -119,8 +120,8 @@ set<unsigned int> root_set;
 map<unsigned int, unsigned int> deathrc_map;
 map<unsigned int, bool> not_candidate_map;
 
-RefSummary_t ref_summary;
-Object2RefMap_t obj2ref_map;
+EdgeSummary_t edge_summary;
+Object2EdgeSrcMap_t obj2ref_map;
 
 
 // ----------------------------------------------------------------------
@@ -206,21 +207,21 @@ void update_reference_summaries( Object *src,
                                  FieldId_t fieldId,
                                  Object *tgt )
 {
-    // ref_summary : RefSummary_t is a global
-    // obj2ref_map : Object2RefMap_t is a global
-    Reference_t ref = std::make_pair( src, fieldId );
+    // edge_summary : EdgeSummary_t is a global
+    // obj2ref_map : Object2EdgeSrcMap_t is a global
+    EdgeSrc_t ref = std::make_pair( src, fieldId );
     // The reference 'ref' points to the new target
-    auto iter = ref_summary.find(ref);
-    if (iter == ref_summary.end()) {
+    auto iter = edge_summary.find(ref);
+    if (iter == edge_summary.end()) {
         // Not found. Create a new vector of Object pointers
-        ref_summary[ref] = std::vector< Object * >();
+        edge_summary[ref] = std::vector< Object * >();
     }
-    ref_summary[ref].push_back(tgt);
+    edge_summary[ref].push_back(tgt);
     // Do the reverse mapping ONLY if tgt is not NULL
     if (tgt) {
         auto rev = obj2ref_map.find(tgt);
         if (rev == obj2ref_map.end()) {
-            obj2ref_map[tgt] = std::move(std::vector< Reference_t >());
+            obj2ref_map[tgt] = std::move(std::vector< EdgeSrc_t >());
         }
         obj2ref_map[tgt].push_back(ref);
     }
@@ -664,42 +665,43 @@ void update_summary_from_keyset( KeySet_t &keyset,
 }
 
 
-void summarize_reference_stability( Ref2Type_t &stability,
-                                    RefSummary_t &my_refsum,
-                                    Object2RefMap_t &my_obj2ref )
+void summarize_reference_stability( EdgeSrc2Type_t &stability,
+                                    EdgeSummary_t &my_refsum,
+                                    Object2EdgeSrcMap_t &my_obj2ref )
 {
     // Check each object to see if it's stable...(see RefTargetType)
     for ( auto it = my_obj2ref.begin();
           it != my_obj2ref.end();
           ++it ) {
-        // my_obj2ref : Object2RefMap_t is a reverse map of sorts.
+        // my_obj2ref : Object2EdgeSrcMap_t is a reverse map of sorts.
         //      For each object in the map, it maps to a vector of references
         //          that point/refer to that object
         // This Object is the target
         Object *obj = it->first;
         // This is the vector of references
-        std::vector< Reference_t > reflist = it->second;
+        std::vector< EdgeSrc_t > reflist = it->second;
         // Convert to a set in order to remove possible duplicates
-        std::set< Reference_t > refset( reflist.begin(), reflist.end() );
+        std::set< EdgeSrc_t > refset( reflist.begin(), reflist.end() );
         if (!obj) {
             continue;
         }
         // obj is not NULL.
-        if ( (refset.size() <= 1) && (obj->wasLastUpdateNull() != true) ) {
+        // if ( (refset.size() <= 1) && (obj->wasLastUpdateNull() != true) ) {
+        if (refset.size() <= 1) {
             obj->setRefTargetType( RefTargetType::STABLE );
         } else {
             obj->setRefTargetType( RefTargetType::UNSTABLE );
         }
     }
-    // Check each reference to see if its stable...(see RefType)
+    // Check each reference to see if its stable...(see EdgeSrcType)
     for ( auto it = my_refsum.begin();
           it != my_refsum.end();
           ++it ) {
-        // my_refsum : RefSummary_t is a map from reference to a vector of
+        // my_refsum : EdgeSummary_t is a map from reference to a vector of
         //      objects that the reference pointed to. A reference is a pair
         //      of (Object pointer, fieldId).
         // Get the reference and deconstruct into parts.
-        Reference_t ref = it->first;
+        EdgeSrc_t ref = it->first;
         Object *obj = std::get<0>(ref); 
         FieldId_t fieldId = std::get<1>(ref); 
         // Get the vector/list of object pointers
@@ -730,28 +732,28 @@ void summarize_reference_stability( Ref2Type_t &stability,
                 // UNSTABLE if target and source deathtimes are different
                 // NOTE: This used to be UNSTABLE if target died before source.
                 //       We are using a more conservative definition of stability here.
-                stability[ref] = RefType::UNSTABLE;
+                stability[ref] = EdgeSrcType::UNSTABLE;
             } else {
-                stability[ref] = (tgt->wasLastUpdateNull() ? RefType::UNSTABLE : RefType::STABLE);
+                stability[ref] = (tgt->wasLastUpdateNull() ? EdgeSrcType::UNSTABLE : EdgeSrcType::STABLE);
             }
         } else {
             // objlist is of length > 1
             // This may still be stable if all objects in
             // the list are STABLE. Assume they're all stable unless
             // otherwise proven.
-            stability[ref] = RefType::SERIAL_STABLE; // aka serial monogamist
+            stability[ref] = EdgeSrcType::SERIAL_STABLE; // aka serial monogamist
             for ( auto objit = objset.begin();
                   objit != objset.end();
                   ++objit ) {
                 RefTargetType objtype = (*objit)->getRefTargetType();
                 if (objtype == RefTargetType::UNSTABLE) {
-                    stability[ref] = RefType::UNSTABLE;
+                    stability[ref] = EdgeSrcType::UNSTABLE;
                     break;
                 } else if (objtype == RefTargetType::UNKNOWN) {
                     // Not sure if this is even possible.
                     // TODO: Make this an assertion?
                     // Let's assume that UNKNOWNs make it UNSTABLE.
-                    stability[ref] = RefType::UNSTABLE;
+                    stability[ref] = EdgeSrcType::UNSTABLE;
                     break;
                 } // else continue
             }
@@ -1027,11 +1029,11 @@ void output_context_summary( string &context_death_count_filename,
 void output_reference_summary( string &reference_summary_filename,
                                string &ref_reverse_summary_filename,
                                string &stability_summary_filename,
-                               RefSummary_t &my_refsum,
-                               Object2RefMap_t &my_obj2ref,
-                               Ref2Type_t &stability )
+                               EdgeSummary_t &my_refsum,
+                               Object2EdgeSrcMap_t &my_obj2ref,
+                               EdgeSrc2Type_t &stability )
 {
-    ofstream ref_summary_file(reference_summary_filename);
+    ofstream edge_summary_file(reference_summary_filename);
     ofstream reverse_summary_file(ref_reverse_summary_filename);
     ofstream stability_summary_file(stability_summary_filename);
     //
@@ -1041,12 +1043,12 @@ void output_reference_summary( string &reference_summary_filename,
     for ( auto it = my_refsum.begin();
           it != my_refsum.end();
           ++it ) {
-        Reference_t ref = it->first;
+        EdgeSrc_t ref = it->first;
         Object *obj = std::get<0>(ref); 
         FieldId_t fieldId = std::get<1>(ref); 
         std::vector< Object * > objlist = it->second;
         ObjectId_t objId = (obj ? obj->getId() : 0);
-        ref_summary_file << objId << ","      // 1 - object Id
+        edge_summary_file << objId << ","      // 1 - object Id
                          << fieldId << ",";   // 2 - field Id
         unsigned int actual_size = 0;
         for ( auto vecit = objlist.begin();
@@ -1056,17 +1058,17 @@ void output_reference_summary( string &reference_summary_filename,
                 ++actual_size;
             }
         }
-        ref_summary_file << actual_size; // 3 - number of objects pointed at
+        edge_summary_file << actual_size; // 3 - number of objects pointed at
         if (actual_size > 0) {
             for ( auto vecit = objlist.begin();
                   vecit != objlist.end();
                   ++vecit ) {
                 if (*vecit) {
-                    ref_summary_file << "," << (*vecit)->getId(); // 4+ - objects pointed at
+                    edge_summary_file << "," << (*vecit)->getId(); // 4+ - objects pointed at
                 }
             }
         }
-        ref_summary_file << endl;
+        edge_summary_file << endl;
     }
     //
     // Summarizes the reverse, which is for each object (using its Id), give
@@ -1077,7 +1079,7 @@ void output_reference_summary( string &reference_summary_filename,
           it != my_obj2ref.end();
           ++it ) {
         Object *obj = it->first;
-        std::vector< Reference_t > reflist = it->second;
+        std::vector< EdgeSrc_t > reflist = it->second;
         if (!obj) {
             continue;
         }
@@ -1101,18 +1103,18 @@ void output_reference_summary( string &reference_summary_filename,
     for ( auto it = stability.begin();
           it != stability.end();
           ++it ) {
-        Reference_t ref = it->first;
-        RefType reftype = it->second;
+        EdgeSrc_t ref = it->first;
+        EdgeSrcType reftype = it->second;
         Object *obj = std::get<0>(ref); 
         FieldId_t fieldId = std::get<1>(ref); 
         ObjectId_t objId = (obj ? obj->getId() : 0);
         stability_summary_file << objId << ","            // 1 - object Id
                                << fieldId << ","          // 2 - field Id
-                               << reftype2shortstr(reftype)    // 3 - reference stability type
+                               << edgesrctype2shortstr(reftype)    // 3 - reference stability type
                                << endl;
     }
     // Close the files.
-    ref_summary_file.close();
+    edge_summary_file.close();
     reverse_summary_file.close();
     stability_summary_file.close();
 }
@@ -1199,7 +1201,7 @@ int main(int argc, char* argv[])
         set<ObjectId_t> dag_keys;
         deque<ObjectId_t> dag_all;
         // Reference stability summary
-        Ref2Type_t stability_summary;
+        EdgeSrc2Type_t stability_summary;
         // Lambdas for utility
         auto lfn = [](Object *ptr) -> unsigned int { return ((ptr) ? ptr->getId() : 0); };
         auto ifNull = [](Object *ptr) -> bool { return (ptr == NULL); };
@@ -1270,7 +1272,7 @@ int main(int argc, char* argv[])
 
         // Analyze the edge summaries
         summarize_reference_stability( stability_summary,
-                                       ref_summary,
+                                       edge_summary,
                                        obj2ref_map );
         // ----------------------------------------------------------------------
         // OUTPUT THE SUMMARIES
@@ -1291,7 +1293,7 @@ int main(int argc, char* argv[])
         output_reference_summary( reference_summary_filename,
                                   ref_reverse_summary_filename,
                                   stability_summary_filename,
-                                  ref_summary,
+                                  edge_summary,
                                   obj2ref_map,
                                   stability_summary );
         // TODO: What next? 
