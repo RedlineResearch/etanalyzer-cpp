@@ -1692,7 +1692,7 @@ class ReferenceReader:
                 else:
                     if fieldId in sdict[objId]:
                         self.logger.error( "Duplicate field Id [%d]" % fieldId )
-                sdict[objId][fieldId] = [ int(x) for x in row[3:] ]
+                    sdict[objId][fieldId] = [ int(x) for x in row[3:] ]
 
     def create_refsummary_db( self, outdbfilename = None ):
         # Note that outdbconn will not be closed here.
@@ -1747,7 +1747,7 @@ class ReferenceReader:
                         exit(100)
                     result.append( str(row[3:]) )
                     result = tuple(result)
-                    print "XXX:", str(result)
+                    # TODO DEBUG: print "XXX:", str(result)
                     yield result
 
         cur = self.outdbconn.cursor()
