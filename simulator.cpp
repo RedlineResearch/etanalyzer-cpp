@@ -41,15 +41,17 @@ typedef std::map< EdgeSrc_t, std::vector< Object * > > EdgeSummary_t;
 typedef std::map< Object *, std::vector< EdgeSrc_t > > Object2EdgeSrcMap_t;
 // EdgeSummary_t and Object2EdgeSrcMap_t contain the raw data. We need some
 // summaries.
-// enum class RefTargetType moved to heap.h - RLV
+// enum class ObjectRefType moved to heap.h - RLV
 
 enum class EdgeSrcType {
     STABLE = 1, // Like True Love. Only one target ever.
+    // TODO: This is an original idea that maybe singly-owned objects
+    // can be considered part of the stable group.
     SERIAL_STABLE = 2, // Kind of like a serial monogamist.
                        // Can point to different objects but never shares the
                        // target object
-    UNSTABLE = 4, // Points to differenct objects and
-                  // shares objects with other references
+    UNSTABLE = 32, // Points to different objects and
+                   // shares objects with other references
     UNKNOWN = 1024
 };
 
@@ -83,7 +85,7 @@ string edgesrctype2shortstr( EdgeSrcType r)
 typedef std::map< EdgeSrc_t, EdgeSrcType > EdgeSrc2Type_t;
 // Map an object to its type
 // TODO: Is this needed?
-typedef std::map< Object *, RefTargetType > Object2Type_t;
+typedef std::map< Object *, ObjectRefType > Object2Type_t;
 
 // ----------------------------------------------------------------------
 //   Globals
@@ -669,7 +671,7 @@ void summarize_reference_stability( EdgeSrc2Type_t &stability,
                                     EdgeSummary_t &my_refsum,
                                     Object2EdgeSrcMap_t &my_obj2ref )
 {
-    // Check each object to see if it's stable...(see RefTargetType)
+    // Check each object to see if it's stable...(see ObjectRefType)
     for ( auto it = my_obj2ref.begin();
           it != my_obj2ref.end();
           ++it ) {
@@ -688,12 +690,12 @@ void summarize_reference_stability( EdgeSrc2Type_t &stability,
         // obj is not NULL.
         // if ( (refset.size() <= 1) && (obj->wasLastUpdateNull() != true) ) {
         if (refset.size() <= 1) {
-            obj->setRefTargetType( RefTargetType::STABLE );
+            obj->setRefTargetType( ObjectRefType::SINGLY_OWNED );
         } else {
-            obj->setRefTargetType( RefTargetType::UNSTABLE );
+            obj->setRefTargetType( ObjectRefType::MULTI_OWNED );
         }
     }
-    // Check each reference to see if its stable...(see EdgeSrcType)
+    // Check each edge source to see if its stable...(see EdgeSrcType)
     for ( auto it = my_refsum.begin();
           it != my_refsum.end();
           ++it ) {
@@ -745,11 +747,11 @@ void summarize_reference_stability( EdgeSrc2Type_t &stability,
             for ( auto objit = objset.begin();
                   objit != objset.end();
                   ++objit ) {
-                RefTargetType objtype = (*objit)->getRefTargetType();
-                if (objtype == RefTargetType::UNSTABLE) {
+                ObjectRefType objtype = (*objit)->getRefTargetType();
+                if (objtype == ObjectRefType::MULTI_OWNED) {
                     stability[ref] = EdgeSrcType::UNSTABLE;
                     break;
-                } else if (objtype == RefTargetType::UNKNOWN) {
+                } else if (objtype == ObjectRefType::UNKNOWN) {
                     // Not sure if this is even possible.
                     // TODO: Make this an assertion?
                     // Let's assume that UNKNOWNs make it UNSTABLE.
@@ -896,12 +898,12 @@ void output_all_objects2( string &objectinfo_filename,
         string death_method1 = (death_meth_ptr1 ? death_meth_ptr1->getName() : "NONAME");
         string death_method2 = (death_meth_ptr2 ? death_meth_ptr2->getName() : "NONAME");
         string allocsite_name = object->getAllocSiteName();
-        RefTargetType objstability = object->getRefTargetType();
+        ObjectRefType objstability = object->getRefTargetType();
         // S -> Stable
         // U -> Unstable
         // X -> Unknown
-        string stability = ( (objstability == RefTargetType::STABLE) ? "S"
-                                   : (objstability == RefTargetType::UNSTABLE ? "U" : "X") );
+        string stability = ( (objstability == ObjectRefType::SINGLY_OWNED) ? "S"
+                                   : (objstability == ObjectRefType::MULTI_OWNED ? "M" : "X") );
         object_info_file << objId
             << "," << object->getCreateTime()
             << "," << object->getDeathTime()
@@ -1043,13 +1045,15 @@ void output_reference_summary( string &reference_summary_filename,
     for ( auto it = my_refsum.begin();
           it != my_refsum.end();
           ++it ) {
+        // Key is an edge source (which we used to call 'ref')
         EdgeSrc_t ref = it->first;
         Object *obj = std::get<0>(ref); 
         FieldId_t fieldId = std::get<1>(ref); 
+        // Value is a vector of Object pointers
         std::vector< Object * > objlist = it->second;
         ObjectId_t objId = (obj ? obj->getId() : 0);
         edge_summary_file << objId << ","      // 1 - object Id
-                         << fieldId << ",";   // 2 - field Id
+                          << fieldId << ",";   // 2 - field Id
         unsigned int actual_size = 0;
         for ( auto vecit = objlist.begin();
               vecit != objlist.end();

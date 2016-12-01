@@ -323,10 +323,10 @@ enum Color {
     GREEN = 5,
 };
 
-enum class RefTargetType {
-    STABLE = 1, // Only one incoming reference ever which 
-                // makes the reference RefType::SERIAL_STABLE
-    UNSTABLE = 2, // Gets passed around to difference references
+enum class ObjectRefType {
+    SINGLY_OWNED = 1, // Only one incoming reference ever which 
+                      // makes the reference RefType::SERIAL_STABLE
+    MULTI_OWNED = 2, // Gets passed around to difference edge sources
     UNKNOWN = 1024
 };
 
@@ -426,7 +426,7 @@ class Object
         KeyType m_key_type;
 
         // Stability type
-        RefTargetType m_reftarget_type;
+        ObjectRefType m_reftarget_type;
 
     public:
         Object( unsigned int id,
@@ -475,7 +475,7 @@ class Object
             , m_last_object(NULL)
             , m_key_type(KeyType::UNKNOWN_KEYTYPE)
             , m_death_cpair(NULL, NULL)
-            , m_reftarget_type(RefTargetType::UNKNOWN)
+            , m_reftarget_type(ObjectRefType::UNKNOWN)
         {
             if (m_site) {
                 Method *mymeth = m_site->getMethod();
@@ -516,13 +516,14 @@ class Object
         // - died by STACK
         bool getDiedByStackFlag() const { return m_diedByStack; }
         void setDiedByStackFlag() {
-            if (this->m_diedFlagSet) {
-                // Check to see if different
-                if ( this->m_diedByHeap || this->m_diedByGlobal) {
-                    cerr << "Object[" << this->m_id << "]"
-                         << " was originally died by heap. Overriding." << endl;
-                }
-            }
+            // REMOVE this DEBUG for now
+            // TODO if (this->m_diedFlagSet) {
+            // TODO     // Check to see if different
+            // TODO     if ( this->m_diedByHeap || this->m_diedByGlobal) {
+            // TODO         cerr << "Object[" << this->m_id << "]"
+            // TODO              << " was originally died by heap. Overriding." << endl;
+            // TODO     }
+            // TODO }
             this->m_diedByStack = true;
             this->m_reason = Reason::STACK;
             this->m_diedFlagSet = true;
@@ -533,13 +534,14 @@ class Object
         // - died by HEAP 
         bool getDiedByHeapFlag() const { return m_diedByHeap; }
         void setDiedByHeapFlag() {
-            if (this->m_diedFlagSet) {
-                // Check to see if different
-                if (this->m_diedByStack) {
-                    cerr << "Object[" << this->m_id << "]"
-                         << " was originally died by stack. Overriding." << endl;
-                }
-            }
+            // REMOVE this DEBUG for now
+            // TODO if (this->m_diedFlagSet) {
+            // TODO     // Check to see if different
+            // TODO     if (this->m_diedByStack) {
+            // TODO         cerr << "Object[" << this->m_id << "]"
+            // TODO              << " was originally died by stack. Overriding." << endl;
+            // TODO     }
+            // TODO }
             this->m_diedByHeap = true;
             this->m_reason = Reason::HEAP;
             this->m_diedFlagSet = true;
@@ -549,18 +551,19 @@ class Object
         // - died by GLOBAL
         bool getDiedByGlobalFlag() const { return m_diedByGlobal; }
         void setDiedByGlobalFlag() {
-            if (this->m_diedFlagSet) {
-                // Check to see if different
-                if ( this->m_diedByHeap ) {
-                    cerr << "Object[" << this->m_id << "]"
-                         << " was originally died by heap but trying to set diedByGlobal. Overriding."
-                         << endl;
-                } else if (this->m_diedByStack) {
-                    cerr << "Object[" << this->m_id << "]"
-                         << " was originally died by stack but setting to by GLOBAL. Overriding."
-                         << endl;
-                }
-            }
+            // REMOVE this DEBUG for now
+            // TODO if (this->m_diedFlagSet) {
+            // TODO     // Check to see if different
+            // TODO     if ( this->m_diedByHeap ) {
+            // TODO         cerr << "Object[" << this->m_id << "]"
+            // TODO              << " was originally died by heap but trying to set diedByGlobal. Overriding."
+            // TODO              << endl;
+            // TODO     } else if (this->m_diedByStack) {
+            // TODO         cerr << "Object[" << this->m_id << "]"
+            // TODO              << " was originally died by stack but setting to by GLOBAL. Overriding."
+            // TODO              << endl;
+            // TODO     }
+            // TODO }
             this->m_diedByGlobal = true;
             this->m_reason = Reason::GLOBAL;
             this->m_diedFlagSet = true;
@@ -648,8 +651,8 @@ class Object
         KeyType getKeyType() const { return this->m_key_type; }
 
         // Set and get stability taret types
-        void setRefTargetType( RefTargetType newtype ) { this->m_reftarget_type = newtype; }
-        RefTargetType getRefTargetType() const { return this->m_reftarget_type; }
+        void setRefTargetType( ObjectRefType newtype ) { this->m_reftarget_type = newtype; }
+        ObjectRefType getRefTargetType() const { return this->m_reftarget_type; }
 
         // Get Allocation context pair. Note that if <NULL, NULL> then none yet assigned.
         ContextPair getAllocContextPair() const { return this->m_alloc_cpair; }
