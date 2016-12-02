@@ -148,6 +148,7 @@ void HeapState::makeDead(Object * obj, unsigned int death_time)
                 this->m_liveSize = temp;
             }
         }
+        // Note that the death_time might be incorrect
         obj->makeDead( death_time, this->m_alloc_time );
     }
 }

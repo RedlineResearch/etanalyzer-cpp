@@ -380,6 +380,8 @@ class Object
         Reason m_reason;
         // Time that m_reason happened
         unsigned int m_last_action_time;
+        // Time of last update away. This is the 'timestamp' in the Merlin algorithm
+        unsigned int m_last_timestamp;
         // Method where this object died
         Method *m_methodDeathSite;
         // Last method to decrement reference count
@@ -463,6 +465,7 @@ class Object
             , m_diedFlagSet(false)
             , m_reason(UNKNOWN_REASON)
             , m_last_action_time(0)
+            , m_last_timestamp(0)
             , m_last_update_null(indeterminate)
             , m_last_update_away_from_static(false)
             , m_methodDeathSite(0)
@@ -494,7 +497,12 @@ class Object
         string getAllocSiteName() const { return m_allocsite_name; }
         Thread * getThread() const { return m_thread; }
         VTime_t getCreateTime() const { return m_createTime; }
-        VTime_t getDeathTime() const { return m_deathTime; }
+        VTime_t getDeathTime() const {
+            return m_deathTime;
+        }
+        void setDeathTime( VTime_t new_deathtime ) {
+            this->m_deathTime = new_deathtime;
+        }
         VTime_t getCreateTimeAlloc() const { return this->m_createTime_alloc; }
         VTime_t getDeathTimeAlloc() const { return m_deathTime_alloc; }
         Color getColor() const { return m_color; }
@@ -598,6 +606,10 @@ class Object
         Reason setReason( Reason r, unsigned int t ) { m_reason = r; m_last_action_time = t; }
         Reason getReason() const { return m_reason; }
         unsigned int getLastActionTime() const { return m_last_action_time; }
+        // Return the Merlin timestamp
+        auto getLastTimestamp() -> unsigned int const { return this->m_last_timestamp; }
+        // Set the Merlin timestamp
+        void setLastTimeStamp( unsigned int new_ts ) { this->m_last_timestamp = new_ts; }
         // Returns whether last update to this object was NULL.
         // If indeterminate, then there have been no updates
         tribool wasLastUpdateNull() const { return m_last_update_null; }

@@ -229,10 +229,19 @@ void update_reference_summaries( Object *src,
     }
 }
 
+// ----------------------------------------------------------------------
+//   Read and process trace events
+void apply_merlin( std::vector< Object * > &new_garbage )
+{
+    // TODO: Use setDeathTime( new_dtime );
+    // Sort the new_garbage vector according to latest last_timestamp.
+    // Start with the latest for the DFS.
+    // Do a standard DFS.
+    // Until the vector is empty
+}
 
 // ----------------------------------------------------------------------
 //   Read and process trace events
-
 unsigned int read_trace_file(FILE* f)
 {
     Tokenizer tokenizer(f);
@@ -248,8 +257,12 @@ unsigned int read_trace_file(FILE* f)
     Method *method;
     unsigned int total_objects = 0;
 
+    // Remember all the dead objects
+    std::deque< Object * > new_garbage;
     Method *main_method = ClassInfo::get_main_method();
     unsigned int main_id = main_method->getId();
+
+    unsigned int latest_death_time = 0;
 
     // DEBUG
     unsigned int debug_stack_edges = 0;
@@ -348,6 +361,9 @@ unsigned int read_trace_file(FILE* f)
                     }
                     // Set lastEvent and heap/stack flags for old target
                     if (oldObj) {
+                        // Set the last time stamp for Merlin Algorithm purposes
+                        oldObj->setLastTimeStamp( Exec.NowUp() );
+                        // Keep track of other properties
                         if (tgtId != 0) {
                             oldObj->unsetLastUpdateNull();
                         } else {
@@ -409,6 +425,8 @@ unsigned int read_trace_file(FILE* f)
                     unsigned int objId = tokenizer.getInt(1);
                     obj = Heap.getObject(objId);
                     if (obj) {
+                        unsigned int now_uptime = Exec.NowUp();
+                        new_garbage.push_back(obj);
                         unsigned int threadId = tokenizer.getInt(2);
                         LastEvent lastevent = obj->getLastEvent();
                         // Set the died by flags
@@ -429,7 +447,7 @@ unsigned int read_trace_file(FILE* f)
                         //else {
                         //     cerr << "Unhandled event: " << lastevent2str(lastevent) << endl;
                         // }
-                        Heap.makeDead(obj, Exec.NowUp());
+                        Heap.makeDead(obj, now_uptime);
                         // Get the current method
                         Method *topMethod = NULL;
                         ContextPair cpair;
@@ -487,6 +505,22 @@ unsigned int read_trace_file(FILE* f)
                         unsigned int rc = obj->getRefCount();
                         deathrc_map[objId] = rc;
                         not_candidate_map[objId] = (rc == 0);
+                        // Merlin algorithm portion. TODO: This is getting unwieldy. Think about
+                        // refactoring.
+                        // Keep track of the latest death time
+                        // TODO: Debug? Well it's a decent sanity check so we may leave it in.
+                        assert( latest_death_time <= now_uptime );
+                        // Ok, so now we can see if the death time has 
+                        if (now_uptime > latest_death_time) {
+                            // Do the Merlin algorithm
+                            // apply_merlin( new_garbage );
+                            // TODO: What are the parameters?
+                            // - new_garbage for sure
+                            // - anything else?
+                            // Return? Or simply update the object death times?
+                        }
+                        // Update latest death time
+                        latest_death_time = now_uptime;
                     } else {
                         assert(false);
                     } // if (obj) ... else
