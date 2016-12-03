@@ -609,7 +609,7 @@ class Object
         // Return the Merlin timestamp
         auto getLastTimestamp() -> unsigned int const { return this->m_last_timestamp; }
         // Set the Merlin timestamp
-        void setLastTimeStamp( unsigned int new_ts ) { this->m_last_timestamp = new_ts; }
+        void setLastTimestamp( unsigned int new_ts ) { this->m_last_timestamp = new_ts; }
         // Returns whether last update to this object was NULL.
         // If indeterminate, then there have been no updates
         tribool wasLastUpdateNull() const { return m_last_update_null; }

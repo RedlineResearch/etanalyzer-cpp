@@ -231,12 +231,72 @@ void update_reference_summaries( Object *src,
 
 // ----------------------------------------------------------------------
 //   Read and process trace events
-void apply_merlin( std::vector< Object * > &new_garbage )
+void apply_merlin( std::deque< Object * > &new_garbage )
 {
+    if (new_garbage.size() == 0) { 
+        // TODO Log an ERROR or a WARNING
+        return;
+    }
     // TODO: Use setDeathTime( new_dtime );
     // Sort the new_garbage vector according to latest last_timestamp.
-    // Start with the latest for the DFS.
+    std::sort( new_garbage.begin(),
+               new_garbage.end(),
+               []( Object *left, Object *right ) {
+                   return (left->getLastTimestamp() > right->getLastTimestamp());
+               } );
     // Do a standard DFS.
+    while (new_garbage.size() > 0) {
+        // Start with the latest for the DFS.
+        Object *cur = new_garbage[0];
+        new_garbage.pop_front();
+        std::deque< Object * > mystack; // stack for DFS
+        std::set< Object * > labeled; // What Objects have been labeled
+        mystack.push_front( cur );
+        while (mystack.size() > 0) {
+            Object *otmp = mystack[0];
+            mystack.pop_front();
+            assert(otmp);
+            // The current timestamp max
+            unsigned int tstamp_max = otmp->getLastTimestamp();
+            otmp->setDeathTime( tstamp_max );
+            // Remove from new_garbage deque
+            auto ngiter = std::find( new_garbage.begin(),
+                                     new_garbage.end(),
+                                     otmp );
+            if (ngiter != new_garbage.end()) {
+                // still in the new_garbage deque
+                new_garbage.erase(ngiter);
+            }
+            // Check if labeled already
+            auto iter = labeled.find(otmp);
+            if (iter == labeled.end()) {
+                // Not found => not labeled
+
+                labeled.insert(otmp);
+                // Go through all the edges out of otmp
+                // -- Visit all edges
+                for ( auto ptr = otmp->getFields().begin();
+                      ptr != otmp->getFields().end();
+                      ptr++ ) {
+                    Edge *edge = ptr->second;
+                    if (edge) {
+                        Object *mytgt = edge->getTarget();
+                        if (mytgt) {
+                            // Get timestamp
+                            unsigned int tstmp = mytgt->getLastTimestamp();
+                            if (tstamp_max > tstmp) {
+                                mytgt->setLastTimestamp( tstamp_max );
+                            } else {
+                                tstamp_max = tstmp;
+                            }
+                            otmp->setDeathTime( mytgt->getLastTimestamp() );
+                            mystack.push_front( mytgt );
+                        }
+                    }
+                }
+            }
+        }
+    }
     // Until the vector is empty
 }
 
@@ -362,7 +422,7 @@ unsigned int read_trace_file(FILE* f)
                     // Set lastEvent and heap/stack flags for old target
                     if (oldObj) {
                         // Set the last time stamp for Merlin Algorithm purposes
-                        oldObj->setLastTimeStamp( Exec.NowUp() );
+                        oldObj->setLastTimestamp( Exec.NowUp() );
                         // Keep track of other properties
                         if (tgtId != 0) {
                             oldObj->unsetLastUpdateNull();
@@ -426,6 +486,24 @@ unsigned int read_trace_file(FILE* f)
                     obj = Heap.getObject(objId);
                     if (obj) {
                         unsigned int now_uptime = Exec.NowUp();
+                        // Merlin algorithm portion. TODO: This is getting unwieldy. Think about
+                        // refactoring.
+                        // Keep track of the latest death time
+                        // TODO: Debug? Well it's a decent sanity check so we may leave it in.
+                        assert( latest_death_time <= now_uptime );
+                        // Ok, so now we can see if the death time has 
+                        if (now_uptime > latest_death_time) {
+                            // Do the Merlin algorithm
+                            apply_merlin( new_garbage );
+                            // TODO: What are the parameters?
+                            //          - new_garbage for sure
+                            //          - anything else?
+                            // For now this simply updates the object death times
+                        }
+                        // Update latest death time
+                        latest_death_time = now_uptime;
+
+                        // The rest of the bookkeeping
                         new_garbage.push_back(obj);
                         unsigned int threadId = tokenizer.getInt(2);
                         LastEvent lastevent = obj->getLastEvent();
@@ -505,22 +583,6 @@ unsigned int read_trace_file(FILE* f)
                         unsigned int rc = obj->getRefCount();
                         deathrc_map[objId] = rc;
                         not_candidate_map[objId] = (rc == 0);
-                        // Merlin algorithm portion. TODO: This is getting unwieldy. Think about
-                        // refactoring.
-                        // Keep track of the latest death time
-                        // TODO: Debug? Well it's a decent sanity check so we may leave it in.
-                        assert( latest_death_time <= now_uptime );
-                        // Ok, so now we can see if the death time has 
-                        if (now_uptime > latest_death_time) {
-                            // Do the Merlin algorithm
-                            // apply_merlin( new_garbage );
-                            // TODO: What are the parameters?
-                            // - new_garbage for sure
-                            // - anything else?
-                            // Return? Or simply update the object death times?
-                        }
-                        // Update latest death time
-                        latest_death_time = now_uptime;
                     } else {
                         assert(false);
                     } // if (obj) ... else
