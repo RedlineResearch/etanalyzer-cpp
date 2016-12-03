@@ -184,6 +184,7 @@ def main_process( output = None,
     # Flags
     cycle_flag = simulator_config["cycle_flag"]
     objdebug_flag = simulator_config["objdebug_flag"]
+    mpr_flag = (simulator_config["multiprocessing"] == "true")
     # TODO Objdebug flag
     # Executable
     runtype = simulator_config["runtype"]
@@ -277,21 +278,35 @@ def main_process( output = None,
                               outfptr, # sterr
                               cycle_cpp_dir ) ) # change current working directory
         p.start()
-        procs[bmark] = p
-    # Poll the processes
-    done = False
-    while not done:
-        done = True
-        for bmark in procs.keys():
-            print ".",
-            proc = procs[bmark]
-            proc.join(60)
-            if proc.is_alive():
-                done = False
-            else:
-                del procs[bmark]
-                timenow = time.asctime()
-                logger.debug( "[%s] - done at %s" % (bmark, timenow) )
+        if mpr_flag:
+            # Multiprocessing
+            procs[bmark] = p
+        else:
+            # Do single threaded version
+            done = False
+            while not done:
+                done = True
+                p.join(60)
+                if p.is_alive():
+                    done = False
+                else:
+                    timenow = time.asctime()
+                    logger.debug( "[%s] - done at %s" % (bmark, timenow) )
+    if mpr_flag:
+        # Poll the processes
+        done = False
+        while not done:
+            done = True
+            for bmark in procs.keys():
+                print ".",
+                proc = procs[bmark]
+                proc.join(60)
+                if proc.is_alive():
+                    done = False
+                else:
+                    del procs[bmark]
+                    timenow = time.asctime()
+                    logger.debug( "[%s] - done at %s" % (bmark, timenow) )
     print "DONE."
     exit(0)
     # HERE: TODO
