@@ -197,6 +197,36 @@ def main_process( output = None,
             procs_edge[bmark] = p
             dblist.append( outdbname_edge )
             p.start()
+            # Multiprocessing only means WITHIN one benchmark.
+            # It seems to work better this way because there's no way
+            # multiple benchmarks can run concurrently. There's just not
+            # enough memory on white-hole, black-hole or red-giant.
+            # Poll the processes:
+            done = False
+            while not done:
+                done = True
+                for bmark in set(procs_obj.keys() + procs_edge.keys()) :
+                    if bmark in procs_obj:
+                        proc = procs_obj[bmark]
+                        proc.join(60)
+                        if proc.is_alive():
+                            done = False
+                        else:
+                            del procs_obj[bmark]
+                            timenow = time.asctime()
+                            logger.debug( "[%s] - done at %s" % (bmark, timenow) )
+                    if bmark in procs_edge:
+                        proc = procs_edge[bmark]
+                        proc.join(60)
+                        if proc.is_alive():
+                            done = False
+                        else:
+                            del procs_edge[bmark]
+                            timenow = time.asctime()
+                            logger.debug( "[%s] - done at %s" % (bmark, timenow) )
+            print "======[ Benchmark %s DONE ]========================================================" \
+                % bmark
+            sys.stdout.flush()
         else:
             print "=======[ Running %s ]=================================================" \
                 % bmark
@@ -228,32 +258,6 @@ def main_process( output = None,
                                                   cycle_cpp_dir = cycle_cpp_dir,
                                                   logger = logger )
             dblist.append( outdbname_edge )
-    if mprflag:
-        # Poll the processes 
-        done = False
-        while not done:
-            done = True
-            for bmark in set(procs_obj.keys() + procs_edge.keys()) :
-                if bmark in procs_obj:
-                    proc = procs_obj[bmark]
-                    proc.join(60)
-                    if proc.is_alive():
-                        done = False
-                    else:
-                        del procs_obj[bmark]
-                        timenow = time.asctime()
-                        logger.debug( "[%s] - done at %s" % (bmark, timenow) )
-                if bmark in procs_edge:
-                    proc = procs_edge[bmark]
-                    proc.join(60)
-                    if proc.is_alive():
-                        done = False
-                    else:
-                        del procs_edge[bmark]
-                        timenow = time.asctime()
-                        logger.debug( "[%s] - done at %s" % (bmark, timenow) )
-        print "======[ Processes DONE ]========================================================"
-        sys.stdout.flush()
     print "================================================================================"
     # Copy all the databases into MAIN directory.
     dest = main_config["output"]
@@ -267,7 +271,7 @@ def main_process( output = None,
                 os.remove(tgt)
             except:
                 logger.error( "Weird error: found the file [%s] but can't remove it." % tgt )
-        print "Copying %s -> %s." % (dbfilename, dest)
+        print ">-> Copying %s -> %s." % (dbfilename, dest)
         copy( dbfilename, dest )
     print "================================================================================"
     print "csvinfo2db.py.py - DONE."
