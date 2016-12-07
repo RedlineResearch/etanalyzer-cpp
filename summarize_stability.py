@@ -176,6 +176,7 @@ def summarize_stability( bmark = "",
     # Get all the objects and add as a node to the graph
     mydict = {}
     backupdir = main_config["backup"]
+    outputdir = main_config["output"]
     obj_cachesize = int(obj_cachesize_config[bmark])
     # Read all the data in.
     read_result = read_simulator_data( bmark = bmark,
@@ -194,27 +195,44 @@ def summarize_stability( bmark = "",
     objreader = mydict["objreader"]
     stability = mydict["stability"]
     summary_reader = mydict["summary_reader"]
-    # TODO: DELETE
-    # TODO # Get the type index
-    # TODO TYPE = get_index( "TYPE" )
     #=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-    # TODO TODO TODO: Summarize stability
+    # Summarize stability
     #=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
     count = 0
     result = defaultdict( lambda: defaultdict(Counter) )
     counter = Counter()
-    print "A:"
     for objId, val in stability.iteritems():
         # Get the type
         mytype = objreader.get_type(objId)
         for fieldId, stabvalue in val.iteritems():
             result[mytype][fieldId][stabvalue] += 1
-    for mytype, tmp1 in result.iteritems():
-        print "%s =>" % mytype
-        for fieldId, tmp2 in tmp1.iteritems():
-            print "   %d:" % fieldId
-            for st, cnt in tmp2.iteritems():
-                print "      %s = %d" % (st, cnt)
+    output_filename = os.path.join( outputdir, "%s-STABILITY-SUMMARY.csv" % bmark)
+    with open(output_filename, "wb") as fptr:
+        seen_objects = set()
+        # Create the CSV writer and write the header row
+        writer = csv.writer( fptr, quoting = csv.QUOTE_MINIMAL )
+        writer.writerow( [ "type", "fieldId",
+                           "stable", "serial-stable", "unstable",
+                           "%stable", "%serial-stable", "%unstable", ] )
+        for mytype, classdict in result.iteritems():
+            row = [ mytype ]
+            stabsum = { "S" : 0,
+                        "ST" : 0,
+                        "U" : 0, }
+            for fieldId, stabdict in classdict.iteritems():
+                for st, cnt in stabdict.iteritems():
+                    # TODO print "      %s = %d" % (st, cnt)
+                    if st == "S" or st == "ST":
+                        stabsum[st] += cnt
+                    elif st == "U" or st == "X":
+                        stabsum["U"] += cnt
+                total = stabsum["S"] + stabsum["ST"] + stabsum["U"]
+                row.extend( [ fieldId, stabsum["S"], stabsum["ST"], stabsum["U"],
+                              "{:.2f}".format(stabsum["S"] / total),
+                              "{:.2f}".format(stabsum["ST"] / total),
+                              "{:.2f}".format(stabsum["U"] / total), ] )
+            writer.writerow( row )
+
 
 def main_process( global_config = {},
                   objectinfo_config = {},
