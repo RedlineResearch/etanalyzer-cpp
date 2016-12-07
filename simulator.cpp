@@ -8,6 +8,7 @@
 #include <deque>
 #include <string>
 #include <utility>
+// TODO #include <stxxl/map>
 
 using namespace std;
 
@@ -19,6 +20,10 @@ using namespace std;
 #include "summary.hpp"
 // #include "lastmap.h"
 #include "version.hpp"
+
+// // STXXL related constants
+// #define DATA_NODE_BLOCK_SIZE (4096)
+// #define DATA_LEAF_BLOCK_SIZE (4096)
 
 // ----------------------------------------------------------------------
 // Types
@@ -32,13 +37,63 @@ typedef std::map< unsigned int, Summary * > SizeSum_t;
 // An Edge Source is an object and it's specific field.
 // Global edge sources have a NULL object pointer.
 typedef std::pair< Object *, FieldId_t > EdgeSrc_t; 
+// ----------------------------------------------------------------------
 // We then map Edge Sources to a vector/list of Object pointers.
 // For every edge source, we keep a list of all the objects (pointers)
 // it has ever pointed to.
+// This is the in-memory stl version
 typedef std::map< EdgeSrc_t, std::vector< Object * > > EdgeSummary_t;
 // We need a reverse map from object pointer to the edge sources that ever
 // pointed to that object.
 typedef std::map< Object *, std::vector< EdgeSrc_t > > Object2EdgeSrcMap_t;
+
+// Trying an on-disk version but the library I DLed doesn't work well with C++11
+// TODO //! [comparator]
+// TODO struct CompareGreater_EdgeSummary
+// TODO {
+// TODO     bool operator () (const EdgeSrc_t &a, const EdgeSrc_t &b) const {
+// TODO         Object *first = std::get<0>(a); 
+// TODO         Object *second = std::get<0>(b); 
+// TODO         if (first != second) {
+// TODO             return first > second;
+// TODO         } else {
+// TODO             FieldId_t field1 = std::get<1>(a); 
+// TODO             FieldId_t field2 = std::get<1>(b); 
+// TODO             return field1 > field2;
+// TODO         }
+// TODO     }
+// TODO     static EdgeSrc_t max_value() {
+// TODO         return std::make_pair( static_cast<Object *>(NULL),
+// TODO                                std::numeric_limits<unsigned int>::min() );
+// TODO     }
+// TODO };
+// TODO //! [comparator]
+// TODO // This is the out-of-core (on-disk) version.
+// TODO typedef stxxl::map< EdgeSrc_t, std::vector< Object * >,
+// TODO                     CompareGreater_EdgeSummary,
+// TODO                     DATA_NODE_BLOCK_SIZE, DATA_LEAF_BLOCK_SIZE >
+// TODO     stxxl_EdgeSummary_t;
+// TODO // TODO: This is just dummy code to test the STXXL compilation units.
+// TODO // Need to replace EdgeSummary_t with the stxxl::map. (Or maybe make it configurable)
+// TODO // TODO: Test
+// TODO typedef stxxl_EdgeSummary_t EdgeSummary_t;
+// TODO 
+// TODO //! [comparator]
+// TODO struct CompareGreater
+// TODO {
+// TODO     bool operator () (const int & a, const int & b) const {
+// TODO         return a > b;
+// TODO     }
+// TODO     static int max_value() {
+// TODO         return std::numeric_limits<int>::min();
+// TODO     }
+// TODO };
+// TODO //! [comparator]
+// TODO // This is the out-of-core (on-disk) version.
+// TODO //! [comparator]
+// TODO typedef stxxl::map<int, char, CompareGreater, DATA_NODE_BLOCK_SIZE, DATA_LEAF_BLOCK_SIZE> stxxl_Object2EdgeSrcMap_t;
+
+
 // EdgeSummary_t and Object2EdgeSrcMap_t contain the raw data. We need some
 // summaries.
 // enum class ObjectRefType moved to heap.h - RLV

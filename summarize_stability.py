@@ -83,6 +83,9 @@ def get_objects_from_stable_group_as_set( sgnum = 0, # stable group number
                                                  stable_grouplist = stable_grouplist ) )
     return objset
     
+def is_array( mytype ):
+    return (len(mytype) > 0) and (mytype[0] == "[")
+
 #================================================================================
 #================================================================================
 
@@ -215,6 +218,9 @@ def summarize_stability( bmark = "",
                            "stable", "serial-stable", "unstable",
                            "%stable", "%serial-stable", "%unstable", ] )
         for mytype, classdict in result.iteritems():
+            # Ignore arrays for now.
+            if is_array( mytype ):
+                continue
             for fieldId, stabdict in classdict.iteritems():
                 row = [ mytype ]
                 stabsum = { "S" : 0,
@@ -228,9 +234,9 @@ def summarize_stability( bmark = "",
                         stabsum["U"] += cnt
                 total = stabsum["S"] + stabsum["ST"] + stabsum["U"]
                 row.extend( [ fieldId, stabsum["S"], stabsum["ST"], stabsum["U"],
-                              "{:.2f}".format(stabsum["S"] / total),
-                              "{:.2f}".format(stabsum["ST"] / total),
-                              "{:.2f}".format(stabsum["U"] / total), ] )
+                              "{:.4f}".format(stabsum["S"] / total),
+                              "{:.4f}".format(stabsum["ST"] / total),
+                              "{:.4f}".format(stabsum["U"] / total), ] )
                 writer.writerow( row )
 
 
