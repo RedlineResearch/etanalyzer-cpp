@@ -215,11 +215,11 @@ def summarize_stability( bmark = "",
                            "stable", "serial-stable", "unstable",
                            "%stable", "%serial-stable", "%unstable", ] )
         for mytype, classdict in result.iteritems():
-            row = [ mytype ]
-            stabsum = { "S" : 0,
-                        "ST" : 0,
-                        "U" : 0, }
             for fieldId, stabdict in classdict.iteritems():
+                row = [ mytype ]
+                stabsum = { "S" : 0,
+                            "ST" : 0,
+                            "U" : 0, }
                 for st, cnt in stabdict.iteritems():
                     # TODO print "      %s = %d" % (st, cnt)
                     if st == "S" or st == "ST":
@@ -231,7 +231,7 @@ def summarize_stability( bmark = "",
                               "{:.2f}".format(stabsum["S"] / total),
                               "{:.2f}".format(stabsum["ST"] / total),
                               "{:.2f}".format(stabsum["U"] / total), ] )
-            writer.writerow( row )
+                writer.writerow( row )
 
 
 def main_process( global_config = {},
