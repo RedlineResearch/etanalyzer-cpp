@@ -282,7 +282,7 @@ def summarize_stability( bmark = "",
                 total = stabsum["S"] + stabsum["ST"] + stabsum["U"]
                 field_name = namesreader.get_field_name(fieldId)
                 field_target_type = namesreader.get_field_target_type(fieldId)
-                row.extend( [ fieldId, field_name, field_traget_type,
+                row.extend( [ fieldId, field_name, field_target_type,
                               stabsum["S"], stabsum["ST"], stabsum["U"],
                               "{:.4f}".format(stabsum["S"] / total),
                               "{:.4f}".format(stabsum["ST"] / total),
