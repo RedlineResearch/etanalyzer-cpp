@@ -18,6 +18,7 @@ import sqlite3
 import cPickle as pickle
 import pylru
 from sqorm import ObjectCache
+from mypytools import hex2dec
 
 pp = pprint.PrettyPrinter( indent = 4 )
 
@@ -1885,6 +1886,104 @@ def read_main_file( main_file_name = "",
     assert( (main_time >= 0) and (alloc_time >=0) )
     return { "main_time" : main_time,
              "alloc_time" : alloc_time }
+
+
+# -----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+class NamesReader:
+    def __init__( self,
+                  names_file = None,
+                  logger = None ):
+        self.names_filename = names_file
+        self.namesdict = {}
+        self.classdict = {}
+        self.logger = logger
+
+    def read_names_file( self ):
+        start = False
+        fdict = self.namesdict
+        cdict = self.classdict
+        with get_trace_fp( self.names_filename, self.logger ) as fp:
+            for line in fp:
+                line = line.rstrip()
+                row = line.split(",")
+                # 0 - Entity type [F,C,E,I,S]
+                # If entity == "F":
+                #     1 - field kind
+                #           * S = static
+                #           * I = instance
+                #     2 - field Id (in hex 0xNNN format)
+                #         NOTE: Field ids are globally unique so we can use this
+                #               to index the field dictionary (namesdict)
+                #     3 - field name
+                #     4 - class Id (in hex 0xNNN format)
+                #     5 - class name
+                #     6 - field target type
+                # else if entity == "C":
+                #     TODO
+                # else if entity == "E":
+                #     TODO
+                # else if entity == "I":
+                #     TODO
+                # else if entity == "S":
+                #     TODO
+                recordType = row[0]
+                if recordType == "F":
+                    fieldKind = row[1]
+                    fieldId = hex2dec(row[2])
+                    fieldName = row[3]
+                    classId = hex2dec(row[4])
+                    className = row[5]
+                    if classId not in cdict:
+                        cdict[classId] = className
+                    fieldTgtType = row[6]
+                    if fieldId not in fdict:
+                        fdict[fieldId] = { "fieldKind" : fieldKind,
+                                           "fieldName" : fieldName, 
+                                           "classId" : classId,
+                                           "fieldTgtType" : fieldTgtType, }
+                    else:
+                        self.logger.error( "Duplicate field Id [%d]" % fieldId )
+                        # TODO: Check to see that it matches up?
+                        assert(False) # Bail out for now. This shouldn't happen though. TODO
+                else:
+                    pass
+                    # Ignore the rest for now
+                    # TODO TODO TODO
+
+    def iteritems( self ):
+        return self.namesdict.iteritems()
+
+    def keys( self ):
+        return self.namesdict.keys()
+
+    def items( self ):
+        return self.namesdict.items()
+
+    def __get_namesdict__( self ):
+        # The __ means only call if you know what you're doing, eh?
+        return self.namesdict
+
+    def get_fields_dict( self, objId = None ):
+        return self.__getitem__[objId]
+
+    def __getitem__( self, objId = None ):
+        return self.namesdict[objId] if objId in self.namesdict else None
+
+    def get_names_type( self,
+                            objId = None,
+                            fieldId = None ):
+        if objId in self.namesdict:
+            if fieldId in self.namesdict[objId]:
+                return self.namesdict[objId][fieldId]
+        # We get here if objId or fieldId aren't found
+        return None
+
+    def print_out( self ):
+        for key, fdict in self.namesdict.iteritems():
+            print "%d -> %s" % (key, str(fdict))
+
+
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
 #

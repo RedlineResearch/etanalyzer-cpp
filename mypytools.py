@@ -316,12 +316,24 @@ def get_trace_fp( tracefile = None,
         fp = open( tracefile, "r")
     return fp
 
+def hex2dec( val ):
+    """Expects val to be a string starting with 0X or 0x"""
+    assert( type(val) == type("string")
+    myval = val.upper()
+    if val.find("0X") != 0:
+        raise ValueError("Incorrect hex format: %s" % str(val))
+    try:
+        retval = int(myval[2:], 16)
+    except:
+        raise ValueError("Cannot convert to hex: %s" % str(val))
+    return retval
+    
 
 __all__ = [ "mean", "merge_two_dicts", "stdev", "variance", "email_message",
             "get_file_fp", "check_host", "get_actual_hostname", "process_host_config",
             "process_worklist_config",
             "is_specjvm", "is_dacapo", "is_minibench",
-            "get_trace_fp", ]
+            "get_trace_fp", "hex2dec", ]
 
 if __name__ == "__main__":
     import doctest
