@@ -18,12 +18,14 @@ from operator import itemgetter
 
 # Possible useful libraries, classes and functions:
 #   - This one is my own library:
-from mypytools import mean, stdev, variance, check_host
+from mypytools import mean, stdev, variance, check_host, \
+                      is_specjvm, is_dacapo, is_minibench
+
 
 # The garbology related library. Import as follows.
 # Check garbology.py for other imports
 from garbology import ObjectInfoReader, StabilityReader, ReferenceReader, \
-         SummaryReader, get_index, is_stable
+         SummaryReader, NamesReader, get_index, is_stable
          
 # Needed to read in *-OBJECTINFO.txt and other files from 
 # the simulator run
@@ -86,6 +88,28 @@ def get_objects_from_stable_group_as_set( sgnum = 0, # stable group number
 def is_array( mytype ):
     return (len(mytype) > 0) and (mytype[0] == "[")
 
+def get_namesfile_path( bmark = None,
+                        names_config = {},
+                        global_config = {} ):
+    specjvm_dir = global_config["specjvm_dir"]
+    dacapo_dir = global_config["dacapo_dir"]
+    minibench_dir = global_config["minibench_dir"]
+    if is_specjvm(bmark):
+        namesfile = specjvm_dir + names_config[bmark]
+    elif is_dacapo(bmark):
+        namesfile = dacapo_dir + names_config[bmark]
+    elif is_minibench(bmark):
+        namesfile = minibench_dir + names_config[bmark]
+    else:
+        print "Benchmark not found: %s" % bmark
+        assert(False)
+    try:
+        assert(os.path.isfile(namesfile))
+    except:
+        print "%s NOT FOUND." % namesfile
+        raise ValueError("%s NOT FOUND." % namesfile)
+    return namesfile
+
 #================================================================================
 #================================================================================
 
@@ -98,11 +122,13 @@ def read_simulator_data( bmark = "",
                          use_objinfo_db = False,
                          obj_cachesize = 5000000,
                          objectinfo_db_config = {},
+                         names_config = {},
+                         global_config = {},
                          logger = None ):
     summary_fname = os.path.join( cycle_cpp_dir,
                                   summary_config[bmark] )
-    # #===========================================================================
-    # # Read in OBJECTINFO
+    #===========================================================================
+    # Read in OBJECTINFO
     print "Reading in the OBJECTINFO file for benchmark:", bmark
     sys.stdout.flush()
     oread_start = time.clock()
@@ -160,6 +186,22 @@ def read_simulator_data( bmark = "",
     sys.stdout.write(  "[%s]: DONE: %f\n" % (bmark, (summary_end - summary_start)) )
     sys.stdout.flush()
     #===========================================================================
+    # Read in NAMES file
+    print "Reading in the NAMES file for benchmark:", bmark
+    sys.stdout.flush()
+    names_read_start = time.clock()
+    namesfile_path = get_namesfile_path( bmark = bmark,
+                                         names_config = names_config,
+                                         global_config = global_config )
+    mydict["namesreader"] = NamesReader( namesfile_path,
+                                         logger = logger )
+    namesreader = mydict["namesreader"]
+    namesreader.read_names_file()
+    names_read_end = time.clock()
+    logger.debug( "[%s]: DONE: %f" % (bmark, (names_read_end - names_read_start)) )
+    sys.stdout.write(  "[%s]: DONE: %f\n" % (bmark, (names_read_end - names_read_start)) )
+    sys.stdout.flush()
+    #===========================================================================
     return True
 
 
@@ -174,6 +216,8 @@ def summarize_stability( bmark = "",
                          use_objinfo_db = False,
                          objectinfo_db_config = {},
                          obj_cachesize_config = {},
+                         names_config = {},
+                         global_config = {},
                          logger = None ):
     # Assumes that we are in the desired working directory.
     # Get all the objects and add as a node to the graph
@@ -191,6 +235,8 @@ def summarize_stability( bmark = "",
                                        use_objinfo_db = use_objinfo_db,
                                        obj_cachesize = obj_cachesize,
                                        objectinfo_db_config = objectinfo_db_config,
+                                       names_config = names_config,
+                                       global_config = global_config,
                                        logger = logger )
     if read_result == False:
         return False
@@ -198,6 +244,7 @@ def summarize_stability( bmark = "",
     objreader = mydict["objreader"]
     stability = mydict["stability"]
     summary_reader = mydict["summary_reader"]
+    namesreader = mydict["namesreader"]
     #=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
     # Summarize stability
     #=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
@@ -214,7 +261,7 @@ def summarize_stability( bmark = "",
         seen_objects = set()
         # Create the CSV writer and write the header row
         writer = csv.writer( fptr, quoting = csv.QUOTE_MINIMAL )
-        writer.writerow( [ "type", "fieldId",
+        writer.writerow( [ "type", "field_id", "field_name", "field_target_type",
                            "stable", "serial-stable", "unstable",
                            "%stable", "%serial-stable", "%unstable", ] )
         for mytype, classdict in result.iteritems():
@@ -233,7 +280,10 @@ def summarize_stability( bmark = "",
                     elif st == "U" or st == "X":
                         stabsum["U"] += cnt
                 total = stabsum["S"] + stabsum["ST"] + stabsum["U"]
-                row.extend( [ fieldId, stabsum["S"], stabsum["ST"], stabsum["U"],
+                field_name = namesreader.get_field_name(fieldId)
+                field_target_type = namesreader.get_field_target_type(fieldId)
+                row.extend( [ fieldId, field_name, field_traget_type,
+                              stabsum["S"], stabsum["ST"], stabsum["U"],
                               "{:.4f}".format(stabsum["S"] / total),
                               "{:.4f}".format(stabsum["ST"] / total),
                               "{:.4f}".format(stabsum["U"] / total), ] )
@@ -250,6 +300,7 @@ def main_process( global_config = {},
                   summary_config = {},
                   objectinfo_db_config = {},
                   obj_cachesize_config = {},
+                  names_config = {},
                   mprflag = False,
                   debugflag = False,
                   logger = None ):
@@ -277,12 +328,15 @@ def main_process( global_config = {},
     results = {}
     use_objinfo_db = (main_config["use_objinfo_db"] == "True")
     # TODO
+    print "A:"
     for bmark in worklist_config.keys():
         hostlist = worklist_config[bmark]
+        print "B:"
         if not check_host( benchmark = bmark,
                            hostlist = hostlist,
                            host_config = host_config ):
             continue
+        print "C:"
         if mprflag:
             assert(False) # TODO: Use the single threaded version for now TODO
             # Multiprocessing version
@@ -305,13 +359,13 @@ def main_process( global_config = {},
                                   use_edgeinfo_db,
                                   objectinfo_db_config,
                                   obj_cachesize_config,
-                                  edge_cachesize_config,
-                                  edgeinfo_config,
-                                  dgroups2db_dir,
+                                  names_config,
+                                  global_config,
                                   logger ) )
             procs[bmark] = p
             p.start()
         else:
+            print "D:"
             # Single threaded version
             print "=======[ Running %s ]=================================================" \
                 % bmark
@@ -326,6 +380,8 @@ def main_process( global_config = {},
                                  use_objinfo_db = use_objinfo_db,
                                  objectinfo_db_config = objectinfo_db_config,
                                  obj_cachesize_config = obj_cachesize_config,
+                                 names_config = names_config,
+                                 global_config = global_config,
                                  logger = logger )
 
     exit(100)
@@ -412,11 +468,28 @@ def process_worklist_config( worklist_config = {} ):
         mydict[bmark] = hostlist
     return mydict
 
+def process_sim_config( args ):
+    assert( args.simconfig != None )
+    simconfig_parser = ConfigParser.ConfigParser()
+    simconfig_parser.read( args.simconfig )
+    dacapo = config_section_map( "dacapo", simconfig_parser )
+    dacapo_names = config_section_map( "dacapo_names", simconfig_parser )
+    specjvm = config_section_map( "specjvm", simconfig_parser )
+    specjvm_names = config_section_map( "specjvm_names", simconfig_parser )
+    minibench = config_section_map( "minibench", simconfig_parser )
+    minibench_names = config_section_map( "minibench_names", simconfig_parser )
+    bmark_config = dict( dict(specjvm, **dacapo), **minibench )
+    names_config = dict( dict(specjvm_names, **dacapo_names), **minibench_names )
+    return names_config
+
 def create_parser():
     # set up arg parser
     parser = argparse.ArgumentParser()
     parser.add_argument( "--config",
                          help = "Specify configuration filename.",
+                         action = "store" )
+    parser.add_argument( "--simconfig",
+                         help = "Specify run configuration filename.",
                          action = "store" )
     parser.add_argument( "--mpr",
                          dest = "mprflag",
@@ -449,6 +522,7 @@ def main():
     configparser = ConfigParser.ConfigParser()
     assert( args.config != None )
     # Get the configurations we need.
+    names_config = process_sim_config( args )
     configdict = process_config( args )
     global_config = configdict["global"]
     host_config = process_host_config( configdict["hosts"] )
@@ -486,6 +560,7 @@ def main():
                          summary_config = summary_config,
                          objectinfo_db_config = objectinfo_db_config,
                          obj_cachesize_config = obj_cachesize_config,
+                         names_config = names_config,
                          logger = logger )
 
 if __name__ == "__main__":

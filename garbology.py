@@ -1906,7 +1906,7 @@ class NamesReader:
         with get_trace_fp( self.names_filename, self.logger ) as fp:
             for line in fp:
                 line = line.rstrip()
-                row = line.split(",")
+                row = line.split(" ")
                 # 0 - Entity type [F,C,E,I,S]
                 # If entity == "F":
                 #     1 - field kind
@@ -1929,6 +1929,7 @@ class NamesReader:
                 #     TODO
                 recordType = row[0]
                 if recordType == "F":
+                    # print ".",
                     fieldKind = row[1]
                     fieldId = hex2dec(row[2])
                     fieldName = row[3]
@@ -1947,6 +1948,7 @@ class NamesReader:
                         # TODO: Check to see that it matches up?
                         assert(False) # Bail out for now. This shouldn't happen though. TODO
                 else:
+                    # print recordType,
                     pass
                     # Ignore the rest for now
                     # TODO TODO TODO
@@ -1964,24 +1966,27 @@ class NamesReader:
         # The __ means only call if you know what you're doing, eh?
         return self.namesdict
 
-    def get_fields_dict( self, objId = None ):
-        return self.__getitem__[objId]
+    def get_fields_dict( self, fieldId = None ):
+        return self.__getitem__[fieldId]
 
-    def __getitem__( self, objId = None ):
-        return self.namesdict[objId] if objId in self.namesdict else None
-
-    def get_names_type( self,
-                            objId = None,
-                            fieldId = None ):
-        if objId in self.namesdict:
-            if fieldId in self.namesdict[objId]:
-                return self.namesdict[objId][fieldId]
-        # We get here if objId or fieldId aren't found
-        return None
+    def __getitem__( self, fieldId = None ):
+        return self.namesdict[fieldId] if fieldId in self.namesdict else None
 
     def print_out( self ):
         for key, fdict in self.namesdict.iteritems():
             print "%d -> %s" % (key, str(fdict))
+
+    def get_field_name( self, fieldId = None ):
+        rec = self[fieldId]
+        return rec["fieldName"] if rec != None else "None"
+
+    def get_class_id( self, fieldId = None ):
+        rec = self[fieldId]
+        return rec["classId"] if rec != None else None
+
+    def get_field_target_type( self, fieldId = None ):
+        rec = self[fieldId]
+        return rec["fieldTgtType"] if rec != None else "None"
 
 
 # -----------------------------------------------------------------------------

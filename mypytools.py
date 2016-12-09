@@ -318,9 +318,9 @@ def get_trace_fp( tracefile = None,
 
 def hex2dec( val ):
     """Expects val to be a string starting with 0X or 0x"""
-    assert( type(val) == type("string")
+    assert( type(val) == type("string") )
     myval = val.upper()
-    if val.find("0X") != 0:
+    if myval.find("0X") != 0:
         raise ValueError("Incorrect hex format: %s" % str(val))
     try:
         retval = int(myval[2:], 16)
