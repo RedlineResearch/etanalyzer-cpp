@@ -409,11 +409,11 @@ unsigned int read_trace_file(FILE* f)
                     Thread* thread = Exec.getThread(thrdid);
                     unsigned int els  = (tokenizer.numTokens() == 6) ? 0
                                                                      : tokenizer.getInt(5);
-                    AllocSite* as = ClassInfo::TheAllocSites[tokenizer.getInt(4)];
+                    AllocSite *as = ClassInfo::TheAllocSites[tokenizer.getInt(4)];
                     assert(thread);
-                    // Get context pair
-                    ContextPair cpair = thread->getContextPair();
-                    CPairType cptype = thread->getContextPairType();
+                    // TODO: // Get context pair
+                    // TODO: ContextPair cpair = thread->getContextPair();
+                    // TODO: CPairType cptype = thread->getContextPairType();
                     // DEBUG
                     // if (!as) {
                     //     cerr << "DBG: objId[ " << tokenizer.getInt(1) << " ] has no alloc site." << endl;
@@ -429,8 +429,7 @@ unsigned int read_trace_file(FILE* f)
                     AllocationTime = Heap.getAllocTime();
                     Exec.SetAllocTime( AllocationTime );
                     Exec.UpdateObj2AllocContext( obj,
-                                                 cpair,
-                                                 cptype );
+                                                 as->getMethod()->getName() );
                     if (cckind == ExecMode::Full) {
                         // Get full stacktrace
                         DequeId_t strace = thread->stacktrace_using_id();
@@ -583,7 +582,7 @@ unsigned int read_trace_file(FILE* f)
                         Heap.makeDead(obj, now_uptime);
                         // Get the current method
                         Method *topMethod = NULL;
-                        ContextPair cpair;
+                        // TODO: ContextPair cpair;
                         CPairType cptype;
                         Thread *thread;
                         if (threadId > 0) {
@@ -595,11 +594,8 @@ unsigned int read_trace_file(FILE* f)
                             thread = Exec.get_last_thread();
                         }
                         if (thread) {
-                            cpair = thread->getContextPair();
-                            cptype = thread->getContextPairType();
-                            Exec.UpdateObj2DeathContext( obj,
-                                                         cpair,
-                                                         cptype );
+                            // TODO: cpair = thread->getContextPair();
+                            // TODO: cptype = thread->getContextPairType();
                             topMethod = thread->TopMethod();
                             if (cckind == ExecMode::Full) {
                                 // Get full stacktrace
@@ -609,7 +605,13 @@ unsigned int read_trace_file(FILE* f)
                             // Set the death site
                             if (topMethod) {
                                 obj->setDeathSite(topMethod);
-                            } 
+                                Exec.UpdateObj2DeathContext( obj,
+                                                             topMethod->getName() );
+                            } else {
+                                Exec.UpdateObj2DeathContext( obj,
+                                                             "NULL_METHOD" );
+                            }
+                            // Death reason setting
                             Reason myreason;
                             if (thread->isLocalVariable(obj)) {
                                 myreason = STACK;
@@ -1153,8 +1155,7 @@ unsigned int output_edges( HeapState &myheap,
 }
 
 // ----------------------------------------------------------------------
-
-// Output the map of simple context pair -> count of obects dying
+// Output the map of death context site -> count of obects dying
 void output_context_summary( string &context_death_count_filename,
                              ExecState &exstate )
 {
@@ -1162,22 +1163,40 @@ void output_context_summary( string &context_death_count_filename,
     for ( auto it = exstate.begin_deathCountmap();
           it != exstate.end_deathCountmap();
           ++it ) {
-        ContextPair cpair = it->first;
-        Method *first = std::get<0>(cpair); 
-        Method *second = std::get<1>(cpair); 
+        string context = it->first;
         unsigned int total = it->second;
-        unsigned int meth1_id = (first ? first->getId() : 0);
-        unsigned int meth2_id = (second ? second->getId() : 0);
-        string meth1_name = (first ? first->getName() : "NONAME");
-        string meth2_name = (second ? second->getName() : "NONAME");
-        char cptype = exstate.get_cptype_name(cpair);
-        context_death_count_file << meth1_name << "," 
-                                 << meth2_name << ","
-                                 << cptype << ","
+        context_death_count_file << context << "," 
                                  << total << endl;
     }
     context_death_count_file.close();
 }
+
+// ----------------------------------------------------------------------
+// Output the map of simple context pair -> count of obects dying
+// OLD CODE: Currently unused as we're not doing context pairs anymore
+// TODO: void XXX_output_context_summary( string &context_death_count_filename,
+// TODO:                                  ExecState &exstate )
+// TODO: {
+// TODO:     ofstream context_death_count_file(context_death_count_filename);
+// TODO:     for ( auto it = exstate.begin_deathCountmap();
+// TODO:           it != exstate.end_deathCountmap();
+// TODO:           ++it ) {
+// TODO:         ContextPair cpair = it->first;
+// TODO:         Method *first = std::get<0>(cpair); 
+// TODO:         Method *second = std::get<1>(cpair); 
+// TODO:         unsigned int total = it->second;
+// TODO:         unsigned int meth1_id = (first ? first->getId() : 0);
+// TODO:         unsigned int meth2_id = (second ? second->getId() : 0);
+// TODO:         string meth1_name = (first ? first->getName() : "NONAME");
+// TODO:         string meth2_name = (second ? second->getName() : "NONAME");
+// TODO:         char cptype = exstate.get_cptype_name(cpair);
+// TODO:         context_death_count_file << meth1_name << "," 
+// TODO:                                  << meth2_name << ","
+// TODO:                                  << cptype << ","
+// TODO:                                  << total << endl;
+// TODO:     }
+// TODO:     context_death_count_file.close();
+// TODO: }
 
 void output_reference_summary( string &reference_summary_filename,
                                string &ref_reverse_summary_filename,

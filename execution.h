@@ -24,9 +24,12 @@ typedef map<unsigned int, CCNode *> CCMap;
 typedef map<Method *, CCNode *> FullCCMap;
 
 typedef map<MethodId_t, Thread *> ThreadMap;
-typedef map<ContextPair, unsigned int> ContextCountMap;
+// TODO: This is the old context pair code:
+// TODO:  typedef map<ContextPair, unsigned int> ContextCountMap;
+typedef map<string, unsigned int> ContextCountMap;
 typedef map<ContextPair, CPairType> ContextTypeMap_t;
-typedef map<Object *, ContextPair> ObjectContextMap;
+// TODO: typedef map<Object *, ContextPair> ObjectContextMap;
+typedef map<Object *, string> ObjectContextMap;
 
 
 typedef deque<Method *> MethodDeque;
@@ -172,12 +175,15 @@ class Thread
         ContextPair m_context;
         // -- Type of ContextPair m_context
         CPairType m_cptype;
-        // -- Map of simple Allocation context pair -> count of occurrences
+        // -- Map of simple Allocation site (used to be context pair)
+        //                     -> count of occurrences
         ContextCountMap &m_allocCountmap;
-        // -- Map of simple Death context pair -> count of occurrences
+        // -- Map of simple Death death site (used to be context pair)
+        //                     -> count of occurrences
         ContextCountMap &m_deathCountmap;
-        // Context type map - see documentation below in ExecState
-        ContextTypeMap_t &m_contextTypeMap;
+        // Unused when we removed context pair functionality
+        // TODO: UNUSED // Context type map - see documentation below in ExecState
+        // TODO: UNUSED ContextTypeMap_t &m_contextTypeMap;
         // -- Map to ExecState
         ExecState &m_exec;
         // File to output the callstack
@@ -202,7 +208,7 @@ class Thread
             , m_cptype(CPairType::CP_None) 
             , m_allocCountmap(allocCountmap)
             , m_deathCountmap(deathCountmap)
-            , m_contextTypeMap(contextTypeMap)
+            // TODO: , m_contextTypeMap(contextTypeMap)
             , m_exec(execstate)
             , m_output(output)
             , m_nodefile(nodefile) {
@@ -350,22 +356,27 @@ class ExecState
 
         // Update the Object pointer to simple Allocation context pair map
         void UpdateObj2AllocContext( Object *obj,
-                                     ContextPair cpair,
-                                     CPairType cptype ) {
-            UpdateObj2Context( obj,
-                               cpair,
-                               cptype,
-                               EventKind::Allocation );
+                                     string alloc_site )
+        {
+            this->m_objAlloc2cmap[obj] = alloc_site;
+            // TODO: Old code using context pair
+            // TODO ContextPair cpair,
+            // TODO CPairType cptype ) {
+            // TODO: UpdateObj2Context( obj,
+            // TODO:                    cpair,
+            // TODO:                    cptype,
+            // TODO:                    EventKind::Allocation );
         }
 
         // Update the Object pointer to simple Death context pair map
         void UpdateObj2DeathContext( Object *obj,
-                                     ContextPair cpair,
-                                     CPairType cptype ) {
-            UpdateObj2Context( obj,
-                               cpair,
-                               cptype,
-                               EventKind::Death );
+                                     string alloc_site ) {
+            this->m_objDeath2cmap[obj] = alloc_site;
+            // TODO: Old code using context pair
+            // TODO: UpdateObj2Context( obj,
+            // TODO:                    cpair,
+            // TODO:                    cptype,
+            // TODO:                    EventKind::Death );
         }
 
         void UpdateContextTypeMap( ContextPair cpair,
@@ -417,35 +428,35 @@ class ExecState
             return this->_get_cptype_name(cptype);
         }
 
-        // Update the Object pointer to simple context pair map
-        void UpdateObj2Context( Object *obj,
-                                ContextPair cpair,
-                                CPairType cptype,
-                                EventKind ekind ) {
-            assert(obj);
-            // DEBUG cpair here
-            // TODO debug_cpair( obj->getDeathContextPair(), obj );
-            // END DEBUG
-            if (ekind == EventKind::Allocation) {
-                this->m_objAlloc2cmap[obj] = cpair;
-                obj->setAllocContextPair( cpair, cptype );
-            } else {
-                assert( ekind == EventKind::Death );
-                this->m_objDeath2cmap[obj] = cpair;
-                obj->setDeathContextPair( cpair, cptype );
-            }
+        // TODO: // Update the Object pointer to simple context pair map
+        // TODO: void UpdateObj2Context( Object *obj,
+        // TODO:                         ContextPair cpair,
+        // TODO:                         CPairType cptype,
+        // TODO:                         EventKind ekind ) {
+        // TODO:     assert(obj);
+        // TODO:     // DEBUG cpair here
+        // TODO:     // TODO debug_cpair( obj->getDeathContextPair(), obj );
+        // TODO:     // END DEBUG
+        // TODO:     if (ekind == EventKind::Allocation) {
+        // TODO:         this->m_objAlloc2cmap[obj] = cpair;
+        // TODO:         obj->setAllocContextPair( cpair, cptype );
+        // TODO:     } else {
+        // TODO:         assert( ekind == EventKind::Death );
+        // TODO:         this->m_objDeath2cmap[obj] = cpair;
+        // TODO:         obj->setDeathContextPair( cpair, cptype );
+        // TODO:     }
 
-            UpdateContextTypeMap( cpair, cptype );
+        // TODO:     UpdateContextTypeMap( cpair, cptype );
 
-            ContextCountMap &curcmap = ((ekind == EventKind::Allocation) ? this->m_allocCountmap
-                                                                         : this->m_deathCountmap);
-            auto it = curcmap.find( cpair );
-            if (it != curcmap.end()) {
-                curcmap[cpair] += 1; 
-            } else {
-                curcmap[cpair] = 1; 
-            }
-        }
+        // TODO:     ContextCountMap &curcmap = ((ekind == EventKind::Allocation) ? this->m_allocCountmap
+        // TODO:                                                                  : this->m_deathCountmap);
+        // TODO:     auto it = curcmap.find( cpair );
+        // TODO:     if (it != curcmap.end()) {
+        // TODO:         curcmap[cpair] += 1; 
+        // TODO:     } else {
+        // TODO:         curcmap[cpair] = 1; 
+        // TODO:     }
+        // TODO: }
 
         // -- The assumption is that a context pair will be only a single
         // type. See the definition for CPairType in heap.h. Possible values are
