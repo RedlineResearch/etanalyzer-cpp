@@ -428,8 +428,13 @@ unsigned int read_trace_file(FILE* f)
                                          Exec.NowUp() ); // Current time
                     AllocationTime = Heap.getAllocTime();
                     Exec.SetAllocTime( AllocationTime );
-                    Exec.UpdateObj2AllocContext( obj,
-                                                 as->getMethod()->getName() );
+                    if (as) {
+                        Exec.UpdateObj2AllocContext( obj,
+                                                     as->getMethod()->getName() );
+                    } else {
+                        Exec.UpdateObj2AllocContext( obj,
+                                                     "NOSITE" );
+                    }
                     if (cckind == ExecMode::Full) {
                         // Get full stacktrace
                         DequeId_t strace = thread->stacktrace_using_id();
