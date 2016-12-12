@@ -86,7 +86,6 @@ def read_edgeinfo_with_stability_into_db( result = [],
                                           cycle_cpp_dir = "",
                                           logger = None ):
     assert(logger != None)
-    print "A:"
     # print os.listdir( )
     tracefile = os.path.join( cycle_cpp_dir, edgeinfo_config[bmark] )
     # The EdgeInfoFile2DB will create the DB connection. We just
@@ -95,7 +94,6 @@ def read_edgeinfo_with_stability_into_db( result = [],
                                   outdbfilename = outdbname,
                                   stabreader = stabreader,
                                   logger = logger )
-    print "B:"
 
 def main_process( output = None,
                   global_config = {},
@@ -180,7 +178,7 @@ def main_process( output = None,
                                                         stability_config[bmark] ),
                                           logger = logger )
             stabreader.read_stability_file()
-            print "STAB done."
+            print "Reading in STABILITY done."
             outdbname_edge = os.path.join( workdir, bmark + "-EDGEINFO.db" )
             results_edge[bmark] = manager.list([ bmark, ])
             # Start the process
