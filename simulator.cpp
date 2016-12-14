@@ -702,6 +702,7 @@ unsigned int read_trace_file(FILE* f)
                     if (object) {
                         object->setRootFlag(Exec.NowUp());
                         object->setLastEvent( LastEvent::ROOT );
+                        object->setLastTimestamp( Exec.NowUp() );
                         Thread *thread = Exec.getThread(threadId);
                         if (thread) {
                             thread->objectRoot(object);
@@ -1002,7 +1003,8 @@ void output_all_objects2( string &objectinfo_filename,
                           HeapState &myheap,
                           std::set<ObjectId_t> dag_keys,
                           std::set<ObjectId_t> dag_all_set,
-                          std::set<ObjectId_t> all_keys )
+                          std::set<ObjectId_t> all_keys,
+                          unsigned int final_time )
 {
     ofstream object_info_file(objectinfo_filename);
     object_info_file << "---------------[ OBJECT INFO ]--------------------------------------------------" << endl;
@@ -1062,9 +1064,10 @@ void output_all_objects2( string &objectinfo_filename,
         // X -> Unknown
         string stability = ( (objstability == ObjectRefType::SINGLY_OWNED) ? "S"
                                    : (objstability == ObjectRefType::MULTI_OWNED ? "M" : "X") );
+        unsigned int dtime = object->getDeathTime();
         object_info_file << objId
             << "," << object->getCreateTime()
-            << "," << object->getDeathTime()
+            << "," << (dtime > 0 ? dtime : final_time)
             << "," << object->getSize()
             << "," << object->getType()
             << "," << dtype
@@ -1359,13 +1362,13 @@ int main(int argc, char* argv[])
     cout << "Start trace..." << endl;
     FILE* f = fdopen(0, "r");
     unsigned int total_objects = read_trace_file(f);
-    unsigned int final_time = Exec.NowUp();
+    unsigned int final_time = Exec.NowUp() + 1;
     unsigned int final_time_alloc = Heap.getAllocTime();
     cout << "Done at update time: " << Exec.NowUp() << endl;
     cout << "Total objects: " << total_objects << endl;
     cout << "Heap.size:     " << Heap.size() << endl;
     // assert( total_objects == Heap.size() );
-    Heap.end_of_program(Exec.NowUp() + 1);
+    Heap.end_of_program(final_time);
 
     if (cycle_flag) {
         std::deque< pair<int,int> > edgelist; // TODO Do we need the edgelist?
@@ -1466,7 +1469,8 @@ int main(int argc, char* argv[])
                              Heap,
                              dag_keys,
                              dag_all_set,
-                             all_keys );
+                             all_keys,
+                             final_time );
         output_context_summary( context_death_count_filename,
                                 Exec );
         output_reference_summary( reference_summary_filename,
