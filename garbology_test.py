@@ -8,10 +8,9 @@ import time
 import logging
 import pprint
 import ConfigParser
-from collections import Counter
+from collections import Counter, defaultdict
 from multiprocessing import Process, Manager
 # MAYBE TODO from operator import itemgetter
-# TODO from collections import defaultdict
 # TODO import shutil
 # TODO import re
 
@@ -87,28 +86,6 @@ def get_objects_from_stable_group_as_set( sgnum = 0, # stable group number
 def is_array( mytype ):
     return (len(mytype) > 0) and (mytype[0] == "[")
 
-def get_namesfile_path( bmark = None,
-                        names_config = {},
-                        global_config = {} ):
-    specjvm_dir = global_config["specjvm_dir"]
-    dacapo_dir = global_config["dacapo_dir"]
-    minibench_dir = global_config["minibench_dir"]
-    if is_specjvm(bmark):
-        namesfile = specjvm_dir + names_config[bmark]
-    elif is_dacapo(bmark):
-        namesfile = dacapo_dir + names_config[bmark]
-    elif is_minibench(bmark):
-        namesfile = minibench_dir + names_config[bmark]
-    else:
-        print "Benchmark not found: %s" % bmark
-        assert(False)
-    try:
-        assert(os.path.isfile(namesfile))
-    except:
-        print "%s NOT FOUND." % namesfile
-        raise ValueError("%s NOT FOUND." % namesfile)
-    return namesfile
-
 #================================================================================
 #================================================================================
 
@@ -116,12 +93,10 @@ def read_simulator_data( bmark = "",
                          mydict = {},
                          cycle_cpp_dir = "",
                          objectinfo_config = {},
-                         stability_config = {},
                          summary_config = {},
                          use_objinfo_db = False,
                          obj_cachesize = 5000000,
                          objectinfo_db_config = {},
-                         names_config = {},
                          global_config = {},
                          logger = None ):
     summary_fname = os.path.join( cycle_cpp_dir,
@@ -157,18 +132,18 @@ def read_simulator_data( bmark = "",
     sys.stdout.flush()
     # #===========================================================================
     # # Read in STABILITY
-    print "Reading in the STABILITY file for benchmark:", bmark
-    sys.stdout.flush()
-    stab_start = time.clock()
-    mydict["stability"] = StabilityReader( os.path.join( cycle_cpp_dir,
-                                                         stability_config[bmark] ),
-                                           logger = logger )
-    stabreader = mydict["stability"]
-    stabreader.read_stability_file()
-    stab_end = time.clock()
-    logger.debug( "[%s]: DONE: %f" % (bmark, (stab_end - stab_start)) )
-    sys.stdout.write(  "[%s]: DONE: %f\n" % (bmark, (stab_end - stab_start)) )
-    sys.stdout.flush()
+    # TODO print "Reading in the STABILITY file for benchmark:", bmark
+    # TODO sys.stdout.flush()
+    # TODO stab_start = time.clock()
+    # TODO mydict["stability"] = StabilityReader( os.path.join( cycle_cpp_dir,
+    # TODO                                                      stability_config[bmark] ),
+    # TODO                                        logger = logger )
+    # TODO stabreader = mydict["stability"]
+    # TODO stabreader.read_stability_file()
+    # TODO stab_end = time.clock()
+    # TODO logger.debug( "[%s]: DONE: %f" % (bmark, (stab_end - stab_start)) )
+    # TODO sys.stdout.write(  "[%s]: DONE: %f\n" % (bmark, (stab_end - stab_start)) )
+    # TODO sys.stdout.flush()
     #===========================================================================
     # Read in SUMMARY
     print "Reading in the SUMMARY file for benchmark:", bmark
@@ -185,22 +160,6 @@ def read_simulator_data( bmark = "",
     sys.stdout.write(  "[%s]: DONE: %f\n" % (bmark, (summary_end - summary_start)) )
     sys.stdout.flush()
     #===========================================================================
-    # Read in NAMES file
-    print "Reading in the NAMES file for benchmark:", bmark
-    sys.stdout.flush()
-    names_read_start = time.clock()
-    namesfile_path = get_namesfile_path( bmark = bmark,
-                                         names_config = names_config,
-                                         global_config = global_config )
-    mydict["namesreader"] = NamesReader( namesfile_path,
-                                         logger = logger )
-    namesreader = mydict["namesreader"]
-    namesreader.read_names_file()
-    names_read_end = time.clock()
-    logger.debug( "[%s]: DONE: %f" % (bmark, (names_read_end - names_read_start)) )
-    sys.stdout.write(  "[%s]: DONE: %f\n" % (bmark, (names_read_end - names_read_start)) )
-    sys.stdout.flush()
-    #===========================================================================
     return True
 
 
@@ -208,14 +167,12 @@ def garbology_test( bmark = "",
                     cycle_cpp_dir = "",
                     main_config = {},
                     objectinfo_config = {},
-                    stability_config = {},
                     reverse_ref_config = {},
                     summary_config = {},
                     result = [],
                     use_objinfo_db = False,
                     objectinfo_db_config = {},
                     obj_cachesize_config = {},
-                    names_config = {},
                     global_config = {},
                     logger = None ):
     # Assumes that we are in the desired working directory.
@@ -229,64 +186,62 @@ def garbology_test( bmark = "",
                                        mydict = mydict,
                                        cycle_cpp_dir = cycle_cpp_dir,
                                        objectinfo_config = objectinfo_config,
-                                       stability_config = stability_config,
                                        summary_config = summary_config,
                                        use_objinfo_db = use_objinfo_db,
                                        obj_cachesize = obj_cachesize,
                                        objectinfo_db_config = objectinfo_db_config,
-                                       names_config = names_config,
                                        global_config = global_config,
                                        logger = logger )
     if read_result == False:
         return False
     # Extract the important reader objects
     objreader = mydict["objreader"]
-    stability = mydict["stability"]
     summary_reader = mydict["summary_reader"]
-    namesreader = mydict["namesreader"]
     #=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
     # Summarize stability
     #=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
     count = 0
     result = defaultdict( lambda: defaultdict(Counter) )
     counter = Counter()
-    for objId, val in stability.iteritems():
-        # Get the type
-        mytype = objreader.get_type(objId)
-        for fieldId, stabvalue in val.iteritems():
-            result[mytype][fieldId][stabvalue] += 1
-    output_filename = os.path.join( outputdir, "%s-STABILITY-SUMMARY.csv" % bmark)
-    with open(output_filename, "wb") as fptr:
-        seen_objects = set()
-        # Create the CSV writer and write the header row
-        writer = csv.writer( fptr, quoting = csv.QUOTE_MINIMAL )
-        writer.writerow( [ "type", "field_id", "field_name", "field_target_type",
-                           "stable", "serial-stable", "unstable",
-                           "%stable", "%serial-stable", "%unstable", ] )
-        for mytype, classdict in result.iteritems():
-            # Ignore arrays for now.
-            if is_array( mytype ):
-                continue
-            for fieldId, stabdict in classdict.iteritems():
-                row = [ mytype ]
-                stabsum = { "S" : 0,
-                            "ST" : 0,
-                            "U" : 0, }
-                for st, cnt in stabdict.iteritems():
-                    # TODO print "      %s = %d" % (st, cnt)
-                    if st == "S" or st == "ST":
-                        stabsum[st] += cnt
-                    elif st == "U" or st == "X":
-                        stabsum["U"] += cnt
-                total = stabsum["S"] + stabsum["ST"] + stabsum["U"]
-                field_name = namesreader.get_field_name(fieldId)
-                field_target_type = namesreader.get_field_target_type(fieldId)
-                row.extend( [ fieldId, field_name, field_target_type,
-                              stabsum["S"], stabsum["ST"], stabsum["U"],
-                              "{:.4f}".format(stabsum["S"] / total),
-                              "{:.4f}".format(stabsum["ST"] / total),
-                              "{:.4f}".format(stabsum["U"] / total), ] )
-                writer.writerow( row )
+    for objId, rec in objreader.iteritems():
+        count += 1
+        dtime = objreader.get_death_time_using_record(rec)
+        counter[dtime] += 1
+    exit(0)
+    # TODO: If we need a CSV output, then I can modify the copy/pasta code following.
+    # TODO: Following is dead code
+    # TODO: output_filename = os.path.join( outputdir, "%s-STABILITY-SUMMARY.csv" % bmark)
+    # TODO: with open(output_filename, "wb") as fptr:
+    # TODO:     seen_objects = set()
+    # TODO:     # Create the CSV writer and write the header row
+    # TODO:     writer = csv.writer( fptr, quoting = csv.QUOTE_MINIMAL )
+    # TODO:     writer.writerow( [ "type", "field_id", "field_name", "field_target_type",
+    # TODO:                        "stable", "serial-stable", "unstable",
+    # TODO:                        "%stable", "%serial-stable", "%unstable", ] )
+    # TODO:     for mytype, classdict in result.iteritems():
+    # TODO:         # Ignore arrays for now.
+    # TODO:         if is_array( mytype ):
+    # TODO:             continue
+    # TODO:         for fieldId, stabdict in classdict.iteritems():
+    # TODO:             row = [ mytype ]
+    # TODO:             stabsum = { "S" : 0,
+    # TODO:                         "ST" : 0,
+    # TODO:                         "U" : 0, }
+    # TODO:             for st, cnt in stabdict.iteritems():
+    # TODO:                 # TODO print "      %s = %d" % (st, cnt)
+    # TODO:                 if st == "S" or st == "ST":
+    # TODO:                     stabsum[st] += cnt
+    # TODO:                 elif st == "U" or st == "X":
+    # TODO:                     stabsum["U"] += cnt
+    # TODO:             total = stabsum["S"] + stabsum["ST"] + stabsum["U"]
+    # TODO:             field_name = namesreader.get_field_name(fieldId)
+    # TODO:             field_target_type = namesreader.get_field_target_type(fieldId)
+    # TODO:             row.extend( [ fieldId, field_name, field_target_type,
+    # TODO:                           stabsum["S"], stabsum["ST"], stabsum["U"],
+    # TODO:                           "{:.4f}".format(stabsum["S"] / total),
+    # TODO:                           "{:.4f}".format(stabsum["ST"] / total),
+    # TODO:                           "{:.4f}".format(stabsum["U"] / total), ] )
+    # TODO:             writer.writerow( row )
 
 
 def main_process( global_config = {},
@@ -295,7 +250,6 @@ def main_process( global_config = {},
                   worklist_config = {},
                   main_config = {},
                   reference_config = {},
-                  stability_config = {},
                   summary_config = {},
                   objectinfo_db_config = {},
                   obj_cachesize_config = {},
@@ -314,7 +268,7 @@ def main_process( global_config = {},
     os.chdir( workdir )
     # Where to get file?
     # Filenames are in
-    #   - objectinfo_config, reference_config, reverse_ref_config, stability_config
+    #   - objectinfo_config, reference_config, reverse_ref_config
     # Directory is in "global_config"
     #     Make sure everything is honky-dory.
     assert( "cycle_cpp_dir" in global_config )
@@ -324,15 +278,12 @@ def main_process( global_config = {},
     results = {}
     use_objinfo_db = (main_config["use_objinfo_db"] == "True")
     # TODO
-    print "A:"
     for bmark in worklist_config.keys():
         hostlist = worklist_config[bmark]
-        print "B:"
         if not check_host( benchmark = bmark,
                            hostlist = hostlist,
                            host_config = host_config ):
             continue
-        print "C:"
         if mprflag:
             assert(False) # TODO: Use the single threaded version for now TODO
             # Multiprocessing version
@@ -345,7 +296,6 @@ def main_process( global_config = {},
                                   main_config,
                                   objectinfo_config,
                                   dgroup_pickle_config,
-                                  stability_config,
                                   reference_config,
                                   reverse_ref_config,
                                   summary_config,
@@ -355,13 +305,11 @@ def main_process( global_config = {},
                                   use_edgeinfo_db,
                                   objectinfo_db_config,
                                   obj_cachesize_config,
-                                  names_config,
                                   global_config,
                                   logger ) )
             procs[bmark] = p
             p.start()
         else:
-            print "D:"
             # Single threaded version
             print "=======[ Running %s ]=================================================" \
                 % bmark
@@ -370,17 +318,17 @@ def main_process( global_config = {},
                             cycle_cpp_dir = cycle_cpp_dir,
                             main_config = main_config,
                             objectinfo_config = objectinfo_config,
-                            stability_config = stability_config,
                             summary_config = summary_config,
                             result = results[bmark],
                             use_objinfo_db = use_objinfo_db,
                             objectinfo_db_config = objectinfo_db_config,
                             obj_cachesize_config = obj_cachesize_config,
-                            names_config = names_config,
                             global_config = global_config,
                             logger = logger )
 
     exit(100)
+    # TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
+    # TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
     if mprflag:
         # Poll the processes 
         done = False
@@ -426,12 +374,12 @@ def process_config( args ):
     main_config = config_section_map( "summarize-stability", config_parser )
     host_config = config_section_map( "hosts", config_parser )
     objectinfo_config = config_section_map( "objectinfo", config_parser )
-    worklist_config = config_section_map( "summarize-stability-worklist", config_parser )
+    worklist_config = config_section_map( "garbology-test-worklist", config_parser )
     obj_cachesize_config = config_section_map( "summarize-stability-obj-cachesize", config_parser )
-    stability_config = config_section_map( "stability-summary", config_parser )
     summary_config = config_section_map( "summary-cpp", config_parser )
     objectinfo_db_config = config_section_map( "objectinfo-db", config_parser )
     # MAYBE TODO reference_config = config_section_map( "reference", config_parser )
+    # TODO stability_config = config_section_map( "stability-summary", config_parser )
     # MAYBE TODO reverse_ref_config = config_section_map( "reverse-reference", config_parser )
     # DON'T KNOW: contextcount_config = config_section_map( "contextcount", config_parser )
     # TODO edgeinfo_config = config_section_map( "edgeinfo", config_parser )
@@ -443,8 +391,7 @@ def process_config( args ):
              "main" : main_config,
              "objectinfo" : objectinfo_config,
              "hosts" : host_config,
-             "summarize-stability-worklist" : worklist_config,
-             "stability" : stability_config,
+             "garbology-test-worklist" : worklist_config,
              "summary_config" : summary_config,
              "objectinfo_db" : objectinfo_db_config,
              "obj_cachesize" : obj_cachesize_config,
@@ -513,8 +460,6 @@ def main():
     main_config = configdict["main"]
     # Contains the object info txt/csv files from the simulator
     objectinfo_config = configdict["objectinfo"]
-    # Contains the stability summaries from the simulator
-    stability_config = configdict["stability"]
     # Summary of the simulator run
     summary_config = configdict["summary_config"]
     # Contains the object info from the simulator. This is exactly the same information
@@ -532,9 +477,8 @@ def main():
     # Main processing
     #
     config_debugflag = global_config["debug"]
-    print "=====[ WORKLIST ]==============================================================="
-    pp.pprint(worklist_config)
-    exit(100)
+    # DEBUG ONLY: print "=====[ WORKLIST ]==============================================================="
+    # DEBUG ONLY: pp.pprint(worklist_config)
     # DEBUG ONLY: print "=====[ OBJECTINFO_DB ]=========================================================="
     # DEBUG ONLY: pp.pprint(objectinfo_db_config)
     # DEBUG ONLY: print "================================================================================"
@@ -545,7 +489,6 @@ def main():
                          objectinfo_config = objectinfo_config,
                          host_config = host_config,
                          worklist_config = worklist_config,
-                         stability_config = stability_config,
                          summary_config = summary_config,
                          objectinfo_db_config = objectinfo_db_config,
                          obj_cachesize_config = obj_cachesize_config,
