@@ -206,7 +206,7 @@ def garbology_test( bmark = "",
     for objId, rec in objreader.iteritems():
         count += 1
         dtime = objreader.get_death_time_using_record(rec)
-        assert( dtime > 0 )
+        # assert( dtime > 0 )
         counter[dtime] += 1
     for dtime, count in sorted( counter.items(), key = itemgetter(1), reverse = True ):
         print "%d -> %d" % (dtime, count)
