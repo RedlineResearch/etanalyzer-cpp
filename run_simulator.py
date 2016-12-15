@@ -254,7 +254,9 @@ def main_process( output = None,
         # 
         # Setup the necessary information for running 'simulator'
         #
-        basename = bmark + "-cpp-" + str(datestr)
+        # TODO: Do we want to retain the old behavior of adding the date to the output files?
+        # basename = bmark + "-cpp-" + str(datestr)
+        basename = bmark + "-cpp"
         output_name = os.path.join( cycle_cpp_dir, basename + "-OUTPUT.txt" )
         main_class, main_function = mainfunction_config[bmark].split(".")
         # TODO DEBUG print "%s: %s -> %s" % (bmark, main_class, main_function)

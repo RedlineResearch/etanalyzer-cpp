@@ -277,8 +277,10 @@ class ExecState
         ExecMode m_kind;
         // -- Set of threads
         ThreadMap m_threads;
-        // -- Time
+        // -- Method Time
         unsigned int m_meth_time;
+        // -- Method Exit Time
+        unsigned int m_methexit_time;
         // -- Update Time
         unsigned int m_uptime;
         // -- Alloc Time
@@ -299,6 +301,7 @@ class ExecState
             , m_threads()
             , m_meth_time(0)
             , m_uptime(0)
+            , m_methexit_time(0)
             , m_alloc_time(0)
             , m_allocCountmap()
             , m_deathCountmap()
@@ -309,11 +312,19 @@ class ExecState
             , m_nodefile(NULL) {
         }
 
-        // -- Get the current time
-        unsigned int MethNow() const { return this->m_meth_time; }
+        // -- Get the current method time
+        unsigned int MethNow() const {
+            return this->m_meth_time;
+        }
+        // -- Get the current method exit time
+        unsigned int MethExitNow() const {
+            return this->m_methexit_time;
+        }
 
         // -- Get the current update time
-        unsigned int NowUp() const { return this->m_uptime + this->m_meth_time; }
+        unsigned int NowUp() const {
+            return this->m_uptime + this->m_methexit_time;
+        }
 
         // -- Get the current allocation time
         unsigned int NowAlloc() const { return m_alloc_time; }
@@ -330,9 +341,13 @@ class ExecState
             return this->m_uptime++;
         }
 
-        // -- Increment the current update time
+        // -- Increment the current method time
         inline unsigned int IncMethodTime() {
             return this->m_meth_time++;
+        }
+        // -- Increment the current method EXIT time
+        inline unsigned int IncMethodExitTime() {
+            return this->m_methexit_time++;
         }
 
         // -- Look up or create a thread
