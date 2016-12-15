@@ -10,7 +10,7 @@ import pprint
 import ConfigParser
 from collections import Counter, defaultdict
 from multiprocessing import Process, Manager
-# MAYBE TODO from operator import itemgetter
+from operator import itemgetter
 # TODO import shutil
 # TODO import re
 
@@ -206,7 +206,10 @@ def garbology_test( bmark = "",
     for objId, rec in objreader.iteritems():
         count += 1
         dtime = objreader.get_death_time_using_record(rec)
+        assert( dtime > 0 )
         counter[dtime] += 1
+    for dtime, count in sorted( counter.items(), key = itemgetter(1), reverse = True ):
+        print "%d -> %d" % (dtime, count)
     exit(0)
     # TODO: If we need a CSV output, then I can modify the copy/pasta code following.
     # TODO: Following is dead code
