@@ -1042,6 +1042,9 @@ class DeathGroupsReader:
         self.debugflag = debugflag
         self.logger = logger
         self._atend_gnum = None
+        # DEBUG
+        self.zero_dtime_total = 0
+        self.regular_dtime_total = 0
 
     def map_key2group( self,
                        groupnum = 0,
@@ -1073,7 +1076,12 @@ class DeathGroupsReader:
                          groupnum = 0,
                          dtime = 0 ):
         assert( groupnum > 0 )
-        assert( dtime > 0 )
+        if dtime <= 0:
+            self.zero_dtime_total += 1
+            self.logger.critical( "Zero map total: %d (vs %d)" %
+                                  (self.zero_dtime_total, self.regular_dtime_total)  )
+        else:
+            self.regular_dtime_total += 1
         if groupnum not in self.group2dtime:
             self.group2dtime[groupnum] = dtime
             # Death time to group number mapping
@@ -1203,12 +1211,12 @@ class DeathGroupsReader:
             self.map_key2group( groupnum = groupnum, keylist = keylist )
             # Debug key objects. NOTE: This may not be used for now.
             if len(keylist) > 1:
-                logger.debug( "multiple key objects: %s" % str(keylist) )
+                # logger.debug( "multiple key objects: %s" % str(keylist) )
                 multkey += 1
             elif len(keylist) == 0:
                 tmpset = frozenset(keylist)
                 if tmpset not in nokey_set:
-                    logger.debug( "NO key object in group: %s" % str(keylist) )
+                    # logger.debug( "NO key object in group: %s" % str(keylist) )
                     withoutkey += 1
                     nokey_set.add(tmpset)
         print "Multiple key: %d" % multkey
@@ -1566,6 +1574,10 @@ class SummaryReader:
         assert("number_of_objects" in self.summarydict)
         return self.summarydict["number_of_objects"]
 
+    def get_number_of_edges( self ):
+        assert("number_of_edges" in self.summarydict)
+        return self.summarydict["number_of_edges"]
+
     def get_number_died_by_stack( self ):
         assert("died_by_stack" in self.summarydict)
         return self.summarydict["died_by_stack"]
@@ -1573,6 +1585,10 @@ class SummaryReader:
     def get_number_died_by_heap( self ):
         assert("died_by_heap" in self.summarydict)
         return self.summarydict["died_by_heap"]
+
+    def get_number_died_at_end( self ):
+        assert("died_by_heap" in self.summarydict)
+        return self.summarydict["died_at_end"]
 
     def get_number_died_by_global( self ):
         assert("died_by_global" in self.summarydict)
