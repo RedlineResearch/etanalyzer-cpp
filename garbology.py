@@ -1578,9 +1578,14 @@ class SummaryReader:
         assert("number_of_edges" in self.summarydict)
         return self.summarydict["number_of_edges"]
 
+    # died by categories in NUMBER of objects
     def get_number_died_by_stack( self ):
         assert("died_by_stack" in self.summarydict)
         return self.summarydict["died_by_stack"]
+
+    def get_number_died_by_stack_only( self ):
+        assert("died_by_stack_only" in self.summarydict)
+        return self.summarydict["died_by_stack_only"]
 
     def get_number_died_by_heap( self ):
         assert("died_by_heap" in self.summarydict)
@@ -1590,10 +1595,40 @@ class SummaryReader:
         assert("died_by_heap" in self.summarydict)
         return self.summarydict["died_at_end"]
 
+    def get_number_died_by_stack_after_heap( self ):
+        assert("died_by_stack_after_heap" in self.summarydict)
+        return self.summarydict["died_by_stack_after_heap"]
+
     def get_number_died_by_global( self ):
         assert("died_by_global" in self.summarydict)
         return self.summarydict["died_by_global"]
 
+    # died by categories in SIZE (bytes)
+    def get_size_died_by_stack_only( self ):
+        assert("died_by_stack_only" in self.summarydict)
+        return self.summarydict["died_by_stack_only_size"]
+
+    def get_size_died_by_stack_after_heap( self ):
+        assert("died_by_stack_after_heap" in self.summarydict)
+        return self.summarydict["died_by_stack_after_heap_size"]
+
+    def get_size_died_by_stack( self ):
+        assert("size_died_by_stack" in self.summarydict)
+        return self.summarydict["size_died_by_stack"]
+
+    # TODO def get_size_died_by_heap( self ):
+    # TODO     assert("died_by_heap" in self.summarydict)
+    # TODO     return self.summarydict["died_by_heap"]
+
+    # TODO def get_size_died_at_end( self ):
+    # TODO     assert("died_by_heap" in self.summarydict)
+    # TODO     return self.summarydict["died_at_end"]
+
+    # TODO def get_size_died_by_global( self ):
+    # TODO     assert("died_by_global" in self.summarydict)
+    # TODO     return self.summarydict["died_by_global"]
+
+    # ======================================================================
     def get_max_live_size( self ):
         assert("max_live_size" in self.summarydict)
         return self.summarydict["max_live_size"]

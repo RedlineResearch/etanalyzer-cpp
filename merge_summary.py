@@ -513,15 +513,16 @@ def backup_old_graphs( graph_dir_path = None,
 
 def main_process( output = None,
                   main_config = None,
-                  benchmark = None,
                   lastedgeflag = False,
                   etanalyze_config = None,
+                  worklist_config = None,
                   global_config = None,
                   edge_config = None,
                   edgeinfo_config = None,
                   objectinfo_config = None,
                   summary_config = None,
                   pdfs_config = None,
+                  dgroups2db_config = None,
                   debugflag = False,
                   logger = None ):
     global pp
@@ -542,18 +543,15 @@ def main_process( output = None,
     rev_typedict = {} # Type dictionary is ACROSS all benchmarks
     count = 0
     olddir = os.getcwd()
-    today = create_work_directory( work_dir, logger = logger )
-    os.chdir( today )
-    for bmark, filename in etanalyze_config.iteritems():
-        # if skip_benchmark(bmark):
-        if ( (benchmark != "_ALL_") and (bmark != benchmark) ):
-            print "SKIP:", bmark
-            continue
+    # TODO today = create_work_directory( work_dir, logger = logger )
+    # TODO os.chdir( today )
+    for bmark in worklist_config.keys():
+        abspath = os.path.join( dgroups2db_config["output"],
+                                bmark + dgroups2db_config["file-dgroups"] )
         print "=======[ %s ]=========================================================" \
             % bmark
         logger.critical( "=======[ %s ]=========================================================" 
                          % bmark )
-        abspath = os.path.join(cycle_cpp_dir, filename)
         if os.path.isfile(abspath):
             #----------------------------------------------------------------------
             #      SETUP
@@ -562,8 +560,8 @@ def main_process( output = None,
             graphs = []
             # Counters TODO: do we need this?
             cycle_total_counter = Counter()
-            actual_cycle_counter = Counter() # TODO DELETE
-            cycle_type_counter = Counter() # TODO DELETE
+            actual_cycle_counter = Counter() # TODO
+            cycle_type_counter = Counter() # TODO
             logger.critical( "Opening %s." % abspath )
             #----------------------------------------------------------------------
             #      SUMMARY
@@ -571,20 +569,28 @@ def main_process( output = None,
             # Get summary
             summary_path = os.path.join(cycle_cpp_dir, summary_config[bmark])
             # summary_sim = get_summary( summary_path )
-            sumreader = SummaryReader( summary_file = summary_path,
+            sreader = SummaryReader( summary_file = summary_path,
                                        logger = logger )
-            sumreader.read_summary_file()
+            sreader.read_summary_file()
             #     get summary by size
-            number_of_objects = summary_sim["number_of_objects"]
-            number_of_edges = summary_sim["number_of_edges"]
-            died_by_stack = summary_sim["died_by_stack"]
-            died_by_heap = summary_sim["died_by_heap"]
-            died_at_end = summary_sim["died_at_end"]
-            died_by_stack_after_heap = summary_sim["died_by_stack_after_heap"]
-            died_by_stack_only = summary_sim["died_by_stack_only"]
-            died_by_stack_after_heap_size = summary_sim["died_by_stack_after_heap_size"]
-            died_by_stack_only_size = summary_sim["died_by_stack_only_size"]
-            size_died_by_stack = summary_sim["size_died_by_stack"]
+            number_of_objects = sreader.get_number_of_objects()
+            number_of_edges = sreader.get_number_of_edges()
+            died_by_stack = sreader.get_number_died_by_stack()
+            died_by_heap = sreader.get_number_died_by_heap()
+            died_at_end = sreader.get_number_died_at_end()
+            died_by_stack_after_heap = sreader.get_number_died_by_stack_after_heap()
+            died_by_stack_only = sreader.get_number_died_by_stack_only()
+            died_by_stack_after_heap_size = sreader.get_size_died_by_stack_after_heap()
+            died_by_stack_only_size = sreader.get_size_died_by_stack_only()
+            died_by_stack_size = sreader.get_size_died_by_stack()
+            print "S", died_by_stack
+            print "H", died_by_heap
+            print "SAH", died_by_stack_after_heap
+            print "SONLY", died_by_stack_only
+            print "SAH-size", died_by_stack_after_heap_size
+            print "SONLY-size", died_by_stack_only_size
+            print "S-size", died_by_stack_size
+            exit(100)
             size_died_by_heap = summary_sim["size_died_by_heap"]
             size_died_at_end = summary_sim["size_died_at_end"]
             last_update_null = summary_sim["last_update_null"]
@@ -684,10 +690,6 @@ def create_parser():
                          dest = "debugflag",
                          help = "Disable debug output.",
                          action = "store_false" )
-    parser.add_argument( "--benchmark",
-                         dest = "benchmark",
-                         help = "Select benchmark.",
-                         action = "store" )
     parser.add_argument( "--lastedge",
                          dest = "lastedgeflag",
                          help = "Enable last edge processing.",
@@ -702,7 +704,6 @@ def create_parser():
     parser.set_defaults( logfile = "merge_summary.log",
                          debugflag = False,
                          lastedgeflag = False,
-                         benchmark = "_ALL_",
                          config = None )
     return parser
 
@@ -724,24 +725,44 @@ def process_config( args ):
     config_parser.read( args.config )
     global_config = config_section_map( "global", config_parser )
     etanalyze_config = config_section_map( "etanalyze-output", config_parser )
+    # So not sure why the main config section is "cycle-analyze" here. -RLV
     main_config = config_section_map( "cycle-analyze", config_parser )
+    worklist_config = config_section_map( "merge-summary-worklist", config_parser )
     # TODO edge_config = config_section_map( "edges", config_parser )
     edge_config = config_section_map( "edgeinfo", config_parser )
     edgeinfo_config = config_section_map( "edgeinfo", config_parser )
     objectinfo_config = config_section_map( "objectinfo", config_parser )
     summary_config = config_section_map( "summary-cpp", config_parser )
     pdfs_config = config_section_map( "pdfs", config_parser )
-    return ( global_config, etanalyze_config, main_config, edge_config,
-             edgeinfo_config, objectinfo_config, summary_config, pdfs_config )
+    dgroups2db_config = config_section_map( "dgroups2db", config_parser )
+    return { "global_config" : global_config,
+             "etanalyze_config" : etanalyze_config,
+             "main_config" : main_config,
+             "edge_config" : edge_config,
+             "edgeinfo_config" : edgeinfo_config,
+             "objectinfo_config" : objectinfo_config,
+             "summary_config" : summary_config,
+             "pdfs_config" : pdfs_config,
+             "dgroups2db_config" : dgroups2db_config,
+             "worklist_config" : worklist_config, }
 
 def main():
     parser = create_parser()
     args = parser.parse_args()
     configparser = ConfigParser.ConfigParser()
-    benchmark = args.benchmark
+    # TODO benchmark = args.benchmark
     assert( args.config != None )
-    global_config, etanalyze_config, main_config, edge_config, \
-        edgeinfo_config, objectinfo_config, summary_config, pdfs_config  = process_config( args )
+    result = process_config( args ) 
+    global_config = result["global_config"]
+    etanalyze_config = result["etanalyze_config"]
+    main_config = result["main_config"]
+    edge_config = result["edge_config"]
+    edgeinfo_config = result["edgeinfo_config"]
+    objectinfo_config = result["objectinfo_config"]
+    summary_config = result["summary_config"]
+    pdfs_config = result["pdfs_config"]
+    dgroups2db_config = result["dgroups2db_config"]
+    worklist_config = result["worklist_config"]
     # logging
     logger = setup_logger( filename = args.logfile,
                            debugflag = global_config["debug"] )
@@ -750,8 +771,8 @@ def main():
     #
     return main_process( debugflag = global_config["debug"],
                          output = args.output,
-                         benchmark = args.benchmark,
                          lastedgeflag = args.lastedgeflag,
+                         worklist_config = worklist_config,
                          main_config = main_config,
                          etanalyze_config = etanalyze_config,
                          edge_config = edge_config,
@@ -759,6 +780,7 @@ def main():
                          objectinfo_config = objectinfo_config,
                          summary_config = summary_config,
                          global_config = global_config,
+                         dgroups2db_config = dgroups2db_config,
                          pdfs_config = pdfs_config,
                          logger = logger )
 
