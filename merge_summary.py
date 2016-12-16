@@ -546,6 +546,10 @@ def main_process( output = None,
     # TODO today = create_work_directory( work_dir, logger = logger )
     # TODO os.chdir( today )
     for bmark in worklist_config.keys():
+        # TODO: Add check host functionality here
+        if bmark != "tomcat":
+            print bmark
+            continue
         abspath = os.path.join( dgroups2db_config["output"],
                                 bmark + dgroups2db_config["file-dgroups"] )
         print "=======[ %s ]=========================================================" \
@@ -583,6 +587,7 @@ def main_process( output = None,
             died_by_stack_after_heap_size = sreader.get_size_died_by_stack_after_heap()
             died_by_stack_only_size = sreader.get_size_died_by_stack_only()
             died_by_stack_size = sreader.get_size_died_by_stack()
+            died_by_heap_size = sreader.get_size_died_by_heap()
             print "S", died_by_stack
             print "H", died_by_heap
             print "SAH", died_by_stack_after_heap
@@ -590,8 +595,8 @@ def main_process( output = None,
             print "SAH-size", died_by_stack_after_heap_size
             print "SONLY-size", died_by_stack_only_size
             print "S-size", died_by_stack_size
+            print "H-size", died_by_heap_size
             exit(100)
-            size_died_by_heap = summary_sim["size_died_by_heap"]
             size_died_at_end = summary_sim["size_died_at_end"]
             last_update_null = summary_sim["last_update_null"]
             last_update_null_heap = summary_sim["last_update_null_heap"]
@@ -634,6 +639,8 @@ def main_process( output = None,
         count += 1
         # if count >= 1:
         #     break
+    print "NOTHING DONE."
+    exit(1000)
     print "======================================================================"
     print "===========[ SUMMARY ]================================================"
     output_summary( output_path = output,

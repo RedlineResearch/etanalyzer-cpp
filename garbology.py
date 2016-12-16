@@ -1616,9 +1616,9 @@ class SummaryReader:
         assert("size_died_by_stack" in self.summarydict)
         return self.summarydict["size_died_by_stack"]
 
-    # TODO def get_size_died_by_heap( self ):
-    # TODO     assert("died_by_heap" in self.summarydict)
-    # TODO     return self.summarydict["died_by_heap"]
+    def get_size_died_by_heap( self ):
+        assert("size_died_by_heap" in self.summarydict)
+        return self.summarydict["size_died_by_heap"]
 
     # TODO def get_size_died_at_end( self ):
     # TODO     assert("died_by_heap" in self.summarydict)
