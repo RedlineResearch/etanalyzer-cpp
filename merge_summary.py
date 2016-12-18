@@ -240,8 +240,8 @@ def render_graphs( rscript_path = None,
     csvfile_abs = os.path.join( curdir, csvfile )
     assert( os.path.isfile( rscript_path ) )
     assert( os.path.isfile( barplot_script ) )
-    print csvfile
-    print csvfile_abs
+    # TODO print csvfile
+    # TODO print csvfile_abs
     assert( os.path.isfile( csvfile_abs ) )
     assert( os.path.isdir( graph_dir ) )
     cmd = [ rscript_path, # The Rscript executable
@@ -259,6 +259,7 @@ def render_graphs( rscript_path = None,
         logger.debug("--------------------------------------------------------------------------------")
         for x in result:
             logger.debug(str(x))
+            print "XXX:", str(x)
         logger.debug("--------------------------------------------------------------------------------")
     # TODO: Parse the result to figure out if it went wrong.
 
@@ -268,6 +269,7 @@ def output_R( benchmark = None ):
     # TODO: Do we need this?
     # Call tables.R perhaps?
 
+# Outputs all the benchmarks and the related information
 def output_summary( output_path = None,
                     summary = None ):
     # Print out results in this format:
@@ -283,9 +285,10 @@ def output_summary( output_path = None,
                    "died_by_stack_after_heap", "died_by_stack_only",
                    "last_update_null",
                    "died_by_stack_size", "died_by_heap_size", "died_at_end_size",
-                   "last_update_null_heap", "last_update_null_stack", "max_live_size",
-                   "last_update_null_size", "last_update_null_heap_size", "last_update_null_stack_size",
+                   "max_live_size",
                    "died_by_stack_after_heap_size", "died_by_stack_only_size",
+                   # "last_update_null_heap", "last_update_null_stack", 
+                   # "last_update_null_size", "last_update_null_heap_size", "last_update_null_stack_size",
                    ]
         csvwriter.writerow( header )
         for bmark, d in summary.iteritems():
@@ -293,10 +296,11 @@ def output_summary( output_path = None,
                     d["died_by_heap"], d["died_by_stack"], d["died_at_end"],
                     d["died_by_stack_after_heap"], d["died_by_stack_only"],
                     d["last_update_null"],
-                    d["size_died_by_stack"], d["size_died_by_heap"], d["size_died_at_end"],
-                    d["last_update_null_heap"], d["last_update_null_stack"], d["max_live_size"],
-                    d["last_update_null_size"], d["last_update_null_heap_size"], d["last_update_null_stack_size"],
+                    d["died_by_stack_size"], d["died_by_heap_size"], d["died_at_end_size"],
+                    d["max_live_size"],
                     d["died_by_stack_after_heap_size"], d["died_by_stack_only_size"],
+                    # d["last_update_null_heap"], d["last_update_null_stack"], 
+                    # d["last_update_null_size"], d["last_update_null_heap_size"], d["last_update_null_stack_size"],
                     ]
             csvwriter.writerow( row )
 
@@ -456,11 +460,15 @@ def backup_old_graphs( graph_dir_path = None,
                        backup_graph_dir_path = None,
                        base_temp_dir = None,
                        pdfs_config = None,
-                       today = None ):
+                       workdir = None ):
     assert( os.path.isdir( backup_graph_dir_path ) )
     assert( os.path.isdir( graph_dir_path ) )
     temp_dir = mkdtemp( dir = base_temp_dir )
+    today = datetime.date.today()
+    today = today.strftime("%Y-%m%d")
     print "Using temporary directory: %s" % temp_dir
+    print "BACKUP graph dir: %s" % backup_graph_dir_path
+    print "today is: %s" % str(today)
     # tar and bzip2 -9 all old files to today.tar
     # Move all files to TEMP_DIR
     tfilename_base = os.path.join( backup_graph_dir_path, "object_barplots-" + today + "*" )
@@ -494,13 +502,14 @@ def backup_old_graphs( graph_dir_path = None,
             os.remove( fname )
     cmd = [ "bzip2", "-9", tfilename ]
     print "Bzipping...",
+    print "CMD: %s" % cmd
+    print "Check file:", os.path.isfile( tfilename )
     proc = subprocess.Popen( cmd,
                              stdout = subprocess.PIPE,
                              stderr = subprocess.PIPE )
     result = proc.communicate()
     # TODO Check result?
-    print "DONE."
-    print os.listdir( temp_dir )
+    print "BZIP2 DONE."
     bz2filename = tfilename + ".bz2"
     print "--------------------------------------------------------------------------------"
     assert( os.path.isfile(bz2filename) )
@@ -545,12 +554,13 @@ def main_process( output = None,
     olddir = os.getcwd()
     # TODO today = create_work_directory( work_dir, logger = logger )
     # TODO os.chdir( today )
+    workdir = dgroups2db_config["output"]
     for bmark in worklist_config.keys():
         # TODO: Add check host functionality here
-        if bmark != "tomcat":
-            print bmark
-            continue
-        abspath = os.path.join( dgroups2db_config["output"],
+        # if bmark != "tomcat":
+        #     print bmark
+        #     continue
+        abspath = os.path.join( workdir,
                                 bmark + dgroups2db_config["file-dgroups"] )
         print "=======[ %s ]=========================================================" \
             % bmark
@@ -588,24 +598,17 @@ def main_process( output = None,
             died_by_stack_only_size = sreader.get_size_died_by_stack_only()
             died_by_stack_size = sreader.get_size_died_by_stack()
             died_by_heap_size = sreader.get_size_died_by_heap()
-            print "S", died_by_stack
-            print "H", died_by_heap
-            print "SAH", died_by_stack_after_heap
-            print "SONLY", died_by_stack_only
-            print "SAH-size", died_by_stack_after_heap_size
-            print "SONLY-size", died_by_stack_only_size
-            print "S-size", died_by_stack_size
-            print "H-size", died_by_heap_size
-            exit(100)
-            size_died_at_end = summary_sim["size_died_at_end"]
-            last_update_null = summary_sim["last_update_null"]
-            last_update_null_heap = summary_sim["last_update_null_heap"]
-            last_update_null_stack = summary_sim["last_update_null_stack"]
-            last_update_null_size = summary_sim["last_update_null_size"]
-            last_update_null_heap_size = summary_sim["last_update_null_heap_size"]
-            last_update_null_stack_size = summary_sim["last_update_null_stack_size"]
-            max_live_size = summary_sim["max_live_size"]
-            final_time = summary_sim["final_time"]
+            died_at_end_size = sreader.get_size_died_at_end()
+
+            last_update_null = sreader.get_last_update_null()
+
+            max_live_size = sreader.get_max_live_size()
+            final_time = sreader.get_final_garbology_time()
+            # last_update_null_heap = summary_sim["last_update_null_heap"]
+            # last_update_null_stack = summary_sim["last_update_null_stack"]
+            # last_update_null_size = summary_sim["last_update_null_size"]
+            # last_update_null_heap_size = summary_sim["last_update_null_heap_size"]
+            # last_update_null_stack_size = summary_sim["last_update_null_stack_size"]
             summary[bmark] = { "died_by_heap" : died_by_heap, # total of
                                "died_by_stack" : died_by_stack, # total of
                                "died_at_end" : died_at_end, # total of
@@ -614,18 +617,18 @@ def main_process( output = None,
                                "died_by_stack_after_heap_size" : died_by_stack_after_heap_size, # size of
                                "died_by_stack_only_size" : died_by_stack_only_size, # size of
                                "last_update_null" : last_update_null, # subset of died_by_heap
-                               "last_update_null_heap" : last_update_null_heap, # subset of died_by_heap
-                               "last_update_null_stack" : last_update_null_stack, # subset of died_by_heap
-                               "last_update_null_size" : last_update_null_size, # size of
-                               "last_update_null_heap_size" : last_update_null_heap_size, # size of
-                               "last_update_null_stack_size" : last_update_null_stack_size, # size of
                                "max_live_size" : max_live_size,
                                "number_of_objects" : number_of_objects,
                                "number_of_edges" : number_of_edges,
                                "types" : Counter(), # counts of types using type IDs
-                               "size_died_by_stack" : size_died_by_stack, # size, not object count
-                               "size_died_by_heap" : size_died_by_heap, # size, not object count
-                               "size_died_at_end" : size_died_at_end, # size, not object count
+                               "died_by_stack_size" : died_by_stack_size, # size, not object count
+                               "died_by_heap_size" : died_by_heap_size, # size, not object count
+                               "died_at_end_size" : died_at_end_size, # size, not object count
+                               # TODO "last_update_null_heap" : last_update_null_heap, # subset of died_by_heap
+                               # TODO "last_update_null_stack" : last_update_null_stack, # subset of died_by_heap
+                               # TODO "last_update_null_size" : last_update_null_size, # size of
+                               # TODO "last_update_null_heap_size" : last_update_null_heap_size, # size of
+                               # TODO "last_update_null_stack_size" : last_update_null_stack_size, # size of
                                }
             #----------------------------------------------------------------------
             #      CYCLES
@@ -639,8 +642,6 @@ def main_process( output = None,
         count += 1
         # if count >= 1:
         #     break
-    print "NOTHING DONE."
-    exit(1000)
     print "======================================================================"
     print "===========[ SUMMARY ]================================================"
     output_summary( output_path = output,
@@ -650,7 +651,7 @@ def main_process( output = None,
                        pdfs_config = pdfs_config,
                        backup_graph_dir_path = backup_graph_dir_path,
                        base_temp_dir = temp_dir,
-                       today = today )
+                       workdir = workdir )
     os.chdir( old_dir )
     # run object_barplot.R
     render_graphs( rscript_path = global_config["rscript_path"],
