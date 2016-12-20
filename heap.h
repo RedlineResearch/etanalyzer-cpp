@@ -407,16 +407,18 @@ class Object
         LastEvent m_last_event;
         Object *m_last_object;
 
-        // Simple (ContextPair) context of where this object died. Type is defined in classinfo.h
-        // And the associated type.
-        ContextPair m_death_cpair;
-        CPairType  m_death_cptype;
-        // Simple (ContextPair) context of where this object was allocated. Type is defined in classinfo.h
-        // And the associated type.
-        ContextPair m_alloc_cpair;
-        CPairType  m_alloc_cptype;
-        // NOTE: This could have been made into a single class which felt like overkill.
-        // The option is there if it seems better to do so, but chose to go the simpler route.
+        // TODO: // Simple (ContextPair) context of where this object died. Type is defined in classinfo.h
+        // TODO: // And the associated type.
+        // TODO: ContextPair m_death_cpair;
+        // TODO: CPairType  m_death_cptype;
+        // TODO: // Simple (ContextPair) context of where this object was allocated. Type is defined in classinfo.h
+        // TODO: // And the associated type.
+        // TODO: ContextPair m_alloc_cpair;
+        // TODO: CPairType  m_alloc_cptype;
+        // TODO: // NOTE: This could have been made into a single class which felt like overkill.
+        // TODO: // The option is there if it seems better to do so, but chose to go the simpler route.
+
+        string m_deathsite_name;
 
         DequeId_t m_alloc_context;
         // If ExecMode is Full, this contains the full list of the stack trace at allocation.
@@ -477,7 +479,8 @@ class Object
             , m_death_root(NULL)
             , m_last_object(NULL)
             , m_key_type(KeyType::UNKNOWN_KEYTYPE)
-            , m_death_cpair(NULL, NULL)
+            , m_deathsite_name("NONE")
+            // , m_death_cpair(NULL, NULL)
             , m_reftarget_type(ObjectRefType::UNKNOWN)
         {
             if (m_site) {
@@ -666,41 +669,60 @@ class Object
         void setRefTargetType( ObjectRefType newtype ) { this->m_reftarget_type = newtype; }
         ObjectRefType getRefTargetType() const { return this->m_reftarget_type; }
 
+        // --------------------------------------------------------------------------------
+        // ----[ Context pair related functions ]------------------------------------------
         // Get Allocation context pair. Note that if <NULL, NULL> then none yet assigned.
-        ContextPair getAllocContextPair() const { return this->m_alloc_cpair; }
-        // Set Allocation context pair. Note that if <NULL, NULL> then none yet assigned.
-        ContextPair setAllocContextPair( ContextPair cpair, CPairType cptype ) {
-            this->m_alloc_cpair = cpair;
-            this->m_alloc_cptype = cptype;
-            return this->m_alloc_cpair;
-        }
-        // Get Allocation context type
-        CPairType getAllocContextType() const { return this->m_alloc_cptype; }
+        // TODO ContextPair getAllocContextPair() const { return this->m_alloc_cpair; }
+        // TODO // Set Allocation context pair. Note that if <NULL, NULL> then none yet assigned.
+        // TODO ContextPair setAllocContextPair( ContextPair cpair, CPairType cptype ) {
+        // TODO     this->m_alloc_cpair = cpair;
+        // TODO     this->m_alloc_cptype = cptype;
+        // TODO     return this->m_alloc_cpair;
+        // TODO }
+        // TODO // Get Allocation context type
+        // TODO CPairType getAllocContextType() const { return this->m_alloc_cptype; }
 
-        // Get Death context pair. Note that if <NULL, NULL> then none yet assigned.
-        ContextPair getDeathContextPair() const { return this->m_death_cpair; }
-        // Set Death context pair. Note that if <NULL, NULL> then none yet assigned.
-        ContextPair setDeathContextPair( ContextPair cpair, CPairType cptype ) {
-            this->m_death_cpair = cpair;
-            this->m_death_cptype = cptype;
-            return this->m_death_cpair;
+        // TODO // Get Death context pair. Note that if <NULL, NULL> then none yet assigned.
+        // TODO ContextPair getDeathContextPair() const { return this->m_death_cpair; }
+        // TODO // Set Death context pair. Note that if <NULL, NULL> then none yet assigned.
+        // TODO ContextPair setDeathContextPair( ContextPair cpair, CPairType cptype ) {
+        // TODO     this->m_death_cpair = cpair;
+        // TODO     this->m_death_cptype = cptype;
+        // TODO     return this->m_death_cpair;
+        // TODO }
+        // TODO // Get Death context type
+        // TODO CPairType getDeathContextType() const { return this->m_death_cptype; }
+        // --------------------------------------------------------------------------------
+        // --------------------------------------------------------------------------------
+
+        // Single death context
+        // Getter
+        string getDeathContextSiteName() const {
+            return this->m_deathsite_name;
         }
-        // Get Death context type
-        CPairType getDeathContextType() const { return this->m_death_cptype; }
+        // Setter
+        void setDeathContextSiteName( string &new_dsite ) {
+            this->m_deathsite_name = new_dsite;
+        }
 
         // Set allocation context list
         void setAllocContextList( DequeId_t acontext_list ) {
             this->m_alloc_context = acontext_list;
         }
         // Get allocation context type
-        DequeId_t getAllocContextList() const { return this->m_alloc_context; }
+        DequeId_t getAllocContextList() const {
+            return this->m_alloc_context;
+        }
 
         // Set death context list
         void setDeathContextList( DequeId_t dcontext_list ) {
             this->m_alloc_context = dcontext_list;
         }
+
         // Get death context type
-        DequeId_t getDeathContextList() const { return this->m_death_context; }
+        DequeId_t getDeathContextList() const {
+            return this->m_death_context;
+        }
 
 
         // -- Ref counting

@@ -1046,18 +1046,22 @@ void output_all_objects2( string &objectinfo_filename,
         } else {
             dtype = "E"; // program end
         }
-        // Get the context pair and type for the allocation event
-        ContextPair allocCpair = object->getAllocContextPair();
-        Method *alloc_meth_ptr1 = std::get<0>(allocCpair);
-        Method *alloc_meth_ptr2 = std::get<1>(allocCpair);
-        string alloc_method1 = (alloc_meth_ptr1 ? alloc_meth_ptr1->getName() : "NONAME");
-        string alloc_method2 = (alloc_meth_ptr2 ? alloc_meth_ptr2->getName() : "NONAME");
-        // Get the context pair and type for the death event
-        ContextPair deathCpair = object->getDeathContextPair();
-        Method *death_meth_ptr1 = std::get<0>(deathCpair);
-        Method *death_meth_ptr2 = std::get<1>(deathCpair);
-        string death_method1 = (death_meth_ptr1 ? death_meth_ptr1->getName() : "NONAME");
-        string death_method2 = (death_meth_ptr2 ? death_meth_ptr2->getName() : "NONAME");
+        // TODO: Commented out the CONTEXT PAIR functionality that I'm not using.
+        // TODO // Get the context pair and type for the allocation event
+        // TODO ContextPair allocCpair = object->getAllocContextPair();
+        // TODO Method *alloc_meth_ptr1 = std::get<0>(allocCpair);
+        // TODO Method *alloc_meth_ptr2 = std::get<1>(allocCpair);
+        // TODO string alloc_method1 = (alloc_meth_ptr1 ? alloc_meth_ptr1->getName() : "NONAME");
+        // TODO string alloc_method2 = (alloc_meth_ptr2 ? alloc_meth_ptr2->getName() : "NONAME");
+        // TODO // Get the context pair and type for the death event
+        // TODO ContextPair deathCpair = object->getDeathContextPair();
+        // TODO Method *death_meth_ptr1 = std::get<0>(deathCpair);
+        // TODO Method *death_meth_ptr2 = std::get<1>(deathCpair);
+        // TODO string death_method1 = (death_meth_ptr1 ? death_meth_ptr1->getName() : "NONAME");
+        // TODO string death_method2 = (death_meth_ptr2 ? death_meth_ptr2->getName() : "NONAME");
+        // END TODO: CONTEXT PAIR funcionality
+        
+        string death_method = object->getDeathContextSiteName();
         string allocsite_name = object->getAllocSiteName();
         ObjectRefType objstability = object->getRefTargetType();
         // S -> Stable
@@ -1076,12 +1080,25 @@ void output_all_objects2( string &objectinfo_filename,
             << "," << (object->getDiedByStackFlag() ? (object->wasPointedAtByHeap() ? "SHEAP" : "SONLY")
                                                     : "H")
             << "," << dgroup_kind
-            << "," << death_method1 // Part 1 of simple context pair - death site
-            << "," << death_method2 // part 2 of simple context pair - death site
-            << "," << (object->getDeathContextType() == CPairType::CP_Call ? "C" : "R") // C is call. R is return.
-            << "," << alloc_method1 // Part 1 of simple context pair - alloc site
-            << "," << alloc_method2 // part 2 of simple context pair - alloc site
-            << "," << (object->getAllocContextType() == CPairType::CP_Call ? "C" : "R") // C is call. R is return.
+            //--------------------------------------------------------------------------------
+            << "," << death_method // Single level context for death
+            // TODO << "," << death_method1 // Part 1 of simple context pair - death site
+            //--------------------------------------------------------------------------------
+            << "," << "X" //  padding - used to be death_method2
+            // TODO << "," << death_method2 // part 2 of simple context pair - death site
+            //--------------------------------------------------------------------------------
+            << "," << "X" //  padding - used to be deathContextType
+            // TODO << "," << (object->getDeathContextType() == CPairType::CP_Call ? "C" : "R") // C is call. R is return.
+            //--------------------------------------------------------------------------------
+            << "," << "X" //  padding - used to be alloc_method1
+            // TODO << "," << alloc_method1 // Part 1 of simple context pair - alloc site
+            //--------------------------------------------------------------------------------
+            << "," << "X" //  padding - used to be alloc_method2
+            // TODO << "," << alloc_method2 // part 2 of simple context pair - alloc site
+            //--------------------------------------------------------------------------------
+            << "," << "X" //  padding - used to be allocContextType
+            // TODO << "," << (object->getAllocContextType() == CPairType::CP_Call ? "C" : "R") // C is call. R is return.
+            //--------------------------------------------------------------------------------
             << "," << object->getCreateTimeAlloc()
             << "," << object->getDeathTimeAlloc()
             << "," << allocsite_name
