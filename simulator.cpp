@@ -1087,7 +1087,7 @@ void output_all_objects2( string &objectinfo_filename,
             << "," << "X" //  padding - used to be death_method2
             // TODO << "," << death_method2 // part 2 of simple context pair - death site
             //--------------------------------------------------------------------------------
-            << "," << "X" //  padding - used to be deathContextType
+            << "," << "S" //  padding - used to be deathContextType - S for SINGLE
             // TODO << "," << (object->getDeathContextType() == CPairType::CP_Call ? "C" : "R") // C is call. R is return.
             //--------------------------------------------------------------------------------
             << "," << "X" //  padding - used to be alloc_method1
