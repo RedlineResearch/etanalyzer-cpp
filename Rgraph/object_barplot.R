@@ -17,7 +17,10 @@ xcsv <- read.table( datafile, sep = ",", header = TRUE )
 # Add derived information
 xcsv$byHeap_percent <- round( (xcsv$died_by_heap / xcsv$total_objects) * 100, digits = 2 )
 xcsv$byStack_percent <- round( (xcsv$died_by_stack / xcsv$total_objects) * 100, digits = 2 )
+xcsv$byHeap_and_Stack_percent <- xcsv$byHeap_percent + xcsv$byStack_percent
 xcsv$atEnd_percent <- round( (xcsv$died_at_end / xcsv$total_objects) * 100, digits = 2 )
+xcsv$byHeap_percent_noend <- round( (xcsv$died_by_heap / (xcsv$total_objects - xcsv$died_at_end)) * 100, digits = 2 )
+xcsv$byStack_percent_noend <- round( (xcsv$died_by_stack / (xcsv$total_objects - xcsv$died_at_end)) * 100, digits = 2 )
 xcsv$totalSize <- xcsv$died_by_stack_size + xcsv$died_by_heap_size
 xcsv$totalSize_MB <- xcsv$totalSize / (1024*1024)
 xcsv$max_live_size_MB <- xcsv$max_live_size / (1024*1024)
@@ -54,7 +57,7 @@ result = tryCatch( {
 
 print("======================================================================")
 #--------------------------------------------------
-print("====[ Object count barplot - linear ]=================================")
+print("====[ 2: Object count barplot - linear ]==============================")
 # Object count linear scale
 print("")
 flush.console()
@@ -80,9 +83,9 @@ result = tryCatch( {
     }
 )
 
-print("======================================================================")
 #--------------------------------------------------
 # Size
+print("====[ 2: Total size MB barplot ]======================================")
 print("Total size barplot")
 totalsize.out.mb <- paste0( targetdir, "ALL-02-totalsize-mb-barplot.pdf" )
 totalsize.out.mb.png <- paste0( targetdir, "ALL-02-totalsize-mb-barplot.png" )
@@ -106,14 +109,12 @@ result = tryCatch( {
     }
 )
 
-print("======================================================================")
-# TODO HERE
-stopifnot(FALSE)
 #--------------------------------------------------
-# Died by heap vs stack percentage  stacked plot - object count
+# Died by heap vs stack vs at END percentage  stacked plot - object count
+print("======================================================================")
 print("Death by stack vs by heap")
-# deathreason.out <- "/data/rveroy/pulsrc/data-ismm-2016/y-GRAPHS/ALL-04-percent-deathcause-object-count.pdf"
 deathreason.out <- paste0( targetdir, "ALL-04-percent-deathcause-object-count.pdf" )
+deathreason.out.png <- paste0( targetdir, "ALL-04-percent-deathcause-object-count.png" )
 flush.console()
 xlabel <- "Benchmark"
 ylabel <- "Percentage of objects"
@@ -127,7 +128,7 @@ result = tryCatch( {
                           y = value,
                           fill = variable ) )
         p <- p + labs( x = xlabel, y = ylabel )
-        p <- p + geom_bar( stat = "identity" ) + coord_flip()
+        p <- p + geom_bar( stat = "identity" ) # + coord_flip()
         # Use colors:
         #     ByHeap  = "#E41A1C"
         #     ByStack = "#A6CEE3"
@@ -135,7 +136,9 @@ result = tryCatch( {
         p <- p + scale_fill_manual( values = c("#E41A1C", "#A6CEE3", "#4DAF4A"),
                                     name = "% of objects died",
                                     labels = c("By heap", "By stack", "Program end") )
+        p <- p + theme(axis.text.x = element_text(angle = 90, hjust = 1))
         ggsave(filename = deathreason.out, plot = p)
+        ggsave(filename = deathreason.out.png, plot = p)
     }, warning = function(w) {
         print(paste("WARNING: failed on death reason stack vs heap."))
     }, error = function(e) {
@@ -143,10 +146,50 @@ result = tryCatch( {
     }, finally = {
     }
 )
+
+#--------------------------------------------------
+# Died by heap vs stack vs percentage (NO END stacked plot) - object count
+print("======================================================================")
+print("Death by stack vs by heap (NO END)")
+deathreason.noend.out <- paste0( targetdir, "NOEND-04-percent-deathcause-object-count.pdf" )
+deathreason.noend.out.png <- paste0( targetdir, "NOEND-04-percent-deathcause-object-count.png" )
+flush.console()
+xlabel <- "Benchmark"
+ylabel <- "Percentage of objects"
+d <- xcsv
+# Sort the benchmarks
+d$benchmark <- factor(d$benchmark, levels = d[ order(d$max_live_size), "benchmark"])
+xcsv.melt <- melt(d[,c("benchmark", "byHeap_percent_noend", "byStack_percent_noend")])
+result = tryCatch( {
+        p <- ggplot( xcsv.melt,
+                     aes( x = benchmark,
+                          y = value,
+                          fill = variable ) )
+        p <- p + labs( x = xlabel, y = ylabel )
+        p <- p + geom_bar( stat = "identity" ) # + coord_flip()
+        # Use colors:
+        #     ByHeap  = "#E41A1C"
+        #     ByStack = "#A6CEE3"
+        p <- p + scale_fill_manual( values = c("#E41A1C", "#A6CEE3"),
+                                    name = "% of objects died",
+                                    labels = c("By heap", "By stack") )
+        p <- p + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+        ggsave(filename = deathreason.noend.out, plot = p)
+        ggsave(filename = deathreason.noend.out.png, plot = p)
+    }, warning = function(w) {
+        print(paste("WARNING: failed on death reason stack vs heap."))
+    }, error = function(e) {
+        print(paste("ERROR: failed on death reason stack vs heap."))
+    }, finally = {
+    }
+)
+
+#--------------------------------------------------
+#
 print("======================================================================")
 
-# deathreason.out <- "/data/rveroy/pulsrc/data-ismm-2016/y-GRAPHS/ALL-03-actual-deathcause-object-count.pdf"
 deathreason.out <- paste0( targetdir, "ALL-03-actual-deathcause-object-count.pdf" )
+deathreason.out.png <- paste0( targetdir, "ALL-03-actual-deathcause-object-count.png" )
 xlabel <- "Benchmark"
 ylabel <- "Objects"
 d <- xcsv
@@ -168,7 +211,9 @@ result = tryCatch( {
                                     name = "Objects died",
                                     labels = c("By heap", "By stack", "Program end") )
         p <- p + labs( x = xlabel, y = ylabel )
+        p <- p + theme(axis.text.x = element_text(angle = 90, hjust = 1))
         ggsave(filename = deathreason.out, plot = p)
+        ggsave(filename = deathreason.out.png, plot = p)
     }, warning = function(w) {
         print(paste("WARNING: failed on death reason stack vs heap."))
     }, error = function(e) {
@@ -177,6 +222,9 @@ result = tryCatch( {
     }
 )
 print("======================================================================")
+
+# TODO HERE
+stopifnot(FALSE)
 
 #--------------------------------------------------
 # Died by heap vs stack size percentage  stacked plot
