@@ -278,6 +278,7 @@ def output_summary( output_path = None,
     # size,largest_cycle, number_types, lifetime_ave, lifetime_sd, min, max
     #   10,            5,            2,           22,           5,   2,  50
     # TODO: This documentation seems wrong. TODO
+    print "Summary output path: %s" % str(output_path)
     with open(output_path, "wb") as fp:
         csvwriter = csv.writer(fp)
         header = [ "benchmark", "total_objects", "total_edges",
@@ -644,7 +645,8 @@ def main_process( output = None,
         #     break
     print "======================================================================"
     print "===========[ SUMMARY ]================================================"
-    output_summary( output_path = output,
+    output_path = os.path.join( cycle_cpp_dir, output )
+    output_summary( output_path = output_path,
                     summary = summary )
     old_dir = os.getcwd()
     backup_old_graphs( graph_dir_path = graph_dir_path,
