@@ -474,6 +474,7 @@ unsigned int read_trace_file(FILE* f)
                             target->setPointedAtByHeap();
                         }
                         target->setLastTimestamp( Exec.NowUp() );
+                        target->setActualLastTimestamp( Exec.NowUp() );
                         // TODO: Maybe LastUpdateFromStatic isn't the most descriptive
                         // So since target has an incoming edge, LastUpdateFromStatic
                         //    should be FALSE.
@@ -483,6 +484,7 @@ unsigned int read_trace_file(FILE* f)
                     if (oldObj) {
                         // Set the last time stamp for Merlin Algorithm purposes
                         oldObj->setLastTimestamp( Exec.NowUp() );
+                        oldObj->setActualLastTimestamp( Exec.NowUp() );
                         // Keep track of other properties
                         if (tgtId != 0) {
                             oldObj->unsetLastUpdateNull();
@@ -704,6 +706,7 @@ unsigned int read_trace_file(FILE* f)
                         object->setRootFlag(Exec.NowUp());
                         object->setLastEvent( LastEvent::ROOT );
                         object->setLastTimestamp( Exec.NowUp() );
+                        object->setActualLastTimestamp( Exec.NowUp() );
                         Thread *thread = Exec.getThread(threadId);
                         if (thread) {
                             thread->objectRoot(object);
@@ -1014,7 +1017,7 @@ void output_all_objects2( string &objectinfo_filename,
                                    "deathContext1", "deathContext2", "deathContextType",
                                    "allocContext1", "allocContext2", "allocContextType",
                                    "createTime_alloc", "deathTime_alloc",
-                                   "allocSiteName", "stability" } );
+                                   "allocSiteName", "stability", "last_actual_timestamp" } );
 
     for ( ObjectMap::iterator it = myheap.begin();
           it != myheap.end();
@@ -1103,6 +1106,7 @@ void output_all_objects2( string &objectinfo_filename,
             << "," << object->getDeathTimeAlloc()
             << "," << allocsite_name
             << "," << stability  // S, U, or X
+            << "," << object->getActualLastTimestamp()
             << endl;
             // TODO: The following can be made into a lookup table:
             //       method names

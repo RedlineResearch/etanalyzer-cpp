@@ -382,6 +382,8 @@ class Object
         unsigned int m_last_action_time;
         // Time of last update away. This is the 'timestamp' in the Merlin algorithm
         unsigned int m_last_timestamp;
+        // Time of last update away. This is the 'timestamp' in the Merlin algorithm
+        unsigned int m_actual_last_timestamp;
         // Method where this object died
         Method *m_methodDeathSite;
         // Last method to decrement reference count
@@ -468,6 +470,7 @@ class Object
             , m_reason(UNKNOWN_REASON)
             , m_last_action_time(0)
             , m_last_timestamp(0)
+            , m_actual_last_timestamp(0)
             , m_last_update_null(indeterminate)
             , m_last_update_away_from_static(false)
             , m_methodDeathSite(0)
@@ -610,9 +613,22 @@ class Object
         Reason getReason() const { return m_reason; }
         unsigned int getLastActionTime() const { return m_last_action_time; }
         // Return the Merlin timestamp
-        auto getLastTimestamp() -> unsigned int const { return this->m_last_timestamp; }
+        auto getLastTimestamp() -> unsigned int const {
+            return this->m_last_timestamp;
+        }
         // Set the Merlin timestamp
-        void setLastTimestamp( unsigned int new_ts ) { this->m_last_timestamp = new_ts; }
+        void setLastTimestamp( unsigned int new_ts ) {
+            this->m_last_timestamp = new_ts;
+        }
+        // Return the actual non-Merlinized timestamp
+        auto getActualLastTimestamp() -> unsigned int const {
+            return this->m_actual_last_timestamp;
+        }
+        // Set the actual non-Merlinized timestamp
+        void setActualLastTimestamp( unsigned int new_ts ) {
+            this->m_actual_last_timestamp = new_ts;
+        }
+
         // Returns whether last update to this object was NULL.
         // If indeterminate, then there have been no updates
         tribool wasLastUpdateNull() const { return m_last_update_null; }

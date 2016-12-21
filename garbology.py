@@ -107,6 +107,7 @@ def get_index( field = None ):
                  "DTIME_ALLOC" : 15,
                  "ALLOCSITE" : 16,
                  "STABILITY" : 17,
+                 "LAST_ACTUAL_TS" : 18,
         }[field]
     except:
         return None
@@ -215,6 +216,7 @@ class ObjectInfoReader:
                 int(rec[ get_raw_index("DTIME_ALLOC") ]),
                 rec[ get_raw_index("ALLOCSITE") ],
                 rec[ get_raw_index("STABILITY") ],
+                int(rec[ get_raw_index("LAST_ACTUAL_TS") ]),
                 ]
         return row
 
@@ -312,6 +314,7 @@ class ObjectInfoReader:
         # 18- allocation site (asite_name) : TEXT
         # 19- stability  (stability) : TEXT
         #     -- Choices are [S,U,X] meaning Stable, Unstable, Unknown
+        # 20- last actual timestamp (last_actual_ts) : INTEGER
         cur.execute( """CREATE TABLE objinfo (objid INTEGER PRIMARY KEY,
                                               atime INTEGER,
                                               dtime INTEGER,
@@ -330,7 +333,8 @@ class ObjectInfoReader:
                                               atime_alloc INTEGER,
                                               dtime_alloc INTEGER,
                                               asite_name TEXT,
-                                              stability TEXT)""" )
+                                              stability TEXT,
+                                              last_actual_ts INTEGER)""" )
         conn.execute( 'DROP INDEX IF EXISTS idx_objectinfo_objid' )
         # Now create the type table which maps:
         #     typeId -> actual type
@@ -1208,14 +1212,16 @@ class DeathGroupsReader:
         # Renumber according to size. Largest group first.
         # TODO: We can make this an option if we want something like oldest first.
         self.renumber_dgroups()
-        # Debug print out top 5 groups
+        #--------------------------------------------------
+        # Debug print out top 5 groups --------------------
         tmpcount = 0
         for gnum, mylist in self.group2list.iteritems():
             print "Group num[ %d ]: => %d objects" % (gnum, len(mylist))
             tmpcount += 1
             if tmpcount > 4:
                 break
-        # END Debug
+        # END Debug ---------------------------------------
+        #--------------------------------------------------
         nokey_set = set()
         for gnum, mylist in self.group2list.iteritems():
             keylist = get_key_objects( mylist, oir )
