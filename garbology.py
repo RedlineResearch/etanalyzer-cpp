@@ -437,6 +437,14 @@ class ObjectInfoReader:
         return rec[get_index("DIEDBY")] if (rec != None) \
             else "NONE"
 
+    def get_last_actual_timestamp( self, objId ):
+        rec = self.get_record(objId)
+        return self.get_last_actual_timestamp_using_record(rec)
+
+    def get_last_actual_timestamp_using_record( self, rec = None ):
+        return rec[get_index("LAST_ACTUAL_TS")] if (rec != None) \
+            else 0
+
     def iteritems( self ):
         """Returns (objId, rec) where rec is the record for the object with that object id."""
         return self.objdict.iteritems()

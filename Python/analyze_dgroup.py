@@ -68,10 +68,14 @@ def check_diedby_stats( dgroups_data = {},
     result = {}
     tmp = 0
     for gnum, glist in dgroups_data["group2list"].iteritems():
-        result[gnum] = Counter()
+        result[gnum]["diedby"] = Counter()
+        result[gnum]["actual_ts"] = Counter()
         for objId in glist:
             cause = objreader.get_death_cause(objId)
-            result[gnum][cause] += 1
+            # TODO HERE TODO last_actual_ts = objreader.get_a
+            result[gnum]["diedby"][cause] += 1
+            result[gnum]["actual_ts"][cause] += 1
+        # DEBUG
         tmp += 1
         if tmp >= 20:
             break
