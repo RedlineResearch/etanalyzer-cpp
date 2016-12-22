@@ -382,7 +382,7 @@ class ObjectInfoReader:
         # ----------------------------------------------------------------------
         # TODO call executemany here
         cur = self.outdbconn.cursor()
-        cur.executemany( "INSERT INTO objinfo VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", row_generator() )
+        cur.executemany( "INSERT INTO objinfo VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", row_generator() )
         cur.executemany( "INSERT INTO typetable VALUES (?,?)", type_row_generator() )
         cur.execute( 'CREATE UNIQUE INDEX idx_objectinfo_objid ON objinfo (objid)' )
         cur.execute( 'CREATE UNIQUE INDEX idx_typeinfo_typeid ON typetable (typeid)' )
