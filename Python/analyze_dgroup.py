@@ -16,9 +16,9 @@ import cPickle
 # Possible useful libraries, classes and functions:
 # from operator import itemgetter
 from collections import Counter
-# from collections import defaultdict
+from collections import defaultdict
 #   - This one is my own library:
-# from mypytools import mean, stdev, variance
+from mypytools import mean, stdev, variance
 from mypytools import check_host, create_work_directory, process_host_config, \
     process_worklist_config
 
@@ -65,16 +65,16 @@ def setup_logger( targetdir = ".",
 
 def check_diedby_stats( dgroups_data = {},
                         objreader = {} ):
-    result = {}
+    result = defaultdict( dict )
     tmp = 0
     for gnum, glist in dgroups_data["group2list"].iteritems():
         result[gnum]["diedby"] = Counter()
         result[gnum]["actual_ts"] = Counter()
         for objId in glist:
             cause = objreader.get_death_cause(objId)
-            # TODO HERE TODO last_actual_ts = objreader.get_a
+            last_actual_ts = objreader.get_last_actual_timestamp(objId)
             result[gnum]["diedby"][cause] += 1
-            result[gnum]["actual_ts"][cause] += 1
+            result[gnum]["actual_ts"][last_actual_ts] += 1
         # DEBUG
         tmp += 1
         if tmp >= 20:
@@ -120,7 +120,17 @@ def read_dgroups_from_pickle( result = [],
     # died by
     diedby_results = check_diedby_stats( dgroups_data = dgroups_data,
                                          objreader = objreader )
-    pp.pprint(diedby_results)
+    print "==========================================================================="
+    for gnum, datadict in diedby_results.iteritems():
+        assert("diedby" in datadict)
+        assert("actual_ts" in datadict)
+        print "GROUP %d" % gnum
+        print "    * DIEDBY:"
+        for diedbytype, total in datadict["diedby"].iteritems():
+            print "        %s -> %d" % (diedbytype, total)
+        max_tstamp = max( datadict["actual_ts"].keys() )
+        print "    * MAX Actual timestamp: %d" % max_tstamp
+        print "==========================================================================="
     #===========================================================================
     # Write out to ???? TODO
     # 
