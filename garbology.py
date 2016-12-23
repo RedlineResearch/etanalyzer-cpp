@@ -766,39 +766,44 @@ class EdgeInfoReader:
 
     def read_edgeinfo_file_into_db( self ):
         raise RuntimeError("TODO: Need to implement.")
-        # start = False
-        # done = False
-        # with get_trace_fp( self.edgeinfo_file_name, self.logger ) as fp:
-        #     for line in fp:
-        #         line = line.rstrip()
-        #         if line.find("---------------[ EDGE INFO") == 0:
-        #             start = True if not start else False
-        #             if start:
-        #                 continue
-        #             else:
-        #                 done = True
-        #                 break
-        #         if start:
-        #             rowtmp = line.split(",")
-        #             # 0 - srcId
-        #             # 1 - tgtId
-        #             # 2 - create time
-        #             # 3 - death time
-        #             # 4 - fieldId
-        #             row = [ int(x) for x in rowtmp ]
-        #             src = row[0]
-        #             tgt = row[1]
-        #             timepair = tuple(row[2:])
-        #             dtime = row[3]
-        #             fieldId = row[4]
-        #             self.edgedict[tuple([src, fieldId, tgt])] = { "tp" : timepair,
-        #                                                           "s" : "X" }  # X means unknown
-        #             self.srcdict[src].add( tgt )
-        #             self.tgtdict[tgt].add( src )
-        #             self.update_last_edges( src = src,
-        #                                     tgt = tgt,
-        #                                     deathtime = dtime )
-        # assert(done)
+        start = False
+        done = False
+        sb = stabreader
+        with get_trace_fp( self.edgeinfo_file_name, self.logger ) as fp:
+            for line in fp:
+                line = line.rstrip()
+                if line.find("---------------[ EDGE INFO") == 0:
+                    start = True if not start else False
+                    if start:
+                        continue
+                    else:
+                        done = True
+                        break
+                if start:
+                    rowtmp = line.split(",")
+                    # 0 - srcId
+                    # 1 - tgtId
+                    # 2 - create time
+                    # 3 - death time
+                    # 4 - fieldId
+                    row = [ int(x) for x in rowtmp ]
+                    src = row[0]
+                    tgt = row[1]
+                    timepair = tuple(row[2:4])
+                    dtime = row[3]
+                    fieldId = row[4]
+                    try:
+                        stability = sb[src][fieldId]
+                    except:
+                        stability = "X" # X means unknown
+                    self.edgedict[tuple([src, fieldId, tgt])] = { "tp" : timepair,
+                                                                  "s" : stability }
+                    self.srcdict[src].add( tgt )
+                    self.tgtdict[tgt].add( src )
+                    self.update_last_edges( src = src,
+                                            tgt = tgt,
+                                            deathtime = dtime )
+        assert(done)
 
     def update_stability_reader( self,
                                  stabreader = None ):
@@ -859,7 +864,7 @@ class EdgeInfoReader:
         def row_generator_lastedge():
             for tgt, mydict in self.lastedge.iteritems():
                 if len(mydict["lastsources"]) > 0:
-                    yield (tgt, mydict["dtime"], mydict["lastsources"][0])
+                    yield (tgt, mydict["dtime"], str(mydict["lastsources"]))
         cur.executemany( "INSERT INTO lastedge VALUES (?,?,?)", row_generator_lastedge() )
         cur.execute( 'CREATE INDEX idx_lastedge_tgtid ON lastedge (tgtid)' )
         #================================================================================
@@ -1006,10 +1011,13 @@ class EdgeInfoReader:
         # num- fullname (sqlite name) : type
         # 1- target Id (tgtid) : INTEGER
         # 2- death time (dtime) : INTEGER
-        # 3- last source (srcid) : INTEGER
+        # 3- last source list (srclist) : TEXT
+        #    * NOTE: This is a comma separated list of object Ids
+        #            It is formatted like the Python list
+        #              Example:  [1,2,3]
         cur.execute( """CREATE TABLE lastedge (tgtid INTEGER PRIMARY KEY,
                                                dtime INTEGER,
-                                               srcid INTEGER)""" )
+                                               srclist TEXT)""" )
         conn.execute( 'DROP INDEX IF EXISTS idx_lastedge_tgtid' )
 
 class EdgeInfoFile2DB:
