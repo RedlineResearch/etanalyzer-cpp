@@ -2,11 +2,13 @@ import sqlite3
 import collections
 import pylru
 
+
 def __tup2str__( tup ):
     ret = [ str(x) for x in tup ]
     return tuple(ret)
 
-# This is a Read Only cache.
+#================================================================================
+# This is a Read Only Object cache.
 class ObjectCache( collections.Mapping ):
     def __init__( self,
                   tgtpath = None,
@@ -177,6 +179,7 @@ class ObjectCache( collections.Mapping ):
     def __delitem__(self, key):
         raise NotImplemented
 
+
 __all__ = [ "ObjectCache", ]
 
 if __name__ == "__main__":
@@ -253,3 +256,205 @@ if __name__ == "__main__":
     print "Checking restored contents of key[ %s ] after" % str(savekey)
     print "     ", sqobj[savekey]
     print "==========================================================================="
+
+
+#================================================================================
+#  UNUSED COMMENTED OUT CODE
+#================================================================================
+# This is a Read Only Edge cache.
+# class EdgeCache( collections.Mapping ):
+#     """EdgeCache will model EdgeInfo in the following way:
+#     +-------+    +------+
+#     | srcId +--->+tgtId |
+#     +-------+    +---+--+
+#                      |       +-----------+
+#                      +------>+create time|
+#                              +--+--------+
+#                                 |
+#                                 v
+#                         +-------+----------------------+
+#                         |List of records with format:  |
+#                         |    * field Id
+#                         |    * death time              |
+#                         |    * stability               |
+#                         |                              |
+#                         +------------------------------+
+#     (srcId, tgtId, create time)
+#     This works since create time is unique to an edge. We need 'create time'
+#     as a distinguishing attribute since there maybe multiple times a given srcId
+#     points to a target Id.
+#     """
+#     def __init__( self,
+#                   tgtpath = None,
+#                   cachesize = 5000000,
+#                   logger = None ):
+#         global EdgeInfoTable, EdgeInfoKeyField
+#         self.conn = sqlite3.connect( tgtpath )
+#         self.table = EdgeInfoTable
+#         self.count = None
+#         # The 'keyfield' determines what the key value for the ObjectCache.
+#         # This simulates a dictionary with an SQLITE DB as backing store.
+#         self.keyfield = EdgeInfoKeyField
+#         # While we have the keyfield, we assume the key is at location 0 in the record.
+#         # This just simplifies things.
+#         # We save all the keys. Note that once we have all the keys, then we don't
+#         # need to ask the DB again since we don't allow writes.
+#         self.keyset = set()
+#         # We want to know if we have all the keys.
+#         self.have_all_keys = False
+#         # We use an LRU cache to store results.
+#         self.lru = pylru.lrucache( size = cachesize )
+#         # NOTE: We assume that the keyfield is always the first field in the record
+#         #       tuple.
+#         self.logger = logger
+# 
+#     def __iter__( self ):
+#         # This is a binary situation. Either we have all the keys, or
+#         # we don't.
+#         if self.have_all_keys:
+#             for key in self.keyset:
+#                 yield key
+#         else:
+#             # Make sure that we clear the keyset
+#             self.keyset.clear()
+#             cur = self.conn.cursor()
+#             cur.execute( "SELECT * FROM %s" % self.table )
+#             while True:
+#                 reclist = cur.fetchmany()
+#                 if len(reclist) > 0:
+#                     for rec in reclist:
+#                         # Assuming the key (keyfield) is at location 0.
+#                         srcId = rec[0]
+#                         fieldId = rec[1]
+#                         tgtId = rec[2]
+#                         crtime = rec[3]
+#                         dtime = rec[4]
+#                         stability = rec[5]
+#                         key = (srcId, tgtId, crtime)
+#                         if key not in self.lru:
+#                             # __iter__ only needs to return the key. But since
+#                             # we already have the record, we store it in the cache.
+#                             # The likelihood that the user will ask for the the record is high.
+#                             self.lru[key] = rec[1:]
+#                         if key in self.keyset:
+#                             # If we have already returned the key, just go to the next one.
+#                             continue
+#                         self.keyset.add( key )
+#                         yield key
+#                 else:
+#                     # This is one of the times when we know we have all the keys.
+#                     self.have_all_keys = True
+#                     raise StopIteration
+# 
+#     def iteritems( self ):
+#         cur = self.conn.cursor()
+#         cur.execute( "SELECT * FROM %s" % self.table )
+#         while True:
+#             reclist = cur.fetchmany()
+#             if len(reclist) > 0:
+#                 for rec in reclist:
+#                     key = rec[0]
+#                     if key not in self.lru:
+#                         self.lru[key] = rec[1:]
+#                     self.keyset.add( key ) # Might as well add to the key set
+#                     yield (key, rec[1:])
+#             else:
+#                 # This is one of the times when we know we have all the keys.
+#                 self.have_all_keys = True
+#                 raise StopIteration
+# 
+#     def keys( self ):
+#         if self.have_all_keys:
+#             # Return a copy
+#             return set(self.keyset)
+#         else:
+#             cur = self.conn.cursor()
+#             cur.execute( "SELECT %s FROM %s" % (self.keyfield, self.table) )
+#             mykeyset = set()
+#             while True:
+#                 keylist = cur.fetchmany()
+#                 if len(keylist) > 0:
+#                     mykeyset.update( [ x[0] for x in keylist ] )
+#                 else:
+#                     break
+#             # Result should be a list.
+#             result = list(mykeyset)
+#             # This debug check happens only once, so it's ok to do it.
+#             for x in result:
+#                 try:
+#                     assert(type(x) == type(1))
+#                 except:
+#                     print "kEY ERROR:"
+#                     print "x:", x
+#                     exit(100)
+#             self.keyset = mykeyset
+#             self.have_all_keys = True
+#             return result
+# 
+#     def __contains__( self, item ):
+#         if item in self.lru:
+#             return True
+#         else:
+#             cur = self.conn.cursor()
+#             cmd = "SELECT * FROM %s WHERE %s=%s" % ( self.table, self.keyfield, str(item) )
+#             # self.logger.debug( "CMD: %s" % cmd )
+#             cur.execute( cmd )
+#             retlist = cur.fetchmany()
+#             if len(retlist) != 1:
+#                 return False
+#             rec = retlist[0]
+#             self.lru[item] = rec[1:]
+#             return True
+# 
+#     def __len__(self):
+#         cur = self.conn.cursor()
+#         if self.count == None:
+#             cur.execute( "SELECT Count(*) FROM %s" % self.table )
+#         self.count = cur.fetchone()
+#         # DEBUG: print "%s : %s" %(str(self.count), str(type(self.count)))
+#         return self.count[0]
+# 
+#     def __getitem__(self, key):
+#         if key in self.lru:
+#             return self.lru[key]
+#         else:
+#             cur = self.conn.cursor()
+#             cur.execute( "select * from %s where %s=%s" %
+#                          ( self.table, self.keyfield, str(key) ) )
+#             retlist = cur.fetchmany()
+#             if len(retlist) < 1:
+#                 raise KeyError( "%s not found" % str(key ) )
+#             elif len(retlist) > 1:
+#                 pass
+#                 # todo: need to log an error here. or at least a warning.
+#             rec = retlist[0]
+#             key = rec[0]
+#             self.lru[key] = rec[1:]
+#             return rec[1:]
+# 
+#     def getitem_from_table(self, key, mytable, mykeyfield):
+#         cur = self.conn.cursor()
+#         cur.execute( "select * from %s where %s=%s" %
+#                      ( mytable, mykeyfield, str(key) ) )
+#         retlist = cur.fetchmany()
+#         if len(retlist) < 1:
+#             raise KeyError( "%s not found" % str(key ) )
+#         elif len(retlist) > 1:
+#             pass
+#             # todo: need to log an error here. or at least a warning.
+#         rec = retlist[0]
+#         return rec
+# 
+#     def close( self ):
+#         if self.conn != None:
+#             self.conn.close()
+# 
+#     # This is a Read-Only cache. The following are therefore not implemented.  def __additem__(self, key):
+#         raise NotImplemented
+# 
+#     def __setitem__(self, key, value):
+#         raise NotImplemented
+# 
+#     def __delitem__(self, key):
+#         raise NotImplemented
+# 

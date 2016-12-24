@@ -409,10 +409,8 @@ class ObjectInfoReader:
         rec = self.get_record(objId)
         typeId = rec[ get_index("TYPE") ] if rec != None else None
         if not self.useDB_as_source:
-            if typeId != None:
-                return self.rev_typedict[typeId]
-            else:
-                return "NONE"
+            return self.rev_typedict[typeId] if typeId != None \
+                else "NONE"
         else:
             if typeId not in self.rev_typedict:
                 rec = self.objdict.getitem_from_table( typeId, "typetable", "typeid" )
@@ -706,6 +704,9 @@ class ObjectInfoFile2DB:
 # -----------------------------------------------------------------------------
 # EdgeInfoReader related classes
 
+EdgeInfoTable = "edgeinfo"
+EdgeInfoKeyField = "srcid"
+
 class EdgeInfoReader:
     def __init__( self,
                   edgeinfo_filename = None,
@@ -796,8 +797,13 @@ class EdgeInfoReader:
                         stability = sb[src][fieldId]
                     except:
                         stability = "X" # X means unknown
-                    self.edgedict[tuple([src, fieldId, tgt])] = { "tp" : timepair,
-                                                                  "s" : stability }
+                    key = tuple([src, fieldId, tgt])
+                    if key not in self.edgedict:
+                        self.edgedict[key] = [ { "tp" : timepair,
+                                                 "s" : stability }, ]
+                    else:
+                        self.edgedict[key].append( { "tp" : timepair,
+                                                     "s" : stability } )
                     self.srcdict[src].add( tgt )
                     self.tgtdict[tgt].add( src )
                     self.update_last_edges( src = src,
@@ -905,8 +911,13 @@ class EdgeInfoReader:
                             stability = sb[src][fieldId]
                         except:
                             stability = "X" # X means unknown
-                        self.edgedict[tuple([src, fieldId, tgt])] = { "tp" : timepair,
-                                                                      "s" : stability }
+                        key = tuple([src, fieldId, tgt])
+                        if key not in self.edgedict:
+                            self.edgedict[key] = [ { "tp" : timepair,
+                                                     "s" : stability }, ]
+                        else:
+                            self.edgedict[key].append( { "tp" : timepair,
+                                                         "s" : stability } )
                         self.srcdict[src].add( tgt )
                         self.tgtdict[tgt].add( src )
                         self.update_last_edges( src = src,
@@ -917,7 +928,10 @@ class EdgeInfoReader:
             raise RuntimeError("TODO: Not yet implemented.")
 
     def get_targets( self, src = 0 ):
-        return self.srcdict[src] if (src in self.srcdict) else []
+        if not self.useDB_as_source:
+            return self.srcdict[src] if (src in self.srcdict) else []
+        else:
+            return None
 
     def get_sources( self, tgt = 0 ):
         return self.tgtdict[tgt] if (tgt in self.tgtdict) else []
@@ -972,6 +986,7 @@ class EdgeInfoReader:
         return self.lastedge[tgtId] if tgtId in self.lastedge else None
 
     def create_edgeinfo_db( self, outdbfilename = None ):
+        global EdgeInfoTable, EdgeInfoKeyField
         try:
             self.outdbconn = sqlite3.connect( outdbfilename )
         except:
@@ -989,18 +1004,18 @@ class EdgeInfoReader:
         # Decode as:
         # num- fullname (sqlite name) : type
         # 1- source Id (srcid) : INTEGER
-        # 2- target Id (tgtId) : INTEGER
-        # 3- create time (ctime) : INTEGER
-        # 4- death time (dtime) : INTEGER
-        # 5- source field (srcfield) : INTEGER
+        # 2- source field (srcfield) : INTEGER
+        # 3- target Id (tgtId) : INTEGER
+        # 4- create time (ctime) : INTEGER
+        # 5- death time (dtime) : INTEGER
         # 6- stability (stability) : TEXT
-        cur.execute( """CREATE TABLE edgeinfo (srcid INTEGER,
-                                               srcfield INTEGER,
-                                               tgtid INTEGER,
-                                               ctime INTEGER,
-                                               dtime INTEGER,
-                                               stability TEXT,
-                                               UNIQUE (srcid, tgtid, srcfield, ctime))""" )
+        cur.execute( """CREATE TABLE %s (srcid INTEGER,
+                                         srcfield INTEGER,
+                                         tgtid INTEGER,
+                                         ctime INTEGER,
+                                         dtime INTEGER,
+                                         stability TEXT,
+                                         UNIQUE (srcid, tgtid, srcfield, ctime))"""  % EdgeInfoTable )
         conn.execute( 'DROP INDEX IF EXISTS idx_edgeinfo_srcid' )
         conn.execute( 'DROP INDEX IF EXISTS idx_edgeinfo_tgtid' )
         #
@@ -2210,6 +2225,7 @@ __all__ = [ "EdgeInfoReader", "GarbologyConfig", "ObjectInfoReader",
             "StabilityReader", "ObjectInfoFile2DB", "EdgeInfoFile2DB",
             "ReferenceFile2DB",
             "is_key_object", "get_index", "is_stable", "read_main_file",
+            "EdgeInfoTable", "EdgeInfoKeyField",
              ]
 
 if __name__ == "__main__":

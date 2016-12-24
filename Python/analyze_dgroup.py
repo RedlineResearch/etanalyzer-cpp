@@ -129,7 +129,10 @@ def read_dgroups_from_pickle( result = [],
         for diedbytype, total in datadict["diedby"].iteritems():
             print "        %s -> %d" % (diedbytype, total)
         max_tstamp = max( datadict["actual_ts"].keys() )
-        print "    * MAX Actual timestamp: %d" % max_tstamp
+        min_tstamp = min( datadict["actual_ts"].keys() )
+        print "    * MAX actual timestamp: %d" % max_tstamp
+        print "        - with # objects  : %d" % datadict["actual_ts"][max_tstamp]
+        print "    * min actual timestamp: %d" % min_tstamp
         print "==========================================================================="
     #===========================================================================
     # Write out to ???? TODO
