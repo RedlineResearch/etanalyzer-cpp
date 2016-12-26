@@ -707,9 +707,25 @@ class ObjectInfoFile2DB:
 EdgeInfoTable = "edgeinfo"
 EdgeInfoKeyField = "srcid"
 
+def get_src_rows( src = None,
+                  cursor = None ):
+    """Get all rows from edgeinfo table with source = src.
+       Caller must send a cursor into the SQLite DB.
+       Returns a list."""
+    global EdgeInfoTable
+    etable = EdgeInfoTable
+    assert(type(src) is int)
+    result = []
+    cursor.execute( "SELECT * FROM %s WHERE srcid=%d" %
+                    (etable, src) )
+    for row in cursor:
+        mylist.append( row )
+    return mylist
+
 class EdgeInfoReader:
     def __init__( self,
                   edgeinfo_filename = None,
+                  edgedb_filename = None,
                   stabreader = None,
                   useDB_as_source = False,
                   logger = None ):
@@ -720,7 +736,9 @@ class EdgeInfoReader:
         if not self.useDB_as_source:
             self.edgedict = {} # (src, tgt) -> (create time, death time)
         else:
-            self.edgedict = pylru.lrucache( size = cachesize )
+            self.edge_srclru = pylru.lrucache( size = cachesize )
+            self.edge_tgtlru = pylru.lrucache( size = cachesize )
+            self.dbconn = sqlite3.connect( edgedb_filename )
         # Source to target object dictionary
         self.srcdict = defaultdict( set ) # src -> set of tgts
         # Target to incoming source object dictionary
@@ -820,6 +838,7 @@ class EdgeInfoReader:
         assert( stabreader != None )
         self.stabreader = stabreader
 
+    # Read the edgeinfo file to SAVE INTO the SQlite DB.
     def read_edgeinfo_file_with_stability_into_db( self,
                                                    stabreader = None ):
         try:
@@ -882,6 +901,7 @@ class EdgeInfoReader:
         self.outdbconn.commit()
         self.outdbconn.close()
 
+    # Read the edgeinfo file for USE with the stability information.
     def read_edgeinfo_file_with_stability( self,
                                            stabreader = {} ):
         if not self.useDB_as_source:
@@ -928,14 +948,24 @@ class EdgeInfoReader:
                                                 tgt = tgt,
                                                 deathtime = dtime )
             assert(done)
-        else:
-            raise RuntimeError("TODO: Not yet implemented.")
+        # else:
+        #     The edge_srclru and edge_tgtlru have all been configured in __init__()
+        #     TODO: DEBUG only raise RuntimeError("TODO: Not yet implemented.")
 
     def get_targets( self, src = 0 ):
         if not self.useDB_as_source:
             return self.srcdict[src] if (src in self.srcdict) else []
         else:
-            return None
+            if src in self.srcdict:
+                return self.srcdict[src]
+            else:
+                # Get all records from SQlite DB
+                reclist = get_src_rows( src, self.dbconn.cursor() )
+                #  - save all the records in LRU
+                if src not in self.edge_srclru:
+                    self.edge_srclru[src] = reclist
+                #  - get all targets from the rows
+                return [ x[2] for x in reclist ]
 
     def get_sources( self, tgt = 0 ):
         return self.tgtdict[tgt] if (tgt in self.tgtdict) else []
@@ -1038,6 +1068,14 @@ class EdgeInfoReader:
                                                dtime INTEGER,
                                                srclist TEXT)""" )
         conn.execute( 'DROP INDEX IF EXISTS idx_lastedge_tgtid' )
+
+    def __save_in_srclru__( self,
+                            src = None,
+                            reclist = [] ):
+        srclru = 
+        # tgtlru = self.edge_tgtlru
+        # self.dbconn = sqlite3.connect( edgedb_filename )
+
 
 class EdgeInfoFile2DB:
     def __init__( self,
