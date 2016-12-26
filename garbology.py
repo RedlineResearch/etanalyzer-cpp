@@ -728,11 +728,10 @@ def get_tgt_rows( tgt = None,
        Caller must send a cursor into the SQLite DB.
        Returns a list."""
     global EdgeInfoTable
-    etable = EdgeInfoTable
     assert(type(tgt) is int)
     result = []
     cursor.execute( "SELECT * FROM %s WHERE tgtid=%d" %
-                    (etable, tgt) )
+                    (EdgeInfoTable, tgt) )
     for row in cursor:
         mylist.append( row )
     return mylist
@@ -793,8 +792,17 @@ class EdgeInfoReader:
                     timepair = tuple(row[2:4])
                     dtime = row[3]
                     fieldId = row[4]
-                    self.edgedict[tuple([src, fieldId, tgt])] = { "tp" : timepair,
-                                                                  "s" : "X" }  # X means unknown
+                    # TODO MAKE INTO A LIST? TODO
+                    # TODO self.edgedict[tuple([src, fieldId, tgt])] = { "tp" : timepair,
+                    # TODO                                               "s" : "X" }  # X means unknown
+                    key = tuple([src, fieldId, tgt])
+                    value = { "tp" : timepair,
+                              "s" : "X" } # X means unknown
+                    if key not in self.edgedict:
+                        self.edgedict[key] = [ value, ]
+                    else:
+                        self.edgedict[key].append(value)
+                    # END TODO. see above
                     self.srcdict[src].add( tgt )
                     self.tgtdict[tgt].add( src )
                     self.update_last_edges( src = src,
@@ -1002,16 +1010,28 @@ class EdgeInfoReader:
                 return list(srclist)
 
     def edgedict_iteritems( self ):
-        return self.edgedict.iteritems()
+        if not self.useDB_as_source:
+            return self.edgedict.iteritems()
+        else:
+            assert(False) # TODO
 
     def srcdict_iteritems( self ):
-        return self.srcdict.iteritems()
+        if not self.useDB_as_source:
+            return self.srcdict.iteritems()
+        else:
+            assert(False) # TODO
 
     def tgtdict_iteritems( self ):
-        return self.tgtdict.iteritems()
+        if not self.useDB_as_source:
+            return self.tgtdict.iteritems()
+        else:
+            assert(False) # TODO
 
     def lastedge_iteritems( self ):
-        return self.lastedge.iteritems()
+        if not self.useDB_as_source:
+            return self.lastedge.iteritems()
+        else:
+            assert(False) # TODO
 
     def print_out( self, numlines = 30 ):
         count = 0
