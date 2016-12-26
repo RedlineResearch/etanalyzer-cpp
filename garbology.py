@@ -1037,7 +1037,7 @@ class EdgeInfoReader:
         count = 0
         for edge, rec in self.edgedict.iteritems():
             timepair = rec["tp"]
-            print "(%d[ %d ], %d) -> (%d, %d)" % (edge[0], edge[1], edge[2], timepair[0], timepair[1])
+            print "(%d[ %d ], %d) -> %s" % (edge[0], edge[1], edge[2], str(timepair))
             count += 1
             if numlines != 0 and count >= numlines:
                 break
