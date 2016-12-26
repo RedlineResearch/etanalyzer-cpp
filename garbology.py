@@ -717,7 +717,10 @@ class EdgeInfoReader:
         #
         self.edgeinfo_file_name = edgeinfo_filename
         # Edge dictionary
-        self.edgedict = {} # (src, tgt) -> (create time, death time)
+        if not self.useDB_as_source:
+            self.edgedict = {} # (src, tgt) -> (create time, death time)
+        else:
+            self.edgedict = pylru.lrucache( size = cachesize )
         # Source to target object dictionary
         self.srcdict = defaultdict( set ) # src -> set of tgts
         # Target to incoming source object dictionary
@@ -731,6 +734,7 @@ class EdgeInfoReader:
         self.logger = logger
 
     def read_edgeinfo_file( self ):
+        assert( not self.useDB_as_source )
         start = False
         done = False
         with get_trace_fp( self.edgeinfo_file_name, self.logger ) as fp:
