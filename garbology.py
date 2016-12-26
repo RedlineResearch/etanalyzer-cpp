@@ -722,6 +722,21 @@ def get_src_rows( src = None,
         mylist.append( row )
     return mylist
 
+def get_tgt_rows( tgt = None,
+                  cursor = None ):
+    """Get all rows from edgeinfo table with source = tgt.
+       Caller must send a cursor into the SQLite DB.
+       Returns a list."""
+    global EdgeInfoTable
+    etable = EdgeInfoTable
+    assert(type(tgt) is int)
+    result = []
+    cursor.execute( "SELECT * FROM %s WHERE tgtid=%d" %
+                    (etable, tgt) )
+    for row in cursor:
+        mylist.append( row )
+    return mylist
+
 class EdgeInfoReader:
     def __init__( self,
                   edgeinfo_filename = None,
@@ -965,10 +980,26 @@ class EdgeInfoReader:
                 if src not in self.edge_srclru:
                     self.edge_srclru[src] = reclist
                 #  - get all targets from the rows
-                return [ x[2] for x in reclist ]
+                tgtlist = [ x[2] for x in reclist ]
+                self.srcdict[src] = tgtlist
+                return list(tgtlist)
 
     def get_sources( self, tgt = 0 ):
-        return self.tgtdict[tgt] if (tgt in self.tgtdict) else []
+        if not self.useDB_as_source:
+            return self.tgtdict[tgt] if (tgt in self.tgtdict) else []
+        else:
+            if tgt in self.tgtdict:
+                return self.tgtdict[tgt]
+            else:
+                # Get all records from SQlite DB
+                reclist = get_tgt_rows( tgt, self.dbconn.cursor() )
+                #  - save all the records in LRU
+                if tgt not in self.edge_tgtlru:
+                    self.edge_tgtlru[tgt] = reclist
+                #  - get all targets from the rows
+                srclist = [ x[2] for x in reclist ]
+                self.tgtdict[tgt] = srclist
+                return list(srclist)
 
     def edgedict_iteritems( self ):
         return self.edgedict.iteritems()
