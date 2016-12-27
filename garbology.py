@@ -1013,19 +1013,21 @@ class EdgeInfoReader:
         if not self.useDB_as_source:
             return self.edgedict.iteritems()
         else:
-            assert(False) # TODO
+            raise RuntimeError("edgedict_iteritems() isn't defined when using an SQlite DB.")
 
     def srcdict_iteritems( self ):
         if not self.useDB_as_source:
             return self.srcdict.iteritems()
         else:
-            assert(False) # TODO
+            # For DB situations, I take this to mean the srclru.
+            raise RuntimeError("srcdict_iteritems() isn't defined when using an SQlite DB. Try using srcdict_items()")
 
     def tgtdict_iteritems( self ):
         if not self.useDB_as_source:
             return self.tgtdict.iteritems()
         else:
-            assert(False) # TODO
+            # For DB situations, I take this to mean the tgtlru.
+            raise RuntimeError("tgtdict_iteritems() isn't defined when using an SQlite DB. Try using tgtdict_items()")
 
     def lastedge_iteritems( self ):
         if not self.useDB_as_source:
