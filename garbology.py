@@ -753,6 +753,7 @@ class EdgeInfoReader:
             self.edge_srclru = pylru.lrucache( size = cachesize )
             self.edge_tgtlru = pylru.lrucache( size = cachesize )
             self.dbconn = sqlite3.connect( edgedb_filename )
+            self.lastedge_pickle = edgedb_filename + ".pickle"
         # Source to target object dictionary
         self.srcdict = defaultdict( set ) # src -> set of tgts
         # Target to incoming source object dictionary
@@ -812,49 +813,6 @@ class EdgeInfoReader:
 
     def read_edgeinfo_file_into_db( self ):
         raise RuntimeError("TODO: Need to implement.")
-        start = False
-        done = False
-        sb = stabreader
-        with get_trace_fp( self.edgeinfo_file_name, self.logger ) as fp:
-            for line in fp:
-                line = line.rstrip()
-                if line.find("---------------[ EDGE INFO") == 0:
-                    start = True if not start else False
-                    if start:
-                        continue
-                    else:
-                        done = True
-                        break
-                if start:
-                    rowtmp = line.split(",")
-                    # 0 - srcId
-                    # 1 - tgtId
-                    # 2 - create time
-                    # 3 - death time
-                    # 4 - fieldId
-                    row = [ int(x) for x in rowtmp ]
-                    src = row[0]
-                    tgt = row[1]
-                    timepair = tuple(row[2:4])
-                    dtime = row[3]
-                    fieldId = row[4]
-                    try:
-                        stability = sb[src][fieldId]
-                    except:
-                        stability = "X" # X means unknown
-                    key = tuple([src, fieldId, tgt])
-                    if key not in self.edgedict:
-                        self.edgedict[key] = [ { "tp" : timepair,
-                                                 "s" : stability }, ]
-                    else:
-                        self.edgedict[key].append( { "tp" : timepair,
-                                                     "s" : stability } )
-                    self.srcdict[src].add( tgt )
-                    self.tgtdict[tgt].add( src )
-                    self.update_last_edges( src = src,
-                                            tgt = tgt,
-                                            deathtime = dtime )
-        assert(done)
 
     def update_stability_reader( self,
                                  stabreader = None ):
@@ -912,13 +870,15 @@ class EdgeInfoReader:
         cur.execute( 'CREATE INDEX idx_edgeinfo_srcid ON edgeinfo (srcid)' )
         cur.execute( 'CREATE INDEX idx_edgeinfo_tgtid ON edgeinfo (tgtid)' )
         #================================================================================
-        # Now save the lastedge dictionary
+        # Now save the lastedge dictionary as an SQlite DB
         def row_generator_lastedge():
             for tgt, mydict in self.lastedge.iteritems():
                 if len(mydict["lastsources"]) > 0:
                     yield (tgt, mydict["dtime"], str(mydict["lastsources"]))
         cur.executemany( "INSERT INTO lastedge VALUES (?,?,?)", row_generator_lastedge() )
         cur.execute( 'CREATE INDEX idx_lastedge_tgtid ON lastedge (tgtid)' )
+        # Save lastedge dictionary as a pickle too
+        self.save_lastedges_to_pickle()
         #================================================================================
         # Close the connection
         self.outdbconn.commit()
@@ -975,6 +935,10 @@ class EdgeInfoReader:
         #     The edge_srclru and edge_tgtlru have all been configured in __init__()
         #     TODO: DEBUG only raise RuntimeError("TODO: Not yet implemented.")
 
+    def save_lastedges_to_pickle( self ):
+        with open( self.lastedge_pickle, "wb" ) as fptr:
+            pickle.dump( self.lastedge, fptr )
+
     def get_targets( self, src = 0 ):
         if not self.useDB_as_source:
             return self.srcdict[src] if (src in self.srcdict) else []
@@ -1015,6 +979,8 @@ class EdgeInfoReader:
         else:
             raise RuntimeError("edgedict_iteritems() isn't defined when using an SQlite DB.")
 
+    #----------------------------------------------------------------------
+    # src dictionary related functions
     def srcdict_iteritems( self ):
         if not self.useDB_as_source:
             return self.srcdict.iteritems()
@@ -1022,6 +988,15 @@ class EdgeInfoReader:
             # For DB situations, I take this to mean the srclru.
             raise RuntimeError("srcdict_iteritems() isn't defined when using an SQlite DB. Try using srcdict_items()")
 
+    def srcdict_items( self ):
+        if not self.useDB_as_source:
+            return self.srcdict.items()
+        else:
+            # For DB situations, I take this to mean the srclru.
+            return self.srclru.items()
+
+    #----------------------------------------------------------------------
+    # tgt dictionary related functions
     def tgtdict_iteritems( self ):
         if not self.useDB_as_source:
             return self.tgtdict.iteritems()
@@ -1029,11 +1004,15 @@ class EdgeInfoReader:
             # For DB situations, I take this to mean the tgtlru.
             raise RuntimeError("tgtdict_iteritems() isn't defined when using an SQlite DB. Try using tgtdict_items()")
 
-    def lastedge_iteritems( self ):
+    def tgtdict_items( self ):
         if not self.useDB_as_source:
-            return self.lastedge.iteritems()
+            return self.tgtdict.iteritems()
         else:
-            assert(False) # TODO
+            # For DB situations, I take this to mean the tgtlru.
+            return self.tgtlru.items()
+
+    def lastedge_iteritems( self ):
+        return self.lastedge.iteritems()
 
     def print_out( self, numlines = 30 ):
         count = 0
