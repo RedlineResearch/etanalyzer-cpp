@@ -1046,7 +1046,10 @@ class EdgeInfoReader:
                                    "dtime" : deathtime }
 
     def in_lastedge_dict( self, tgtId = None ):
-        return tgtId in self.lastedge
+        if not self.useDB_as_source:
+            return tgtId in self.lastedge
+        else:
+            assert(False) # TODO TODO TODO
 
     def get_last_edge_record( self, tgtId = None ):
         return self.lastedge[tgtId] if tgtId in self.lastedge else None

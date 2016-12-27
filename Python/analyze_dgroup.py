@@ -135,10 +135,11 @@ def read_dgroups_from_pickle( result = [],
         print "    * min actual timestamp: %d" % min_tstamp
         print "==========================================================================="
     #===========================================================================
-    # Idea 2: Get the key objects
+    # Idea 2: Get the key objects TODO TODO TODO
     #
-    # - for every death group dg:
-    #       for every object obj in dg:
+    for gnum, glist in dgroups_data["group2list"].iteritems():
+        # - for every death group dg:
+        for objId in glist:
     #           get the last edge for every object
     #           look for the last edge with the latest death time
     #           save as list as there MAY be more than one last edge
