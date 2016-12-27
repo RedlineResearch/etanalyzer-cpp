@@ -135,6 +135,22 @@ def read_dgroups_from_pickle( result = [],
         print "    * min actual timestamp: %d" % min_tstamp
         print "==========================================================================="
     #===========================================================================
+    # Idea 2: Get the key objects
+    #
+    # - for every death group dg:
+    #       for every object obj in dg:
+    #           get the last edge for every object
+    #           look for the last edge with the latest death time
+    #           save as list as there MAY be more than one last edge
+    #       Got the last edge
+    #       Save per group
+    #       // STATS
+    #       * type of key object
+    #       * size stats for groups that died by stack
+    #            + first should be number of key objects
+    #            + then average size of sub death group
+
+    #===========================================================================
     # Write out to ???? TODO
     # 
     # pickle_filename = os.path.join( workdir, bmark + "-DGROUPS.pickle" )
