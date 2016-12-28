@@ -1244,6 +1244,40 @@ def create_supergraph_all_MPR( bmark = "",
     print "[%s] Number of components: %d" % (bmark, len(wcclist))
     print "[%s] Top 5 largest components: %s" % (bmark, str( [ len(x) for x in wcclist[:5] ] ))
     print "==================================================================================="
+    #---------------------------------------------------------------------------
+    #----[ Stable summary OUTPUT ]--------------------------------------------
+    #---------------------------------------------------------------------------
+    print "======[ %s ][ SUMMARY of STABLE components ]==================================" % bmark
+    # to_number_ST = 5 if len(stable_grouplist) > 5 else len(stable_grouplist)
+    for index in xrange(len(stable_grouplist)):
+        # if index >= to_number_ST:
+        #     break
+        stabledict = sumSTABLE[index]
+        print "Component %d" % index
+        for key, val in stabledict.iteritems():
+            if key == "total_objects":
+                print "    * %d objects" % val
+            elif key == "size":
+                print "    * size range - [ {:d}, {:d} ]".format(val["min"], val["max"])
+                print "    *      mean = {:.2f}    stdev = {:.2f}".format(val["mean"], val["stdev"])
+                print "    *      total size bytes = {:d}".format( val["total"] )
+            elif key == "number_alloc_times":
+                print "    * %d unique allocation times" % val
+            elif key == "number_death_times":
+                print "    * %d unique death times" % val
+            elif key == "atime":
+                print "    * alloc range - [ {:.2f}, {:.2f} ]".format(val["min_sc"], val["max_sc"])
+                print "    *      mean = {:.2f}    stdev = {:.2f}".format(val["mean_sc"], val["stdev_sc"])
+            elif key == "dtime":
+                print "    * death range - [ {:.2f}, {:.2f} ]".format(val["min_sc"], val["max_sc"])
+                print "    *      mean = {:.2f}    stdev = {:.2f}".format(val["mean_sc"], val["stdev_sc"])
+            elif key == "type_counter":
+                counts = sorted( [ (key, cnt) for key, cnt in val.items() ],
+                                 key = itemgetter(1),
+                                 reverse = True )
+                for mytup in counts:
+                    print "   * %s = %d" % (mytup[0], mytup[1])
+    print "======[ %s ][ END SUMMARY of STABLE components ]==============================" % bmark
     #=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
     # 2: DEATH SUPERGRAPH
     #=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
