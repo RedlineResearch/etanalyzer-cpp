@@ -177,6 +177,42 @@ def read_edgeinfo_with_stability_into_db( result = [],
                                   logger = logger )
     print "B:"
 
+def get_last_edge_record_for_group( group = None,
+                                    edgeinfo = None,
+                                    objectinfo = None,
+                                    group_dtime = None ):
+    latest = 0 # Time of most recent
+    srclist = []
+    tgt = 0
+    # If the group died by stack, then there are no last edges 
+    # from the heap to speak of. We look for objects without last edges.
+    assert( len(group) > 0 )
+    died_by_stack = 
+    died_by_heap = objectinfo.died_by_heap(group[0]) )
+    if objectinfo.died_by_stack( group[0]) ):
+        # We look for all edges that do not have any incoming edge with
+        # the same death time as itself. These are the ROOTS.
+        for obj in group:
+            # TODO: Need a get all edges that target 'obj'
+            srclist = edgeinfo.get_sources(obj)
+            # TODO TODO TODO: HERE 28 Dec 2016
+            # TODO cand = [ x for x in srclist if ]
+            # TODO TODO TODO: HERE 28 Dec 2016
+    elif objectinfo.died_by_heap( group[0]) ):
+        # All edges should have the same death time as the group, except
+        # for EXACTLY ONE edge with death time less than group death time.
+        elif rec["dtime"] < latest:
+            # If there is a last edge which died before the group,
+            # then the group shouldn't have died by stack. Furthermore,
+            # there can only be one such edge.
+            latest = rec["dtime"]
+            edgerec = { "srclist" : rec["lastsources"],
+                        "tgt" : obj, }
+            edgelist = [ edgerec ]
+    return { "dtime" : latest,
+             "lastsources" : srclist,
+             "target" : tgt }
+
 def main_process( global_config = {},
                   main_config = {},
                   worklist_config = {},

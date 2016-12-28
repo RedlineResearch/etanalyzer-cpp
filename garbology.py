@@ -267,6 +267,7 @@ class ObjectInfoReader:
                                         logger = self.logger )
 
     def create_objectinfo_db( self, outdbfilename = None ):
+        self.outdbfilename = outdbfilename
         # Note that outdbconn will not be closed here.
         try:
             self.outdbconn = sqlite3.connect( outdbfilename )
@@ -706,6 +707,8 @@ class ObjectInfoFile2DB:
 
 EdgeInfoTable = "edgeinfo"
 EdgeInfoKeyField = "srcid"
+LastEdgeTable = "lastedge"
+LastEdgeKeyField = "tgtid"
 
 def get_src_rows( src = None,
                   cursor = None ):
@@ -732,6 +735,21 @@ def get_tgt_rows( tgt = None,
     result = []
     cursor.execute( "SELECT * FROM %s WHERE tgtid=%d" %
                     (EdgeInfoTable, tgt) )
+    for row in cursor:
+        mylist.append( row )
+    return mylist
+
+def get_lastedge_rec_from_DB( tgt = None,
+                              cursor = None ):
+    """Get all rows from lastedge table with source = tgt.
+       Caller must send a cursor into the SQLite DB.
+       Returns a list."""
+    global LastEdgeTable
+    ltable = LastEdgeTable
+    assert(type(tgt) is int)
+    result = []
+    cursor.execute( "SELECT * FROM %s WHERE tgtid=%d" %
+                    (ltable, tgt) )
     for row in cursor:
         mylist.append( row )
     return mylist
@@ -878,7 +896,7 @@ class EdgeInfoReader:
         cur.executemany( "INSERT INTO lastedge VALUES (?,?,?)", row_generator_lastedge() )
         cur.execute( 'CREATE INDEX idx_lastedge_tgtid ON lastedge (tgtid)' )
         # Save lastedge dictionary as a pickle too
-        self.save_lastedges_to_pickle()
+        self.save_lastedges_to_pickle( self.outdbfilename )
         #================================================================================
         # Close the connection
         self.outdbconn.commit()
@@ -935,8 +953,8 @@ class EdgeInfoReader:
         #     The edge_srclru and edge_tgtlru have all been configured in __init__()
         #     TODO: DEBUG only raise RuntimeError("TODO: Not yet implemented.")
 
-    def save_lastedges_to_pickle( self ):
-        with open( self.lastedge_pickle, "wb" ) as fptr:
+    def save_lastedges_to_pickle( self, lastedge_pickle = None ):
+        with open( lastedge_pickle, "wb" ) as fptr:
             pickle.dump( self.lastedge, fptr )
 
     def get_targets( self, src = 0 ):
@@ -955,6 +973,46 @@ class EdgeInfoReader:
                 tgtlist = [ x[2] for x in reclist ]
                 self.srcdict[src] = tgtlist
                 return list(tgtlist)
+
+    def get_edge_targets( self, src = 0 ):
+        if not self.useDB_as_source:
+            raise RuntimeError("TODO: To be implemented")
+            # return self.srcdict[src] if (src in self.srcdict) else []
+        else:
+            raise RuntimeError("TODO: To be implemented")
+            # if src in self.srcdict:
+            #     return self.srcdict[src]
+            # else:
+            #     # Get all records from SQlite DB
+            #     reclist = get_src_rows( src, self.dbconn.cursor() )
+            #     #  - save all the records in LRU
+            #     if src not in self.edge_srclru:
+            #         self.edge_srclru[src] = reclist
+            #     #  - get all targets from the rows
+            #     tgtlist = [ x[2] for x in reclist ]
+            #     self.srcdict[src] = tgtlist
+            #     return list(tgtlist)
+
+    def get_edge_sources( self, tgt = 0 ):
+        if not self.useDB_as_source:
+            raise RuntimeError("TODO: To be implemented")
+            return self.tgtdict[tgt] if (tgt in self.tgtdict) else []
+        else:
+            raise RuntimeError("TODO: To be implemented")
+            if tgt in self.tgtdict:
+                return self.tgtlru[tgt]
+            else:
+                # Get all records from SQlite DB
+                reclist = get_tgt_rows( tgt, self.dbconn.cursor() )
+                #  - save all the records in LRU
+                if tgt not in self.edge_tgtlru:
+                    self.edge_tgtlru[tgt] = reclist
+                #  - get all targets from the rows
+                srclist = [ x[2] for x in reclist ]
+                self.tgtdict[tgt] = srclist
+                # NOTE: We return reclist, NOT srclist.
+                #       We want the whole record here, not just the source object.
+                return list(reclist)
 
     def get_sources( self, tgt = 0 ):
         if not self.useDB_as_source:
@@ -1023,12 +1081,14 @@ class EdgeInfoReader:
             if numlines != 0 and count >= numlines:
                 break
 
-    def get_edge_times( self, edge = None ):
-        """The parameter 'edge' is a tuple (src object, field Id, tgt object)."""
+    def get_edge_timepair( self, edge = None ):
+        """The parameter 'edge' is a tuple (src object, field Id, tgt object).
+        Returns the (alloc, death) pair.
+        """
         if edge in self.edgedict:
-            return self.edgedict[ edge ]
+            return self.edgedict[ edge ]["tp"]
         else:
-            return (None, None)
+            return None
 
     def update_last_edges( self,
                            src = None,
@@ -1052,10 +1112,28 @@ class EdgeInfoReader:
             assert(False) # TODO TODO TODO
 
     def get_last_edge_record( self, tgtId = None ):
-        return self.lastedge[tgtId] if tgtId in self.lastedge else None
+        if not self.useDB_as_source:
+            return self.lastedge[tgtId] if tgtId in self.lastedge else None
+        else:
+            reclist = get_lastedge_rec_from_DB( tgt = tgtId,
+                                                self.dbconn.cursor() )
+            assert( len(reclist) <= 1 )
+            # The record looks like this:
+            # 1- target Id (tgtid) : INTEGER
+            # 2- death time (dtime) : INTEGER
+            # 3- last source list (srclist) : TEXT
+            #     NOTE: see create_edgeinfo_db and keep this doc updated
+            if len(reclist) == 1:
+                rec = reclist[0]
+                lastsources = [ int(x) for x in rec[2].split(",") ]
+                return { "lastsources" : lastsources,
+                         "dtime" : rec[1] }
+            else:
+                # No last edge
+                return None
 
     def create_edgeinfo_db( self, outdbfilename = None ):
-        global EdgeInfoTable, EdgeInfoKeyField
+        global EdgeInfoTable
         try:
             self.outdbconn = sqlite3.connect( outdbfilename )
         except:
