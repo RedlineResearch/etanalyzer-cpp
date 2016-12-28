@@ -1,5 +1,6 @@
 *swp
 *swo
+.*sw?
 *.log
 *.o
 simulator
@@ -20,3 +21,5 @@ simulator-edges
 version.cpp
 simulator-type1
 simulator-find-main
+*~
+z-DEL
