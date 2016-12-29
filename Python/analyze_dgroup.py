@@ -27,7 +27,7 @@ from mypytools import check_host, create_work_directory, process_host_config, \
 
 # The garbology related library. Import as follows.
 # Check garbology.py for other imports
-from garbology import ObjectInfoReader
+from garbology import ObjectInfoReader, get_edgeinfo_db_filename, EdgeInfoReader
 #     ObjectInfoFile2DB, EdgeInfoFile2DB, StabilityReader
 
 # Needed to read in *-OBJECTINFO.txt and other files from
@@ -87,7 +87,6 @@ def read_dgroups_from_pickle( result = [],
                               mprflag = False,
                               dgroups2db_config = {},
                               objectinfo_db_config = {},
-                              edgeinfo_db_config = {},
                               cycle_cpp_dir = "",
                               obj_cachesize = 5000000,
                               debugflag = False,
@@ -113,15 +112,17 @@ def read_dgroups_from_pickle( result = [],
     sys.stdout.flush()
     oread_start = time.clock()
     print " - Using objectinfo DB:"
-    db_filename = os.path.join( cycle_cpp_dir,
-                                edgeinfo_db_config[bmark] )
-    objreader = EdgeInfoReader( useDB_as_source = True,
-                                db_filename = db_filename,
-                                cachesize = obj_cachesize,
-                                logger = logger )
-    objreader.read_objinfo_file()
-    #===========================================================================
-    # Read in DGROUPS from the pickle file
+    edgedb_filename = get_edgeinfo_db_filename( workdir = cycle_cpp_dir,
+                                                bmark = bmark )
+    print "EDGEDB:", edgedb_filename
+    edgereader = EdgeInfoReader( useDB_as_source = True,
+                                 edgedb_filename = edgedb_filename,
+                                 cachesize = obj_cachesize,
+                                 logger = logger )
+    # Unlike the ObjectInfoReader for DB files, EdgeInfoReader does all the 
+    # necessary initialization in __init__. I need to fix this aysmmetry in 
+    # the API design somehow. Maybe later. TODO TODO - RLV 29 Dec 2016
+    #=========================================================================== # Read in DGROUPS from the pickle file
     picklefile = os.path.join( dgroups2db_config["output"],
                                bmark + dgroups2db_config["file-dgroups"] )
     assert(os.path.isfile(picklefile))
@@ -158,6 +159,8 @@ def read_dgroups_from_pickle( result = [],
                                         edgeinfo = None,
                                         objectinfo = None,
                                         group_dtime = None )
+        print "DONE."
+        exit(111)
     #           look for the last edge with the latest death time
     #           save as list as there MAY be more than one last edge
     #       Got the last edge
@@ -207,7 +210,7 @@ def get_last_edge_record_for_group( group = None,
     # Get the group death time. This works because by definition, all objects
     # in this group have the same death time.
     dtime = objectinfo.get_death_time( group[0] )
-    if objectinfo.died_by_stack( group[0]) ):
+    if objectinfo.died_by_stack( group[0]):
         srcdict = {}
         tgtdict = {}
         # DIED BY STACK
@@ -227,11 +230,11 @@ def get_last_edge_record_for_group( group = None,
         for tgt, srclist in srcdict.iteritems():
             if len(srclist) == 0:
                 roots.append(tgt)
-    elif objectinfo.died_by_heap( group[0]) ):
+    elif objectinfo.died_by_heap( group[0]):
         # DIED BY HEAP
         # All edges should have the same death time as the group, except
         # for EXACTLY ONE edge with death time less than group death time.
-        elif rec["dtime"] < latest:
+        if rec["dtime"] < latest:
             # If there is a last edge which died before the group,
             # then the group shouldn't have died by stack. Furthermore,
             # there can only be one such edge.
@@ -239,6 +242,7 @@ def get_last_edge_record_for_group( group = None,
             edgerec = { "srclist" : rec["lastsources"],
                         "tgt" : obj, }
             edgelist = [ edgerec ]
+        # TODO TODO What else here? TODO
     else:
         pass
         # PROGRAM END?
@@ -254,7 +258,6 @@ def main_process( global_config = {},
                   objectinfo_db_config = {},
                   cachesize_config = {},
                   # TODO objectinfo_config = {},
-                  # TODO edgeinfo_config = {},
                   # TODO stability_config = {},
                   mprflag = False,
                   debugflag = False,
@@ -308,7 +311,6 @@ def main_process( global_config = {},
                                   mprflag,
                                   dgroups2db_config,
                                   objectinfo_db_config,
-                                  edgeinfo_db_config,
                                   cycle_cpp_dir,
                                   cachesize,
                                   debugflag,
@@ -451,7 +453,6 @@ def main():
     objectinfo_db_config = configdict["objectinfo_db"]
     cachesize_config = configdict["cachesize"]
     # TODO objectinfo_config = configdict["objectinfo"]
-    # TODO edgeinfo_config = configdict["edgeinfo"]
     # TODO stability_config = configdict["stability"]
     # TODO DEBUG TODO
     print "================================================================================"
@@ -477,7 +478,6 @@ def main():
                          dgroups2db_config = dgroups2db_config,
                          objectinfo_db_config = objectinfo_db_config,
                          cachesize_config = cachesize_config,
-                         # MAYBE edgeinfo_config = edgeinfo_config,
                          # MAYBE stability_config = stability_config,
                          mprflag = args.mprflag,
                          logger = logger )
