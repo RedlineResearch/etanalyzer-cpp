@@ -87,6 +87,7 @@ def read_dgroups_from_pickle( result = [],
                               mprflag = False,
                               dgroups2db_config = {},
                               objectinfo_db_config = {},
+                              edgeinfo_db_config = {},
                               cycle_cpp_dir = "",
                               obj_cachesize = 5000000,
                               debugflag = False,
@@ -105,6 +106,19 @@ def read_dgroups_from_pickle( result = [],
                                   db_filename = db_filename,
                                   cachesize = obj_cachesize,
                                   logger = logger )
+    objreader.read_objinfo_file()
+    #===========================================================================
+    # Read in EDGEINFO
+    print "Reading in the EDGEINFO file for benchmark:", bmark
+    sys.stdout.flush()
+    oread_start = time.clock()
+    print " - Using objectinfo DB:"
+    db_filename = os.path.join( cycle_cpp_dir,
+                                edgeinfo_db_config[bmark] )
+    objreader = EdgeInfoReader( useDB_as_source = True,
+                                db_filename = db_filename,
+                                cachesize = obj_cachesize,
+                                logger = logger )
     objreader.read_objinfo_file()
     #===========================================================================
     # Read in DGROUPS from the pickle file
@@ -139,8 +153,11 @@ def read_dgroups_from_pickle( result = [],
     #
     for gnum, glist in dgroups_data["group2list"].iteritems():
         # - for every death group dg:
-        for objId in glist:
-    #           get the last edge for every object
+        #       get the last edge for every object
+        get_last_edge_record_for_group( group = glist,
+                                        edgeinfo = None,
+                                        objectinfo = None,
+                                        group_dtime = None )
     #           look for the last edge with the latest death time
     #           save as list as there MAY be more than one last edge
     #       Got the last edge
@@ -187,18 +204,31 @@ def get_last_edge_record_for_group( group = None,
     # If the group died by stack, then there are no last edges 
     # from the heap to speak of. We look for objects without last edges.
     assert( len(group) > 0 )
-    died_by_stack = 
-    died_by_heap = objectinfo.died_by_heap(group[0]) )
+    # Get the group death time. This works because by definition, all objects
+    # in this group have the same death time.
+    dtime = objectinfo.get_death_time( group[0] )
     if objectinfo.died_by_stack( group[0]) ):
-        # We look for all edges that do not have any incoming edge with
+        srcdict = {}
+        tgtdict = {}
+        # DIED BY STACK
+        # We look for all objects that do not have any incoming edge with
         # the same death time as itself. These are the ROOTS.
         for obj in group:
             # TODO: Need a get all edges that target 'obj'
+            # * Incoming edges
             srclist = edgeinfo.get_sources(obj)
-            # TODO TODO TODO: HERE 28 Dec 2016
-            # TODO cand = [ x for x in srclist if ]
-            # TODO TODO TODO: HERE 28 Dec 2016
+            # We only want the ones that died with the object
+            srccand = [ x for x in srclist if x[4] == dtime ]
+            for x in srccand:
+                # This should be a correct invariant:
+                assert( x in group )
+            srcdict[obj] = srccand
+        roots = []
+        for tgt, srclist in srcdict.iteritems():
+            if len(srclist) == 0:
+                roots.append(tgt)
     elif objectinfo.died_by_heap( group[0]) ):
+        # DIED BY HEAP
         # All edges should have the same death time as the group, except
         # for EXACTLY ONE edge with death time less than group death time.
         elif rec["dtime"] < latest:
@@ -209,6 +239,9 @@ def get_last_edge_record_for_group( group = None,
             edgerec = { "srclist" : rec["lastsources"],
                         "tgt" : obj, }
             edgelist = [ edgerec ]
+    else:
+        pass
+        # PROGRAM END?
     return { "dtime" : latest,
              "lastsources" : srclist,
              "target" : tgt }
@@ -275,6 +308,7 @@ def main_process( global_config = {},
                                   mprflag,
                                   dgroups2db_config,
                                   objectinfo_db_config,
+                                  edgeinfo_db_config,
                                   cycle_cpp_dir,
                                   cachesize,
                                   debugflag,
