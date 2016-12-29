@@ -64,15 +64,15 @@ def setup_logger( targetdir = ".",
 #
 
 def check_diedby_stats( dgroups_data = {},
-                        objreader = {} ):
+                        objectinfo = {} ):
     result = defaultdict( dict )
     tmp = 0
     for gnum, glist in dgroups_data["group2list"].iteritems():
         result[gnum]["diedby"] = Counter()
         result[gnum]["actual_ts"] = Counter()
         for objId in glist:
-            cause = objreader.get_death_cause(objId)
-            last_actual_ts = objreader.get_last_actual_timestamp(objId)
+            cause = objectinfo.get_death_cause(objId)
+            last_actual_ts = objectinfo.get_last_actual_timestamp(objId)
             result[gnum]["diedby"][cause] += 1
             result[gnum]["actual_ts"][last_actual_ts] += 1
         # DEBUG
@@ -101,11 +101,11 @@ def read_dgroups_from_pickle( result = [],
     print " - Using objectinfo DB:"
     db_filename = os.path.join( cycle_cpp_dir,
                                 objectinfo_db_config[bmark] )
-    objreader = ObjectInfoReader( useDB_as_source = True,
-                                  db_filename = db_filename,
-                                  cachesize = obj_cachesize,
-                                  logger = logger )
-    objreader.read_objinfo_file()
+    objectinfo = ObjectInfoReader( useDB_as_source = True,
+                                   db_filename = db_filename,
+                                   cachesize = obj_cachesize,
+                                   logger = logger )
+    objectinfo.read_objinfo_file()
     #===========================================================================
     # Read in EDGEINFO
     print "Reading in the EDGEINFO file for benchmark:", bmark
@@ -115,10 +115,10 @@ def read_dgroups_from_pickle( result = [],
     edgedb_filename = get_edgeinfo_db_filename( workdir = cycle_cpp_dir,
                                                 bmark = bmark )
     print "EDGEDB:", edgedb_filename
-    edgereader = EdgeInfoReader( useDB_as_source = True,
-                                 edgedb_filename = edgedb_filename,
-                                 cachesize = obj_cachesize,
-                                 logger = logger )
+    edgeinfo = EdgeInfoReader( useDB_as_source = True,
+                               edgedb_filename = edgedb_filename,
+                               cachesize = obj_cachesize,
+                               logger = logger )
     # Unlike the ObjectInfoReader for DB files, EdgeInfoReader does all the 
     # necessary initialization in __init__. I need to fix this aysmmetry in 
     # the API design somehow. Maybe later. TODO TODO - RLV 29 Dec 2016
@@ -134,7 +134,7 @@ def read_dgroups_from_pickle( result = [],
     # Idea 1: for each group, check that each object in the group have the same
     # died by
     diedby_results = check_diedby_stats( dgroups_data = dgroups_data,
-                                         objreader = objreader )
+                                         objectinfo = objectinfo )
     print "==========================================================================="
     for gnum, datadict in diedby_results.iteritems():
         assert("diedby" in datadict)
@@ -152,15 +152,19 @@ def read_dgroups_from_pickle( result = [],
     #===========================================================================
     # Idea 2: Get the key objects TODO TODO TODO
     #
+    print "--------------------------------------------------------------------------------"
+    count = 0
     for gnum, glist in dgroups_data["group2list"].iteritems():
         # - for every death group dg:
         #       get the last edge for every object
-        get_last_edge_record_for_group( group = glist,
-                                        edgeinfo = None,
-                                        objectinfo = None,
-                                        group_dtime = None )
-        print "DONE."
-        exit(111)
+        result = get_last_edge_record_for_group( group = glist,
+                                                 edgeinfo = edgeinfo,
+                                                 objectinfo = objectinfo,
+                                                 group_dtime = None )
+        count += 1
+        print "%d: %s" % (count, result)
+        print "--------------------------------------------------------------------------------"
+    exit(111)
     #           look for the last edge with the latest death time
     #           save as list as there MAY be more than one last edge
     #       Got the last edge
@@ -211,6 +215,7 @@ def get_last_edge_record_for_group( group = None,
     # in this group have the same death time.
     dtime = objectinfo.get_death_time( group[0] )
     if objectinfo.died_by_stack( group[0]):
+        print "DBS: %d" % len(group)
         srcdict = {}
         tgtdict = {}
         # DIED BY STACK
@@ -219,9 +224,14 @@ def get_last_edge_record_for_group( group = None,
         for obj in group:
             # TODO: Need a get all edges that target 'obj'
             # * Incoming edges
-            srclist = edgeinfo.get_sources(obj)
+            srclist = edgeinfo.get_sources_records(obj)
             # We only want the ones that died with the object
-            srccand = [ x for x in srclist if x[4] == dtime ]
+            # TODO: This index is for the old version of the SQlite DB.
+            #   - Need to centralize the layout of the DB in garbology and
+            #     import from there.
+            dtimes = Counter([ x[3] for x in srclist ])
+            print "XXX: %d -> %s" % (dtime, str(dict(dtimes)))
+            srccand = [ x[0] for x in srclist if x[3] == dtime ]
             for x in srccand:
                 # This should be a correct invariant:
                 assert( x in group )
@@ -231,19 +241,21 @@ def get_last_edge_record_for_group( group = None,
             if len(srclist) == 0:
                 roots.append(tgt)
     elif objectinfo.died_by_heap( group[0]):
+        print "DBH: %d" % len(group)
         # DIED BY HEAP
         # All edges should have the same death time as the group, except
         # for EXACTLY ONE edge with death time less than group death time.
-        if rec["dtime"] < latest:
-            # If there is a last edge which died before the group,
-            # then the group shouldn't have died by stack. Furthermore,
-            # there can only be one such edge.
-            latest = rec["dtime"]
-            edgerec = { "srclist" : rec["lastsources"],
-                        "tgt" : obj, }
-            edgelist = [ edgerec ]
+        # TODO: if rec["dtime"] < latest:
+        # TODO:     # If there is a last edge which died before the group,
+        # TODO:     # then the group shouldn't have died by stack. Furthermore,
+        # TODO:     # there can only be one such edge.
+        # TODO:     latest = rec["dtime"]
+        # TODO:     edgerec = { "srclist" : rec["lastsources"],
+        # TODO:                 "tgt" : obj, }
+        # TODO:     edgelist = [ edgerec ]
         # TODO TODO What else here? TODO
     else:
+        print "NONEOFTHEABOVE - PROGEND? - %d" % len(group)
         pass
         # PROGRAM END?
     return { "dtime" : latest,

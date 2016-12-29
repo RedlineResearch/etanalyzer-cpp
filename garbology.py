@@ -741,9 +741,14 @@ def get_tgt_rows( tgt = None,
     result = []
     cursor.execute( "SELECT * FROM %s WHERE tgtid=%d" %
                     (EdgeInfoTable, tgt) )
-    for row in cursor:
-        mylist.append( row )
-    return mylist
+    while True:
+        reclist = cursor.fetchmany()
+        if len(reclist) > 0:
+            for row in reclist:
+                result.append( row )
+        else:
+            break
+    return result 
 
 def get_lastedge_rec_from_DB( tgt = None,
                               cursor = None ):
@@ -876,18 +881,21 @@ class EdgeInfoReader:
                         row = [ int(x) for x in rowtmp ]
                         src = row[0]
                         tgt = row[1]
+                        ctime = row[2]
                         dtime = row[3]
                         fieldId = row[4]
+                        newrow = [ src, fieldId, tgt, ctime, dtime ]
                         # timepair = tuple(row[2:4])
                         try:
                             stability = sb[src][fieldId]
                         except:
                             stability = "X" # X means unknown
-                        row.append(stability)
+                        stability = "Z"
+                        newrow.append(stability)
                         self.update_last_edges( src = src,
                                                 tgt = tgt,
                                                 deathtime = dtime )
-                        yield tuple(row)
+                        yield tuple(newrow)
             # End generator
         #================================================================================
         cur = self.outdbconn.cursor()
@@ -1021,22 +1029,32 @@ class EdgeInfoReader:
                 #       We want the whole record here, not just the source object.
                 return list(reclist)
 
+    def get_sources_records( self, tgt = 0 ):
+        if not self.useDB_as_source:
+            raise ValueError("This shouldn't be called if not using an SQlite DB.")
+        else:
+            if tgt in self.edge_tgtlru:
+                return  self.edge_tgtlru[tgt]
+            # Get all records from SQlite DB
+            reclist = get_tgt_rows( tgt, self.dbconn.cursor() )
+            print "Z: %s" % str(reclist)
+            #  - save all the records in LRU
+            if tgt not in self.edge_tgtlru:
+                self.edge_tgtlru[tgt] = reclist
+            #  - get all targets from the rows
+            srclist = [ x[2] for x in reclist ]
+            self.tgtdict[tgt] = srclist
+            return list(reclist)
+
     def get_sources( self, tgt = 0 ):
         if not self.useDB_as_source:
             return self.tgtdict[tgt] if (tgt in self.tgtdict) else []
         else:
-            if tgt in self.tgtdict:
-                return self.tgtdict[tgt]
-            else:
-                # Get all records from SQlite DB
-                reclist = get_tgt_rows( tgt, self.dbconn.cursor() )
-                #  - save all the records in LRU
-                if tgt not in self.edge_tgtlru:
-                    self.edge_tgtlru[tgt] = reclist
-                #  - get all targets from the rows
-                srclist = [ x[2] for x in reclist ]
-                self.tgtdict[tgt] = srclist
-                return list(srclist)
+            if tgt not in self.tgtdict:
+                self.get_sources_records(tgt)
+                # Side effect of this call is to populate the appropriate entry
+                # in the tgtdict dictionary.
+            return self.tgtdict[tgt]
 
     def edgedict_iteritems( self ):
         if not self.useDB_as_source:
