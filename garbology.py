@@ -911,7 +911,7 @@ class EdgeInfoReader:
         cur.executemany( "INSERT INTO lastedge VALUES (?,?,?)", row_generator_lastedge() )
         cur.execute( 'CREATE INDEX idx_lastedge_tgtid ON lastedge (tgtid)' )
         # Save lastedge dictionary as a pickle too
-        self.save_lastedges_to_pickle( self.outdbfilename )
+        self.save_lastedges_to_pickle( self.outdbfilename + ".pickle" )
         #================================================================================
         # Close the connection
         self.outdbconn.commit()
@@ -1159,6 +1159,7 @@ class EdgeInfoReader:
 
     def create_edgeinfo_db( self, outdbfilename = None ):
         global EdgeInfoTable
+        self.outdbfilename = outdbfilename
         try:
             self.outdbconn = sqlite3.connect( outdbfilename )
         except:
