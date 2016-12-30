@@ -506,9 +506,8 @@ class Object
         VTime_t getDeathTime() const {
             return m_deathTime;
         }
-        void setDeathTime( VTime_t new_deathtime ) {
-            this->m_deathTime = new_deathtime;
-        }
+        void setDeathTime( VTime_t new_deathtime );
+
         VTime_t getCreateTimeAlloc() const { return this->m_createTime_alloc; }
         VTime_t getDeathTimeAlloc() const { return m_deathTime_alloc; }
         Color getColor() const { return m_color; }

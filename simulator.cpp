@@ -335,6 +335,7 @@ void apply_merlin( std::deque< Object * > &new_garbage )
                       ptr++ ) {
                     Edge *edge = ptr->second;
                     if (edge) {
+                        edge->setEndTime( tstamp_max );
                         Object *mytgt = edge->getTarget();
                         if (mytgt) {
                             // Get timestamp
@@ -344,7 +345,7 @@ void apply_merlin( std::deque< Object * > &new_garbage )
                             } else {
                                 tstamp_max = tstmp;
                             }
-                            otmp->setDeathTime( mytgt->getLastTimestamp() );
+                            mytgt->setDeathTime( mytgt->getLastTimestamp() );
                             mystack.push_front( mytgt );
                         }
                     }

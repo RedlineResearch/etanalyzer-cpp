@@ -996,3 +996,7 @@ void Object::incrementRefCountReal()
     // }
 }
 
+void Object::setDeathTime( VTime_t new_deathtime )
+{
+    this->m_deathTime = new_deathtime;
+}
