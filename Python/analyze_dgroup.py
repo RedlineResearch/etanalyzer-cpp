@@ -221,6 +221,7 @@ def get_last_edge_record_for_group( group = None,
         # DIED BY STACK
         # We look for all objects that do not have any incoming edge with
         # the same death time as itself. These are the ROOTS.
+        none_count = 0
         for obj in group:
             # TODO: Need a get all edges that target 'obj'
             # * Incoming edges
@@ -230,12 +231,18 @@ def get_last_edge_record_for_group( group = None,
             #   - Need to centralize the layout of the DB in garbology and
             #     import from there.
             dtimes = Counter([ x[3] for x in srclist ])
-            print "XXX: %d -> %s" % (dtime, str(dict(dtimes)))
             srccand = [ x[0] for x in srclist if x[3] == dtime ]
+            if len(srccand) > 0:
+                print "XXX: %d -> %s" % (dtime, str(srccand))
+            else:
+                none_count += 1
             for x in srccand:
                 # This should be a correct invariant:
-                assert( x in group )
+                if x not in group:
+                    print "DEBUG: %d not in group with dtime[ %d ] vs groupdtime[ %d ]" % \
+                        (x, objectinfo.get_death_time(x), dtime)
             srcdict[obj] = srccand
+        print "ZZZ:", none_count
         roots = []
         for tgt, srclist in srcdict.iteritems():
             if len(srclist) == 0:

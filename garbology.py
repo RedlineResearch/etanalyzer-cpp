@@ -890,7 +890,6 @@ class EdgeInfoReader:
                             stability = sb[src][fieldId]
                         except:
                             stability = "X" # X means unknown
-                        stability = "Z"
                         newrow.append(stability)
                         self.update_last_edges( src = src,
                                                 tgt = tgt,
@@ -1037,7 +1036,6 @@ class EdgeInfoReader:
                 return  self.edge_tgtlru[tgt]
             # Get all records from SQlite DB
             reclist = get_tgt_rows( tgt, self.dbconn.cursor() )
-            print "Z: %s" % str(reclist)
             #  - save all the records in LRU
             if tgt not in self.edge_tgtlru:
                 self.edge_tgtlru[tgt] = reclist
@@ -1403,17 +1401,20 @@ class DeathGroupsReader:
                     dg = list( set(dg) )
                     for objId in dg:
                         dtime = oir.get_death_time(objId)
-                        if objId not in self.obj2group:
-                            if dtime not in self.dtime2group:
-                                last_groupnum += 1
-                                groupnum = last_groupnum
-                            else:
-                                groupnum = self.dtime2group[dtime]
+                        if dtime not in self.dtime2group:
+                            last_groupnum += 1
+                            groupnum = last_groupnum
+                            self.map_obj2group( objId = objId,
+                                                groupnum = groupnum )
+                            self.map_group2dtime( groupnum = groupnum,
+                                                  dtime = dtime )
                         else:
                             groupnum = self.dtime2group[dtime]
-                        self.map_obj2group( objId = objId,
-                                            groupnum = groupnum )
-                        self.map_group2dtime( groupnum = groupnum, dtime = dtime )
+                            if objId in self.obj2group:
+                                assert( dtime == self.group2dtime[groupnum] )
+                            else:
+                                self.map_obj2group( objId = objId,
+                                                    groupnum = groupnum )
                     self.group2list[groupnum].extend( dg )
                     last_groupnum += 1
                     if debugflag:
