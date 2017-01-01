@@ -526,7 +526,7 @@ unsigned int read_trace_file(FILE* f)
                                               field_id,
                                               Exec.NowUp(),
                                               topMethod, // for death site info
-                                              HEAP, // reason
+                                              Reason::HEAP, // reason
                                               NULL, // death root 0 because may not be a root
                                               lastevent ); // last event to determine cause
                             // NOTE: topMethod COULD be NULL here.
@@ -571,18 +571,18 @@ unsigned int read_trace_file(FILE* f)
                         unsigned int threadId = tokenizer.getInt(2);
                         LastEvent lastevent = obj->getLastEvent();
                         // Set the died by flags
-                        if ( (lastevent == UPDATE_AWAY_TO_NULL) ||
-                             (lastevent == UPDATE_AWAY_TO_VALID) ||
-                             (lastevent == UPDATE_UNKNOWN) ) {
+                        if ( (lastevent == LastEvent::UPDATE_AWAY_TO_NULL) ||
+                             (lastevent == LastEvent::UPDATE_AWAY_TO_VALID) ||
+                             (lastevent == LastEvent::UPDATE_UNKNOWN) ) {
                             if (obj->wasLastUpdateFromStatic()) {
                                 obj->setDiedByGlobalFlag();
                             }
                             // Design decision: all died by globals are
                             // also died by heap.
                             obj->setDiedByHeapFlag();
-                        } else if ( (lastevent == ROOT) ||
-                                    (lastevent == OBJECT_DEATH_AFTER_ROOT_DECRC) ||
-                                    (lastevent == OBJECT_DEATH_AFTER_UPDATE_DECRC) ) {
+                        } else if ( (lastevent == LastEvent::ROOT) ||
+                                    (lastevent == LastEvent::OBJECT_DEATH_AFTER_ROOT_DECRC) ||
+                                    (lastevent == LastEvent::OBJECT_DEATH_AFTER_UPDATE_DECRC) ) {
                             obj->setDiedByStackFlag();
                         }
                         //else {
@@ -623,9 +623,9 @@ unsigned int read_trace_file(FILE* f)
                             // Death reason setting
                             Reason myreason;
                             if (thread->isLocalVariable(obj)) {
-                                myreason = STACK;
+                                myreason = Reason::STACK;
                             } else {
-                                myreason = HEAP;
+                                myreason = Reason::HEAP;
                             }
                             // Recursively make the edges dead and assign the proper death cause
                             for ( EdgeMap::iterator p = obj->getEdgeMapBegin();

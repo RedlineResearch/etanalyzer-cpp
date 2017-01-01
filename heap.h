@@ -20,28 +20,30 @@ class Object;
 class Thread;
 class Edge;
 
-enum Reason {
-    STACK = 1,
-    HEAP = 2,
-    GLOBAL = 3,
-    END_OF_PROGRAM_REASON = 8,
-    UNKNOWN_REASON = 99,
+enum class Reason
+    : std::uint8_t {
+    STACK,
+    HEAP,
+    GLOBAL,
+    END_OF_PROGRAM_REASON,
+    UNKNOWN_REASON
 };
 
-enum LastEvent {
-    NEWOBJECT = 1,
-    ROOT = 2,
-    DECRC = 6,
-    UPDATE_UNKNOWN = 89,
-    UPDATE_AWAY_TO_NULL = 7,
-    UPDATE_AWAY_TO_VALID = 8,
-    OBJECT_DEATH_AFTER_ROOT = 9,
-    OBJECT_DEATH_AFTER_UPDATE = 10,
-    OBJECT_DEATH_AFTER_ROOT_DECRC = 11, // from OBJECT_DEATH_AFTER_ROOT
-    OBJECT_DEATH_AFTER_UPDATE_DECRC = 12, // from OBJECT_DEATH_AFTER_UPDATE
-    OBJECT_DEATH_AFTER_UNKNOWN = 13,
-    END_OF_PROGRAM_EVENT = 21,
-    UNKNOWN_EVENT = 99,
+enum class LastEvent
+    : std::uint16_t {
+    NEWOBJECT,
+    ROOT,
+    DECRC,
+    UPDATE_UNKNOWN,
+    UPDATE_AWAY_TO_NULL,
+    UPDATE_AWAY_TO_VALID,
+    OBJECT_DEATH_AFTER_ROOT,
+    OBJECT_DEATH_AFTER_UPDATE,
+    OBJECT_DEATH_AFTER_ROOT_DECRC, // from OBJECT_DEATH_AFTER_ROOT
+    OBJECT_DEATH_AFTER_UPDATE_DECRC, // from OBJECT_DEATH_AFTER_UPDATE
+    OBJECT_DEATH_AFTER_UNKNOWN,
+    END_OF_PROGRAM_EVENT,
+    UNKNOWN_EVENT,
 };
 
 string lastevent2str( LastEvent le );
@@ -64,11 +66,12 @@ enum class KeyType {
 
 string keytype2str( KeyType ktype );
 
-enum class CPairType {
-    CP_Call = 1,
-    CP_Return = 2,
-    CP_Both = 3,
-    CP_None = 99,
+enum class CPairType
+    : std::uint8_t {
+    CP_Call,
+    CP_Return,
+    CP_Both,
+    CP_None
 };
 
 
@@ -259,7 +262,8 @@ class HeapState
 
         Edge* make_edge( Object* source, unsigned int field_id, Object* target, unsigned int cur_time);
 
-        void makeDead(Object * obj, unsigned int death_time);
+        void makeDead( Object * obj,
+                       unsigned int death_time );
 
         ObjectMap::iterator begin() { return m_objects.begin(); }
         ObjectMap::iterator end() { return m_objects.end(); }
@@ -315,7 +319,8 @@ class HeapState
         KeySet_t& get_keyset() { return m_keyset; }
 };
 
-enum Color {
+enum class Color
+    : std::uint8_t {
     BLUE = 1,
     RED = 2,
     PURPLE = 3, // UNUSED
@@ -323,11 +328,21 @@ enum Color {
     GREEN = 5,
 };
 
-enum class ObjectRefType {
-    SINGLY_OWNED = 1, // Only one incoming reference ever which 
+enum class ObjectRefType
+    : std::uint8_t {
+    SINGLY_OWNED, // Only one incoming reference ever which 
                       // makes the reference RefType::SERIAL_STABLE
-    MULTI_OWNED = 2, // Gets passed around to difference edge sources
-    UNKNOWN = 1024
+    MULTI_OWNED, // Gets passed around to difference edge sources
+    UNKNOWN
+};
+
+enum class EdgeState 
+    : std::uint8_t {
+    NONE,
+    LIVE,
+    DEAD_BY_UPDATE,
+    DEAD_BY_OBJECT_DEATH,
+    DEAD_BY_PROGRAM_END
 };
 
 
@@ -457,7 +472,7 @@ class Object {
             , m_deathTime_alloc(UINT_MAX)
             , m_refCount(0)
             , m_maxRefCount(0)
-            , m_color(GREEN)
+            , m_color(Color::GREEN)
             , m_heapptr(heap)
             , m_pointed_by_heap(false)
             , m_was_root(false)
@@ -466,7 +481,7 @@ class Object {
             , m_diedAtEnd(false)
             , m_diedByGlobal(false)
             , m_diedFlagSet(false)
-            , m_reason(UNKNOWN_REASON)
+            , m_reason(Reason::UNKNOWN_REASON)
             , m_last_action_time(0)
             , m_last_timestamp(0)
             , m_actual_last_timestamp(0)
@@ -519,7 +534,7 @@ class Object {
         bool wasRoot() const { return m_was_root; }
         void setRootFlag( unsigned int t ) {
             m_was_root = true;
-            m_reason = STACK;
+            m_reason = Reason::STACK;
             m_last_action_time = t;
         }
 
@@ -541,7 +556,7 @@ class Object {
             this->m_diedFlagSet = true;
         }
         void unsetDiedByStackFlag() { m_diedByStack = false; }
-        void setStackReason( unsigned int t ) { m_reason = STACK; m_last_action_time = t; }
+        void setStackReason( unsigned int t ) { m_reason = Reason::STACK; m_last_action_time = t; }
         // -----------------------------------------------------------------
         // - died by HEAP 
         bool getDiedByHeapFlag() const { return m_diedByHeap; }
@@ -606,7 +621,7 @@ class Object {
         }
         // -----------------------------------------------------------------
 
-        void setHeapReason( unsigned int t ) { m_reason = HEAP; m_last_action_time = t; }
+        void setHeapReason( unsigned int t ) { m_reason = Reason::HEAP; m_last_action_time = t; }
         Reason setReason( Reason r, unsigned int t ) { m_reason = r; m_last_action_time = t; }
         Reason getReason() const { return m_reason; }
         unsigned int getLastActionTime() const { return m_last_action_time; }
@@ -770,7 +785,8 @@ class Object {
                           LastEvent last_event );
         // -- Record death time
         void makeDead( unsigned int death_time,
-                       unsigned int death_time_alloc );
+                       unsigned int death_time_alloc,
+                       EdgeState estate );
         // -- Set the color
         void recolor(Color newColor);
         // Mark object as red
@@ -802,6 +818,8 @@ class Edge {
         // Died with source? (tribool state)
         // MAYBE == Unknown
         tribool m_died_with_source;
+        // EdgeState
+        EdgeState m_edgestate;
 
     public:
         Edge( Object *source, unsigned int field_id,
@@ -811,16 +829,41 @@ class Edge {
             , m_target(target)
             , m_createTime(cur_time)
             , m_endTime(0)
-            , m_died_with_source() {
+            , m_died_with_source(indeterminate)
+            , m_edgestate(EdgeState::NONE) {
         }
 
-        Object *getSource() const { return m_source; }
-        Object *getTarget() const { return m_target; }
-        FieldId_t getSourceField() const { return m_sourceField; }
-        unsigned int getCreateTime() const { return m_createTime; }
-        unsigned int getEndTime() const { return m_endTime; }
+        Object *getSource() const {
+            return m_source;
+        }
 
-        void setEndTime(unsigned int end) { m_endTime = end; }
+        Object *getTarget() const {
+            return m_target;
+        }
+
+        FieldId_t getSourceField() const {
+            return m_sourceField;
+        }
+
+        unsigned int getCreateTime() const {
+            return m_createTime;
+        }
+
+        unsigned int getEndTime() const {
+            return m_endTime;
+        }
+
+        void setEndTime(unsigned int end) {
+            m_endTime = end;
+        }
+
+        // EdgeState setter/getter
+        EdgeState getEdgeState() const {
+            return m_edgestate;
+        }
+        void setEdgeState(EdgeState newestate ) {
+            this->m_edgestate = newestate;
+        }
 };
 
 

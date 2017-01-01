@@ -23,31 +23,31 @@ string keytype2str( KeyType ktype )
 
 string lastevent2str( LastEvent le )
 {
-    if (le == NEWOBJECT) {
+    if (le == LastEvent::NEWOBJECT) {
         return "NEWOBJECT";
-    } else if (le == ROOT) {
+    } else if (le == LastEvent::ROOT) {
         return "ROOT";
-    } else if (le == DECRC) {
+    } else if (le == LastEvent::DECRC) {
         return "DECRC";
-    } else if (le == UPDATE_UNKNOWN) {
+    } else if (le == LastEvent::UPDATE_UNKNOWN) {
         return "UPDATE_UNKNOWN";
-    } else if (le == UPDATE_AWAY_TO_NULL) {
+    } else if (le == LastEvent::UPDATE_AWAY_TO_NULL) {
         return "UPDATE_AWAY_TO_NULL";
-    } else if (le == UPDATE_AWAY_TO_VALID) {
+    } else if (le == LastEvent::UPDATE_AWAY_TO_VALID) {
         return "UPDATE_AWAY_TO_VALID";
-    } else if (le == OBJECT_DEATH_AFTER_ROOT) {
+    } else if (le == LastEvent::OBJECT_DEATH_AFTER_ROOT) {
         return "OBJECT_DEATH_AFTER_ROOT";
-    } else if (le == OBJECT_DEATH_AFTER_UPDATE) {
+    } else if (le == LastEvent::OBJECT_DEATH_AFTER_UPDATE) {
         return "OBJECT_DEATH_AFTER_UPDATE";
-    } else if (le == OBJECT_DEATH_AFTER_ROOT_DECRC) {
+    } else if (le == LastEvent::OBJECT_DEATH_AFTER_ROOT_DECRC) {
         return "OBJECT_DEATH_AFTER_ROOT_DECRC";
-    } else if (le == OBJECT_DEATH_AFTER_UPDATE_DECRC) {
+    } else if (le == LastEvent::OBJECT_DEATH_AFTER_UPDATE_DECRC) {
         return "OBJECT_DEATH_AFTER_UPDATE_DECRC";
-    } else if (le == OBJECT_DEATH_AFTER_UNKNOWN) {
+    } else if (le == LastEvent::OBJECT_DEATH_AFTER_UNKNOWN) {
         return "OBJECT_DEATH_AFTER_UNKNOWN";
-    } else if (le == END_OF_PROGRAM_EVENT) {
+    } else if (le == LastEvent::END_OF_PROGRAM_EVENT) {
         return "END_OF_PROGRAM_EVENT";
-    } else if (le == UNKNOWN_EVENT) {
+    } else if (le == LastEvent::UNKNOWN_EVENT) {
         return "UNKNOWN_EVENT";
     }
     assert(0); // Shouldn't make it here.
@@ -56,11 +56,11 @@ string lastevent2str( LastEvent le )
 
 bool is_object_death( LastEvent le )
 {
-    return ( (le == OBJECT_DEATH_AFTER_ROOT) || 
-             (le == OBJECT_DEATH_AFTER_UPDATE) ||
-             (le == OBJECT_DEATH_AFTER_ROOT_DECRC) ||
-             (le == OBJECT_DEATH_AFTER_UPDATE_DECRC) ||
-             (le == OBJECT_DEATH_AFTER_UNKNOWN) );
+    return ( (le == LastEvent::OBJECT_DEATH_AFTER_ROOT) || 
+             (le == LastEvent::OBJECT_DEATH_AFTER_UPDATE) ||
+             (le == LastEvent::OBJECT_DEATH_AFTER_ROOT_DECRC) ||
+             (le == LastEvent::OBJECT_DEATH_AFTER_UPDATE_DECRC) ||
+             (le == LastEvent::OBJECT_DEATH_AFTER_UNKNOWN) );
 }
 
 // =================================================================
@@ -149,7 +149,9 @@ void HeapState::makeDead(Object * obj, unsigned int death_time)
             }
         }
         // Note that the death_time might be incorrect
-        obj->makeDead( death_time, this->m_alloc_time );
+        obj->makeDead( death_time,
+                       this->m_alloc_time,
+                       EdgeState::DEAD_BY_OBJECT_DEATH );
     }
 }
 
@@ -306,7 +308,9 @@ void HeapState::end_of_program(unsigned int cur_time)
             if (!obj->isDead()) {
                 // A hack: not sure why this check may be needed.
                 // TODO: Debug this.
-                obj->makeDead( cur_time, this->m_alloc_time );
+                obj->makeDead( cur_time,
+                               this->m_alloc_time,
+                               EdgeState::DEAD_BY_PROGRAM_END );
             }
             obj->unsetDiedByStackFlag();
             obj->unsetDiedByHeapFlag();
@@ -370,7 +374,7 @@ void HeapState::set_reason_for_cycles( deque< deque<int> >& cycles )
     for ( deque< deque<int> >::iterator it = cycles.begin();
           it != cycles.end();
           ++it ) {
-        Reason reason = UNKNOWN_REASON;
+        Reason reason = Reason::UNKNOWN_REASON;
         unsigned int last_action_time = 0;
         for ( deque<int>::iterator objit = it->begin();
               objit != it->end();
@@ -404,7 +408,7 @@ deque< deque<int> > HeapState::scan_queue( EdgeList& edgelist )
         if (flag) {
             Object* object = this->getObject(objId);
             if (object) {
-                if (object->getColor() == BLACK) {
+                if (object->getColor() == Color::BLACK) {
                     object->mark_red();
                     object->scan();
                     deque<int> cycle = object->collect_blue( edgelist );
@@ -683,12 +687,13 @@ void Object::updateField( Edge* edge,
         // -- Old edge
         Edge* old_edge = p->second;
         if (old_edge) {
+            old_edge->setEdgeState( EdgeState::DEAD_BY_UPDATE );
             // -- Now we know the end time
             Object *old_target = old_edge->getTarget();
             if (old_target) {
-                if (reason == HEAP) {
+                if (reason == Reason::HEAP) {
                     old_target->setHeapReason( cur_time );
-                } else if (reason == STACK) {
+                } else if (reason == Reason::STACK) {
                     old_target->setStackReason( cur_time );
                 } else {
                     cerr << "Invalid reason." << endl;
@@ -728,10 +733,10 @@ void Object::updateField( Edge* edge,
 
 void Object::mark_red()
 {
-    if ( (this->m_color == GREEN) || (this->m_color == BLACK) ) {
+    if ( (this->m_color == Color::GREEN) || (this->m_color == Color::BLACK) ) {
         // Only recolor if object is GREEN or BLACK.
         // Ignore if already RED or BLUE.
-        this->recolor( RED );
+        this->recolor( Color::RED );
         for ( EdgeMap::iterator p = this->m_fields.begin();
               p != this->m_fields.end();
               p++ ) {
@@ -746,11 +751,11 @@ void Object::mark_red()
 
 void Object::scan()
 {
-    if (this->m_color == RED) {
+    if (this->m_color == Color::RED) {
         if (this->m_refCount > 0) {
             this->scan_green();
         } else {
-            this->recolor( BLUE );
+            this->recolor( Color::BLUE );
             // -- Visit all edges
             for ( EdgeMap::iterator p = this->m_fields.begin();
                   p != this->m_fields.end();
@@ -769,7 +774,7 @@ void Object::scan()
 
 void Object::scan_green()
 {
-    this->recolor( GREEN );
+    this->recolor( Color::GREEN );
     for ( EdgeMap::iterator p = this->m_fields.begin();
           p != this->m_fields.end();
           p++ ) {
@@ -777,7 +782,7 @@ void Object::scan_green()
         if (target_edge) {
             Object* next_target_object = target_edge->getTarget();
             if (next_target_object) {
-                if (next_target_object->getColor() != GREEN) {
+                if (next_target_object->getColor() != Color::GREEN) {
                     next_target_object->scan_green();
                 }
             }
@@ -788,8 +793,8 @@ void Object::scan_green()
 deque<int> Object::collect_blue( EdgeList& edgelist )
 {
     deque<int> result;
-    if (this->getColor() == BLUE) {
-        this->recolor( GREEN );
+    if (this->getColor() == Color::BLUE) {
+        this->recolor( Color::GREEN );
         result.push_back( this->getId() );
         for ( EdgeMap::iterator p = this->m_fields.begin();
               p != this->m_fields.end();
@@ -817,7 +822,8 @@ deque<int> Object::collect_blue( EdgeList& edgelist )
 }
 
 void Object::makeDead( unsigned int death_time,
-                       unsigned int death_time_alloc )
+                       unsigned int death_time_alloc,
+                       EdgeState estate )
 {
     // -- Record the death time
     this->m_deathTime = death_time;
@@ -836,7 +842,8 @@ void Object::makeDead( unsigned int death_time,
 
         if (edge) {
             // -- Edge dies now
-            edge->setEndTime(death_time);
+            edge->setEdgeState( estate );
+            edge->setEndTime( death_time );
         }
     }
 
@@ -856,12 +863,12 @@ void Object::recolor( Color newColor )
         if (edge) {
             Object* target = edge->getTarget();
             if (target) {
-                if ( ((this->m_color == GREEN) || (this->m_color == BLACK)) &&
-                     ((newColor != GREEN) && (newColor != BLACK)) ) {
+                if ( ((this->m_color == Color::GREEN) || (this->m_color == Color::BLACK)) &&
+                     ((newColor != Color::GREEN) && (newColor != Color::BLACK)) ) {
                     // decrement reference count of target
                     target->decrementRefCount();
-                } else if ( ((this->m_color != GREEN) && (this->m_color != BLACK)) &&
-                            ((newColor == GREEN) || (newColor == BLACK)) ) {
+                } else if ( ((this->m_color != Color::GREEN) && (this->m_color != Color::BLACK)) &&
+                            ((newColor == Color::GREEN) || (newColor == Color::BLACK)) ) {
                     // increment reference count of target
                     target->incrementRefCountReal();
                 }
@@ -891,13 +898,13 @@ void Object::decrementRefCountReal( unsigned int cur_time,
             m_methodRCtoZero = method;
             this->g_counter++;
         }
-        if (this->wasRoot() || (reason == STACK)) {
+        if (this->wasRoot() || (reason == Reason::STACK)) {
             this->setDiedByStackFlag();
         } else {
             this->setDiedByHeapFlag();
         }
         // -- Visit all edges
-        this->recolor(GREEN);
+        this->recolor(Color::GREEN);
 
         // -- Who's my key object?
         // DEBUG
@@ -930,8 +937,8 @@ void Object::decrementRefCountReal( unsigned int cur_time,
              (lastevent == LastEvent::ROOT) ) {
             // This is a DAGKEY
             this->setKeyType(KeyType::DAGKEY);
-            newevent = ((lastevent == LastEvent::ROOT) ? OBJECT_DEATH_AFTER_ROOT_DECRC
-                                                       : OBJECT_DEATH_AFTER_UPDATE_DECRC);
+            newevent = ((lastevent == LastEvent::ROOT) ? LastEvent::OBJECT_DEATH_AFTER_ROOT_DECRC
+                                                       : LastEvent::OBJECT_DEATH_AFTER_UPDATE_DECRC);
         } else if ( (lastevent == LastEvent::DECRC) ||
                     is_object_death(lastevent) ||
                     (lastevent == LastEvent::END_OF_PROGRAM_EVENT) ||
@@ -967,9 +974,9 @@ void Object::decrementRefCountReal( unsigned int cur_time,
         // }
     } else {
         Color color = this->getColor();
-        if (color != BLACK) {
+        if (color != Color::BLACK) {
             unsigned int objId = this->getId();
-            this->recolor( BLACK );
+            this->recolor( Color::BLACK );
             this->m_heapptr->set_candidate(objId);
         }
     }
@@ -988,9 +995,9 @@ void Object::incrementRefCountReal()
     // the new color be?
     // {
     //     Color color = this->getColor();
-    //     if (color != BLACK) {
+    //     if (color != Color::BLACK) {
     //         unsigned int objId = this->getId();
-    //         this->recolor(BLACK);
+    //         this->recolor(Color::BLACK);
     //         this->m_heapptr->set_candidate(objId);
     //     }
     // }
