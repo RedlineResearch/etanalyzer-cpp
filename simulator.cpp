@@ -334,7 +334,8 @@ void apply_merlin( std::deque< Object * > &new_garbage )
                       ptr != otmp->getFields().end();
                       ptr++ ) {
                     Edge *edge = ptr->second;
-                    if (edge) {
+                    if ( edge &&
+                         (edge->getEdgeState() == EdgeState::DEAD_BY_OBJECT_DEATH) ) {
                         edge->setEndTime( tstamp_max );
                         Object *mytgt = edge->getTarget();
                         if (mytgt) {
