@@ -331,8 +331,7 @@ enum class ObjectRefType {
 };
 
 
-class Object
-{
+class Object {
     private:
         unsigned int m_id;
         unsigned int m_size;
@@ -787,8 +786,7 @@ class Object
         static unsigned int g_counter;
 };
 
-class Edge
-{
+class Edge {
     private:
         // -- Source object
         Object *m_source;
@@ -801,6 +799,9 @@ class Edge
         // -- End time
         //    If 0 then ends when source object dies
         unsigned int m_endTime;
+        // Died with source? (tribool state)
+        // MAYBE == Unknown
+        tribool m_died_with_source;
 
     public:
         Edge( Object *source, unsigned int field_id,
@@ -809,7 +810,8 @@ class Edge
             , m_sourceField(field_id)
             , m_target(target)
             , m_createTime(cur_time)
-            , m_endTime(0) {
+            , m_endTime(0)
+            , m_died_with_source() {
         }
 
         Object *getSource() const { return m_source; }
