@@ -682,7 +682,9 @@ void Object::updateField( Edge* edge,
                           Object *death_root,
                           LastEvent last_event )
 {
-    edge->setEdgeState( EdgeState::LIVE );
+    if (edge) {
+        edge->setEdgeState( EdgeState::LIVE );
+    }
     EdgeMap::iterator p = this->m_fields.find(fieldId);
     if (p != this->m_fields.end()) {
         // -- Old edge
