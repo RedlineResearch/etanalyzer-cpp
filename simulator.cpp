@@ -1159,9 +1159,9 @@ unsigned int output_edges( HeapState &myheap,
     for ( EdgeSet::iterator it = myheap.begin_edges();
           it != myheap.end_edges();
           ++it ) {
-        Edge* eptr = *it;
-        Object* source = eptr->getSource();
-        Object* target = eptr->getTarget();
+        Edge *eptr = *it;
+        Object *source = eptr->getSource();
+        Object *target = eptr->getTarget();
         assert(source);
         assert(target);
         unsigned int srcId = source->getId();

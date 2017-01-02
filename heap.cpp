@@ -318,17 +318,19 @@ void HeapState::end_of_program(unsigned int cur_time)
             obj->setReason( Reason::END_OF_PROGRAM_REASON, cur_time );
             obj->setLastEvent( LastEvent::END_OF_PROGRAM_EVENT );
         } else {
-            if (obj->getRefCount() == 0) {
-            } else {
+            if (obj->getDeathTime() == cur_time) {
+                obj->unsetDiedByStackFlag();
+                obj->unsetDiedByHeapFlag();
+                obj->setDiedAtEndFlag();
+                obj->setReason( Reason::END_OF_PROGRAM_REASON, cur_time );
+                obj->setLastEvent( LastEvent::END_OF_PROGRAM_EVENT );
             }
-            // TODO: if (obj->wasRoot()) {
-            // TODO:     obj->setDiedByStackFlag();
-            // TODO: } else if (obj->getReason() == HEAP) {
-            // TODO:     // if (obj->) // TODO TODO GLOBAL type
-            // TODO:     obj->setDiedByHeapFlag();
-            // TODO: } else {
-            // TODO:     obj->setDiedByStackFlag();
-            // TODO: }
+            else {
+                if (obj->getDeathTime() > cur_time) {
+                    cerr << "Object ID[" << obj->getId() << "] has later death time["
+                         << obj->getDeathTime() << "than final time: " << cur_time << endl;
+                }
+            }
         }
         // Do the count of heap vs stack loss here.
         this->update_death_counters(obj);
@@ -707,7 +709,7 @@ void Object::updateField( Edge* edge,
                                                    reason,
                                                    death_root,
                                                    last_event );
-            } 
+            }
             old_edge->setEndTime(cur_time);
         }
     }
