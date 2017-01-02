@@ -214,6 +214,8 @@ def get_last_edge_record_for_group( group = None,
     # Get the group death time. This works because by definition, all objects
     # in this group have the same death time.
     dtime = objectinfo.get_death_time( group[0] )
+    # Rename:
+    ei = edgeinfo
     if objectinfo.died_by_stack( group[0]):
         print "DBS: %d" % len(group)
         srcdict = {}
@@ -225,14 +227,12 @@ def get_last_edge_record_for_group( group = None,
         for obj in group:
             # TODO: Need a get all edges that target 'obj'
             # * Incoming edges
-            srclist = edgeinfo.get_sources_records(obj)
-            # TODO: What is the record format?
+            srclist = ei.get_sources_records(obj)
             # We only want the ones that died with the object
-            # TODO: This index is for the old version of the SQlite DB.
-            #   - Need to centralize the layout of the DB in garbology and
-            #     import from there.
-            dtimes = Counter([ x[3] for x in srclist ])
-            srccand = [ x[0] for x in srclist if x[3] == dtime ]
+            # TODO: Not used. Needed? TODO: dtimes = Counter([ x[3] for x in srclist ])
+            srccand = [ ei.get_source_id_from_rec(x) for x in srclist if
+                        (ei.get_death_time_from_rec(x) == dtime) ]
+            # TODO: DELETE: TODO: srccand = [ x[0] for x in srclist if  == dtime ]
             if len(srccand) > 0:
                 print "XXX: %d -> %s" % (dtime, str(srccand))
             else:
