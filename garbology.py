@@ -1214,6 +1214,37 @@ class EdgeInfoReader:
         # tgtlru = self.edge_tgtlru
         # self.dbconn = sqlite3.connect( edgedb_filename )
 
+    # Decipher the row record from EdgeInfoReader SQlite DB.
+    # I decided to make this a part of the EdgeInfoReader.
+    # To call the functions, use the static form like so:
+    #      EdgeInfoFileReader.get_source_id_from_rec
+    # Layout is as follows. You need to keep this in sync with the
+    # DB format if it changes below in EdgeInfoReader.
+    #     1- source Id (srcid) : INTEGER
+    #     2- source field (srcfield) : INTEGER
+    #     3- target Id (tgtId) : INTEGER
+    #     4- create time (ctime) : INTEGER
+    #     5- death time (dtime) : INTEGER
+    #     6- stability (stability) : TEXT
+    # Note this is numbered from 1. Subtract 1 for the actual index.
+    def get_source_id_from_rec( self, rec ):
+        return rec[0]
+
+    def get_source_field_id_from_rec( self, rec ):
+        return rec[1]
+
+    def get_target_id_from_rec( self, rec ):
+        return rec[2]
+
+    def get_create_time_from_rec( self, rec ):
+        return rec[3]
+
+    def get_death_time_from_rec( self, rec ):
+        return rec[4]
+
+    def get_stability_from_rec( self, rec ):
+        return rec[4]
+
 
 class EdgeInfoFile2DB:
     def __init__( self,

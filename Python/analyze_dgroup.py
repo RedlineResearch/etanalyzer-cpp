@@ -226,6 +226,7 @@ def get_last_edge_record_for_group( group = None,
             # TODO: Need a get all edges that target 'obj'
             # * Incoming edges
             srclist = edgeinfo.get_sources_records(obj)
+            # TODO: What is the record format?
             # We only want the ones that died with the object
             # TODO: This index is for the old version of the SQlite DB.
             #   - Need to centralize the layout of the DB in garbology and
