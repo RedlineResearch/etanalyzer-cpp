@@ -863,9 +863,9 @@ class Edge {
         }
         void setEdgeState(EdgeState newestate ) {
             // DEBUG
-            if (newestate == EdgeState::DEAD_BY_OBJECT_DEATH) {
-                cerr << "X: DBOD" << endl;
-            }
+            // if (newestate == EdgeState::DEAD_BY_OBJECT_DEATH) {
+            //     cerr << "X: DBOD" << endl;
+            // }
             this->m_edgestate = newestate;
         }
 };

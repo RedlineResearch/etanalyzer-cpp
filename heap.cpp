@@ -845,7 +845,8 @@ void Object::makeDead( unsigned int death_time,
           p++ ) {
         Edge* edge = p->second;
 
-        if (edge) {
+        if ( edge &&
+             (edge->getEdgeState() == EdgeState::LIVE) ){
             // -- Edge dies now
             edge->setEdgeState( estate );
             edge->setEndTime( death_time );
