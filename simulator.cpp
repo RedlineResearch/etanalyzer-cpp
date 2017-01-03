@@ -1180,8 +1180,8 @@ unsigned int output_edges( HeapState &myheap,
             << tgtId << ","
             << eptr->getCreateTime() << ","
             << endtime << ","
-            << eptr->getSourceField() <<
-            << estate << endl;
+            << eptr->getSourceField() << ","
+            << static_cast<int>(estate) << endl;
         // }
         total_edges++;
     }
