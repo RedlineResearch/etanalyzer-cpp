@@ -1166,6 +1166,9 @@ unsigned int output_edges( HeapState &myheap,
         assert(target);
         unsigned int srcId = source->getId();
         unsigned int tgtId = target->getId();
+        EdgeState estate = eptr->getEdgeState();
+        unsigned int endtime = ( (estate == EdgeState::DEAD_BY_OBJECT_DEATH) ?
+                                 source->getDeathTime() : eptr->getEndTime() );
         // TODO: This code was meant to filter out edges not belonging to cycles.
         //       But since we're also interested in the non-cycle nodes now, this is
         //       probably dead code and won't be used again. TODO
@@ -1176,8 +1179,9 @@ unsigned int output_edges( HeapState &myheap,
         edge_info_file << srcId << ","
             << tgtId << ","
             << eptr->getCreateTime() << ","
-            << eptr->getEndTime() << ","
-            << eptr->getSourceField() << endl;
+            << endtime << ","
+            << eptr->getSourceField() <<
+            << estate << endl;
         // }
         total_edges++;
     }

@@ -766,6 +766,28 @@ def get_lastedge_rec_from_DB( tgt = None,
     return mylist
 
 class EdgeInfoReader:
+    # C++ enums from heap.h
+    # enum class EdgeState
+    #     : std::uint8_t {
+    #         NONE = 1,
+    #         LIVE = 2,
+    #         DEAD_BY_UPDATE = 3,
+    #         DEAD_BY_OBJECT_DEATH = 4,
+    #         DEAD_BY_PROGRAM_END = 5
+    # };
+    ES_NONE = 1
+    ES_LIVE = 2
+    ES_DEAD_BY_UPDATE = 3
+    DEAD_BY_OBJECT_DEATH = 4
+    DEAD_BY_PROGRAM_END = 5
+
+    ES2STR = { ES_NONE : "NONE",
+               ES_LIVE : "LIVE",
+               ES_DEAD_BY_UPDATE : "DEAD_BY_UPDATE",
+               DEAD_BY_OBJECT_DEATH : "BY_OBJECT_DEATH",
+               DEAD_BY_PROGRAM_END : "BY_PROGRAM_END",
+    }
+
     def __init__( self,
                   edgeinfo_filename = None,
                   edgedb_filename = None,
@@ -817,18 +839,21 @@ class EdgeInfoReader:
                     # 2 - create time
                     # 3 - death time
                     # 4 - fieldId
+                    # 5 - edgestate
                     row = [ int(x) for x in rowtmp ]
                     src = row[0]
                     tgt = row[1]
                     timepair = tuple(row[2:4])
                     dtime = row[3]
                     fieldId = row[4]
+                    edgestate = row[5]
                     # TODO MAKE INTO A LIST? TODO
                     # TODO self.edgedict[tuple([src, fieldId, tgt])] = { "tp" : timepair,
                     # TODO                                               "s" : "X" }  # X means unknown
                     key = tuple([src, fieldId, tgt])
                     value = { "tp" : timepair,
-                              "s" : "X" } # X means unknown
+                              "s" : "X",
+                              "es" : edgestate } # X means unknown
                     if key not in self.edgedict:
                         self.edgedict[key] = [ value, ]
                     else:
@@ -878,19 +903,22 @@ class EdgeInfoReader:
                         # 2 - create time
                         # 3 - death time
                         # 4 - fieldId
+                        # 5 - edgestate
                         row = [ int(x) for x in rowtmp ]
                         src = row[0]
                         tgt = row[1]
                         ctime = row[2]
                         dtime = row[3]
                         fieldId = row[4]
-                        newrow = [ src, fieldId, tgt, ctime, dtime ]
+                        edgestate = row[5]
+                        newrow = [ src, fieldId, tgt, ctime, dtime, edgestate ]
                         # timepair = tuple(row[2:4])
                         try:
                             stability = sb[src][fieldId]
                         except:
                             stability = "X" # X means unknown
                         newrow.append(stability)
+                        newrow.append(edgestate)
                         self.update_last_edges( src = src,
                                                 tgt = tgt,
                                                 deathtime = dtime )
@@ -898,7 +926,7 @@ class EdgeInfoReader:
             # End generator
         #================================================================================
         cur = self.outdbconn.cursor()
-        cur.executemany( "INSERT INTO edgeinfo VALUES (?,?,?,?,?,?)", row_generator() )
+        cur.executemany( "INSERT INTO edgeinfo VALUES (?,?,?,?,?,?,?)", row_generator() )
         cur.execute( 'CREATE INDEX idx_edgeinfo_srcid ON edgeinfo (srcid)' )
         cur.execute( 'CREATE INDEX idx_edgeinfo_tgtid ON edgeinfo (tgtid)' )
         #================================================================================
@@ -1022,7 +1050,7 @@ class EdgeInfoReader:
                 if tgt not in self.edge_tgtlru:
                     self.edge_tgtlru[tgt] = reclist
                 #  - get all targets from the rows
-                srclist = [ x[2] for x in reclist ]
+                srclist = [ self.get_source_id_from_rec(x) for x in reclist ]
                 self.tgtdict[tgt] = srclist
                 # NOTE: We return reclist, NOT srclist.
                 #       We want the whole record here, not just the source object.
@@ -1180,12 +1208,14 @@ class EdgeInfoReader:
         # 4- create time (ctime) : INTEGER
         # 5- death time (dtime) : INTEGER
         # 6- stability (stability) : TEXT
+        # 7- edge state (edgestate) : TEXT
         cur.execute( """CREATE TABLE %s (srcid INTEGER,
                                          srcfield INTEGER,
                                          tgtid INTEGER,
                                          ctime INTEGER,
                                          dtime INTEGER,
                                          stability TEXT,
+                                         edgestate TEXT,
                                          UNIQUE (srcid, tgtid, srcfield, ctime))"""  % EdgeInfoTable )
         conn.execute( 'DROP INDEX IF EXISTS idx_edgeinfo_srcid' )
         conn.execute( 'DROP INDEX IF EXISTS idx_edgeinfo_tgtid' )
@@ -1244,6 +1274,10 @@ class EdgeInfoReader:
 
     def get_stability_from_rec( self, rec ):
         return rec[4]
+
+    def get_edgestate_from_rec( self, rec ):
+        es = rec[5]
+        return EdgeInfoReader.ES2STR[es]
 
 
 class EdgeInfoFile2DB:

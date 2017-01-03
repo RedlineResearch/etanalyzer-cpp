@@ -252,10 +252,10 @@ class HeapState
         Object* allocate( unsigned int id,
                           unsigned int size,
                           char kind,
-                          char* type,
-                          AllocSite* site, 
+                          char *type,
+                          AllocSite *site, 
                           unsigned int els,
-                          Thread* thread,
+                          Thread *thread,
                           unsigned int create_time );
 
         Object* getObject(unsigned int id);
@@ -338,11 +338,11 @@ enum class ObjectRefType
 
 enum class EdgeState 
     : std::uint8_t {
-    NONE,
-    LIVE,
-    DEAD_BY_UPDATE,
-    DEAD_BY_OBJECT_DEATH,
-    DEAD_BY_PROGRAM_END
+    NONE = 1,
+    LIVE = 2,
+    DEAD_BY_UPDATE = 3,
+    DEAD_BY_OBJECT_DEATH = 4,
+    DEAD_BY_PROGRAM_END = 5
 };
 
 
