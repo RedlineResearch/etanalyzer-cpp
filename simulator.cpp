@@ -359,8 +359,10 @@ void apply_merlin( std::deque< Object * > &new_garbage )
 
 // ----------------------------------------------------------------------
 //   Read and process trace events
-unsigned int read_trace_file(FILE* f)
+unsigned int read_trace_file( FILE *f,
+                              ofstream &eifile )
 {
+    // eifile is the edge_info_file
     Tokenizer tokenizer(f);
 
     unsigned int method_id;
@@ -529,7 +531,8 @@ unsigned int read_trace_file(FILE* f)
                                               topMethod, // for death site info
                                               Reason::HEAP, // reason
                                               NULL, // death root 0 because may not be a root
-                                              lastevent ); // last event to determine cause
+                                              lastevent, // last event to determine cause
+                                              eifile ); // output edge info file
                             // NOTE: topMethod COULD be NULL here.
                         }
                         // DEBUG ONLY IF NEEDED
@@ -589,7 +592,9 @@ unsigned int read_trace_file(FILE* f)
                         //else {
                         //     cerr << "Unhandled event: " << lastevent2str(lastevent) << endl;
                         // }
-                        Heap.makeDead(obj, now_uptime);
+                        Heap.makeDead( obj,
+                                       now_uptime,
+                                       eifile );
                         // Get the current method
                         Method *topMethod = NULL;
                         // TODO: ContextPair cpair;
@@ -641,7 +646,8 @@ unsigned int read_trace_file(FILE* f)
                                                       topMethod,
                                                       myreason,
                                                       obj,
-                                                      lastevent );
+                                                      lastevent,
+                                                      eifile ); // output edge info file
                                     // NOTE: STACK is used because the object that died,
                                     // died by STACK.
                                 }
@@ -1389,14 +1395,15 @@ int main(int argc, char* argv[])
 
     cout << "Start trace..." << endl;
     FILE* f = fdopen(0, "r");
-    unsigned int total_objects = read_trace_file(f);
+    ofstream edge_info_file(edgeinfo_filename);
+    unsigned int total_objects = read_trace_file(f, edge_info_file);
     unsigned int final_time = Exec.NowUp() + 1;
     unsigned int final_time_alloc = Heap.getAllocTime();
     cout << "Done at update time: " << Exec.NowUp() << endl;
     cout << "Total objects: " << total_objects << endl;
     cout << "Heap.size:     " << Heap.size() << endl;
     // assert( total_objects == Heap.size() );
-    Heap.end_of_program(final_time);
+    Heap.end_of_program( final_time, edge_info_file );
 
     if (cycle_flag) {
         std::deque< pair<int,int> > edgelist; // TODO Do we need the edgelist?
@@ -1513,9 +1520,10 @@ int main(int argc, char* argv[])
         output_cycles( keyset,
                        cycle_filename,
                        node_set );
-        // Output all edges
-        unsigned int total_edges = output_edges( Heap,
-                                                 edgeinfo_filename );
+        // TODO: Moved the edge output to as needed instead of all at the end.
+        // TODO // Output all edges
+        // TODO unsigned int total_edges = output_edges( Heap,
+        // TODO                                          edgeinfo_filename );
     } else {
         cout << "NOCYCLE chosen. Skipping cycle detection." << endl;
     }

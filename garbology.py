@@ -911,7 +911,7 @@ class EdgeInfoReader:
                         dtime = row[3]
                         fieldId = row[4]
                         edgestate = row[5]
-                        newrow = [ src, fieldId, tgt, ctime, dtime, edgestate ]
+                        newrow = [ src, fieldId, tgt, ctime, dtime, ]
                         # timepair = tuple(row[2:4])
                         try:
                             stability = sb[src][fieldId]

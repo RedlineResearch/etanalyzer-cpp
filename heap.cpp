@@ -63,6 +63,27 @@ bool is_object_death( LastEvent le )
              (le == LastEvent::OBJECT_DEATH_AFTER_UNKNOWN) );
 }
 
+// TODO
+void output_edge( Edge *edge,
+                  unsigned int endtime,
+                  EdgeState estate,
+                  ofstream &edge_info_file )
+{
+    Object *source = edge->getSource();
+    Object *target = edge->getTarget();
+    assert(source);
+    assert(target);
+    unsigned int srcId = source->getId();
+    unsigned int tgtId = target->getId();
+    edge_info_file << srcId << ","
+        << tgtId << ","
+        << edge->getCreateTime() << ","
+        << endtime << ","
+        << edge->getSourceField() << ","
+        << static_cast<int>(estate) << endl;
+}
+
+
 // =================================================================
 
 Object* HeapState::allocate( unsigned int id,
@@ -132,7 +153,9 @@ Edge* HeapState::make_edge( Object* source,
     return new_edge;
 }
 
-void HeapState::makeDead(Object * obj, unsigned int death_time)
+void HeapState::makeDead( Object *obj,
+                          unsigned int death_time,
+                          ofstream &eifile )
 {
     if (!obj->isDead()) {
         ObjectSet::iterator iter = this->m_liveset.find(obj);
@@ -151,7 +174,8 @@ void HeapState::makeDead(Object * obj, unsigned int death_time)
         // Note that the death_time might be incorrect
         obj->makeDead( death_time,
                        this->m_alloc_time,
-                       EdgeState::DEAD_BY_OBJECT_DEATH );
+                       EdgeState::DEAD_BY_OBJECT_DEATH_NOT_SAVED,
+                       eifile );
     }
 }
 
@@ -293,7 +317,8 @@ Method * HeapState::get_method_death_site( Object *obj )
 }
 
 // TODO Documentation :)
-void HeapState::end_of_program(unsigned int cur_time)
+void HeapState::end_of_program( unsigned int cur_time,
+                                ofstream &eifile )
 {
     // -- Set death time of all remaining live objects
     //    Also set the flags for the interesting classifications.
@@ -310,7 +335,8 @@ void HeapState::end_of_program(unsigned int cur_time)
                 // TODO: Debug this.
                 obj->makeDead( cur_time,
                                this->m_alloc_time,
-                               EdgeState::DEAD_BY_PROGRAM_END );
+                               EdgeState::DEAD_BY_PROGRAM_END,
+                               eifile );
             }
             obj->unsetDiedByStackFlag();
             obj->unsetDiedByHeapFlag();
@@ -644,6 +670,33 @@ void HeapState::scan_queue2( EdgeList& edgelist,
     // cout << "  MISSES: " << miss_total << "   HITS: " << hit_total << endl;
 }
 
+
+void HeapState::save_output_edge( Edge *edge,
+                                  EdgeState estate )
+{
+    // save_output_edge can only be called with the *NOT_SAVED edge states
+    assert( (estate == EdgeState::DEAD_BY_OBJECT_DEATH_NOT_SAVED) ||
+            (estate == EdgeState::DEAD_BY_PROGRAM_END_NOT_SAVED) );
+    auto iter = this->m_estate_map.find(edge);
+    if (iter == this->m_estate_map.end()) {
+        // Not found in the edgestate_map
+        // Save the edge.
+        this->m_estate_map[edge] = estate;
+    } else {
+        // Found in the edgestate_map. This may be a problem.
+        if (this->m_estate_map[edge] != estate) {
+            cerr << "ERROR src[" << edge->getSource()->getId() << "] tgt["
+                  << edge->getTarget()->getId()  << "]: Mismatch in edgestate in map[ "
+                 << static_cast<int>(this->m_estate_map[edge]) << " ] vs [ "
+                 << static_cast<int>(estate) << " ]" << endl;
+            this->m_estate_map[edge] = estate;
+        }
+                 
+    }
+    // NEED TODO:
+    // * output edges can now simply output these edges
+}
+
 // -- Return a string with some information
 string Object::info() {
     stringstream ss;
@@ -682,7 +735,8 @@ void Object::updateField( Edge* edge,
                           Method *method,
                           Reason reason,
                           Object *death_root,
-                          LastEvent last_event )
+                          LastEvent last_event,
+                          ofstream &eifile )
 {
     if (edge) {
         edge->setEdgeState( EdgeState::LIVE );
@@ -693,6 +747,11 @@ void Object::updateField( Edge* edge,
         Edge* old_edge = p->second;
         if (old_edge) {
             old_edge->setEdgeState( EdgeState::DEAD_BY_UPDATE );
+            old_edge->setEndTime(cur_time);
+            output_edge( old_edge,
+                         cur_time,
+                         EdgeState::DEAD_BY_UPDATE,
+                         eifile );
             // -- Now we know the end time
             Object *old_target = old_edge->getTarget();
             if (old_target) {
@@ -708,9 +767,9 @@ void Object::updateField( Edge* edge,
                                                    method,
                                                    reason,
                                                    death_root,
-                                                   last_event );
+                                                   last_event,
+                                                   eifile );
             }
-            old_edge->setEndTime(cur_time);
         }
     }
     // -- Do store
@@ -828,7 +887,8 @@ deque<int> Object::collect_blue( EdgeList& edgelist )
 
 void Object::makeDead( unsigned int death_time,
                        unsigned int death_time_alloc,
-                       EdgeState estate )
+                       EdgeState estate,
+                       ofstream &edge_info_file )
 {
     // -- Record the death time
     this->m_deathTime = death_time;
@@ -846,10 +906,20 @@ void Object::makeDead( unsigned int death_time,
         Edge* edge = p->second;
 
         if ( edge &&
-             (edge->getEdgeState() == EdgeState::LIVE) ){
+             (edge->getEdgeState() == EdgeState::LIVE) ) {
             // -- Edge dies now
             edge->setEdgeState( estate );
             edge->setEndTime( death_time );
+            if ((estate == EdgeState::DEAD_BY_OBJECT_DEATH_NOT_SAVED) ||
+                (estate == EdgeState::DEAD_BY_PROGRAM_END_NOT_SAVED)) {
+                this->m_heapptr->save_output_edge( edge,
+                                                   estate );
+            } else {
+                output_edge( edge,
+                             death_time,
+                             estate,
+                             edge_info_file );
+            }
         }
     }
 
@@ -888,7 +958,8 @@ void Object::decrementRefCountReal( unsigned int cur_time,
                                     Method *method,
                                     Reason reason,
                                     Object *death_root,
-                                    LastEvent lastevent )
+                                    LastEvent lastevent,
+                                    ofstream &eifile )
 {
     this->decrementRefCount();
     this->m_lastMethodDecRC = method;
@@ -971,7 +1042,8 @@ void Object::decrementRefCountReal( unsigned int cur_time,
                                    method,
                                    reason,
                                    this->getDeathRoot(),
-                                   newevent );
+                                   newevent,
+                                   eifile );
             }
         }
         // DEBUG

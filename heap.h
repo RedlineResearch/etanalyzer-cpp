@@ -85,6 +85,9 @@ typedef set<Edge *> EdgeSet;
 typedef deque< pair<int, int> > EdgeList;
 typedef std::map< Object *, std::set< Object * > * > KeySet_t;
 
+enum class EdgeState : std::uint8_t; // forward declaration
+typedef map< Edge *, EdgeState > EdgeStateMap;
+
 typedef map<Method *, set<string> *> DeathSitesMap;
 // Where we save the method death sites. This has to be method pointer
 // to:
@@ -120,8 +123,8 @@ struct compclass {
     }
 };
 
-class HeapState
-{
+class HeapState {
+    friend class Object;
     public:
 
         // -- Do ref counting?
@@ -132,6 +135,10 @@ class HeapState
 
         // -- Turn on output of objects to stdout
         bool m_obj_debug_flag;
+
+    protected:
+        void save_output_edge( Edge *edge,
+                               EdgeState estate );
 
     private:
         // -- Map from IDs to objects
@@ -144,6 +151,11 @@ class HeapState
 
         // Map from IDs to bool if possible cyle root
         map<unsigned int, bool> m_candidate_map;
+
+        // Map from Edge * to Edgestate. This is where we save Edges which 
+        // we can't output to the edgeinfo file yet because we don't know the
+        // edge death time
+        EdgeStateMap m_estate_map;
 
         unsigned long int m_liveSize; // current live size of program in bytes
         unsigned long int m_maxLiveSize; // max live size of program in bytes
@@ -217,6 +229,8 @@ class HeapState
             : m_objects()
             , m_liveset()
             , m_candidate_map()
+            , m_edges()
+            , m_estate_map()
             , m_death_sites_map()
             , m_whereis( whereis )
             , m_keyset( keyset )
@@ -263,7 +277,8 @@ class HeapState
         Edge* make_edge( Object* source, unsigned int field_id, Object* target, unsigned int cur_time);
 
         void makeDead( Object * obj,
-                       unsigned int death_time );
+                       unsigned int death_time,
+                       ofstream &eifile );
 
         ObjectMap::iterator begin() { return m_objects.begin(); }
         ObjectMap::iterator end() { return m_objects.end(); }
@@ -306,7 +321,8 @@ class HeapState
         EdgeSet::iterator end_edges() { return m_edges.end(); }
         unsigned int numberEdges() { return m_edges.size(); }
 
-        void end_of_program(unsigned int cur_time);
+        void end_of_program( unsigned int cur_time,
+                             ofstream &edge_info_file );
 
         void set_candidate(unsigned int objId);
         void unset_candidate(unsigned int objId);
@@ -342,7 +358,11 @@ enum class EdgeState
     LIVE = 2,
     DEAD_BY_UPDATE = 3,
     DEAD_BY_OBJECT_DEATH = 4,
-    DEAD_BY_PROGRAM_END = 5
+    DEAD_BY_PROGRAM_END = 5,
+    DEAD_BY_OBJECT_DEATH_NOT_SAVED = 6,
+    DEAD_BY_PROGRAM_END_NOT_SAVED = 7,
+    // The not SAVED versions means that we haven't written the
+    // edge out to the edgeinfo file yet.
 };
 
 
@@ -369,7 +389,7 @@ class Object {
 
         EdgeMap m_fields;
 
-        HeapState* m_heapptr;
+        HeapState *m_heapptr;
         bool m_deadFlag;
 
         // Was this object ever a target of a heap pointer?
@@ -764,7 +784,8 @@ class Object {
                                     Method *method,
                                     Reason r,
                                     Object *death_root,
-                                    LastEvent last_event );
+                                    LastEvent last_event,
+                                    ofstream &eifile );
         // -- Access the fields
         const EdgeMap& getFields() const { return m_fields; }
         // -- Get a string representation
@@ -782,11 +803,13 @@ class Object {
                           Method *method,
                           Reason reason,
                           Object *death_root,
-                          LastEvent last_event );
+                          LastEvent last_event,
+                          ofstream &eifile );
         // -- Record death time
         void makeDead( unsigned int death_time,
                        unsigned int death_time_alloc,
-                       EdgeState estate );
+                       EdgeState estate,
+                       ofstream &eifile );
         // -- Set the color
         void recolor(Color newColor);
         // Mark object as red
@@ -820,6 +843,8 @@ class Edge {
         tribool m_died_with_source;
         // EdgeState
         EdgeState m_edgestate;
+        // Flag on whether edge has been outputed to edgeinfo file
+        bool m_output_done;
 
     public:
         Edge( Object *source, unsigned int field_id,
@@ -830,7 +855,8 @@ class Edge {
             , m_createTime(cur_time)
             , m_endTime(0)
             , m_died_with_source(indeterminate)
-            , m_edgestate(EdgeState::NONE) {
+            , m_edgestate(EdgeState::NONE)
+            , m_output_done(false) {
         }
 
         Object *getSource() const {
@@ -864,9 +890,26 @@ class Edge {
         void setEdgeState(EdgeState newestate ) {
             // DEBUG
             // if (newestate == EdgeState::DEAD_BY_OBJECT_DEATH) {
-            //     cerr << "X: DBOD" << endl;
+            //     cerr << "X: DBOD" << endl; 
+            // } else if (newestate == EdgeState::DEAD_BY_PROGRAM_END) {
+            //     if (this->m_edgestate == EdgeState::DEAD_BY_OBJECT_DEATH) {
+            //         cerr << "X: DBOD -> PROGEND" << endl;
+            //     } else if (this->m_edgestate == EdgeState::LIVE) {
+            //         cerr << "Y: LIVE -> PROGEND" << endl;
+            //     } else if (this->m_edgestate == EdgeState::DEAD_BY_UPDATE) {
+            //         cerr << "Z: DBU -> PROGEND" << endl;
+            //     }
             // }
             this->m_edgestate = newestate;
+        }
+
+        // Flag on whether edge has been sent to edgeinfo output file
+        //   setter/getter
+        void setOutputFlag( bool flag ) {
+            this->m_output_done = flag;
+        }
+        bool getOutputFlag() const {
+            return this->m_output_done;
         }
 };
 
