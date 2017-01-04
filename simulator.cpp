@@ -1158,35 +1158,35 @@ void output_cycles( KeySet_t &keyset,
 unsigned int output_edges( HeapState &myheap,
                            ofstream &edge_info_file )
 {
-    unsigned int total_edges = 0;
-    for ( EdgeSet::iterator it = myheap.begin_edges();
-          it != myheap.end_edges();
+    // Iterate through 
+    for ( auto it = myheap.begin_edgestate_map();
+          it != myheap.end_edgesstate_map();
           ++it ) {
-        Edge *eptr = *it;
-        Object *source = eptr->getSource();
-        Object *target = eptr->getTarget();
-        assert(source);
-        assert(target);
-        unsigned int srcId = source->getId();
-        unsigned int tgtId = target->getId();
-        EdgeState estate = eptr->getEdgeState();
-        unsigned int endtime = ( (estate == EdgeState::DEAD_BY_OBJECT_DEATH) ?
-                                 source->getDeathTime() : eptr->getEndTime() );
-        // TODO: This code was meant to filter out edges not belonging to cycles.
-        //       But since we're also interested in the non-cycle nodes now, this is
-        //       probably dead code and won't be used again. TODO
-        // set<int>::iterator srcit = node_set.find(srcId);
-        // set<int>::iterator tgtit = node_set.find(tgtId);
-        // if ( (srcit != node_set.end()) || (srcit != node_set.end()) ) {
-        // TODO: Header?
-        edge_info_file << srcId << ","
-            << tgtId << ","
-            << eptr->getCreateTime() << ","
-            << endtime << ","
-            << eptr->getSourceField() << ","
-            << static_cast<int>(estate) << endl;
-        // }
-        total_edges++;
+        std::pair< Edge *, VTime_t > key = it->first;
+        // TODO Object *source = eptr->getSource();
+        // TODO Object *target = eptr->getTarget();
+        // TODO assert(source);
+        // TODO assert(target);
+        // TODO unsigned int srcId = source->getId();
+        // TODO unsigned int tgtId = target->getId();
+        // TODO EdgeState estate = eptr->getEdgeState();
+        // TODO unsigned int endtime = ( (estate == EdgeState::DEAD_BY_OBJECT_DEATH) ?
+        // TODO                          source->getDeathTime() : eptr->getEndTime() );
+        // TODO // TODO: This code was meant to filter out edges not belonging to cycles.
+        // TODO //       But since we're also interested in the non-cycle nodes now, this is
+        // TODO //       probably dead code and won't be used again. TODO
+        // TODO // set<int>::iterator srcit = node_set.find(srcId);
+        // TODO // set<int>::iterator tgtit = node_set.find(tgtId);
+        // TODO // if ( (srcit != node_set.end()) || (srcit != node_set.end()) ) {
+        // TODO // TODO: Header?
+        // TODO edge_info_file << srcId << ","
+        // TODO     << tgtId << ","
+        // TODO     << eptr->getCreateTime() << ","
+        // TODO     << endtime << ","
+        // TODO     << eptr->getSourceField() << ","
+        // TODO     << static_cast<int>(estate) << endl;
+        // TODO // }
+        // TODO total_edges++;
     }
     edge_info_file << "---------------[ EDGE INFO END ]------------------------------------------------" << endl;
     edge_info_file.close();

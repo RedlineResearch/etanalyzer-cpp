@@ -335,6 +335,14 @@ class HeapState {
 
         ObjectPtrMap_t& get_whereis() { return m_whereis; }
         KeySet_t& get_keyset() { return m_keyset; }
+
+        // EdgeState map and set related functions
+        EdgeStateMap::iterator begin_edgestate_map() {
+            return this->m_estate_map.begin();
+        }
+        EdgeStateMap::iterator end_edgestate_map() {
+            return this->m_estate_map.end();
+        }
 };
 
 enum class Color
