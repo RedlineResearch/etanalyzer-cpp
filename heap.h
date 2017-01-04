@@ -86,7 +86,9 @@ typedef deque< pair<int, int> > EdgeList;
 typedef std::map< Object *, std::set< Object * > * > KeySet_t;
 
 enum class EdgeState : std::uint8_t; // forward declaration
-typedef map< Edge *, EdgeState > EdgeStateMap;
+// typedef map< Edge *, EdgeState > EdgeStateMap;
+typedef map< std::pair<Edge *, VTime_t>, EdgeState > EdgeStateMap;
+typedef set< std::pair<Edge *, VTime_t>, EdgeState > EdgeStateSet;
 
 typedef map<Method *, set<string> *> DeathSitesMap;
 // Where we save the method death sites. This has to be method pointer

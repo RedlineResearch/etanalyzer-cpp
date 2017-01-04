@@ -1156,7 +1156,47 @@ void output_cycles( KeySet_t &keyset,
 }
 
 unsigned int output_edges( HeapState &myheap,
-                           string &edgeinfo_filename )
+                           ofstream &edge_info_file )
+{
+    unsigned int total_edges = 0;
+    for ( EdgeSet::iterator it = myheap.begin_edges();
+          it != myheap.end_edges();
+          ++it ) {
+        Edge *eptr = *it;
+        Object *source = eptr->getSource();
+        Object *target = eptr->getTarget();
+        assert(source);
+        assert(target);
+        unsigned int srcId = source->getId();
+        unsigned int tgtId = target->getId();
+        EdgeState estate = eptr->getEdgeState();
+        unsigned int endtime = ( (estate == EdgeState::DEAD_BY_OBJECT_DEATH) ?
+                                 source->getDeathTime() : eptr->getEndTime() );
+        // TODO: This code was meant to filter out edges not belonging to cycles.
+        //       But since we're also interested in the non-cycle nodes now, this is
+        //       probably dead code and won't be used again. TODO
+        // set<int>::iterator srcit = node_set.find(srcId);
+        // set<int>::iterator tgtit = node_set.find(tgtId);
+        // if ( (srcit != node_set.end()) || (srcit != node_set.end()) ) {
+        // TODO: Header?
+        edge_info_file << srcId << ","
+            << tgtId << ","
+            << eptr->getCreateTime() << ","
+            << endtime << ","
+            << eptr->getSourceField() << ","
+            << static_cast<int>(estate) << endl;
+        // }
+        total_edges++;
+    }
+    edge_info_file << "---------------[ EDGE INFO END ]------------------------------------------------" << endl;
+    edge_info_file.close();
+    return total_edges;
+}
+
+#if 0
+// Commented out code.
+unsigned int output_edges_OLD( HeapState &myheap,
+                               string &edgeinfo_filename )
 {
     unsigned int total_edges = 0;
     ofstream edge_info_file(edgeinfo_filename);
@@ -1195,6 +1235,7 @@ unsigned int output_edges( HeapState &myheap,
     edge_info_file.close();
     return total_edges;
 }
+#endif // if 0 
 
 // ----------------------------------------------------------------------
 // Output the map of death context site -> count of obects dying
@@ -1396,6 +1437,7 @@ int main(int argc, char* argv[])
     cout << "Start trace..." << endl;
     FILE* f = fdopen(0, "r");
     ofstream edge_info_file(edgeinfo_filename);
+    edge_info_file << "---------------[ EDGE INFO ]----------------------------------------------------" << endl;
     unsigned int total_objects = read_trace_file(f, edge_info_file);
     unsigned int final_time = Exec.NowUp() + 1;
     unsigned int final_time_alloc = Heap.getAllocTime();

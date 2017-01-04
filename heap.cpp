@@ -677,19 +677,21 @@ void HeapState::save_output_edge( Edge *edge,
     // save_output_edge can only be called with the *NOT_SAVED edge states
     assert( (estate == EdgeState::DEAD_BY_OBJECT_DEATH_NOT_SAVED) ||
             (estate == EdgeState::DEAD_BY_PROGRAM_END_NOT_SAVED) );
-    auto iter = this->m_estate_map.find(edge);
+    VTime_t ctime = edge->getCreateTime();
+    std::pair<Edge *, VTime_t> epair = std::make_pair(edge, ctime);
+    auto iter = this->m_estate_map.find(epair);
     if (iter == this->m_estate_map.end()) {
         // Not found in the edgestate_map
         // Save the edge.
-        this->m_estate_map[edge] = estate;
+        this->m_estate_map[epair] = estate;
     } else {
         // Found in the edgestate_map. This may be a problem.
-        if (this->m_estate_map[edge] != estate) {
+        if (this->m_estate_map[epair] != estate) {
             cerr << "ERROR src[" << edge->getSource()->getId() << "] tgt["
                   << edge->getTarget()->getId()  << "]: Mismatch in edgestate in map[ "
-                 << static_cast<int>(this->m_estate_map[edge]) << " ] vs [ "
+                 << static_cast<int>(this->m_estate_map[epair]) << " ] vs [ "
                  << static_cast<int>(estate) << " ]" << endl;
-            this->m_estate_map[edge] = estate;
+            this->m_estate_map[epair] = estate;
         }
                  
     }
