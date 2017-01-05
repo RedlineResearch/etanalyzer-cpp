@@ -1158,39 +1158,45 @@ void output_cycles( KeySet_t &keyset,
 unsigned int output_edges( HeapState &myheap,
                            ofstream &edge_info_file )
 {
+    unsigned int total_done;
     // Iterate through 
     for ( auto it = myheap.begin_edgestate_map();
-          it != myheap.end_edgesstate_map();
+          it != myheap.end_edgestate_map();
           ++it ) {
         std::pair< Edge *, VTime_t > key = it->first;
-        // TODO Object *source = eptr->getSource();
-        // TODO Object *target = eptr->getTarget();
-        // TODO assert(source);
-        // TODO assert(target);
-        // TODO unsigned int srcId = source->getId();
-        // TODO unsigned int tgtId = target->getId();
-        // TODO EdgeState estate = eptr->getEdgeState();
-        // TODO unsigned int endtime = ( (estate == EdgeState::DEAD_BY_OBJECT_DEATH) ?
-        // TODO                          source->getDeathTime() : eptr->getEndTime() );
-        // TODO // TODO: This code was meant to filter out edges not belonging to cycles.
-        // TODO //       But since we're also interested in the non-cycle nodes now, this is
-        // TODO //       probably dead code and won't be used again. TODO
-        // TODO // set<int>::iterator srcit = node_set.find(srcId);
-        // TODO // set<int>::iterator tgtit = node_set.find(tgtId);
-        // TODO // if ( (srcit != node_set.end()) || (srcit != node_set.end()) ) {
-        // TODO // TODO: Header?
-        // TODO edge_info_file << srcId << ","
-        // TODO     << tgtId << ","
-        // TODO     << eptr->getCreateTime() << ","
-        // TODO     << endtime << ","
-        // TODO     << eptr->getSourceField() << ","
-        // TODO     << static_cast<int>(estate) << endl;
-        // TODO // }
-        // TODO total_edges++;
+        EdgeState estate = it->second;
+        Edge *edge = std::get<0>(key);
+        VTime_t ctime = std::get<1>(key);
+        assert(edge);
+        // TODO: get endtime
+        VTime_t endtime = 1; // TODO
+        if ( (estate == EdgeState::DEAD_BY_OBJECT_DEATH) ||
+             (estate == EdgeState::DEAD_BY_UPDATE) ||
+             (estate == EdgeState::DEAD_BY_PROGRAM_END) ) {
+            // If the estate is any of these 3, then we've already
+            // saved this edge. Log a WARNING.
+            cerr << "WARNING: edge(" << edge->getSource()->getId() << ", "
+                 << edge->getTarget()->getId() << ")[time: "
+                 << edge->getCreateTime() << "] -> Estate["
+                 << static_cast<int>(estate) << "]" << endl;
+        } else {
+            if (estate == EdgeState::DEAD_BY_OBJECT_DEATH_NOT_SAVED) {
+                estate = EdgeState::DEAD_BY_OBJECT_DEATH;
+            } else if (estate == EdgeState::DEAD_BY_PROGRAM_END_NOT_SAVED) {
+                estate = EdgeState::DEAD_BY_PROGRAM_END;
+            } else if ((estate == EdgeState::NONE) or
+                       (estate == EdgeState::LIVE)) {
+                // TODO TODO: Log an error TODO
+                estate = EdgeState::DEAD_BY_PROGRAM_END;
+            } 
+            output_edge( edge,
+                         endtime,
+                         estate,
+                         edge_info_file );
+            total_done++;
+        }
     }
-    edge_info_file << "---------------[ EDGE INFO END ]------------------------------------------------" << endl;
-    edge_info_file.close();
-    return total_edges;
+    return total_done;
 }
 
 #if 0
@@ -1564,8 +1570,10 @@ int main(int argc, char* argv[])
                        node_set );
         // TODO: Moved the edge output to as needed instead of all at the end.
         // TODO // Output all edges
-        // TODO unsigned int total_edges = output_edges( Heap,
-        // TODO                                          edgeinfo_filename );
+        unsigned int added_edges = output_edges( Heap,
+                                                 edge_info_file );
+        edge_info_file << "---------------[ EDGE INFO END ]------------------------------------------------" << endl;
+        edge_info_file.close();
     } else {
         cout << "NOCYCLE chosen. Skipping cycle detection." << endl;
     }

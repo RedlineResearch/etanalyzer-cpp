@@ -125,6 +125,11 @@ struct compclass {
     }
 };
 
+void output_edge( Edge *edge,
+                  unsigned int endtime,
+                  EdgeState estate,
+                  ofstream &edge_info_file );
+
 class HeapState {
     friend class Object;
     public:
