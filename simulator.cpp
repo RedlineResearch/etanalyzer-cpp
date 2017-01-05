@@ -1172,8 +1172,9 @@ unsigned int output_edges( HeapState &myheap,
         Edge *edge = std::get<0>(key);
         VTime_t ctime = std::get<1>(key);
         assert(edge);
-        // TODO: get endtime
-        VTime_t endtime = 1; // TODO
+        Object *tgt = edge->getTarget();
+        assert(tgt);
+        VTime_t endtime = tgt->getDeathTime();
         if ( (estate == EdgeState::DEAD_BY_OBJECT_DEATH) ||
              (estate == EdgeState::DEAD_BY_UPDATE) ||
              (estate == EdgeState::DEAD_BY_PROGRAM_END) ) {
