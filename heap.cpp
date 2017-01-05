@@ -75,6 +75,8 @@ void output_edge( Edge *edge,
     assert(target);
     unsigned int srcId = source->getId();
     unsigned int tgtId = target->getId();
+    // Format is
+    // srcId, tgtId, createTime, deathTime, sourceField, edgeState
     edge_info_file << srcId << ","
         << tgtId << ","
         << edge->getCreateTime() << ","
@@ -731,7 +733,7 @@ string Object::info2() {
     return ss.str();
 }
 
-void Object::updateField( Edge* edge,
+void Object::updateField( Edge *edge,
                           FieldId_t fieldId,
                           unsigned int cur_time,
                           Method *method,
@@ -746,7 +748,7 @@ void Object::updateField( Edge* edge,
     EdgeMap::iterator p = this->m_fields.find(fieldId);
     if (p != this->m_fields.end()) {
         // -- Old edge
-        Edge* old_edge = p->second;
+        Edge *old_edge = p->second;
         if (old_edge) {
             old_edge->setEdgeState( EdgeState::DEAD_BY_UPDATE );
             old_edge->setEndTime(cur_time);
@@ -765,19 +767,19 @@ void Object::updateField( Edge* edge,
                     cerr << "Invalid reason." << endl;
                     assert( false );
                 }
-                old_target->decrementRefCountReal( cur_time,
-                                                   method,
-                                                   reason,
-                                                   death_root,
-                                                   last_event,
-                                                   eifile );
+                // old_target->decrementRefCountReal( cur_time,
+                //                                    method,
+                //                                    reason,
+                //                                    death_root,
+                //                                    last_event,
+                //                                    eifile );
             }
         }
     }
     // -- Do store
     this->m_fields[fieldId] = edge;
 
-    Object* target = NULL;
+    Object *target = NULL;
     if (edge) {
         target = edge->getTarget();
         // -- Increment new ref
@@ -961,7 +963,7 @@ void Object::decrementRefCountReal( unsigned int cur_time,
                                     Reason reason,
                                     Object *death_root,
                                     LastEvent lastevent,
-                                    ofstream &eifile )
+                                    ofstream &eifile ) // TODO: Don't need the edgeinfo file here? TODO
 {
     this->decrementRefCount();
     this->m_lastMethodDecRC = method;
@@ -1035,17 +1037,18 @@ void Object::decrementRefCountReal( unsigned int cur_time,
         for ( EdgeMap::iterator p = this->m_fields.begin();
               p != this->m_fields.end();
               ++p ) {
-            Edge* target_edge = p->second;
+            Edge *target_edge = p->second;
             if (target_edge) {
-                unsigned int fieldId = target_edge->getSourceField();
-                this->updateField( NULL,
-                                   fieldId,
-                                   cur_time,
-                                   method,
-                                   reason,
-                                   this->getDeathRoot(),
-                                   newevent,
-                                   eifile );
+                // TODO unsigned int fieldId = target_edge->getSourceField();
+                Object *target_obj = target_edge->getTarget();
+                if (target_obj) {
+                    target_obj->decrementRefCountReal( cur_time,
+                                                       method,
+                                                       reason,
+                                                       death_root,
+                                                       lastevent,
+                                                       eifile ); // TODO: Don't need the edgeinfo file here? TODO
+                }
             }
         }
         // DEBUG

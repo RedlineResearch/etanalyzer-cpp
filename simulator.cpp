@@ -515,15 +515,19 @@ unsigned int read_trace_file( FILE *f,
                         // It sometimes happens that the newtarget is the same as
                         // the old target. So we won't create any more new edges.
                         // DEBUG: cout << "UPDATE same new == old: " << target << endl;
-                    } else if (obj && target) {
-                        // Increment and decrement refcounts
-                        unsigned int field_id = tokenizer.getInt(4);
-                        Edge* new_edge = Heap.make_edge( obj, field_id,
-                                                         target, Exec.NowUp() );
-                        if (thread) {
-                            Method *topMethod = thread->TopMethod();
-                            if (topMethod) {
-                                topMethod->getName();
+                    } else {
+                        if (obj) {
+                            Edge *new_edge = NULL;
+                            // Can't call updateField if obj is NULL
+                            if (target) {
+                                // Increment and decrement refcounts
+                                unsigned int field_id = tokenizer.getInt(4);
+                                new_edge = Heap.make_edge( obj, field_id,
+                                                           target, Exec.NowUp() );
+                            } 
+                            Method *topMethod = NULL;
+                            if (thread) {
+                                topMethod = thread->TopMethod();
                             }
                             obj->updateField( new_edge,
                                               field_id,
@@ -534,13 +538,13 @@ unsigned int read_trace_file( FILE *f,
                                               lastevent, // last event to determine cause
                                               eifile ); // output edge info file
                             // NOTE: topMethod COULD be NULL here.
+                            // DEBUG ONLY IF NEEDED
+                            // Example:
+                            // if ( (objId == tgtId) && (objId == 166454) ) {
+                            // if ( (objId == 166454) ) {
+                            //     tokenizer.debugCurrent();
+                            // }
                         }
-                        // DEBUG ONLY IF NEEDED
-                        // Example:
-                        // if ( (objId == tgtId) && (objId == 166454) ) {
-                        // if ( (objId == 166454) ) {
-                        //     tokenizer.debugCurrent();
-                        // }
                     }
                 }
                 break;
