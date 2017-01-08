@@ -962,8 +962,7 @@ void Object::decrementRefCountReal( unsigned int cur_time,
                                     Method *method,
                                     Reason reason,
                                     Object *death_root,
-                                    LastEvent lastevent,
-                                    ofstream &eifile ) // TODO: Don't need the edgeinfo file here? TODO
+                                    LastEvent lastevent )
 {
     this->decrementRefCount();
     this->m_lastMethodDecRC = method;
@@ -1046,8 +1045,7 @@ void Object::decrementRefCountReal( unsigned int cur_time,
                                                        method,
                                                        reason,
                                                        death_root,
-                                                       lastevent,
-                                                       eifile ); // TODO: Don't need the edgeinfo file here? TODO
+                                                       lastevent );
                 }
             }
         }

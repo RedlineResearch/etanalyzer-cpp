@@ -799,8 +799,7 @@ class Object {
                                     Method *method,
                                     Reason r,
                                     Object *death_root,
-                                    LastEvent last_event,
-                                    ofstream &eifile );
+                                    LastEvent last_event );
         // -- Access the fields
         const EdgeMap& getFields() const { return m_fields; }
         // -- Get a string representation

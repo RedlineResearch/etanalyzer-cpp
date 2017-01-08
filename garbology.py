@@ -876,8 +876,8 @@ class EdgeInfoReader:
 
     # Read the edgeinfo file to SAVE INTO the SQlite DB.
     def read_edgeinfo_file_with_stability_into_db( self,
-                                                   stabreader = None,
-                                                   logger = None ):
+                                                   stabreader = None ):
+        logger = self.logger
         try:
             assert( stabreader != None )
         except:
@@ -917,14 +917,15 @@ class EdgeInfoReader:
                         newrow = [ src, fieldId, tgt, ctime, dtime, ]
                         dbkey = (src, tgt, fieldId, ctime)
                         if dbkey in donedict:
-                            logger.error( "Duplicate (src:%d, tgt:%d, fId:%d, ctime:%d)" % dbkey )
+                            otup = dbkey + (edgestate,)
+                            logger.error( "Duplicate (src:%d, tgt:%d, fId:%d, ctime:%d, estate:%s)" % otup )
                             if dtime != donedict[dbkey]:
-                                logger.error( "   >> dtime: new[ %d ] vs old[ %d ]" % (dtime, donedict[dbkey]) )
+                                logger.error( "   >> dtime : new[ %d ] vs old[ %d ]" % (dtime, donedict[dbkey]) )
                                 if dtime > donedict[dbkey]:
                                     donedict[dbkey] = dtime
                             else:
                                 logger.error( "   >> dtime is the SAME." )
-                                continue
+                            continue
                         else:
                             donedict[dbkey] = dtime
                         # timepair = tuple(row[2:4])
@@ -1312,8 +1313,7 @@ class EdgeInfoFile2DB:
                                           stabreader = stabreader,
                                           logger = logger )
         self.edgereader.create_edgeinfo_db( outdbfilename = outdbfilename )
-        self.edgereader.read_edgeinfo_file_with_stability_into_db( stabreader = stabreader,
-                                                                   logger = logger )
+        self.edgereader.read_edgeinfo_file_with_stability_into_db( stabreader = stabreader )
 
 
 # -----------------------------------------------------------------------------

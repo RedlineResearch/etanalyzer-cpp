@@ -335,7 +335,8 @@ void apply_merlin( std::deque< Object * > &new_garbage )
                       ptr++ ) {
                     Edge *edge = ptr->second;
                     if ( edge &&
-                         (edge->getEdgeState() == EdgeState::DEAD_BY_OBJECT_DEATH) ) {
+                         ((edge->getEdgeState() == EdgeState::DEAD_BY_OBJECT_DEATH) ||
+                           (edge->getEdgeState() == EdgeState::DEAD_BY_OBJECT_DEATH_NOT_SAVED)) ) {
                         edge->setEndTime( tstamp_max );
                         Object *mytgt = edge->getTarget();
                         if (mytgt) {
@@ -343,10 +344,14 @@ void apply_merlin( std::deque< Object * > &new_garbage )
                             unsigned int tstmp = mytgt->getLastTimestamp();
                             if (tstamp_max > tstmp) {
                                 mytgt->setLastTimestamp( tstamp_max );
-                            } else {
-                                tstamp_max = tstmp;
+                                mytgt->setDeathTime( tstamp_max );
                             }
-                            mytgt->setDeathTime( mytgt->getLastTimestamp() );
+                            // This might be a bug. I probably shouldn't be setting the tstamp_max here.
+                            // But then again where should it be set? It seems that this is the right thing
+                            // to do here.
+                            // TODO else {
+                            // TODO     tstamp_max = tstmp;
+                            // TODO }
                             mystack.push_front( mytgt );
                         }
                     }
@@ -1191,8 +1196,12 @@ unsigned int output_edges( HeapState &myheap,
                 estate = EdgeState::DEAD_BY_PROGRAM_END;
             } else if ((estate == EdgeState::NONE) or
                        (estate == EdgeState::LIVE)) {
-                // TODO TODO: Log an error TODO
-                estate = EdgeState::DEAD_BY_PROGRAM_END;
+                cerr << "ERROR: edge(" << edge->getSource()->getId() << ", "
+                     << edge->getTarget()->getId() << ")[time: "
+                     << edge->getCreateTime() << "] -> Estate["
+                     << static_cast<int>(estate) << "]" << endl;
+                cerr << "Quitting." << endl;
+                exit(100);
             } 
             output_edge( edge,
                          endtime,
