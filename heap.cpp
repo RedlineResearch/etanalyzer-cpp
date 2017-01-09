@@ -75,6 +75,14 @@ void output_edge( Edge *edge,
     assert(target);
     unsigned int srcId = source->getId();
     unsigned int tgtId = target->getId();
+    if (srcId == 94200 && tgtId == 78449) {
+        cerr << srcId << ","
+            << tgtId << ","
+            << edge->getCreateTime() << ","
+            << endtime << ","
+            << edge->getSourceField() << ","
+            << static_cast<int>(estate) << endl;
+    }
     // Format is
     // srcId, tgtId, createTime, deathTime, sourceField, edgeState
     edge_info_file << srcId << ","
@@ -740,6 +748,7 @@ void Object::updateField( Edge *edge,
                           Reason reason,
                           Object *death_root,
                           LastEvent last_event,
+                          EdgeState estate,
                           ofstream &eifile )
 {
     if (edge) {
@@ -750,12 +759,17 @@ void Object::updateField( Edge *edge,
         // -- Old edge
         Edge *old_edge = p->second;
         if (old_edge) {
-            old_edge->setEdgeState( EdgeState::DEAD_BY_UPDATE );
-            old_edge->setEndTime(cur_time);
-            output_edge( old_edge,
-                         cur_time,
-                         EdgeState::DEAD_BY_UPDATE,
-                         eifile );
+            if (old_edge->getEdgeState() == EdgeState::LIVE) {
+                // We only do the following if the edge is still alive.
+                // If we need to modify the EndTime/DeathTime or EdgeState,
+                // we'll do it somewhere else.
+                old_edge->setEdgeState( estate );
+                old_edge->setEndTime(cur_time);
+                output_edge( old_edge,
+                             cur_time,
+                             estate,
+                             eifile );
+            }
             // -- Now we know the end time
             Object *old_target = old_edge->getTarget();
             if (old_target) {

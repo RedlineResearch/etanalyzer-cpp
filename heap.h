@@ -818,6 +818,7 @@ class Object {
                           Reason reason,
                           Object *death_root,
                           LastEvent last_event,
+                          EdgeState estate,
                           ofstream &eifile );
         // -- Record death time
         void makeDead( unsigned int death_time,
