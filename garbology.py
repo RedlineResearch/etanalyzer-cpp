@@ -1553,6 +1553,70 @@ class DeathGroupsReader:
             self.obj2group = self.pdata["obj2group"]
         # TODO DEBUG: raise RuntimeError("TODO: Need to implement this.")
 
+    # Read in the object info DB for every object
+    def read_objinfo_db( self,
+                         object_info_reader = None ):
+        # We don't know which are the key objects.
+        assert(object_info_reader != None)
+        logger = self.logger
+        oir = object_info_reader
+        debugflag = self.debugflag
+        count = 0
+        start = False
+        done = False
+        multkey = 0
+        # withkey = 0
+        withoutkey = 0
+        last_groupnum = 0
+        for objId, rec in oir.iteritems():
+            # TODO: DEBUG print "%d -> %s : %s" % (objId, str(rec), str(type(rec)))
+            dtime = oir.get_death_time_using_record(rec)
+            if dtime not in self.dtime2group:
+                last_groupnum += 1
+                groupnum = last_groupnum
+                self.map_obj2group( objId = objId,
+                                    groupnum = groupnum )
+                self.map_group2dtime( groupnum = groupnum,
+                                      dtime = dtime )
+            else:
+                groupnum = self.dtime2group[dtime]
+                if objId in self.obj2group:
+                    assert( dtime == self.group2dtime[groupnum] )
+                else:
+                    self.map_obj2group( objId = objId,
+                                        groupnum = groupnum )
+            self.group2list[groupnum].append( objId )
+        print "----------------------------------------------------------------------"
+        # Renumber according to size. Largest group first.
+        self.renumber_dgroups()
+        #--------------------------------------------------
+        # Debug print out top 5 groups --------------------
+        tmpcount = 0
+        for gnum, mylist in self.group2list.iteritems():
+            print "Group num[ %d ]: => %d objects" % (gnum, len(mylist))
+            tmpcount += 1
+            if tmpcount > 4:
+                break
+        # END Debug ---------------------------------------
+        #--------------------------------------------------
+        nokey_set = set()
+        for gnum, mylist in self.group2list.iteritems():
+            keylist = get_key_objects( mylist, oir )
+            self.map_key2group( groupnum = groupnum, keylist = keylist )
+            # Debug key objects. NOTE: This may not be used for now.
+            if len(keylist) > 1:
+                # logger.debug( "multiple key objects: %s" % str(keylist) )
+                multkey += 1
+            elif len(keylist) == 0:
+                tmpset = frozenset(keylist)
+                if tmpset not in nokey_set:
+                    # logger.debug( "NO key object in group: %s" % str(keylist) )
+                    withoutkey += 1
+                    nokey_set.add(tmpset)
+        print "Multiple key: %d" % multkey
+        print "Without key: %d" % withoutkey
+        print "----------------------------------------------------------------------"
+
     def create_dgroup_db( self, outdbfilename = None ):
         try:
             self.outdbconn = sqlite3.connect( outdbfilename )

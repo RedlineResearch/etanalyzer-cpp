@@ -93,7 +93,7 @@ def read_dgroups_into_pickle( result = [],
     dgroups_reader = DeathGroupsReader( dgroup_file = tracefile,
                                         debugflag = debugflag,
                                         logger = logger )
-    dgroups_reader.read_dgroup_file( objreader )
+    dgroups_reader.read_objinfo_db( objreader )
     #===========================================================================
     # Write out to pickle and csv files
     # 
