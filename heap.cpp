@@ -168,7 +168,8 @@ void HeapState::makeDead( Object *obj,
                           ofstream &eifile )
 {
     if (!obj->isDead()) {
-        ObjectSet::iterator iter = this->m_liveset.find(obj);
+        // Livesize maintenance
+        auto iter = this->m_liveset.find(obj);
         if (iter != this->m_liveset.end()) {
             unsigned long int temp = this->m_liveSize - obj->getSize();
             if (temp > this->m_liveSize) {
@@ -181,11 +182,14 @@ void HeapState::makeDead( Object *obj,
                 this->m_liveSize = temp;
             }
         }
+        // Get the actual reason
+        Reason objreason = obj->getReason();
         // Note that the death_time might be incorrect
         obj->makeDead( death_time,
                        this->m_alloc_time,
                        EdgeState::DEAD_BY_OBJECT_DEATH_NOT_SAVED,
-                       eifile );
+                       eifile,
+                       objreason );
     }
 }
 
@@ -346,7 +350,8 @@ void HeapState::end_of_program( unsigned int cur_time,
                 obj->makeDead( cur_time,
                                this->m_alloc_time,
                                EdgeState::DEAD_BY_PROGRAM_END,
-                               eifile );
+                               eifile,
+                               Reason::END_OF_PROGRAM_REASON );
             }
             obj->unsetDiedByStackFlag();
             obj->unsetDiedByHeapFlag();
@@ -906,17 +911,31 @@ deque<int> Object::collect_blue( EdgeList& edgelist )
 void Object::makeDead( unsigned int death_time,
                        unsigned int death_time_alloc,
                        EdgeState estate,
-                       ofstream &edge_info_file )
+                       ofstream &edge_info_file,
+                       Reason newreason )
 {
     // -- Record the death time
     this->m_deathTime = death_time;
     this->m_deathTime_alloc = death_time_alloc;
+    this->setReason( newreason, death_time );
     if (this->m_deadFlag) {
         cerr << "Object[ " << this->getId() << " ] : double Death event." << endl;
     } else {
         this->m_deadFlag = true;
     }
 
+    // Set the DiedBy******* status
+    if (newreason == Reason::STACK) {
+        this->setDiedByStackFlag();
+    } else if (newreason == Reason::HEAP) {
+        this->setDiedByHeapFlag();
+    } else if (newreason == Reason::GLOBAL) {
+        this->setDiedByGlobalFlag();
+    } else if (newreason == Reason::END_OF_PROGRAM_REASON) {
+        this->setDiedAtEndFlag();
+    } else if (newreason == Reason::UNKNOWN_REASON) {
+        this->setDiedByHeapFlag();
+    }
     // -- Visit all edges
     for ( EdgeMap::iterator p = this->m_fields.begin();
           p != this->m_fields.end();

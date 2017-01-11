@@ -1369,6 +1369,7 @@ class DeathGroupsReader:
                        groupnum = 0 ):
         assert( groupnum > 0 )
         assert( objId >= 0 )
+        assert( objId not in self.obj2group )
         self.obj2group[objId] = groupnum
 
     def get_group( self, groupnum = 0 ):

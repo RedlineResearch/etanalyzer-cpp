@@ -613,19 +613,6 @@ class Object {
         // - died by GLOBAL
         bool getDiedByGlobalFlag() const { return m_diedByGlobal; }
         void setDiedByGlobalFlag() {
-            // REMOVE this DEBUG for now
-            // TODO if (this->m_diedFlagSet) {
-            // TODO     // Check to see if different
-            // TODO     if ( this->m_diedByHeap ) {
-            // TODO         cerr << "Object[" << this->m_id << "]"
-            // TODO              << " was originally died by heap but trying to set diedByGlobal. Overriding."
-            // TODO              << endl;
-            // TODO     } else if (this->m_diedByStack) {
-            // TODO         cerr << "Object[" << this->m_id << "]"
-            // TODO              << " was originally died by stack but setting to by GLOBAL. Overriding."
-            // TODO              << endl;
-            // TODO     }
-            // TODO }
             this->m_diedByGlobal = true;
             this->m_reason = Reason::GLOBAL;
             this->m_diedFlagSet = true;
@@ -824,7 +811,8 @@ class Object {
         void makeDead( unsigned int death_time,
                        unsigned int death_time_alloc,
                        EdgeState estate,
-                       ofstream &eifile );
+                       ofstream &eifile,
+                       Reason newreason );
         // -- Set the color
         void recolor(Color newColor);
         // Mark object as red
