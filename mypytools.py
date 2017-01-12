@@ -327,13 +327,43 @@ def hex2dec( val ):
     except:
         raise ValueError("Cannot convert to hex: %s" % str(val))
     return retval
-    
+
+def __all_neighbors_func( G = {},
+                          src = None ):
+    assert( len(G) > 0 )
+    assert( src in G )
+    return G[src]
+
+def dfs_iter( G = {},
+              discovered = [], # list of discovered flag, 1 to 1 with nodes in G
+              node = None, # start at this node
+              all_neighbors_func = __all_neighbors_func ):
+    # all_neighbors_func should be a function that takes in 2 parameters as follows:
+    #        G,  -> an adjacency representation of the graphs
+    #        src -> The source node where src is in G
+    #  
+    # And returns a list of all the nodes in G that are neighbors of src 
+    if len(G) == 0:
+        return []
+    assert( len(G) == len(discovered) )
+    stack = [ node ]
+    result = []
+    while len(stack) > 0:
+        src = stack.pop()
+        if not discovered[src]:
+            discovered[src] = True
+            result.append(src)
+            for tgt in all_neighbors_func(G, src):
+                stack.append(tgt)
+    return result
+
 
 __all__ = [ "mean", "merge_two_dicts", "stdev", "variance", "email_message",
             "get_file_fp", "check_host", "get_actual_hostname", "process_host_config",
             "process_worklist_config",
             "is_specjvm", "is_dacapo", "is_minibench",
-            "get_trace_fp", "hex2dec", ]
+            "get_trace_fp", "hex2dec",
+            "dfs_iter", ]
 
 if __name__ == "__main__":
     import doctest

@@ -68,13 +68,17 @@ def check_diedby_stats( dgroups_data = {},
     result = defaultdict( dict )
     tmp = 0
     for gnum, glist in dgroups_data["group2list"].iteritems():
-        result[gnum]["diedby"] = Counter()
-        result[gnum]["actual_ts"] = Counter()
+        result[gnum]["diedby"] = { "count" : Counter(),
+                                   "types" : defaultdict( set ) }
+        result[gnum]["deathtime"] = Counter()
         for objId in glist:
             cause = objectinfo.get_death_cause(objId)
-            last_actual_ts = objectinfo.get_last_actual_timestamp(objId)
-            result[gnum]["diedby"][cause] += 1
-            result[gnum]["actual_ts"][last_actual_ts] += 1
+            # last_actual_ts = objectinfo.get_last_actual_timestamp(objId)
+            dtime = objectinfo.get_death_time(objId)
+            result[gnum]["diedby"]["count"][cause] += 1
+            mytype = objectinfo.get_type(objId)
+            result[gnum]["diedby"]["types"][cause].add(mytype)
+            result[gnum]["deathtime"][dtime] += 1
         # DEBUG
         tmp += 1
         if tmp >= 20:
@@ -138,16 +142,13 @@ def read_dgroups_from_pickle( result = [],
     print "==========================================================================="
     for gnum, datadict in diedby_results.iteritems():
         assert("diedby" in datadict)
-        assert("actual_ts" in datadict)
+        assert("deathtime" in datadict)
         print "GROUP %d" % gnum
         print "    * DIEDBY:"
-        for diedbytype, total in datadict["diedby"].iteritems():
+        for diedbytype, total in datadict["diedby"]["count"].iteritems():
             print "        %s -> %d" % (diedbytype, total)
-        max_tstamp = max( datadict["actual_ts"].keys() )
-        min_tstamp = min( datadict["actual_ts"].keys() )
-        print "    * MAX actual timestamp: %d" % max_tstamp
-        print "        - with # objects  : %d" % datadict["actual_ts"][max_tstamp]
-        print "    * min actual timestamp: %d" % min_tstamp
+            print "         - Types: %s" % str(list( datadict["diedby"]["types"][diedbytype]))
+        print "    * dtime               : %s" % str(list(datadict["deathtime"]))
         print "==========================================================================="
     #===========================================================================
     # Idea 2: Get the key objects TODO TODO TODO
@@ -157,10 +158,10 @@ def read_dgroups_from_pickle( result = [],
     for gnum, glist in dgroups_data["group2list"].iteritems():
         # - for every death group dg:
         #       get the last edge for every object
-        result = get_last_edge_record_for_group( group = glist,
-                                                 edgeinfo = edgeinfo,
-                                                 objectinfo = objectinfo,
-                                                 group_dtime = None )
+        result = split_into_actual_dgroups( group = glist,
+                                            edgeinfo = edgeinfo,
+                                            objectinfo = objectinfo,
+                                            group_dtime = None )
         count += 1
         print "%d: %s" % (count, result)
         print "--------------------------------------------------------------------------------"
@@ -201,10 +202,22 @@ def read_edgeinfo_with_stability_into_db( result = [],
                                   logger = logger )
     print "B:"
 
-def get_last_edge_record_for_group( group = None,
-                                    edgeinfo = None,
-                                    objectinfo = None,
-                                    group_dtime = None ):
+def make_adjacency_list( edgelist = [],
+                         edgeinfo = None ):
+    G = {}
+    for rec in edgelist:
+        src = edgeinfo.get_source_id_from_rec(rec)
+        tgt = edgeinfo.get_target_id_from_rec(rec)
+        if src in G:
+            G[src].append(tgt)
+        else:
+            G[src] = [ tgt ]
+    return G
+
+def split_into_actual_dgroups( group = None,
+                               edgeinfo = None,
+                               objectinfo = None,
+                               group_dtime = None ):
     latest = 0 # Time of most recent
     srclist = []
     tgt = 0
@@ -216,33 +229,47 @@ def get_last_edge_record_for_group( group = None,
     dtime = objectinfo.get_death_time( group[0] )
     # Rename:
     ei = edgeinfo
-    if objectinfo.died_by_stack( group[0]):
+    result = {}
+    if objectinfo.died_by_stack(group[0]) and len(group) == 1:
+        # Then this is a key object for a death group by itself
+        result = { group[0] : { "subgroup" : [],
+                                "edges" : [] }
+                 }
+    elif objectinfo.died_by_stack(group[0]):
+        assert( len(group) > 1 )
         print "DBS: %d" % len(group)
-        srcdict = {}
-        tgtdict = {}
         # DIED BY STACK
         # We look for all objects that do not have any incoming edge with
         # the same death time as itself. These are the ROOTS.
         none_count = 0
+        edgelist = []
         for obj in group:
             # TODO: Need a get all edges that target 'obj'
             # * Incoming edges
-            srclist = ei.get_sources_records(obj)
+            srcreclist = ei.get_sources_records(obj)
             # We only want the ones that died with the object
-            # TODO: Not used. Needed? TODO: dtimes = Counter([ x[3] for x in srclist ])
-            srccand = [ ei.get_source_id_from_rec(x) for x in srclist if
-                        (ei.get_death_time_from_rec(x) == dtime) ]
-            # TODO: DELETE: TODO: srccand = [ x[0] for x in srclist if  == dtime ]
-            if len(srccand) > 0:
-                print "XXX: %d -> %s" % (dtime, str(srccand))
+            # TODO: ei.get_source_id_from_rec(x)
+            obj_edgelist = [ x for x in srcreclist if
+                             (ei.get_death_time_from_rec(x) == dtime) ]
+            if len(edgelist) == 0:
+                # Must be a key object 
+                assert( obj not in result )
+                result[obj] = { "subgroup" : [],
+                                "edges" : obj_edgelist }
             else:
-                none_count += 1
-            for x in srccand:
-                # This should be a correct invariant:
-                if x not in group:
-                    print "DEBUG: %d not in group with dtime[ %d ] vs groupdtime[ %d ]" % \
-                        (x, objectinfo.get_death_time(x), dtime)
-            srcdict[obj] = srccand
+                edgelist.extend( obj_edgelist )
+        # Now use DFS to find subgroups. TODO TODO TODO
+        adjlist = make_adjacency_list( edgelist = edgelist,
+                                       edgeinfo = ei )
+        discovered = { x : False for x in set(adjlist.keys().extend( adjlist.values() )) }
+        # Clearly we need to use key objects as the starting points
+        for srcnode in obj.keys():
+            if not discovered[srcnode]:
+                mygroup = dfs_iter( G = adjlist,
+                                    discovered = discovered,
+                                    srcnode )
+        # TODO: At this point all nodes should be discovered. We need to verify. TODO
+    srcdict[obj] = srccand
         print "ZZZ:", none_count
         roots = []
         for tgt, srclist in srcdict.iteritems():
@@ -264,11 +291,9 @@ def get_last_edge_record_for_group( group = None,
         # TODO TODO What else here? TODO
     else:
         print "NONEOFTHEABOVE - PROGEND? - %d" % len(group)
-        pass
         # PROGRAM END?
-    return { "dtime" : latest,
-             "lastsources" : srclist,
-             "target" : tgt }
+        assert(len(result) == 0)
+    return result
 
 def main_process( global_config = {},
                   main_config = {},
@@ -408,7 +433,7 @@ def process_config( args ):
     config_parser = ConfigParser.ConfigParser()
     config_parser.read( args.config )
     global_config = config_section_map( "global", config_parser )
-    main_config = config_section_map( "analyze_dgroup", config_parser )
+    main_config = config_section_map( "analyze-dgroup", config_parser )
     host_config = config_section_map( "hosts", config_parser )
     # Reuse the dgroups2db-worklist
     worklist_config = config_section_map( "dgroups2db-worklist", config_parser )
