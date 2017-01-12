@@ -236,17 +236,13 @@ def render_graphs( rscript_path = None,
                    graph_dir = None,
                    logger = None,
                    debugflag = False ):
-    curdir = os.getcwd()
-    csvfile_abs = os.path.join( curdir, csvfile )
     assert( os.path.isfile( rscript_path ) )
     assert( os.path.isfile( barplot_script ) )
-    # TODO print csvfile
-    # TODO print csvfile_abs
-    assert( os.path.isfile( csvfile_abs ) )
+    assert( os.path.isfile( csvfile ) )
     assert( os.path.isdir( graph_dir ) )
     cmd = [ rscript_path, # The Rscript executable
             barplot_script, # Our R script that generates the plots/graphs
-            csvfile_abs, # The csv file that contains the data
+            csvfile, # The csv file that contains the data
             graph_dir, ] # Where to place the PDF output files
     print "Running R barplot script  on %s -> directory %s" % (csvfile, graph_dir)
     logger.debug( "[ %s ]" % str(cmd) )
@@ -561,85 +557,102 @@ def main_process( output = None,
         # if bmark != "tomcat":
         #     print bmark
         #     continue
-        abspath = os.path.join( workdir,
+        dgroups_path = os.path.join( workdir,
                                 bmark + dgroups2db_config["file-dgroups"] )
+        flag = True
+        if not os.path.isfile(dgroups_path):
+            logger.critical("DGROUPS: No such file: %s" % str(dgroups_path))
+            print "DGROUPS: No such file: %s" % str(dgroups_path)
+            # TODO: NOT ENABLED: TODO flag = False
+        summary_path = os.path.join(cycle_cpp_dir, summary_config[bmark])
+        if not os.path.isfile(summary_path):
+            logger.critical("SUMMARY: No such file: %s" % str(summary_path))
+            print "SUMMARY: No such file: %s" % str(summary_path)
+            flag = False
+        if not flag:
+            # Couldn't find a source file.
+            continue
         print "=======[ %s ]=========================================================" \
             % bmark
         logger.critical( "=======[ %s ]=========================================================" 
                          % bmark )
-        if os.path.isfile(abspath):
-            #----------------------------------------------------------------------
-            #      SETUP
-            #----------------------------------------------------------------------
-            group = 1
-            graphs = []
-            # Counters TODO: do we need this?
-            cycle_total_counter = Counter()
-            actual_cycle_counter = Counter() # TODO
-            cycle_type_counter = Counter() # TODO
-            logger.critical( "Opening %s." % abspath )
-            #----------------------------------------------------------------------
-            #      SUMMARY
-            #----------------------------------------------------------------------
-            # Get summary
-            summary_path = os.path.join(cycle_cpp_dir, summary_config[bmark])
-            # summary_sim = get_summary( summary_path )
-            sreader = SummaryReader( summary_file = summary_path,
-                                       logger = logger )
-            sreader.read_summary_file()
-            #     get summary by size
-            number_of_objects = sreader.get_number_of_objects()
-            number_of_edges = sreader.get_number_of_edges()
-            died_by_stack = sreader.get_number_died_by_stack()
-            died_by_heap = sreader.get_number_died_by_heap()
-            died_at_end = sreader.get_number_died_at_end()
-            died_by_stack_after_heap = sreader.get_number_died_by_stack_after_heap()
-            died_by_stack_only = sreader.get_number_died_by_stack_only()
-            died_by_stack_after_heap_size = sreader.get_size_died_by_stack_after_heap()
-            died_by_stack_only_size = sreader.get_size_died_by_stack_only()
-            died_by_stack_size = sreader.get_size_died_by_stack()
-            died_by_heap_size = sreader.get_size_died_by_heap()
-            died_at_end_size = sreader.get_size_died_at_end()
+        #----------------------------------------------------------------------
+        #      SETUP
+        #----------------------------------------------------------------------
+        group = 1
+        graphs = []
+        # Counters TODO: do we need this?
+        cycle_total_counter = Counter()
+        actual_cycle_counter = Counter() # TODO
+        cycle_type_counter = Counter() # TODO
+        logger.critical( "Opening %s." % dgroups_path )
+        #----------------------------------------------------------------------
+        #      SUMMARY
+        #----------------------------------------------------------------------
+        # Get summary
+        # summary_sim = get_summary( summary_path )
+        sreader = SummaryReader( summary_file = summary_path,
+                                   logger = logger )
+        sreader.read_summary_file()
+        #     get summary by size
+        number_of_objects = sreader.get_number_of_objects()
+        number_of_edges = sreader.get_number_of_edges()
+        died_by_stack = sreader.get_number_died_by_stack()
+        died_by_heap = sreader.get_number_died_by_heap()
+        died_at_end = sreader.get_number_died_at_end()
+        died_by_stack_after_heap = sreader.get_number_died_by_stack_after_heap()
+        died_by_stack_only = sreader.get_number_died_by_stack_only()
+        died_by_stack_after_heap_size = sreader.get_size_died_by_stack_after_heap()
+        died_by_stack_only_size = sreader.get_size_died_by_stack_only()
+        died_by_stack_size = sreader.get_size_died_by_stack()
+        died_by_heap_size = sreader.get_size_died_by_heap()
+        died_at_end_size = sreader.get_size_died_at_end()
 
-            last_update_null = sreader.get_last_update_null()
+        last_update_null = sreader.get_last_update_null()
 
-            max_live_size = sreader.get_max_live_size()
-            final_time = sreader.get_final_garbology_time()
-            # last_update_null_heap = summary_sim["last_update_null_heap"]
-            # last_update_null_stack = summary_sim["last_update_null_stack"]
-            # last_update_null_size = summary_sim["last_update_null_size"]
-            # last_update_null_heap_size = summary_sim["last_update_null_heap_size"]
-            # last_update_null_stack_size = summary_sim["last_update_null_stack_size"]
-            summary[bmark] = { "died_by_heap" : died_by_heap, # total of
-                               "died_by_stack" : died_by_stack, # total of
-                               "died_at_end" : died_at_end, # total of
-                               "died_by_stack_after_heap" : died_by_stack_after_heap, # subset of died_by_stack
-                               "died_by_stack_only" : died_by_stack_only, # subset of died_by_stack
-                               "died_by_stack_after_heap_size" : died_by_stack_after_heap_size, # size of
-                               "died_by_stack_only_size" : died_by_stack_only_size, # size of
-                               "last_update_null" : last_update_null, # subset of died_by_heap
-                               "max_live_size" : max_live_size,
-                               "number_of_objects" : number_of_objects,
-                               "number_of_edges" : number_of_edges,
-                               "types" : Counter(), # counts of types using type IDs
-                               "died_by_stack_size" : died_by_stack_size, # size, not object count
-                               "died_by_heap_size" : died_by_heap_size, # size, not object count
-                               "died_at_end_size" : died_at_end_size, # size, not object count
-                               # TODO "last_update_null_heap" : last_update_null_heap, # subset of died_by_heap
-                               # TODO "last_update_null_stack" : last_update_null_stack, # subset of died_by_heap
-                               # TODO "last_update_null_size" : last_update_null_size, # size of
-                               # TODO "last_update_null_heap_size" : last_update_null_heap_size, # size of
-                               # TODO "last_update_null_stack_size" : last_update_null_stack_size, # size of
-                               }
-            #----------------------------------------------------------------------
-            #      CYCLES
-            #----------------------------------------------------------------------
-            # Get object dictionary information that has types and sizes
-            # TODO objectinfo_path = os.path.join(cycle_cpp_dir, objectinfo_config[bmark])
-            # TODO object_info_dict = get_object_info( objectinfo_path, typedict, rev_typedict )
-            print "--------------------------------------------------------------------------------"
-        else:
-            logger.critical("Not such file: %s" % str(abspath))
+        max_live_size = sreader.get_max_live_size()
+        final_time = sreader.get_final_garbology_time()
+        # last_update_null_heap = summary_sim["last_update_null_heap"]
+        # last_update_null_stack = summary_sim["last_update_null_stack"]
+        # last_update_null_size = summary_sim["last_update_null_size"]
+        # last_update_null_heap_size = summary_sim["last_update_null_heap_size"]
+        # last_update_null_stack_size = summary_sim["last_update_null_stack_size"]
+
+        # DEBUG:
+        if bmark == "luindex":
+            assert( (died_by_stack == 304689) and
+                    (died_by_heap == 84577) )
+        summary[bmark] = { "died_by_heap" : died_by_heap, # total of
+                           "died_by_stack" : died_by_stack, # total of
+                           "died_at_end" : died_at_end, # total of
+                           "died_by_stack_after_heap" : died_by_stack_after_heap, # subset of died_by_stack
+                           "died_by_stack_only" : died_by_stack_only, # subset of died_by_stack
+                           "died_by_stack_after_heap_size" : died_by_stack_after_heap_size, # size of
+                           "died_by_stack_only_size" : died_by_stack_only_size, # size of
+                           "last_update_null" : last_update_null, # subset of died_by_heap
+                           "max_live_size" : max_live_size,
+                           "number_of_objects" : number_of_objects,
+                           "number_of_edges" : number_of_edges,
+                           "types" : Counter(), # counts of types using type IDs
+                           "died_by_stack_size" : died_by_stack_size, # size, not object count
+                           "died_by_heap_size" : died_by_heap_size, # size, not object count
+                           "died_at_end_size" : died_at_end_size, # size, not object count
+                           # TODO "last_update_null_heap" : last_update_null_heap, # subset of died_by_heap
+                           # TODO "last_update_null_stack" : last_update_null_stack, # subset of died_by_heap
+                           # TODO "last_update_null_size" : last_update_null_size, # size of
+                           # TODO "last_update_null_heap_size" : last_update_null_heap_size, # size of
+                           # TODO "last_update_null_stack_size" : last_update_null_stack_size, # size of
+                           }
+        print ">>>> =[%s START]===============================================" % bmark
+        pp.pprint(summary[bmark])
+        print ">>>> =[%s END]=================================================" % bmark
+        #----------------------------------------------------------------------
+        #      CYCLES
+        #----------------------------------------------------------------------
+        # Get object dictionary information that has types and sizes
+        # TODO objectinfo_path = os.path.join(cycle_cpp_dir, objectinfo_config[bmark])
+        # TODO object_info_dict = get_object_info( objectinfo_path, typedict, rev_typedict )
+        print "--------------------------------------------------------------------------------"
         count += 1
         # if count >= 1:
         #     break
@@ -658,7 +671,7 @@ def main_process( output = None,
     # run object_barplot.R
     render_graphs( rscript_path = global_config["rscript_path"],
                    barplot_script = global_config["barplot_script"],
-                   csvfile = output, # csvfile is the input from the output_summary earlier 
+                   csvfile = output_path, # csvfile is the input from the output_summary earlier 
                    graph_dir = global_config["graph_dir"],
                    logger = logger,
                    debugflag = debugflag )
