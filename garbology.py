@@ -1372,6 +1372,13 @@ class DeathGroupsReader:
         assert( objId not in self.obj2group )
         self.obj2group[objId] = groupnum
 
+    def remap_obj2group( self,
+                         objId = -1,
+                         groupnum = 0 ):
+        assert( groupnum > 0 )
+        assert( objId >= 0 )
+        self.obj2group[objId] = groupnum
+
     def get_group( self, groupnum = 0 ):
         """Returns the group as a list for groupnum."""
         return self.group2list[groupnum] if groupnum in self.group2list else []
@@ -1554,6 +1561,46 @@ class DeathGroupsReader:
             self.obj2group = self.pdata["obj2group"]
         # TODO DEBUG: raise RuntimeError("TODO: Need to implement this.")
 
+    def __split_stack_vs_heap__( self,
+                                 object_info_reader = None,
+                                 lastgnum = None ):
+        oi = object_info_reader
+        for gnum in self.group2list.keys():
+            grouplist = self.group2list[gnum]
+            newdict = { "stack" : [],
+                        "heap" : [],
+                        "progend" : [] }
+            for objId in grouplist:
+                if oi.died_by_stack(objId) or oi.died_by_global(objId):
+                    newdict["stack"].append(objId)
+                elif oi.died_by_heap(objId):
+                    newdict["heap"].append(objId)
+                elif oi.died_by_program_end(objId):
+                    newdict["progend"].append(objId)
+                else:
+                    # By default
+                    newdict["stack"].append(objId)
+                    self.logger.critical( "Can't seem to classify properly- %d : %s"
+                                          % (objId, oi.get_type(objId) ) )
+            if ( len(newdict["stack"]) > 0 and
+                 len(newdict["heap"]) > 0 ):
+                # Need to split. Keep the heap in the same group.
+                dtime = self.group2dtime[ self.obj2group[newdict["stack"][0]] ]
+                stack_dtime = dtime + 0.5
+                assert(stack_dtime not in self.dtime2group)
+                # 1. Move the stack group to the lastnum.
+                lastgnum += 1
+                newgnum = lastgnum
+                for objId in newdict["stack"]:
+                    self.remap_obj2group( objId = objId,
+                                          groupnum = newgnum )
+                    # Now remove the moved objIds from group2list of old gnum
+                    self.group2list[gnum].remove(objId)
+                self.map_group2dtime( groupnum = newgnum,
+                                      dtime = stack_dtime )
+                self.group2list[newgnum].extend( newdict["stack"] )
+        return lastgnum
+
     # Read in the object info DB for every object
     def read_objinfo_db( self,
                          object_info_reader = None ):
@@ -1588,6 +1635,8 @@ class DeathGroupsReader:
                                         groupnum = groupnum )
             self.group2list[groupnum].append( objId )
         print "----------------------------------------------------------------------"
+        last_groupnum = self.__split_stack_vs_heap__( object_info_reader = oir,
+                                                      lastgnum = last_groupnum )
         # Renumber according to size. Largest group first.
         self.renumber_dgroups()
         #--------------------------------------------------
