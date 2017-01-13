@@ -345,7 +345,6 @@ def dfs_iter( G = {},
     # And returns a list of all the nodes in G that are neighbors of src 
     if len(G) == 0:
         return []
-    assert( len(G) == len(discovered) )
     stack = [ node ]
     result = []
     while len(stack) > 0:
@@ -355,15 +354,20 @@ def dfs_iter( G = {},
             result.append(src)
             for tgt in all_neighbors_func(G, src):
                 stack.append(tgt)
+    print "XXX:", str(result)
     return result
 
+def remove_dupes( seq ):
+    seen = set()
+    seen_add = seen.add
+    return [ x for x in seq if not (x in seen or seen_add(x)) ]
 
 __all__ = [ "mean", "merge_two_dicts", "stdev", "variance", "email_message",
             "get_file_fp", "check_host", "get_actual_hostname", "process_host_config",
             "process_worklist_config",
             "is_specjvm", "is_dacapo", "is_minibench",
             "get_trace_fp", "hex2dec",
-            "dfs_iter", ]
+            "dfs_iter", "remove_dupes", ]
 
 if __name__ == "__main__":
     import doctest

@@ -13,6 +13,7 @@ from multiprocessing import Process, Manager
 import sqlite3
 from shutil import copy 
 import cPickle
+from itertools import chain
 # Possible useful libraries, classes and functions:
 # from operator import itemgetter
 from collections import Counter
@@ -20,7 +21,7 @@ from collections import defaultdict
 #   - This one is my own library:
 from mypytools import mean, stdev, variance
 from mypytools import check_host, create_work_directory, process_host_config, \
-    process_worklist_config
+    process_worklist_config, dfs_iter, remove_dupes
 
 # TODO: Do we need 'sqorm.py' or 'sqlitetools.py'?
 #       Both maybe? TODO
@@ -158,10 +159,10 @@ def read_dgroups_from_pickle( result = [],
     for gnum, glist in dgroups_data["group2list"].iteritems():
         # - for every death group dg:
         #       get the last edge for every object
-        result = split_into_actual_dgroups( group = glist,
-                                            edgeinfo = edgeinfo,
-                                            objectinfo = objectinfo,
-                                            group_dtime = None )
+        result = get_key_objects( group = glist,
+                                  edgeinfo = edgeinfo,
+                                  objectinfo = objectinfo,
+                                  group_dtime = None )
         count += 1
         print "%d: %s" % (count, result)
         print "--------------------------------------------------------------------------------"
@@ -202,9 +203,10 @@ def read_edgeinfo_with_stability_into_db( result = [],
                                   logger = logger )
     print "B:"
 
-def make_adjacency_list( edgelist = [],
+def make_adjacency_list( roots = [],
+                         edgelist = [],
                          edgeinfo = None ):
-    G = {}
+    G = { x : [] for x in roots }
     for rec in edgelist:
         src = edgeinfo.get_source_id_from_rec(rec)
         tgt = edgeinfo.get_target_id_from_rec(rec)
@@ -212,14 +214,17 @@ def make_adjacency_list( edgelist = [],
             G[src].append(tgt)
         else:
             G[src] = [ tgt ]
+        if tgt not in G:
+            G[tgt] = []
     return G
 
-def split_into_actual_dgroups( group = None,
-                               edgeinfo = None,
-                               objectinfo = None,
-                               group_dtime = None ):
+# This should return a dictionary where:
+#     key -> group (not including key)
+def get_key_objects( group = None,
+                     edgeinfo = None,
+                     objectinfo = None,
+                     group_dtime = None ):
     latest = 0 # Time of most recent
-    srclist = []
     tgt = 0
     # If the group died by stack, then there are no last edges 
     # from the heap to speak of. We look for objects without last edges.
@@ -251,32 +256,33 @@ def split_into_actual_dgroups( group = None,
             # TODO: ei.get_source_id_from_rec(x)
             obj_edgelist = [ x for x in srcreclist if
                              (ei.get_death_time_from_rec(x) == dtime) ]
-            if len(edgelist) == 0:
+            if len(obj_edgelist) == 0:
                 # Must be a key object 
                 assert( obj not in result )
-                result[obj] = { "subgroup" : [],
-                                "edges" : obj_edgelist }
-            else:
-                edgelist.extend( obj_edgelist )
+                result[obj] = []
+            edgelist.extend( obj_edgelist )
         # Now use DFS to find subgroups. TODO TODO TODO
-        adjlist = make_adjacency_list( edgelist = edgelist,
+        adjlist = make_adjacency_list( roots = result.keys(),
+                                       edgelist = edgelist,
                                        edgeinfo = ei )
-        discovered = { x : False for x in set(adjlist.keys().extend( adjlist.values() )) }
+        allobjs = result.keys()
+        allobjs.extend( list(chain.from_iterable( adjlist.values() )) )
+        allobjs.extend( adjlist.keys() )
+        allobjs = remove_dupes(allobjs)
+        discovered = { x : False for x in allobjs }
         # Clearly we need to use key objects as the starting points
-        for srcnode in obj.keys():
+        print "===[ ADJ LIST ]================================================================="
+        pp.pprint(adjlist)
+        print "================================================================================"
+        for srcnode in result.keys():
             if not discovered[srcnode]:
                 mygroup = dfs_iter( G = adjlist,
                                     discovered = discovered,
-                                    srcnode )
+                                    node = srcnode )
+                result[srcnode] = mygroup
         # TODO: At this point all nodes should be discovered. We need to verify. TODO
-    srcdict[obj] = srccand
-        print "ZZZ:", none_count
-        roots = []
-        for tgt, srclist in srcdict.iteritems():
-            if len(srclist) == 0:
-                roots.append(tgt)
     elif objectinfo.died_by_heap( group[0]):
-        print "DBH: %d" % len(group)
+        pass
         # DIED BY HEAP
         # All edges should have the same death time as the group, except
         # for EXACTLY ONE edge with death time less than group death time.
