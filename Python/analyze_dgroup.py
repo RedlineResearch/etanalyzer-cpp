@@ -237,9 +237,7 @@ def get_key_objects( group = None,
     result = {}
     if objectinfo.died_by_stack(group[0]) and len(group) == 1:
         # Then this is a key object for a death group by itself
-        result = { group[0] : { "subgroup" : [],
-                                "edges" : [] }
-                 }
+        result = { group[0] : [] }
     elif objectinfo.died_by_stack(group[0]):
         assert( len(group) > 1 )
         print "DBS: %d" % len(group)
