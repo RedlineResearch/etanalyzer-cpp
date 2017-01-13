@@ -271,9 +271,9 @@ def get_key_objects( group = None,
         allobjs = remove_dupes(allobjs)
         discovered = { x : False for x in allobjs }
         # Clearly we need to use key objects as the starting points
-        print "===[ ADJ LIST ]================================================================="
-        pp.pprint(adjlist)
-        print "================================================================================"
+        # TODO: DEBUG: print "===[ ADJ LIST ]================================================================="
+        # TODO: DEBUG: pp.pprint(adjlist)
+        # TODO: DEBUG: print "================================================================================"
         for srcnode in result.keys():
             if not discovered[srcnode]:
                 mygroup = dfs_iter( G = adjlist,
