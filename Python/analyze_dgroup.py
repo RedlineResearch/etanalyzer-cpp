@@ -303,13 +303,18 @@ def get_key_objects( group = None,
                 result[srcnode] = mygroup
         # TODO: At this point all nodes should be discovered. We need to verify. TODO
         for srcnode in result.keys():
+            cycledict[srcnode] = False
+        for nxnode in nxgraph.nodes():
             # TODO: Determine if it has cycles 
-            try:
-                cycle_elist = nx.find_cycle(nxgraph, srcnode) 
-                cycledict[srcnode] = True 
-            except nx.exception.NetworkXNoCycle as e:
-                cycle_elist = []
-                cycledict[srcnode] = False
+            if nxnode in result:
+                try:
+                    cycle_elist = nx.find_cycle(nxgraph, nxnode) 
+                    cycledict[nxnode] = True 
+                    print "   cycle YES."
+                except nx.exception.NetworkXNoCycle as e:
+                    cycle_elist = []
+                    cycledict[nxnode] = False
+                    print "   cycle NO."
     elif ( objectinfo.died_by_heap(group[0]) or
            objectinfo.died_by_global(group[0]) ):
         if objectinfo.died_by_heap(group[0]):
