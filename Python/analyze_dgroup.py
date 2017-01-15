@@ -14,6 +14,7 @@ import sqlite3
 from shutil import copy 
 import cPickle
 from itertools import chain
+import networkx as nx
 # Possible useful libraries, classes and functions:
 # from operator import itemgetter
 from collections import Counter
@@ -162,20 +163,26 @@ def read_dgroups_from_pickle( result = [],
         result = get_key_objects( group = glist,
                                   edgeinfo = edgeinfo,
                                   objectinfo = objectinfo,
-                                  group_dtime = None )
+                                  group_dtime = None,
+                                  logger = logger )
         count += 1
-        print "%d: %s" % (count, result)
+        if len(result) > 1:
+            print "%d: %s" % (count, result)
         print "--------------------------------------------------------------------------------"
-    exit(111)
-    #           look for the last edge with the latest death time
-    #           save as list as there MAY be more than one last edge
-    #       Got the last edge
-    #       Save per group
-    #       // STATS
-    #       * type of key object
+    # STATS
+    #--------------------------------------------------------------------------------
+    # Get
+    keytype_counter = Counter()
+    ktc = keytype_counter # Short alias
+    for key, subgroup in result.iteritems():
+        keytype = objectinfo.get_type(key)
+        ktc[keytype] += 1
+        groupsize = len(subgroup)
+    # 
     #       * size stats for groups that died by stack
     #            + first should be number of key objects
     #            + then average size of sub death group
+    exit(0)
 
     #===========================================================================
     # Write out to ???? TODO
@@ -207,23 +214,33 @@ def make_adjacency_list( roots = [],
                          edgelist = [],
                          edgeinfo = None ):
     G = { x : [] for x in roots }
+    nxG = nx.DiGraph()
     for rec in edgelist:
         src = edgeinfo.get_source_id_from_rec(rec)
         tgt = edgeinfo.get_target_id_from_rec(rec)
+        # Add to adjacency list
         if src in G:
             G[src].append(tgt)
         else:
             G[src] = [ tgt ]
         if tgt not in G:
             G[tgt] = []
-    return G
+        # Add to networkx graph
+        nxG.add_edge(src, tgt)
+    return { "adjlist" : G,
+             "nxgraph" : nxG }
+
+def is_cycle( adjlist = [],
+              srcnode = None ):
+    return False
 
 # This should return a dictionary where:
 #     key -> group (not including key)
 def get_key_objects( group = None,
                      edgeinfo = None,
                      objectinfo = None,
-                     group_dtime = None ):
+                     group_dtime = None,
+                     logger = None ):
     latest = 0 # Time of most recent
     tgt = 0
     # If the group died by stack, then there are no last edges 
@@ -235,9 +252,13 @@ def get_key_objects( group = None,
     # Rename:
     ei = edgeinfo
     result = {}
+    cycledict = {}
     if objectinfo.died_by_stack(group[0]) and len(group) == 1:
+        # TODO DEBUG print "DBS: %d" % len(group)
         # Then this is a key object for a death group by itself
         result = { group[0] : [] }
+        cycledict[group[0]] = False
+        # TODO: Do we care about cycles of size 1?
     elif objectinfo.died_by_stack(group[0]):
         assert( len(group) > 1 )
         print "DBS: %d" % len(group)
@@ -260,9 +281,11 @@ def get_key_objects( group = None,
                 result[obj] = []
             edgelist.extend( obj_edgelist )
         # Now use DFS to find subgroups. TODO TODO TODO
-        adjlist = make_adjacency_list( roots = result.keys(),
-                                       edgelist = edgelist,
-                                       edgeinfo = ei )
+        graph_result = make_adjacency_list( roots = result.keys(),
+                                            edgelist = edgelist,
+                                            edgeinfo = ei )
+        adjlist = graph_result["adjlist"]
+        nxgraph = graph_result["nxgraph"]
         allobjs = result.keys()
         allobjs.extend( list(chain.from_iterable( adjlist.values() )) )
         allobjs.extend( adjlist.keys() )
@@ -279,20 +302,69 @@ def get_key_objects( group = None,
                                     node = srcnode )
                 result[srcnode] = mygroup
         # TODO: At this point all nodes should be discovered. We need to verify. TODO
-    elif objectinfo.died_by_heap( group[0]):
-        pass
-        # DIED BY HEAP
-        # All edges should have the same death time as the group, except
-        # for EXACTLY ONE edge with death time less than group death time.
-        # TODO: if rec["dtime"] < latest:
-        # TODO:     # If there is a last edge which died before the group,
-        # TODO:     # then the group shouldn't have died by stack. Furthermore,
-        # TODO:     # there can only be one such edge.
-        # TODO:     latest = rec["dtime"]
-        # TODO:     edgerec = { "srclist" : rec["lastsources"],
-        # TODO:                 "tgt" : obj, }
-        # TODO:     edgelist = [ edgerec ]
-        # TODO TODO What else here? TODO
+        for srcnode in result.keys():
+            # TODO: Determine if it has cycles 
+            try:
+                cycle_elist = nx.find_cycle(nxgraph, srcnode) 
+                cycledict[srcnode] = True 
+            except nx.exception.NetworkXNoCycle as e:
+                cycle_elist = []
+                cycledict[srcnode] = False
+    elif ( objectinfo.died_by_heap(group[0]) or
+           objectinfo.died_by_global(group[0]) ):
+        if objectinfo.died_by_heap(group[0]):
+            print "DBH: %d" % len(group)
+        elif objectinfo.died_by_global(group[0]):
+            print "DB Global: %d" % len(group)
+        # DIED BY HEAP and GLOBAL
+        # We look for all objects that do not have any incoming edge with
+        # the same death time as itself. These are the KEY OBJECTS.
+        # In this case there _SHOULD_ only be one KEY OBJECT.
+        edgelist = []
+        for obj in group:
+            # TODO: Need a get all edges that target 'obj'
+            # * Incoming edges
+            srcreclist = ei.get_sources_records(obj)
+            # We only want the ones that died with the object
+            # TODO: ei.get_source_id_from_rec(x)
+            obj_edgelist = [ x for x in srcreclist if
+                             (ei.get_death_time_from_rec(x) == dtime) ]
+            if len(obj_edgelist) == 0:
+                # Must be a key object 
+                assert( obj not in result )
+                result[obj] = []
+        if len(result) == 1:
+            # The result we expected.
+            newgroup = list(group)
+            for key in result.keys():
+                newgroup.remove(key)
+                result[key] = newgroup
+        elif len(result) > 1:
+            # TODO: Log a warning?
+            print "ERROR: multiple key objects."
+            raise RuntimeError("Multiple key objects.") 
+        else:
+            # Empty?
+            # This shouldn't be possible I think.
+            lastup_max = max( [ objectinfo.get_last_heap_update(x) for x in group ] )
+            candidates = [ x for x in group if objectinfo.get_last_heap_update(x) == lastup_max ]
+            if len(candidates) == 1:
+                key = candidates[0]
+                newgroup = list(group)
+                newgroup.remove(key)
+                result[key] = newgroup
+            elif len(candidates) > 1:
+                logger.critical( "Multiple key objects: %s" % str(candidates) )
+                print "Multiple key objects: %s" % str(candidates)
+                mytypes = [ objectinfo.get_type(x) for x in candidates ]
+                print " - types: %s" % str(mytypes)
+                # Choose one
+                key = candidates[0]
+                newgroup = list(group)
+                newgroup.remove(key)
+                result[key] = newgroup
+            else:
+                raise RuntimeError("No key objects.") 
     else:
         print "NONEOFTHEABOVE - PROGEND? - %d" % len(group)
         # PROGRAM END?

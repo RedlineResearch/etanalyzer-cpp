@@ -354,7 +354,6 @@ def dfs_iter( G = {},
             result.append(src)
             for tgt in all_neighbors_func(G, src):
                 stack.append(tgt)
-    print "XXX:", str(result)
     return result
 
 def remove_dupes( seq ):
