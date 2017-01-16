@@ -166,7 +166,7 @@ def read_dgroups_from_pickle( result = [],
                                   group_dtime = None,
                                   logger = logger )
         count += 1
-        if len(result) > 0:
+        if result != None and len(result) > 0:
             print "%d: %s" % (count, result)
         print "--------------------------------------------------------------------------------"
     # STATS
@@ -253,6 +253,21 @@ def get_key_using_last_heap_update( group = [],
         raise RuntimeError("No key objects.") 
     return (key, newgroup)
 
+def filter_edges( edgelist = [],
+                  group = [],
+                  edgeinforeader = {} ):
+    ei = edgeinforeader
+    newedgelist = []
+    for edge in edgelist:
+            src = ei.get_source_id_from_rec(edge)
+            tgt = ei.get_target_id_from_rec(edge)
+            if (src in group):
+                newedgelist.append(edge)
+            else:
+                # DEBUG edges
+                pass
+    return newedgelist
+
 # This should return a dictionary where:
 #     key -> group (not including key)
 def get_key_objects( group = None,
@@ -287,12 +302,9 @@ def get_key_objects( group = None,
                              (ei.get_death_time_from_rec(x) == dtime) ]
             edgelist.extend( obj_edgelist )
         if len(edgelist) > 0:
-            src = ei.get_source_id_from_rec(edgelist[0])
-            tgt = ei.get_target_id_from_rec(edgelist[0])
-            try:
-                assert(src == tgt)
-            except:
-                pass # TODO TODO TODO
+            edgelist = filter_edges( edgelist = edgelist,
+                                     group = group,
+                                     edgeinforeader = ei )
         graph_result = make_adjacency_list( nodes = group,
                                             edgelist = edgelist,
                                             edgeinfo = ei )
@@ -311,6 +323,7 @@ def get_key_objects( group = None,
                     cycle_elist = []
                     cycledict[nxnode] = False
                     print "   node[%d] -> %d cycle NO." % ((nxnode), nxgraph.number_of_nodes())
+                print "        nodes:", nxgraph.nodes()
         # TODO: Do we care about cycles of size 1?
     elif objectinfo.died_by_stack(group[0]):
         assert( len(group) > 1 )
@@ -332,7 +345,11 @@ def get_key_objects( group = None,
                 # Must be a key object 
                 assert( obj not in result )
                 result[obj] = []
-            edgelist.extend( obj_edgelist )
+            else:
+                edgelist.extend( obj_edgelist )
+        edgelist = filter_edges( edgelist = edgelist,
+                                 group = group,
+                                 edgeinforeader = ei )
         # Now use DFS to find subgroups. TODO TODO TODO
         graph_result = make_adjacency_list( nodes = group,
                                             edgelist = edgelist,
@@ -375,6 +392,7 @@ def get_key_objects( group = None,
                     cycle_elist = []
                     cycledict[nxnode] = False
                     print "   node[%d] -> %d cycle NO." % ((nxnode), nxgraph.number_of_nodes())
+                print "        nodes:", nxgraph.nodes()
     elif ( objectinfo.died_by_heap(group[0]) or
            objectinfo.died_by_global(group[0]) ):
         if objectinfo.died_by_heap(group[0]):
@@ -423,9 +441,9 @@ def get_key_objects( group = None,
             objectinfo.debug_object(group[0])
         # Either way nothing in the result
         result = None
-    if result != None:
-        print "RESULT:"
-        pp.pprint(result)
+    # TODO DEBUG ONLY: if result != None:
+    # TODO DEBUG ONLY:     print "RESULT:"
+    # TODO DEBUG ONLY:     pp.pprint(result)
     return result
 
 def main_process( global_config = {},
