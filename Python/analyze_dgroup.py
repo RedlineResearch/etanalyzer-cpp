@@ -417,6 +417,7 @@ def get_key_objects( group = None,
     else:
         if objectinfo.died_at_end(group[0]) or objectinfo.died_by_program_end(group[0]):
             # Ignore anything at program end
+            pass
         else:
             print "ERROR: can't classify object-"
             objectinfo.debug_object(group[0])
