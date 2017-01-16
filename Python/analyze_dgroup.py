@@ -421,7 +421,8 @@ def get_key_objects( group = None,
         else:
             print "ERROR: can't classify object-"
             objectinfo.debug_object(group[0])
-            result = None
+        # Either way nothing in the result
+        result = None
     if result != None:
         print "RESULT:"
         pp.pprint(result)
