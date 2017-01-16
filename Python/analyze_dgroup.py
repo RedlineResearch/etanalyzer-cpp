@@ -166,7 +166,7 @@ def read_dgroups_from_pickle( result = [],
                                   group_dtime = None,
                                   logger = logger )
         count += 1
-        if len(result) > 1:
+        if len(result) > 0:
             print "%d: %s" % (count, result)
         print "--------------------------------------------------------------------------------"
     # STATS
@@ -210,29 +210,48 @@ def read_edgeinfo_with_stability_into_db( result = [],
                                   logger = logger )
     print "B:"
 
-def make_adjacency_list( roots = [],
+def make_adjacency_list( nodes = [],
                          edgelist = [],
                          edgeinfo = None ):
-    G = { x : [] for x in roots }
+    adjlist = { x : [] for x in nodes }
     nxG = nx.DiGraph()
     for rec in edgelist:
         src = edgeinfo.get_source_id_from_rec(rec)
         tgt = edgeinfo.get_target_id_from_rec(rec)
         # Add to adjacency list
-        if src in G:
-            G[src].append(tgt)
+        if src in adjlist:
+            adjlist[src].append(tgt)
         else:
-            G[src] = [ tgt ]
-        if tgt not in G:
-            G[tgt] = []
+            adjlist[src] = [ tgt ]
+        if tgt not in adjlist:
+            adjlist[tgt] = []
         # Add to networkx graph
         nxG.add_edge(src, tgt)
-    return { "adjlist" : G,
+    return { "adjlist" : adjlist,
              "nxgraph" : nxG }
 
-def is_cycle( adjlist = [],
-              srcnode = None ):
-    return False
+def get_key_using_last_heap_update( group = [],
+                                    objectinfo = {},
+                                    logger = None ):
+    # Empty?
+    lastup_max = max( [ objectinfo.get_last_heap_update(x) for x in group ] )
+    candidates = [ x for x in group if objectinfo.get_last_heap_update(x) == lastup_max ]
+    if len(candidates) == 1:
+        key = candidates[0]
+        newgroup = list(group)
+        newgroup.remove(key)
+    elif len(candidates) > 1:
+        logger.critical( "Multiple key objects: %s" % str(candidates) )
+        print "Multiple key objects: %s" % str(candidates)
+        mytypes = [ objectinfo.get_type(x) for x in candidates ]
+        print " - types: %s" % str(mytypes)
+        # Choose one
+        key = candidates[0]
+        newgroup = list(group)
+        newgroup.remove(key)
+    else:
+        raise RuntimeError("No key objects.") 
+    return (key, newgroup)
 
 # This should return a dictionary where:
 #     key -> group (not including key)
@@ -254,14 +273,48 @@ def get_key_objects( group = None,
     result = {}
     cycledict = {}
     if objectinfo.died_by_stack(group[0]) and len(group) == 1:
-        # TODO DEBUG print "DBS: %d" % len(group)
+        print "DBS 1: %d" % len(group)
         # Then this is a key object for a death group by itself
         result = { group[0] : [] }
-        cycledict[group[0]] = False
+        edgelist = []
+        for obj in group:
+            # Need a get all edges that target 'obj'
+            # * Incoming edges
+            srcreclist = ei.get_sources_records(obj)
+            # We only want the ones that died with the object
+            # TODO: ei.get_source_id_from_rec(x)
+            obj_edgelist = [ x for x in srcreclist if
+                             (ei.get_death_time_from_rec(x) == dtime) ]
+            edgelist.extend( obj_edgelist )
+        if len(edgelist) > 0:
+            src = ei.get_source_id_from_rec(edgelist[0])
+            tgt = ei.get_target_id_from_rec(edgelist[0])
+            try:
+                assert(src == tgt)
+            except:
+                pass # TODO TODO TODO
+        graph_result = make_adjacency_list( nodes = group,
+                                            edgelist = edgelist,
+                                            edgeinfo = ei )
+        adjlist = graph_result["adjlist"]
+        nxgraph = graph_result["nxgraph"]
+        for srcnode in result.keys():
+            cycledict[srcnode] = False
+        for nxnode in nxgraph.nodes():
+            # TODO: Determine if it has cycles 
+            if nxnode in result:
+                try:
+                    cycle_elist = nx.find_cycle(nxgraph, nxnode) 
+                    cycledict[nxnode] = True 
+                    print "   node[%d] -> %d cycle YES." % ((nxnode), nxgraph.number_of_nodes())
+                except nx.exception.NetworkXNoCycle as e:
+                    cycle_elist = []
+                    cycledict[nxnode] = False
+                    print "   node[%d] -> %d cycle NO." % ((nxnode), nxgraph.number_of_nodes())
         # TODO: Do we care about cycles of size 1?
     elif objectinfo.died_by_stack(group[0]):
         assert( len(group) > 1 )
-        print "DBS: %d" % len(group)
+        print "DBS 2: %d" % len(group)
         # DIED BY STACK
         # We look for all objects that do not have any incoming edge with
         # the same death time as itself. These are the ROOTS.
@@ -281,10 +334,12 @@ def get_key_objects( group = None,
                 result[obj] = []
             edgelist.extend( obj_edgelist )
         # Now use DFS to find subgroups. TODO TODO TODO
-        graph_result = make_adjacency_list( roots = result.keys(),
+        graph_result = make_adjacency_list( nodes = group,
                                             edgelist = edgelist,
                                             edgeinfo = ei )
         adjlist = graph_result["adjlist"]
+        # TODO DEBUG print "ADJLIST:"
+        # TODO DEBUG pp.pprint( adjlist )
         nxgraph = graph_result["nxgraph"]
         allobjs = result.keys()
         allobjs.extend( list(chain.from_iterable( adjlist.values() )) )
@@ -292,9 +347,14 @@ def get_key_objects( group = None,
         allobjs = remove_dupes(allobjs)
         discovered = { x : False for x in allobjs }
         # Clearly we need to use key objects as the starting points
-        # TODO: DEBUG: print "===[ ADJ LIST ]================================================================="
-        # TODO: DEBUG: pp.pprint(adjlist)
-        # TODO: DEBUG: print "================================================================================"
+        # TODO DEBUG print "===[ ADJ LIST ]================================================================="
+        # TODO DEBUG pp.pprint(adjlist)
+        # TODO DEBUG print "================================================================================"
+        if len(result) == 0:
+            key, newgroup = get_key_using_last_heap_update( group = group,
+                                                            objectinfo = objectinfo,
+                                                            logger = logger )
+            result[key] = newgroup
         for srcnode in result.keys():
             if not discovered[srcnode]:
                 mygroup = dfs_iter( G = adjlist,
@@ -310,11 +370,11 @@ def get_key_objects( group = None,
                 try:
                     cycle_elist = nx.find_cycle(nxgraph, nxnode) 
                     cycledict[nxnode] = True 
-                    print "   cycle YES."
+                    print "   node[%d]-> %d cycle YES." % ((nxnode), nxgraph.number_of_nodes())
                 except nx.exception.NetworkXNoCycle as e:
                     cycle_elist = []
                     cycledict[nxnode] = False
-                    print "   cycle NO."
+                    print "   node[%d] -> %d cycle NO." % ((nxnode), nxgraph.number_of_nodes())
     elif ( objectinfo.died_by_heap(group[0]) or
            objectinfo.died_by_global(group[0]) ):
         if objectinfo.died_by_heap(group[0]):
@@ -350,30 +410,20 @@ def get_key_objects( group = None,
             raise RuntimeError("Multiple key objects.") 
         else:
             # Empty?
-            # This shouldn't be possible I think.
-            lastup_max = max( [ objectinfo.get_last_heap_update(x) for x in group ] )
-            candidates = [ x for x in group if objectinfo.get_last_heap_update(x) == lastup_max ]
-            if len(candidates) == 1:
-                key = candidates[0]
-                newgroup = list(group)
-                newgroup.remove(key)
-                result[key] = newgroup
-            elif len(candidates) > 1:
-                logger.critical( "Multiple key objects: %s" % str(candidates) )
-                print "Multiple key objects: %s" % str(candidates)
-                mytypes = [ objectinfo.get_type(x) for x in candidates ]
-                print " - types: %s" % str(mytypes)
-                # Choose one
-                key = candidates[0]
-                newgroup = list(group)
-                newgroup.remove(key)
-                result[key] = newgroup
-            else:
-                raise RuntimeError("No key objects.") 
+            key, newgroup = get_key_using_last_heap_update( group = group,
+                                                            objectinfo = objectinfo,
+                                                            logger = logger )
+            result[key] = newgroup
     else:
-        print "NONEOFTHEABOVE - PROGEND? - %d" % len(group)
-        # PROGRAM END?
-        assert(len(result) == 0)
+        if objectinfo.died_at_end(group[0]) or objectinfo.died_by_program_end(group[0]):
+            # Ignore anything at program end
+        else:
+            print "ERROR: can't classify object-"
+            objectinfo.debug_object(group[0])
+            result = None
+    if result != None:
+        print "RESULT:"
+        pp.pprint(result)
     return result
 
 def main_process( global_config = {},

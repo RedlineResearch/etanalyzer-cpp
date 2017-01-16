@@ -469,6 +469,11 @@ class ObjectInfoReader:
 
     def get_size( self, objId = 0 ):
         rec = self.get_record(objId)
+        return self.get_size_using_record(rec)
+
+    def get_size_using_record( self, rec = [] ):
+        assert(len(rec) > 0)
+        # TODO: Have a more robust check here
         return rec[ get_index("SIZE") ] if rec != None else None
 
     def get_type_using_typeId( self, typeId = 0 ):
@@ -530,7 +535,12 @@ class ObjectInfoReader:
         return rec[ get_index("DTIME_ALLOC") ] if rec != None else 0
 
     def is_array( self, objId = 0 ):
-        typeId = self.get_record(objId)[ get_index("TYPE") ]
+        rec = self.get_record(objId)
+        return self.is_array_using_record( rec )
+
+    def is_array_using_record( self, rec = [] ):
+        assert( len(rec) > 0 )
+        typeId = rec[ get_index("TYPE") ]
         return self.rev_typedict[typeId][0] == "["
 
     def died_by_stack( self, objId = 0 ):
@@ -645,6 +655,9 @@ class ObjectInfoReader:
     def get_methup_age_list( self ):
         return self.methup_age_list
 
+    # TODO TODO TODO TODO
+    # Are these used? - RLV
+    # TODO TODO TODO TODO
     def set_stable_group_number( self,
                                  objId = None,
                                  gnum = None ):
@@ -686,6 +699,47 @@ class ObjectInfoReader:
     def __contains__( self, item ):
         """Return if ObjectReader contains item (which is an object Id)"""
         return item in self.objdict
+
+    def debug_object( self, objId ):
+        rec = self.get_record( objId )
+
+        mytype = self.get_type( objId )
+        mysize = self.get_size_using_record( rec )
+        print " - - - ===[ DEBUG ]=========================================================="
+        print "Object[ %d ] : %s (%d bytes)" % (objId, mytype, mysize)
+        print "  attributes:"
+        age = self.get_age_using_record( rec )
+        alloc_age = self.get_age_using_record_ALLOC( rec )
+        # self.is_array( objId )
+        last_heap_update = self.get_last_heap_update( objId )
+        print "    age[ %d / %d ]  lastheapup[ %s ]" % (age, alloc_age, last_heap_update)
+
+        print "  age/time:"
+        atime = self.get_alloc_time( objId )
+        atime_alloc = self.get_alloc_time_ALLOC( objId )
+        dtime = self.get_death_time( objId )
+        dtime_alloc = self.get_death_time_ALLOC( objId )
+        last_ts = self.get_last_actual_timestamp( objId )
+        print "    atime[ %d / %d ]  dtime[ %d / %d ]  last_ts[ %d ]" % \
+            (atime, atime_alloc, dtime, dtime_alloc, last_ts)
+
+        print "  death causes:"
+        # self.get_death_cause( objId )
+        DAE = self.died_at_end( objId )
+        DBS = self.died_by_stack( objId )
+        DBH = self.died_by_heap( objId )
+        DBG = self.died_by_global( objId )
+        DPE = self.died_by_program_end( objId )
+        print "    AE[ %s ]  BS[ %s ]  BH[ %s ]  BG[ %s ] PE[ %s ]" % \
+            (DAE, DBS, DBH, DBG, DPE)
+
+        # TODO print "  context:"
+        # TODO self.get_death_context( objId )
+        # TODO self.get_death_context_type( objId )
+        # TODO self.get_alloc_context( objId )
+        # TODO self.get_alloc_context_type( objId )
+        # TODO self.get_allocsite( objId )
+        print " - - - ===[ END DEBUG ]======================================================"
 
 class ObjectInfoFile2DB:
     def __init__( self,
