@@ -244,12 +244,22 @@ def get_key_using_last_heap_update( group = [],
         newgroup = list(group)
         newgroup.remove(key)
     elif len(candidates) > 1:
-        logger.critical( "Multiple key objects: %s" % str(candidates) )
-        print "Multiple key objects: %s" % str(candidates)
+        logger.warning( "Multiple key objects: %s" % str(candidates) )
         mytypes = [ objectinfo.get_type(x) for x in candidates ]
-        print " - types: %s" % str(mytypes)
+        logger.warning( " - types: %s\n" % str(mytypes) )
         # Choose one
-        key = candidates[0]
+        lastts_max = max( [ objectinfo.get_last_actual_timestamp(x) for x in candidates ] )
+        ts_candidates = [ x for x in candidates if objectinfo.get_last_actual_timestamp(x) == lastts_max ]
+        if len(ts_candidates) > 1:
+            sys.stdout.write( " -- Multiple key objects: %s :: " % str(ts_candidates) )
+            sys.stdout.write( " >>> Using last timestamp returned multiple too. Use the oldest one." )
+            key = sorted(ts_candidates)[0]
+        elif len(ts_candidates) == 1:
+            key = ts_candidates[0]
+        else:
+            sys.stdout.write( " -- Multiple key objects: %s :: " % str(ts_candidates) )
+            sys.stdout.write( " >>> Using last timestamp didn't return anything. Use the oldest one." )
+            key = sorted(candidates)[0]
         newgroup = list(group)
         newgroup.remove(key)
     else:
@@ -270,6 +280,13 @@ def filter_edges( edgelist = [],
                 # DEBUG edges
                 pass
     return newedgelist
+
+def get_cycle_nodes( edgelist = [] ):
+    nodeset = set()
+    for edge in edgelist:
+        nodeset.add(edge[0])
+        nodeset.add(edge[1])
+    return nodeset
 
 # This should return a dictionary where:
 #     key -> group (not including key)
@@ -321,18 +338,20 @@ def get_key_objects( group = None,
                 try:
                     cycle_elist = nx.find_cycle(nxgraph, nxnode) 
                     cycledict[nxnode] = True 
+                    cycle_nodes = get_cycle_nodes( cycle_elist )
                 except nx.exception.NetworkXNoCycle as e:
                     cycle_elist = []
                     cycledict[nxnode] = False
+                    cycle_nodes = set()
                 sys.stdout.write( "   node[%d] -> (%d, %d) cycle %s.\n" %
-                                  ( (nxnode), nxgraph.number_of_nodes(),
+                                  ( (nxnode), len(cycle_nodes),
                                     nxgraph.number_of_edges(), 
                                     ("YES" if cycledict[nxnode] else "NO") ) )
-                sys.stdout.write( "        nodes: %s" % str(nxgraph.nodes()) )
+                # TODO: Don't need this: sys.stdout.write( "        nodes: %s\n" % str(nxgraph.nodes()) )
         # TODO: Do we care about cycles of size 1?
     elif objectinfo.died_by_stack(group[0]):
         assert( len(group) > 1 )
-        print "DBS 2: %d" % len(group)
+        sys.stdout.write( "DBS 2: %d" % len(group) )
         # DIED BY STACK
         # We look for all objects that do not have any incoming edge with
         # the same death time as itself. These are the ROOTS.
@@ -393,12 +412,16 @@ def get_key_objects( group = None,
                 try:
                     cycle_elist = nx.find_cycle(nxgraph, nxnode) 
                     cycledict[nxnode] = True 
-                    print "   node[%d]-> %d cycle YES." % ((nxnode), nxgraph.number_of_nodes())
+                    cycle_nodes = get_cycle_nodes( cycle_elist )
                 except nx.exception.NetworkXNoCycle as e:
                     cycle_elist = []
                     cycledict[nxnode] = False
-                    print "   node[%d] -> %d cycle NO." % ((nxnode), nxgraph.number_of_nodes())
-                sys.stdout.write( "        nodes: %s\n" % nxgraph.nodes() )
+                    cycle_nodes = set()
+                sys.stdout.write( "   node[%d] -> (%d, %d) cycle %s.\n" %
+                                  ( (nxnode), len(cycle_nodes),
+                                    len(cycle_elist), 
+                                    ("YES" if cycledict[nxnode] else "NO") ) )
+                # TODO: Don't need this: sys.stdout.write( "        nodes: %s\n" % str(nxgraph.nodes()) )
     elif ( objectinfo.died_by_heap(group[0]) or
            objectinfo.died_by_global(group[0]) ):
         if objectinfo.died_by_heap(group[0]):
