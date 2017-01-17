@@ -215,6 +215,8 @@ def make_adjacency_list( nodes = [],
                          edgeinfo = None ):
     adjlist = { x : [] for x in nodes }
     nxG = nx.DiGraph()
+    for node in nodes:
+        nxG.add_node(node)
     for rec in edgelist:
         src = edgeinfo.get_source_id_from_rec(rec)
         tgt = edgeinfo.get_target_id_from_rec(rec)
@@ -231,6 +233,7 @@ def make_adjacency_list( nodes = [],
              "nxgraph" : nxG }
 
 def get_key_using_last_heap_update( group = [],
+                                    graph = {},
                                     objectinfo = {},
                                     logger = None ):
     # Empty?
@@ -288,7 +291,7 @@ def get_key_objects( group = None,
     result = {}
     cycledict = {}
     if objectinfo.died_by_stack(group[0]) and len(group) == 1:
-        print "DBS 1: %d" % len(group)
+        sys.stdout.write( "DBS 1: %d --" % len(group) )
         # Then this is a key object for a death group by itself
         result = { group[0] : [] }
         edgelist = []
@@ -318,12 +321,14 @@ def get_key_objects( group = None,
                 try:
                     cycle_elist = nx.find_cycle(nxgraph, nxnode) 
                     cycledict[nxnode] = True 
-                    print "   node[%d] -> %d cycle YES." % ((nxnode), nxgraph.number_of_nodes())
                 except nx.exception.NetworkXNoCycle as e:
                     cycle_elist = []
                     cycledict[nxnode] = False
-                    print "   node[%d] -> %d cycle NO." % ((nxnode), nxgraph.number_of_nodes())
-                print "        nodes:", nxgraph.nodes()
+                sys.stdout.write( "   node[%d] -> (%d, %d) cycle %s.\n" %
+                                  ( (nxnode), nxgraph.number_of_nodes(),
+                                    nxgraph.number_of_edges(), 
+                                    ("YES" if cycledict[nxnode] else "NO") ) )
+                sys.stdout.write( "        nodes: %s" % str(nxgraph.nodes()) )
         # TODO: Do we care about cycles of size 1?
     elif objectinfo.died_by_stack(group[0]):
         assert( len(group) > 1 )
@@ -369,6 +374,7 @@ def get_key_objects( group = None,
         # TODO DEBUG print "================================================================================"
         if len(result) == 0:
             key, newgroup = get_key_using_last_heap_update( group = group,
+                                                            graph = nxgraph,
                                                             objectinfo = objectinfo,
                                                             logger = logger )
             result[key] = newgroup
@@ -392,13 +398,13 @@ def get_key_objects( group = None,
                     cycle_elist = []
                     cycledict[nxnode] = False
                     print "   node[%d] -> %d cycle NO." % ((nxnode), nxgraph.number_of_nodes())
-                print "        nodes:", nxgraph.nodes()
+                sys.stdout.write( "        nodes: %s\n" % nxgraph.nodes() )
     elif ( objectinfo.died_by_heap(group[0]) or
            objectinfo.died_by_global(group[0]) ):
         if objectinfo.died_by_heap(group[0]):
-            print "DBH: %d" % len(group)
+            sys.stdout.write( "DBH: %d --" % len(group) )
         elif objectinfo.died_by_global(group[0]):
-            print "DB Global: %d" % len(group)
+            sys.stdout.write( "DB Global: %d" % len(group) )
         # DIED BY HEAP and GLOBAL
         # We look for all objects that do not have any incoming edge with
         # the same death time as itself. These are the KEY OBJECTS.
@@ -416,6 +422,18 @@ def get_key_objects( group = None,
                 # Must be a key object 
                 assert( obj not in result )
                 result[obj] = []
+            else:
+                edgelist.extend( obj_edgelist )
+        if len(edgelist) > 0:
+            edgelist = filter_edges( edgelist = edgelist,
+                                     group = group,
+                                     edgeinforeader = ei )
+        graph_result = make_adjacency_list( nodes = group,
+                                            edgelist = edgelist,
+                                            edgeinfo = ei )
+        adjlist = graph_result["adjlist"]
+        nxgraph = graph_result["nxgraph"]
+        # TODO DEBUG ONLY: print "     : %d == %s" % (nxgraph.number_of_nodes(), str(nxgraph.nodes()))
         if len(result) == 1:
             # The result we expected.
             newgroup = list(group)
@@ -429,9 +447,35 @@ def get_key_objects( group = None,
         else:
             # Empty?
             key, newgroup = get_key_using_last_heap_update( group = group,
+                                                            graph = nxgraph,
                                                             objectinfo = objectinfo,
                                                             logger = logger )
             result[key] = newgroup
+        for srcnode in result.keys():
+            cycledict[srcnode] = False
+        flag = False
+        for nxnode in nxgraph.nodes():
+            # TODO: Determine if it has cycles 
+            if nxnode in result:
+                flag = True
+                try:
+                    cycle_elist = nx.find_cycle(nxgraph, nxnode) 
+                    cycledict[nxnode] = True
+                except nx.exception.NetworkXNoCycle as e:
+                    cycle_elist = []
+                    cycledict[nxnode] = False
+                sys.stdout.write( "   node[%d] -> (%d, %d) cycle %s.\n" %
+                                  ( (nxnode), nxgraph.number_of_nodes(),
+                                    nxgraph.number_of_edges(), 
+                                    ("YES" if cycledict[nxnode] else "NO") ) )
+                sys.stdout.write( "        nodes: %s\n" % str(nxgraph.nodes()) )
+        if not flag:
+            print "--------------------------------------------------------------------------------"
+            print "DEBUG: result"
+            pp.pprint( result )
+            print "     : nodes"
+            pp.pprint(nxgraph.nodes())
+            print "--------------------------------------------------------------------------------"
     else:
         if objectinfo.died_at_end(group[0]) or objectinfo.died_by_program_end(group[0]):
             # Ignore anything at program end
