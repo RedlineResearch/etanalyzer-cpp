@@ -589,11 +589,11 @@ class ObjectInfoReader:
     # Death context functions
     def get_death_context( self, objId = 0 ):
         rec = self.get_record(objId)
-        return self.get_death_context_record(rec)
+        return self.get_death_context_using_record(rec)
 
-    def get_death_context_record( self, rec = None ):
+    def get_death_context_using_record( self, rec = None ):
         if self.__DEATHCONTEXT__ == "SINGLE":
-            pass
+            first = rec[ get_index("CONTEXT1") ] if rec != None else "NONE"
         elif self.__DEATHCONTEXT__ == "PAIR":
             first = rec[ get_index("CONTEXT1") ] if rec != None else "NONE"
             second = rec[ get_index("CONTEXT2") ] if rec != None else "NONE"
@@ -1847,7 +1847,7 @@ class ContextCountReader:
                              object_info = None ):
         oi = object_info
         for objId, rec in oi.iterrecs():
-            self.inc_count( context_pair = oi.get_death_context_record(rec),
+            self.inc_count( context_pair = oi.get_death_context_using_record(rec),
                             objTypeId = rec[get_index( "TYPE" )],
                             by_stack = (rec[get_index("DIEDBY")] == 'S') )
 

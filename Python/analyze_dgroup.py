@@ -158,6 +158,8 @@ def read_dgroups_from_pickle( result = [],
     #
     print "--------------------------------------------------------------------------------"
     keytype_counter = Counter()
+    deathsite_summary = defaultdict( Counter )
+    dss = deathsite_summary # alias
     cycle_summary = {}
     count = 0
     for gnum, glist in dgroups_data["group2list"].iteritems():
@@ -173,13 +175,18 @@ def read_dgroups_from_pickle( result = [],
             # TODO DEBUG print "%d: %s" % (count, result)
             ktc = keytype_counter # Short alias
             for key, subgroup in result.iteritems():
+                # Summary of key types
                 keytype = objectinfo.get_type(key)
                 ktc[keytype] += 1
                 groupsize = len(subgroup)
+                # Summary of death locations
+                deathsite = objectinfo.get_death_context(key)
+                dss[keytype][deathsite] += 1
         # TODO DEBUG print "--------------------------------------------------------------------------------"
     print "---[ Key object counts ]--------------------------------------------------------"
     for mytype, num in keytype_counter.iteritems():
         print "%s -> %d" % (mytype, num)
+        print "   -> %s" % str(dss[mytype])
     print "--------------------------------------------------------------------------------"
     # 
     #       * size stats for groups that died by stack
@@ -460,13 +467,12 @@ def get_key_objects( group = None,
             # The result we expected.
             newgroup = list(group)
             for key in result.keys():
-                newgroup.remove(key)
+                # TODO newgroup.remove(key)
                 result[key] = newgroup
-        elif len(result) > 1:
-            # print "ERROR: multiple key objects."
-            raise RuntimeError("Multiple key objects.") 
         else:
-            # Empty?
+            # if len(result) > 1:
+            #     print "ERROR: multiple key objects."
+            #     TODO raise RuntimeError("Multiple key objects.") 
             key, newgroup = get_key_using_last_heap_update( group = group,
                                                             graph = nxgraph,
                                                             objectinfo = objectinfo,
@@ -593,7 +599,6 @@ def main_process( global_config = {},
                                       obj_cachesize = cachesize,
                                       debugflag = debugflag,
                                       logger = logger )
-        break
     print "DONE."
     exit(100)
     if mprflag:
