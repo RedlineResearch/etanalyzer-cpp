@@ -145,17 +145,20 @@ def read_dgroups_from_pickle( result = [],
     for gnum, datadict in diedby_results.iteritems():
         assert("diedby" in datadict)
         assert("deathtime" in datadict)
-        print "GROUP %d" % gnum
-        print "    * DIEDBY:"
+        sys.stdout.write( "GROUP %d\n" % gnum )
+        sys.stdout.write( "    * DIEDBY:\n" )
         for diedbytype, total in datadict["diedby"]["count"].iteritems():
-            print "        %s -> %d" % (diedbytype, total)
-            print "         - Types: %s" % str(list( datadict["diedby"]["types"][diedbytype]))
-        print "    * dtime               : %s" % str(list(datadict["deathtime"]))
-        print "==========================================================================="
+            sys.stdout.write( "        %s -> %d\n" % (diedbytype, total) )
+            sys.stdout.write( "         - Types: %s\n" % str(list( datadict["diedby"]["types"][diedbytype])) )
+        sys.stdout.write( "    * dtime               : %s\n" % str(list(datadict["deathtime"])) )
+        sys.stdout.write( "===========================================================================\n" )
+        sys.stdout.flush()
     #===========================================================================
     # Idea 2: Get the key objects TODO TODO TODO
     #
     print "--------------------------------------------------------------------------------"
+    keytype_counter = Counter()
+    cycle_summary = {}
     count = 0
     for gnum, glist in dgroups_data["group2list"].iteritems():
         # - for every death group dg:
@@ -163,26 +166,25 @@ def read_dgroups_from_pickle( result = [],
         result = get_key_objects( group = glist,
                                   edgeinfo = edgeinfo,
                                   objectinfo = objectinfo,
-                                  group_dtime = None,
+                                  cycle_summary = cycle_summary,
                                   logger = logger )
         count += 1
         if result != None and len(result) > 0:
-            print "%d: %s" % (count, result)
-        print "--------------------------------------------------------------------------------"
-    # STATS
-    #--------------------------------------------------------------------------------
-    # Get
-    keytype_counter = Counter()
-    ktc = keytype_counter # Short alias
-    for key, subgroup in result.iteritems():
-        keytype = objectinfo.get_type(key)
-        ktc[keytype] += 1
-        groupsize = len(subgroup)
+            # TODO DEBUG print "%d: %s" % (count, result)
+            ktc = keytype_counter # Short alias
+            for key, subgroup in result.iteritems():
+                keytype = objectinfo.get_type(key)
+                ktc[keytype] += 1
+                groupsize = len(subgroup)
+        # TODO DEBUG print "--------------------------------------------------------------------------------"
+    print "---[ Key object counts ]--------------------------------------------------------"
+    for mytype, num in keytype_counter.iteritems():
+        print "%s -> %d" % (mytype, num)
+    print "--------------------------------------------------------------------------------"
     # 
     #       * size stats for groups that died by stack
     #            + first should be number of key objects
     #            + then average size of sub death group
-    exit(0)
 
     #===========================================================================
     # Write out to ???? TODO
@@ -251,14 +253,14 @@ def get_key_using_last_heap_update( group = [],
         lastts_max = max( [ objectinfo.get_last_actual_timestamp(x) for x in candidates ] )
         ts_candidates = [ x for x in candidates if objectinfo.get_last_actual_timestamp(x) == lastts_max ]
         if len(ts_candidates) > 1:
-            sys.stdout.write( " -- Multiple key objects: %s :: " % str(ts_candidates) )
-            sys.stdout.write( " >>> Using last timestamp returned multiple too. Use the oldest one." )
+            # sys.stdout.write( " -- Multiple key objects: %s :: " % str(ts_candidates) )
+            # sys.stdout.write( " >>> Using last timestamp returned multiple too. Use the oldest one." )
             key = sorted(ts_candidates)[0]
         elif len(ts_candidates) == 1:
             key = ts_candidates[0]
         else:
-            sys.stdout.write( " -- Multiple key objects: %s :: " % str(ts_candidates) )
-            sys.stdout.write( " >>> Using last timestamp didn't return anything. Use the oldest one." )
+            # sys.stdout.write( " -- Multiple key objects: %s :: " % str(ts_candidates) )
+            # sys.stdout.write( " >>> Using last timestamp didn't return anything. Use the oldest one." )
             key = sorted(candidates)[0]
         newgroup = list(group)
         newgroup.remove(key)
@@ -293,7 +295,8 @@ def get_cycle_nodes( edgelist = [] ):
 def get_key_objects( group = None,
                      edgeinfo = None,
                      objectinfo = None,
-                     group_dtime = None,
+                     cycle_summary = {},
+                     # TODO bystack_summary = {},
                      logger = None ):
     latest = 0 # Time of most recent
     tgt = 0
@@ -307,8 +310,9 @@ def get_key_objects( group = None,
     ei = edgeinfo
     result = {}
     cycledict = {}
+    cyclenode_summary = {}
     if objectinfo.died_by_stack(group[0]) and len(group) == 1:
-        sys.stdout.write( "DBS 1: %d --" % len(group) )
+        # sys.stdout.write( "DBS 1: %d --" % len(group) )
         # Then this is a key object for a death group by itself
         result = { group[0] : [] }
         edgelist = []
@@ -343,15 +347,16 @@ def get_key_objects( group = None,
                     cycle_elist = []
                     cycledict[nxnode] = False
                     cycle_nodes = set()
-                sys.stdout.write( "   node[%d] -> (%d, %d) cycle %s.\n" %
-                                  ( (nxnode), len(cycle_nodes),
-                                    nxgraph.number_of_edges(), 
-                                    ("YES" if cycledict[nxnode] else "NO") ) )
+                cyclenode_summary[nxnode] = cycle_nodes
+                # sys.stdout.write( "   node[%d] -> (%d, %d) cycle %s.\n" %
+                #                   ( (nxnode), len(cycle_nodes),
+                #                     nxgraph.number_of_edges(), 
+                #                     ("YES" if cycledict[nxnode] else "NO") ) )
                 # TODO: Don't need this: sys.stdout.write( "        nodes: %s\n" % str(nxgraph.nodes()) )
         # TODO: Do we care about cycles of size 1?
     elif objectinfo.died_by_stack(group[0]):
         assert( len(group) > 1 )
-        sys.stdout.write( "DBS 2: %d" % len(group) )
+        # sys.stdout.write( "DBS 2: %d" % len(group) )
         # DIED BY STACK
         # We look for all objects that do not have any incoming edge with
         # the same death time as itself. These are the ROOTS.
@@ -379,8 +384,6 @@ def get_key_objects( group = None,
                                             edgelist = edgelist,
                                             edgeinfo = ei )
         adjlist = graph_result["adjlist"]
-        # TODO DEBUG print "ADJLIST:"
-        # TODO DEBUG pp.pprint( adjlist )
         nxgraph = graph_result["nxgraph"]
         allobjs = result.keys()
         allobjs.extend( list(chain.from_iterable( adjlist.values() )) )
@@ -388,9 +391,6 @@ def get_key_objects( group = None,
         allobjs = remove_dupes(allobjs)
         discovered = { x : False for x in allobjs }
         # Clearly we need to use key objects as the starting points
-        # TODO DEBUG print "===[ ADJ LIST ]================================================================="
-        # TODO DEBUG pp.pprint(adjlist)
-        # TODO DEBUG print "================================================================================"
         if len(result) == 0:
             key, newgroup = get_key_using_last_heap_update( group = group,
                                                             graph = nxgraph,
@@ -417,17 +417,17 @@ def get_key_objects( group = None,
                     cycle_elist = []
                     cycledict[nxnode] = False
                     cycle_nodes = set()
-                sys.stdout.write( "   node[%d] -> (%d, %d) cycle %s.\n" %
-                                  ( (nxnode), len(cycle_nodes),
-                                    len(cycle_elist), 
-                                    ("YES" if cycledict[nxnode] else "NO") ) )
+                # sys.stdout.write( "   node[%d] -> (%d, %d) cycle %s.\n" %
+                #                   ( (nxnode), len(cycle_nodes),
+                #                     len(cycle_elist), 
+                #                     ("YES" if cycledict[nxnode] else "NO") ) )
                 # TODO: Don't need this: sys.stdout.write( "        nodes: %s\n" % str(nxgraph.nodes()) )
     elif ( objectinfo.died_by_heap(group[0]) or
            objectinfo.died_by_global(group[0]) ):
-        if objectinfo.died_by_heap(group[0]):
-            sys.stdout.write( "DBH: %d --" % len(group) )
-        elif objectinfo.died_by_global(group[0]):
-            sys.stdout.write( "DB Global: %d" % len(group) )
+        # if objectinfo.died_by_heap(group[0]):
+        #     sys.stdout.write( "DBH: %d --" % len(group) )
+        # elif objectinfo.died_by_global(group[0]):
+        #     sys.stdout.write( "DB Global: %d" % len(group) )
         # DIED BY HEAP and GLOBAL
         # We look for all objects that do not have any incoming edge with
         # the same death time as itself. These are the KEY OBJECTS.
@@ -456,7 +456,6 @@ def get_key_objects( group = None,
                                             edgeinfo = ei )
         adjlist = graph_result["adjlist"]
         nxgraph = graph_result["nxgraph"]
-        # TODO DEBUG ONLY: print "     : %d == %s" % (nxgraph.number_of_nodes(), str(nxgraph.nodes()))
         if len(result) == 1:
             # The result we expected.
             newgroup = list(group)
@@ -464,8 +463,7 @@ def get_key_objects( group = None,
                 newgroup.remove(key)
                 result[key] = newgroup
         elif len(result) > 1:
-            # TODO: Log a warning?
-            print "ERROR: multiple key objects."
+            # print "ERROR: multiple key objects."
             raise RuntimeError("Multiple key objects.") 
         else:
             # Empty?
@@ -487,30 +485,29 @@ def get_key_objects( group = None,
                 except nx.exception.NetworkXNoCycle as e:
                     cycle_elist = []
                     cycledict[nxnode] = False
-                sys.stdout.write( "   node[%d] -> (%d, %d) cycle %s.\n" %
-                                  ( (nxnode), nxgraph.number_of_nodes(),
-                                    nxgraph.number_of_edges(), 
-                                    ("YES" if cycledict[nxnode] else "NO") ) )
-                sys.stdout.write( "        nodes: %s\n" % str(nxgraph.nodes()) )
-        if not flag:
-            print "--------------------------------------------------------------------------------"
-            print "DEBUG: result"
-            pp.pprint( result )
-            print "     : nodes"
-            pp.pprint(nxgraph.nodes())
-            print "--------------------------------------------------------------------------------"
+                # sys.stdout.write( "   node[%d] -> (%d, %d) cycle %s.\n" %
+                #                   ( (nxnode), nxgraph.number_of_nodes(),
+                #                     nxgraph.number_of_edges(), 
+                #                     ("YES" if cycledict[nxnode] else "NO") ) )
+                # sys.stdout.write( "        nodes: %s\n" % str(nxgraph.nodes()) )
+        # TODO DEBUG if not flag:
+        # TODO DEBUG     print "--------------------------------------------------------------------------------"
+        # TODO DEBUG     print "DEBUG: result"
+        # TODO DEBUG     pp.pprint( result )
+        # TODO DEBUG     print "     : nodes"
+        # TODO DEBUG     pp.pprint(nxgraph.nodes())
+        # TODO DEBUG     print "--------------------------------------------------------------------------------"
     else:
         if objectinfo.died_at_end(group[0]) or objectinfo.died_by_program_end(group[0]):
             # Ignore anything at program end
             pass
         else:
-            print "ERROR: can't classify object-"
+            # print "ERROR: can't classify object-"
             objectinfo.debug_object(group[0])
         # Either way nothing in the result
         result = None
-    # TODO DEBUG ONLY: if result != None:
-    # TODO DEBUG ONLY:     print "RESULT:"
-    # TODO DEBUG ONLY:     pp.pprint(result)
+    cycle_summary["keyobject_map"] = cycledict
+    cycle_summary["cyclenodes"] = cyclenode_summary
     return result
 
 def main_process( global_config = {},
@@ -540,6 +537,7 @@ def main_process( global_config = {},
                                      timenow = timenow,
                                      logger = logger,
                                      interactive = False )
+    os.chdir( workdir )
     # Timestamped work directories are not deleted unless low
     # in space. This is to be able to go back to a known good dataset.
     # The current run is then copied to a non-timestamped directory
