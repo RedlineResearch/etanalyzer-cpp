@@ -87,6 +87,12 @@ def check_diedby_stats( dgroups_data = {},
             break
     return result
 
+def update_key_object_summary( newgroup = {},
+                               summary = {},
+                               logger = None ):
+    pass
+    # TODO TODO TODO TODO
+
 def read_dgroups_from_pickle( result = [],
                               bmark = "",
                               workdir = "",
@@ -162,6 +168,7 @@ def read_dgroups_from_pickle( result = [],
     dss = deathsite_summary # alias
     cycle_summary = {}
     count = 0
+    key_objects = defaultdict( dict )
     for gnum, glist in dgroups_data["group2list"].iteritems():
         # - for every death group dg:
         #       get the last edge for every object
@@ -170,6 +177,8 @@ def read_dgroups_from_pickle( result = [],
                                   objectinfo = objectinfo,
                                   cycle_summary = cycle_summary,
                                   logger = logger )
+        update_key_object_summary( newgroup = result,
+                                   summary = key_objects )
         count += 1
         if result != None and len(result) > 0:
             # TODO DEBUG print "%d: %s" % (count, result)
@@ -291,6 +300,8 @@ def filter_edges( edgelist = [],
     return newedgelist
 
 def get_cycle_nodes( edgelist = [] ):
+    # Takes an edgelist and returns all the nodes (object IDs)
+    # in the edgelist. Uses a set to remove ruplicates.
     nodeset = set()
     for edge in edgelist:
         nodeset.add(edge[0])
@@ -298,7 +309,7 @@ def get_cycle_nodes( edgelist = [] ):
     return nodeset
 
 # This should return a dictionary where:
-#     key -> group (not including key)
+#     key -> group (list INCLUDES key)
 def get_key_objects( group = None,
                      edgeinfo = None,
                      objectinfo = None,
@@ -307,17 +318,28 @@ def get_key_objects( group = None,
                      logger = None ):
     latest = 0 # Time of most recent
     tgt = 0
-    # If the group died by stack, then there are no last edges 
-    # from the heap to speak of. We look for objects without last edges.
     assert( len(group) > 0 )
+    # NOTE:
+    # If the group died by stack, then there are no last edges 
+    #
+    # from the heap to speak of. We look for objects without last edges.
     # Get the group death time. This works because by definition, all objects
     # in this group have the same death time.
     dtime = objectinfo.get_death_time( group[0] )
     # Rename:
     ei = edgeinfo
+    # Results placed here:
     result = {}
+    #     key = Key object ID
+    #     value = list of group including key object
     cycledict = {}
+    #     key = object ID
+    #     value = boolean flag whether the key object is a cycle or not
+    #             I think this only keeps track of key object IDS TODO
     cyclenode_summary = {}
+    #     key = Key object ID
+    #     value = Cycle group list. It SHOULD include the key object ID.
+    # Check DIED BY STACK and single
     if objectinfo.died_by_stack(group[0]) and len(group) == 1:
         # sys.stdout.write( "DBS 1: %d --" % len(group) )
         # Then this is a key object for a death group by itself
