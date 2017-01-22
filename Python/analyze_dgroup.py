@@ -87,20 +87,64 @@ def check_diedby_stats( dgroups_data = {},
             break
     return result
 
-# summary dictionary layout:
-#    key - key object type
-#    value - dictionary of attributes
-#        subkeys:
-#            * number of key objects of this type
-#            * group sizes
-#            * group types (simple set seems the most logical)
-#            * death site counts
-#            * allocation site counts
-#            * count of how many escaped? TODO
+# GLOBAL:
+#     summary dictionary layout:
+#        key - summary name of table. Possible keys are:
+#            * "CAUSE"
+#               + distribution among by heap/stack/progend
+#            * "TYPES"
+#               + type distribution for the key objects
+#            * "DSITES"
+#               + death site/context distribution for the key objects
+# BY TYPE:
+#     summary_by_type dictionary layout:
+#        key - key object type
+#        value - dictionary of attributes
+#            subkeys:
+#                * number of key objects of this type
+#                * group sizes
+#                * group types (simple set seems the most logical)
+#                * death site counts
+#                * allocation site counts
+#                * count of how many escaped? TODO
 def update_key_object_summary( newgroup = {},
                                summary = {},
+                               objectinfo = {},
                                logger = None ):
-    pass
+    # Rename/alias long names:
+    oi = objectinfo
+    # Part 1 - Get the by heap/stack/etc stats for key objects only
+    #     Note that this means we're counting groups instead of objects.
+    if "CAUSE" in summary:
+        sys.stderr.write( "CAUSE subsummary found in result. Overwriting this.\n" )
+    summary["CAUSE"] = Counter()
+    cdict = summary["CAUSE"]
+    for key, glist in summary.iteritems():
+        if oi.died_by_stack(key):
+            cdict["STACK"] += 1
+        elif oi.died_by_heap(key) or oi.died_by_global(key):
+            cdict["HEAP"] += 1
+        elif oi.died_by_program_end(key):
+            cdict["PROGEND"] += 1
+        else:
+            sys.stderr.write( "Object ID[%d] not by S/H/PE. Saving as UNKNOWN.\n" )
+            cdict["UNKNOWN"] += 1
+    # Part 2 - Get the type distribution
+    if "TYPES" in summary:
+        sys.stderr.write( "TYPES subsummary found in result. Overwriting this.\n" )
+    summary["TYPES"] = Counter()
+    typedict = summary["TYPES"]
+    for key, glist in summary.iteritems():
+        mytype = oi.get_type(key)
+        typedict[mytype] += 1
+    # Part 3 - Get the death site distribution
+    if "DSITES" in summary:
+        sys.stderr.write( "DSITES subsummary found in result. Overwriting this.\n" )
+    summary["DSITES"] = Counter()
+    dsitesdict = summary["DSITES"]
+    for key, glist in summary.iteritems():
+        dsite = oi.get_death_context(key)
+        dsitesdict[dsite] += 1
     # TODO TODO TODO TODO
 
 def read_dgroups_from_pickle( result = [],
@@ -188,7 +232,9 @@ def read_dgroups_from_pickle( result = [],
                                   cycle_summary = cycle_summary,
                                   logger = logger )
         update_key_object_summary( newgroup = result,
-                                   summary = key_objects )
+                                   summary = key_objects,
+                                   objectinfo = objectinfo,
+                                   logger = logger )
         count += 1
         if result != None and len(result) > 0:
             # TODO DEBUG print "%d: %s" % (count, result)
