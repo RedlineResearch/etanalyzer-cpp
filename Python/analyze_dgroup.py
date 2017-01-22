@@ -87,6 +87,16 @@ def check_diedby_stats( dgroups_data = {},
             break
     return result
 
+# summary dictionary layout:
+#    key - key object type
+#    value - dictionary of attributes
+#        subkeys:
+#            * number of key objects of this type
+#            * group sizes
+#            * group types (simple set seems the most logical)
+#            * death site counts
+#            * allocation site counts
+#            * count of how many escaped? TODO
 def update_key_object_summary( newgroup = {},
                                summary = {},
                                logger = None ):
