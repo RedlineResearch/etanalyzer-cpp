@@ -116,9 +116,9 @@ def update_key_object_summary( newgroup = {},
     oi = objectinfo
     # Part 1 - Get the by heap/stack/etc stats for key objects only
     #     Note that this means we're counting groups instead of objects.
-    if "CAUSE" in summary:
-        sys.stderr.write( "CAUSE subsummary found in result. Overwriting this.\n" )
-    summary["CAUSE"] = Counter()
+    # TODO: Use defaultdict TODO
+    if "CAUSE" not in summary:
+        summary["CAUSE"] = Counter()
     cdict = summary["CAUSE"]
     for key, glist in newgroup.iteritems():
         if oi.died_by_stack(key):
@@ -131,19 +131,17 @@ def update_key_object_summary( newgroup = {},
             sys.stderr.write( "Object ID[%d] not by S/H/PE. Saving as UNKNOWN.\n" )
             cdict["UNKNOWN"] += 1
     # Part 2 - Get the type distribution
-    if "TYPES" in summary:
-        sys.stderr.write( "TYPES subsummary found in result. Overwriting this.\n" )
-    summary["TYPES"] = Counter()
+    if "TYPES" not in summary:
+        summary["TYPES"] = Counter()
     typedict = summary["TYPES"]
-    for key, glist in summary.iteritems():
+    for key, glist in newgroup.iteritems():
         mytype = oi.get_type(key)
         typedict[mytype] += 1
     # Part 3 - Get the death site distribution
-    if "DSITES" in summary:
-        sys.stderr.write( "DSITES subsummary found in result. Overwriting this.\n" )
-    summary["DSITES"] = Counter()
+    if "DSITES" not in summary:
+        summary["DSITES"] = Counter()
     dsitesdict = summary["DSITES"]
-    for key, glist in summary.iteritems():
+    for key, glist in newgroup.iteritems():
         dsite = oi.get_death_context(key)
         dsitesdict[dsite] += 1
     # TODO TODO TODO TODO
@@ -157,6 +155,7 @@ def read_dgroups_from_pickle( result = [],
                               summary_config = {},
                               cycle_cpp_dir = "",
                               obj_cachesize = 5000000,
+                              key_summary_writer = None,
                               debugflag = False,
                               logger = None ):
     assert(logger != None)
@@ -261,26 +260,36 @@ def read_dgroups_from_pickle( result = [],
                 deathsite = objectinfo.get_death_context(key)
                 dss[keytype][deathsite] += 1
         # TODO DEBUG print "--------------------------------------------------------------------------------"
+    # Save the CSV file the key object summary
+    total_objects = summary_reader.get_number_of_objects()
+    num_key_objects = len(result)
+    # By stack
+    stack_all = summary_reader.get_number_died_by_stack()
+    percent_stack_all = (stack_all / total_objects) * 100.0
+    stack_key = key_objects["CAUSE"]["STACK"]
+    percent_stack_key = (stack_key / num_key_objects) * 100.0
+    # By heap
+    heap_all = summary_reader.get_number_died_by_heap()
+    percent_heap_all = (heap_all / total_objects) * 100.0
+    heap_key = key_objects["CAUSE"]["HEAP"]
+    percent_heap_key = (heap_key / num_key_objects) * 100.0
+    # By heap
+    progend_all = summary_reader.get_number_died_at_end()
+    percent_progend_all = (progend_all / total_objects) * 100.0
+    progend_key = key_objects["CAUSE"]["PROGEND"]
+    percent_progend_key = (progend_key / num_key_objects) * 100.0
+    newrow = [ bmark, total_objects, num_key_objects,
+               percent_stack_all, percent_stack_key,
+               percent_heap_all, percent_heap_key,
+               percent_progend_all, percent_progend_key, ]
+    # Write out the row
+    key_summary_writer.writerow( newrow )
     # Print out key object counts by type
-    print "---[ Key object counts by type ]------------------------------------------------"
-    for mytype, num in keytype_counter.iteritems():
-        print "%s -> %d" % (mytype, num)
-        print "   -> %s" % str(dss[mytype])
-    print "--------------------------------------------------------------------------------"
-    # Print out 
-    print "---[ Key object general statistics ]--------------------------------------------"
-    with open("key-object-summary.csv", mode = "wb") as fp:
-        csvwriter = csv.writer(fp)
-        header = [ "total_objects", "total_key_objects",
-                   "percent_stack_all", "percent_stack_key",
-                   "percent_heap_all", "percent_heap_key",
-                   "percent_progend_all", "percent_progend_key", ]
-        csvwriter.writerow(header)
-        for key, valdict in summary.iteritems():
-            print "KEY: %s" % str(key)
-            print "VAL: %s" % str(valdict)
-    print "--------------------------------------------------------------------------------"
-    exit(100)
+    # TODO print "---[ Key object counts by type ]------------------------------------------------"
+    # TODO for mytype, num in keytype_counter.iteritems():
+    # TODO     print "%s -> %d" % (mytype, num)
+    # TODO     print "   -> %s" % str(dss[mytype])
+    # TODO print "--------------------------------------------------------------------------------"
     # 
     #       * size stats for groups that died by stack
     #            + first should be number of key objects
@@ -660,52 +669,63 @@ def main_process( global_config = {},
     results = {}
     procs_dgroup = {}
     dblist = []
-    for bmark in worklist_config.keys():
-        hostlist = worklist_config[bmark]
-        if not check_host( benchmark = bmark,
-                           hostlist = hostlist,
-                           host_config = host_config ):
-            continue
-        # Else we can run for 'bmark'
-        cachesize = int(cachesize_config[bmark])
-        if mprflag:
-            assert(False)
-            print "=======[ Spawning %s ]================================================" \
-                % bmark
-            results[bmark] = manager.list([ bmark, ])
-            # NOTE: The order of the args tuple is important!
-            # ======================================================================
-            # Read in the death groups from dgroups2db.py 
-            p = Process( target = read_dgroups_from_pickle,
-                         args = ( results[bmark],
-                                  bmark,
-                                  workdir,
-                                  mprflag,
-                                  dgroups2db_config,
-                                  objectinfo_db_config,
-                                  summary_config,
-                                  cycle_cpp_dir,
-                                  cachesize,
-                                  debugflag,
-                                  logger ) )
-            procs_dgroup[bmark] = p
-            p.start()
-        else:
-            print "=======[ Running %s ]=================================================" \
-                % bmark
-            print "     Reading in death groups..."
-            results[bmark] = [ bmark, ]
-            read_dgroups_from_pickle( result = results[bmark],
-                                      bmark = bmark,
-                                      workdir = workdir,
-                                      mprflag = mprflag,
-                                      dgroups2db_config = dgroups2db_config,
-                                      objectinfo_db_config = objectinfo_db_config,
-                                      summary_config = summary_config,
-                                      cycle_cpp_dir = cycle_cpp_dir,
-                                      obj_cachesize = cachesize,
-                                      debugflag = debugflag,
-                                      logger = logger )
+    # Print out 
+    with open("key-object-summary.csv", mode = "wb") as key_summary_fp:
+        # Key object general statistics
+        key_summary_writer = csv.writer(key_summary_fp)
+        header = [ "total_objects", "total_key_objects",
+                   "percent_stack_all", "percent_stack_key",
+                   "percent_heap_all", "percent_heap_key",
+                   "percent_progend_all", "percent_progend_key", ]
+        key_summary_writer.writerow(header)
+        for bmark in worklist_config.keys():
+            hostlist = worklist_config[bmark]
+            if not check_host( benchmark = bmark,
+                               hostlist = hostlist,
+                               host_config = host_config ):
+                continue
+            # Else we can run for 'bmark'
+            cachesize = int(cachesize_config[bmark])
+            if mprflag:
+                assert(False)
+                print "=======[ Spawning %s ]================================================" \
+                    % bmark
+                results[bmark] = manager.list([ bmark, ])
+                # NOTE: The order of the args tuple is important!
+                # ======================================================================
+                # Read in the death groups from dgroups2db.py 
+                p = Process( target = read_dgroups_from_pickle,
+                             args = ( results[bmark],
+                                      bmark,
+                                      workdir,
+                                      mprflag,
+                                      dgroups2db_config,
+                                      objectinfo_db_config,
+                                      summary_config,
+                                      cycle_cpp_dir,
+                                      cachesize,
+                                      key_summary_writer,
+                                      debugflag,
+                                      logger ) )
+                procs_dgroup[bmark] = p
+                p.start()
+            else:
+                print "=======[ Running %s ]=================================================" \
+                    % bmark
+                print "     Reading in death groups..."
+                results[bmark] = [ bmark, ]
+                read_dgroups_from_pickle( result = results[bmark],
+                                          bmark = bmark,
+                                          workdir = workdir,
+                                          mprflag = mprflag,
+                                          dgroups2db_config = dgroups2db_config,
+                                          objectinfo_db_config = objectinfo_db_config,
+                                          summary_config = summary_config,
+                                          cycle_cpp_dir = cycle_cpp_dir,
+                                          obj_cachesize = cachesize,
+                                          key_summary_writer = key_summary_writer,
+                                          debugflag = debugflag,
+                                          logger = logger )
     print "DONE."
     exit(100)
     if mprflag:
