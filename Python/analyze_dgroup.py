@@ -29,7 +29,8 @@ from mypytools import check_host, create_work_directory, process_host_config, \
 
 # The garbology related library. Import as follows.
 # Check garbology.py for other imports
-from garbology import ObjectInfoReader, get_edgeinfo_db_filename, EdgeInfoReader
+from garbology import ObjectInfoReader, get_edgeinfo_db_filename, EdgeInfoReader, \
+    SummaryReader
 #     ObjectInfoFile2DB, EdgeInfoFile2DB, StabilityReader
 
 # Needed to read in *-OBJECTINFO.txt and other files from
@@ -119,7 +120,7 @@ def update_key_object_summary( newgroup = {},
         sys.stderr.write( "CAUSE subsummary found in result. Overwriting this.\n" )
     summary["CAUSE"] = Counter()
     cdict = summary["CAUSE"]
-    for key, glist in summary.iteritems():
+    for key, glist in newgroup.iteritems():
         if oi.died_by_stack(key):
             cdict["STACK"] += 1
         elif oi.died_by_heap(key) or oi.died_by_global(key):
@@ -153,6 +154,7 @@ def read_dgroups_from_pickle( result = [],
                               mprflag = False,
                               dgroups2db_config = {},
                               objectinfo_db_config = {},
+                              summary_config = {},
                               cycle_cpp_dir = "",
                               obj_cachesize = 5000000,
                               debugflag = False,
@@ -188,6 +190,17 @@ def read_dgroups_from_pickle( result = [],
     # Unlike the ObjectInfoReader for DB files, EdgeInfoReader does all the 
     # necessary initialization in __init__. I need to fix this aysmmetry in 
     # the API design somehow. Maybe later. TODO TODO - RLV 29 Dec 2016
+    #===========================================================================
+    # Read in SUMMARY
+    print "Reading in the SUMMARY file for benchmark:", bmark
+    sys.stdout.flush()
+    summary_filename = os.path.join( cycle_cpp_dir,
+                                     summary_config[bmark] )
+    oread_start = time.clock()
+    print "SUMMARY:", summary_filename
+    summary_reader = SummaryReader( summary_file = summary_filename,
+                                    logger = logger )
+    summary_reader.read_summary_file()
     #=========================================================================== # Read in DGROUPS from the pickle file
     picklefile = os.path.join( dgroups2db_config["output"],
                                bmark + dgroups2db_config["file-dgroups"] )
@@ -231,12 +244,12 @@ def read_dgroups_from_pickle( result = [],
                                   objectinfo = objectinfo,
                                   cycle_summary = cycle_summary,
                                   logger = logger )
-        update_key_object_summary( newgroup = result,
-                                   summary = key_objects,
-                                   objectinfo = objectinfo,
-                                   logger = logger )
         count += 1
         if result != None and len(result) > 0:
+            update_key_object_summary( newgroup = result,
+                                       summary = key_objects,
+                                       objectinfo = objectinfo,
+                                       logger = logger )
             # TODO DEBUG print "%d: %s" % (count, result)
             ktc = keytype_counter # Short alias
             for key, subgroup in result.iteritems():
@@ -248,16 +261,30 @@ def read_dgroups_from_pickle( result = [],
                 deathsite = objectinfo.get_death_context(key)
                 dss[keytype][deathsite] += 1
         # TODO DEBUG print "--------------------------------------------------------------------------------"
-    print "---[ Key object counts ]--------------------------------------------------------"
+    # Print out key object counts by type
+    print "---[ Key object counts by type ]------------------------------------------------"
     for mytype, num in keytype_counter.iteritems():
         print "%s -> %d" % (mytype, num)
         print "   -> %s" % str(dss[mytype])
     print "--------------------------------------------------------------------------------"
+    # Print out 
+    print "---[ Key object general statistics ]--------------------------------------------"
+    with open("key-object-summary.csv", mode = "wb") as fp:
+        csvwriter = csv.writer(fp)
+        header = [ "total_objects", "total_key_objects",
+                   "percent_stack_all", "percent_stack_key",
+                   "percent_heap_all", "percent_heap_key",
+                   "percent_progend_all", "percent_progend_key", ]
+        csvwriter.writerow(header)
+        for key, valdict in summary.iteritems():
+            print "KEY: %s" % str(key)
+            print "VAL: %s" % str(valdict)
+    print "--------------------------------------------------------------------------------"
+    exit(100)
     # 
     #       * size stats for groups that died by stack
     #            + first should be number of key objects
     #            + then average size of sub death group
-
     #===========================================================================
     # Write out to ???? TODO
     # 
@@ -601,7 +628,7 @@ def main_process( global_config = {},
                   dgroups2db_config = {},
                   objectinfo_db_config = {},
                   cachesize_config = {},
-                  # TODO objectinfo_config = {},
+                  summary_config = {},
                   # TODO stability_config = {},
                   mprflag = False,
                   debugflag = False,
@@ -656,6 +683,7 @@ def main_process( global_config = {},
                                   mprflag,
                                   dgroups2db_config,
                                   objectinfo_db_config,
+                                  summary_config,
                                   cycle_cpp_dir,
                                   cachesize,
                                   debugflag,
@@ -673,6 +701,7 @@ def main_process( global_config = {},
                                       mprflag = mprflag,
                                       dgroups2db_config = dgroups2db_config,
                                       objectinfo_db_config = objectinfo_db_config,
+                                      summary_config = summary_config,
                                       cycle_cpp_dir = cycle_cpp_dir,
                                       obj_cachesize = cachesize,
                                       debugflag = debugflag,
@@ -741,15 +770,17 @@ def process_config( args ):
     objectinfo_db_config = config_section_map( "objectinfo-db", config_parser )
     # Reuse the cachesize
     cachesize_config = config_section_map( "create-supergraph-obj-cachesize", config_parser )
+    # Summary files
+    summary_config = config_section_map( "summary-cpp", config_parser )
     # MAYBE: edgeinfo_config = config_section_map( "edgeinfo", config_parser )
-    # MAYBE: summary_config = config_section_map( "summary_cpp", config_parser )
     return { "global" : global_config,
              "main" : main_config,
              "worklist" : worklist_config,
              "hosts" : host_config,
              "dgroups2db" : dgroups2db_config,
              "objectinfo_db" : objectinfo_db_config,
-             "cachesize" : cachesize_config
+             "cachesize" : cachesize_config,
+             "summary" : summary_config,
              }
 
 def create_parser():
@@ -796,6 +827,7 @@ def main():
     dgroups2db_config = configdict["dgroups2db"]
     objectinfo_db_config = configdict["objectinfo_db"]
     cachesize_config = configdict["cachesize"]
+    summary_config = configdict["summary"]
     # TODO objectinfo_config = configdict["objectinfo"]
     # TODO stability_config = configdict["stability"]
     # TODO DEBUG TODO
@@ -822,6 +854,7 @@ def main():
                          dgroups2db_config = dgroups2db_config,
                          objectinfo_db_config = objectinfo_db_config,
                          cachesize_config = cachesize_config,
+                         summary_config = summary_config,
                          # MAYBE stability_config = stability_config,
                          mprflag = args.mprflag,
                          logger = logger )
