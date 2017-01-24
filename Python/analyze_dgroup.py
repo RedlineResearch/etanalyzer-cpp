@@ -117,6 +117,8 @@ def update_key_object_summary( newgroup = {},
     # Part 1 - Get the by heap/stack/etc stats for key objects only
     #     Note that this means we're counting groups instead of objects.
     # TODO: Use defaultdict TODO
+    if "GROUPLIST" not in summary:
+        summary["GROUPLIST"] = {}
     if "CAUSE" not in summary:
         summary["CAUSE"] = Counter()
     cdict = summary["CAUSE"]
@@ -135,6 +137,7 @@ def update_key_object_summary( newgroup = {},
         summary["TYPES"] = Counter()
     typedict = summary["TYPES"]
     for key, glist in newgroup.iteritems():
+        summary["GROUPLIST"][key] = glist
         mytype = oi.get_type(key)
         typedict[mytype] += 1
     # Part 3 - Get the death site distribution
@@ -262,7 +265,7 @@ def read_dgroups_from_pickle( result = [],
         # TODO DEBUG print "--------------------------------------------------------------------------------"
     # Save the CSV file the key object summary
     total_objects = summary_reader.get_number_of_objects()
-    num_key_objects = len(result)
+    num_key_objects = len(key_objects["GROUPLIST"])
     # By stack
     stack_all = summary_reader.get_number_died_by_stack()
     percent_stack_all = (stack_all / total_objects) * 100.0
