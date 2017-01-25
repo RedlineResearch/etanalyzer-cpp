@@ -15,8 +15,7 @@ from shutil import copy
 import cPickle
 from itertools import chain
 import networkx as nx
-# Possible useful libraries, classes and functions:
-# from operator import itemgetter
+from operator import itemgetter
 from collections import Counter
 from collections import defaultdict
 #   - This one is my own library:
@@ -282,6 +281,11 @@ def read_dgroups_from_pickle( result = [],
     newrow = [ bmark, ]
     # Get the top 5 death sites
     # TODO: Get the top 5 sites in terms of size
+    #     * Use "DSITES_SIZE" and sort. Get top 5.
+    dsites_size = sorted( key_objects["DSITES_SIZE"].items(),
+                          key = itemgetter(1),
+                          reverse = True )
+    newrow = newrow + [ x[0] for x in dsites_size[0:5] ]
     # Write out the row
     key_summary_writer.writerow( newrow )
     # Print out key object counts by type
@@ -440,7 +444,7 @@ def get_key_objects( group = None,
         edgelist = []
         for obj in group:
             # Sum up the size in bytes
-            total_size += obejctinfo.get_size(obj)
+            total_size += objectinfo.get_size(obj)
             # Need a get all edges that target 'obj'
             # * Incoming edges
             srcreclist = ei.get_sources_records(obj)
@@ -488,7 +492,7 @@ def get_key_objects( group = None,
         edgelist = []
         for obj in group:
             # Sum up the size in bytes
-            total_size += obejctinfo.get_size(obj)
+            total_size += objectinfo.get_size(obj)
             # TODO: Need a get all edges that target 'obj'
             # * Incoming edges
             srcreclist = ei.get_sources_records(obj)
@@ -561,7 +565,7 @@ def get_key_objects( group = None,
         edgelist = []
         for obj in group:
             # Sum up the size in bytes
-            total_size += obejctinfo.get_size(obj)
+            total_size += objectinfo.get_size(obj)
             # TODO: Need a get all edges that target 'obj'
             # * Incoming edges
             srcreclist = ei.get_sources_records(obj)
