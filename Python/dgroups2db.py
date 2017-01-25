@@ -133,7 +133,6 @@ def main_process( global_config = {},
                   dgroups_config = {},
                   objectinfo_db_config = {},
                   cachesize_config = {},
-                  # TODO objectinfo_config = {},
                   # TODO edgeinfo_config = {},
                   # TODO stability_config = {},
                   mprflag = False,
@@ -328,7 +327,6 @@ def main():
     dgroups_config = configdict["dgroups"]
     objectinfo_db_config = configdict["objectinfo_db"]
     cachesize_config = configdict["cachesize"]
-    # TODO objectinfo_config = configdict["objectinfo"]
     # TODO edgeinfo_config = configdict["edgeinfo"]
     # TODO stability_config = configdict["stability"]
     # TODO DEBUG TODO
@@ -355,7 +353,6 @@ def main():
                          dgroups_config = dgroups_config,
                          objectinfo_db_config = objectinfo_db_config,
                          cachesize_config = cachesize_config,
-                         # TODO objectinfo_config = objectinfo_config,
                          # TODO edgeinfo_config = edgeinfo_config,
                          # TODO stability_config = stability_config,
                          mprflag = args.mprflag,

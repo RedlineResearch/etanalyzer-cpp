@@ -267,6 +267,7 @@ def output_R( benchmark = None ):
 
 # Outputs all the benchmarks and the related information
 def output_summary( output_path = None,
+                    output_path_ALL = None,
                     summary = None ):
     # Print out results in this format:
     # ========= <- divider
@@ -275,8 +276,34 @@ def output_summary( output_path = None,
     #   10,            5,            2,           22,           5,   2,  50
     # TODO: This documentation seems wrong. TODO
     print "Summary output path: %s" % str(output_path)
+    # The latest summary
     with open(output_path, "wb") as fp:
         csvwriter = csv.writer(fp)
+        bmarklist = summary.keys()
+        # TODO: Multiple sorts of benchmark name?
+        #      - alphabetical is easiest to start with
+        #      - allocation size (largest first)
+        bmarklist = sorted( bmarklist, reverse = True )
+        header = [ "attribute", ]
+        header.extend( bmarklist )
+        csvwriter.writerow( header )
+        attributes = [ "number_of_objects", "size_allocated",
+                       "died_at_end_size", "interesting_size",
+                       "died_by_stack_size", "died_by_heap_size",
+                       "died_by_stack_after_heap_size", "died_by_stack_only_size",
+                       "max_live_size", ]
+        # d["last_update_null_heap"], d["last_update_null_stack"], 
+        # d["last_update_null_size"], d["last_update_null_heap_size"], d["last_update_null_stack_size"],
+        attrs_index = { attributes[x] : x for x in xrange(len(attributes)) }
+        for attr in attributes:
+            row = []
+            row.append( attr )
+            for bmark in bmarklist:
+                row.append( summary[bmark][attr] )
+            csvwriter.writerow( row )
+
+    with open(output_path_ALL, "wb") as fpALL:
+        csvwriter_ALL = csv.writer(fpALL)
         header = [ "benchmark", "total_objects", "total_edges",
                    "died_by_heap", "died_by_stack", "died_at_end",
                    "died_by_stack_after_heap", "died_by_stack_only",
@@ -287,7 +314,7 @@ def output_summary( output_path = None,
                    # "last_update_null_heap", "last_update_null_stack", 
                    # "last_update_null_size", "last_update_null_heap_size", "last_update_null_stack_size",
                    ]
-        csvwriter.writerow( header )
+        csvwriter_ALL.writerow( header )
         for bmark, d in summary.iteritems():
             row = [ bmark, d["number_of_objects"], d["number_of_edges"],
                     d["died_by_heap"], d["died_by_stack"], d["died_at_end"],
@@ -299,7 +326,7 @@ def output_summary( output_path = None,
                     # d["last_update_null_heap"], d["last_update_null_stack"], 
                     # d["last_update_null_size"], d["last_update_null_heap_size"], d["last_update_null_stack_size"],
                     ]
-            csvwriter.writerow( row )
+            csvwriter_ALL.writerow( row )
 
 def create_work_directory( work_dir, logger = None, interactive = False ):
     os.chdir( work_dir )
@@ -519,7 +546,6 @@ def backup_old_graphs( graph_dir_path = None,
 
 def main_process( output = None,
                   main_config = None,
-                  lastedgeflag = False,
                   etanalyze_config = None,
                   worklist_config = None,
                   global_config = None,
@@ -558,7 +584,7 @@ def main_process( output = None,
         #     print bmark
         #     continue
         dgroups_path = os.path.join( workdir,
-                                bmark + dgroups2db_config["file-dgroups"] )
+                                     bmark + dgroups2db_config["file-dgroups"] )
         flag = True
         if not os.path.isfile(dgroups_path):
             logger.critical("DGROUPS: No such file: %s" % str(dgroups_path))
@@ -569,6 +595,24 @@ def main_process( output = None,
             logger.critical("SUMMARY: No such file: %s" % str(summary_path))
             print "SUMMARY: No such file: %s" % str(summary_path)
             flag = False
+        #===========================================================================
+        # Read in OBJECTINFO
+        print "Reading in the OBJECTINFO file for benchmark:", bmark
+        sys.stdout.flush()
+        print " - Using objectinfo DB:"
+        db_filename = os.path.join( cycle_cpp_dir,
+                                    objectinfo_db_config[bmark] )
+        if not os.path.isfile(db_filename):
+            logger.critical("OBJECTINFO: No such file: %s" % str(db_filename))
+            print "OBJECTINFO: No such file: %s" % str(db_filename)
+            flag = False
+        else:
+            objectinfo = ObjectInfoReader( useDB_as_source = True,
+                                           db_filename = db_filename,
+                                           cachesize = obj_cachesize,
+                                           logger = logger )
+            objectinfo.read_objinfo_file()
+        #===========================================================================
         if not flag:
             # Couldn't find a source file.
             continue
@@ -592,7 +636,7 @@ def main_process( output = None,
         # Get summary
         # summary_sim = get_summary( summary_path )
         sreader = SummaryReader( summary_file = summary_path,
-                                   logger = logger )
+                                 logger = logger )
         sreader.read_summary_file()
         #     get summary by size
         number_of_objects = sreader.get_number_of_objects()
@@ -607,6 +651,7 @@ def main_process( output = None,
         died_by_stack_size = sreader.get_size_died_by_stack()
         died_by_heap_size = sreader.get_size_died_by_heap()
         died_at_end_size = sreader.get_size_died_at_end()
+        size_allocated = sreader.get_final_garbology_alloc_time()
 
         last_update_null = sreader.get_last_update_null()
 
@@ -618,10 +663,6 @@ def main_process( output = None,
         # last_update_null_heap_size = summary_sim["last_update_null_heap_size"]
         # last_update_null_stack_size = summary_sim["last_update_null_stack_size"]
 
-        # DEBUG:
-        if bmark == "luindex":
-            assert( (died_by_stack == 304689) and
-                    (died_by_heap == 84577) )
         summary[bmark] = { "died_by_heap" : died_by_heap, # total of
                            "died_by_stack" : died_by_stack, # total of
                            "died_at_end" : died_at_end, # total of
@@ -637,6 +678,8 @@ def main_process( output = None,
                            "died_by_stack_size" : died_by_stack_size, # size, not object count
                            "died_by_heap_size" : died_by_heap_size, # size, not object count
                            "died_at_end_size" : died_at_end_size, # size, not object count
+                           "size_allocated" : size_allocated, # total allocated in bytes
+                           "interesting_size" : size_allocated - died_at_end_size # Filtering out died at end
                            # TODO "last_update_null_heap" : last_update_null_heap, # subset of died_by_heap
                            # TODO "last_update_null_stack" : last_update_null_stack, # subset of died_by_heap
                            # TODO "last_update_null_size" : last_update_null_size, # size of
@@ -649,9 +692,8 @@ def main_process( output = None,
         #----------------------------------------------------------------------
         #      CYCLES
         #----------------------------------------------------------------------
-        # Get object dictionary information that has types and sizes
-        # TODO objectinfo_path = os.path.join(cycle_cpp_dir, objectinfo_config[bmark])
-        # TODO object_info_dict = get_object_info( objectinfo_path, typedict, rev_typedict )
+        # TODO: We can get this from analyze_dgroup.py. 
+        #     * Need to output cycle information from analyze_dgroup.py
         print "--------------------------------------------------------------------------------"
         count += 1
         # if count >= 1:
@@ -659,7 +701,10 @@ def main_process( output = None,
     print "======================================================================"
     print "===========[ SUMMARY ]================================================"
     output_path = os.path.join( cycle_cpp_dir, output )
+    output_ALL = output + "-ALL.csv"
+    output_path_ALL = os.path.join( cycle_cpp_dir, output_ALL )
     output_summary( output_path = output_path,
+                    output_path_ALL = output_path_ALL,
                     summary = summary )
     old_dir = os.getcwd()
     backup_old_graphs( graph_dir_path = graph_dir_path,
@@ -671,7 +716,7 @@ def main_process( output = None,
     # run object_barplot.R
     render_graphs( rscript_path = global_config["rscript_path"],
                    barplot_script = global_config["barplot_script"],
-                   csvfile = output_path, # csvfile is the input from the output_summary earlier 
+                   csvfile = output_path_ALL, # csvfile is the input from the output_summary earlier 
                    graph_dir = global_config["graph_dir"],
                    logger = logger,
                    debugflag = debugflag )
@@ -713,20 +758,11 @@ def create_parser():
                          dest = "debugflag",
                          help = "Disable debug output.",
                          action = "store_false" )
-    parser.add_argument( "--lastedge",
-                         dest = "lastedgeflag",
-                         help = "Enable last edge processing.",
-                         action = "store_true" )
-    parser.add_argument( "--no-lastedge",
-                         dest = "lastedgeflag",
-                         help = "Disable last edge processing.",
-                         action = "store_false" )
     parser.add_argument( "--logfile",
                          help = "Specify logfile name.",
                          action = "store" )
     parser.set_defaults( logfile = "merge_summary.log",
                          debugflag = False,
-                         lastedgeflag = False,
                          config = None )
     return parser
 
@@ -794,7 +830,6 @@ def main():
     #
     return main_process( debugflag = global_config["debug"],
                          output = args.output,
-                         lastedgeflag = args.lastedgeflag,
                          worklist_config = worklist_config,
                          main_config = main_config,
                          etanalyze_config = etanalyze_config,

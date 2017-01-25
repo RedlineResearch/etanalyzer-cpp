@@ -111,17 +111,34 @@ def check_diedby_stats( dgroups_data = {},
 def update_key_object_summary( newgroup = {},
                                summary = {},
                                objectinfo = {},
+                               total_size = 0,
                                logger = None ):
-    # Rename/alias long names:
-    oi = objectinfo
-    # Part 1 - Get the by heap/stack/etc stats for key objects only
-    #     Note that this means we're counting groups instead of objects.
     # TODO: Use defaultdict TODO
     if "GROUPLIST" not in summary:
         summary["GROUPLIST"] = {}
     if "CAUSE" not in summary:
         summary["CAUSE"] = Counter()
+    if "DSITES" not in summary:
+        summary["DSITES"] = Counter()
+    if "DSITES_SIZE" not in summary:
+        summary["DSITES_SIZE"] = defaultdict(int)
+    if "TYPES" not in summary:
+        summary["TYPES"] = Counter()
+    if "TYPE_DSITES" not in summary:
+        summary["TYPE_DSITES"] = defaultdict(Counter)
+    if "TOTAL_SIZE" not in summary:
+        summary["TOTAL_SIZE"] = {}
+    # Rename/alias long names:
+    oi = objectinfo
     cdict = summary["CAUSE"]
+    dsitesdict = summary["DSITES"]
+    dsites_size = summary["DSITES_SIZE"]
+    typedict = summary["TYPES"]
+    type_dsites = summary["TYPE_DSITES"]
+    # Remember the total size of the group in bytes
+    # ------------------------------------------------------------
+    # Part 1 - Get the by heap/stack/etc stats for key objects only
+    #     Note that this means we're counting groups instead of objects.
     for key, glist in newgroup.iteritems():
         if oi.died_by_stack(key):
             cdict["STACK"] += 1
@@ -132,22 +149,17 @@ def update_key_object_summary( newgroup = {},
         else:
             sys.stderr.write( "Object ID[%d] not by S/H/PE. Saving as UNKNOWN.\n" )
             cdict["UNKNOWN"] += 1
-    # Part 2 - Get the type distribution
-    if "TYPES" not in summary:
-        summary["TYPES"] = Counter()
-    typedict = summary["TYPES"]
+    # Part 2 - Get the type and the death distributions
     for key, glist in newgroup.iteritems():
+        # Well, there should really be only one group in newgroup...
+        summary["TOTAL_SIZE"][key] = total_size
         summary["GROUPLIST"][key] = glist
         mytype = oi.get_type(key)
         typedict[mytype] += 1
-    # Part 3 - Get the death site distribution
-    if "DSITES" not in summary:
-        summary["DSITES"] = Counter()
-    dsitesdict = summary["DSITES"]
-    for key, glist in newgroup.iteritems():
         dsite = oi.get_death_context(key)
         dsitesdict[dsite] += 1
-    # TODO TODO TODO TODO
+        dsites_size[dsite] += total_size
+        type_dsites[type][dsite] += 1
 
 def read_dgroups_from_pickle( result = [],
                               bmark = "",
@@ -212,22 +224,22 @@ def read_dgroups_from_pickle( result = [],
     #===========================================================================
     # Process
     # 
-    # Idea 1: for each group, check that each object in the group have the same
-    # died by
-    diedby_results = check_diedby_stats( dgroups_data = dgroups_data,
-                                         objectinfo = objectinfo )
-    print "==========================================================================="
-    for gnum, datadict in diedby_results.iteritems():
-        assert("diedby" in datadict)
-        assert("deathtime" in datadict)
-        sys.stdout.write( "GROUP %d\n" % gnum )
-        sys.stdout.write( "    * DIEDBY:\n" )
-        for diedbytype, total in datadict["diedby"]["count"].iteritems():
-            sys.stdout.write( "        %s -> %d\n" % (diedbytype, total) )
-            sys.stdout.write( "         - Types: %s\n" % str(list( datadict["diedby"]["types"][diedbytype])) )
-        sys.stdout.write( "    * dtime               : %s\n" % str(list(datadict["deathtime"])) )
-        sys.stdout.write( "===========================================================================\n" )
-        sys.stdout.flush()
+    # TODO: # Idea 1: for each group, check that each object in the group have the same
+    # TODO: # died by
+    # TODO: diedby_results = check_diedby_stats( dgroups_data = dgroups_data,
+    # TODO:                                      objectinfo = objectinfo )
+    # TODO: print "==========================================================================="
+    # TODO: for gnum, datadict in diedby_results.iteritems():
+    # TODO:     assert("diedby" in datadict)
+    # TODO:     assert("deathtime" in datadict)
+    # TODO:     sys.stdout.write( "GROUP %d\n" % gnum )
+    # TODO:     sys.stdout.write( "    * DIEDBY:\n" )
+    # TODO:     for diedbytype, total in datadict["diedby"]["count"].iteritems():
+    # TODO:         sys.stdout.write( "        %s -> %d\n" % (diedbytype, total) )
+    # TODO:         sys.stdout.write( "         - Types: %s\n" % str(list( datadict["diedby"]["types"][diedbytype])) )
+    # TODO:     sys.stdout.write( "    * dtime               : %s\n" % str(list(datadict["deathtime"])) )
+    # TODO:     sys.stdout.write( "===========================================================================\n" )
+    # TODO:     sys.stdout.flush()
     #===========================================================================
     # Idea 2: Get the key objects TODO TODO TODO
     #
@@ -241,16 +253,17 @@ def read_dgroups_from_pickle( result = [],
     for gnum, glist in dgroups_data["group2list"].iteritems():
         # - for every death group dg:
         #       get the last edge for every object
-        result = get_key_objects( group = glist,
-                                  edgeinfo = edgeinfo,
-                                  objectinfo = objectinfo,
-                                  cycle_summary = cycle_summary,
-                                  logger = logger )
+        result, total_size = get_key_objects( group = glist,
+                                              edgeinfo = edgeinfo,
+                                              objectinfo = objectinfo,
+                                              cycle_summary = cycle_summary,
+                                              logger = logger )
         count += 1
-        if result != None and len(result) > 0:
+        if len(result) > 0:
             update_key_object_summary( newgroup = result,
                                        summary = key_objects,
                                        objectinfo = objectinfo,
+                                       total_size = total_size,
                                        logger = logger )
             # TODO DEBUG print "%d: %s" % (count, result)
             ktc = keytype_counter # Short alias
@@ -266,25 +279,9 @@ def read_dgroups_from_pickle( result = [],
     # Save the CSV file the key object summary
     total_objects = summary_reader.get_number_of_objects()
     num_key_objects = len(key_objects["GROUPLIST"])
-    # By stack
-    stack_all = summary_reader.get_number_died_by_stack()
-    percent_stack_all = (stack_all / total_objects) * 100.0
-    stack_key = key_objects["CAUSE"]["STACK"]
-    percent_stack_key = (stack_key / num_key_objects) * 100.0
-    # By heap
-    heap_all = summary_reader.get_number_died_by_heap()
-    percent_heap_all = (heap_all / total_objects) * 100.0
-    heap_key = key_objects["CAUSE"]["HEAP"]
-    percent_heap_key = (heap_key / num_key_objects) * 100.0
-    # By heap
-    progend_all = summary_reader.get_number_died_at_end()
-    percent_progend_all = (progend_all / total_objects) * 100.0
-    progend_key = key_objects["CAUSE"]["PROGEND"]
-    percent_progend_key = (progend_key / num_key_objects) * 100.0
-    newrow = [ bmark, total_objects, num_key_objects,
-               percent_stack_all, percent_stack_key,
-               percent_heap_all, percent_heap_key,
-               percent_progend_all, percent_progend_key, ]
+    newrow = [ bmark, ]
+    # Get the top 5 death sites
+    # TODO: Get the top 5 sites in terms of size
     # Write out the row
     key_summary_writer.writerow( newrow )
     # Print out key object counts by type
@@ -434,6 +431,7 @@ def get_key_objects( group = None,
     cyclenode_summary = {}
     #     key = Key object ID
     #     value = Cycle group list. It SHOULD include the key object ID.
+    total_size = 0 # Total size of group
     # Check DIED BY STACK and single
     if objectinfo.died_by_stack(group[0]) and len(group) == 1:
         # sys.stdout.write( "DBS 1: %d --" % len(group) )
@@ -441,6 +439,8 @@ def get_key_objects( group = None,
         result = { group[0] : [] }
         edgelist = []
         for obj in group:
+            # Sum up the size in bytes
+            total_size += obejctinfo.get_size(obj)
             # Need a get all edges that target 'obj'
             # * Incoming edges
             srcreclist = ei.get_sources_records(obj)
@@ -487,6 +487,8 @@ def get_key_objects( group = None,
         none_count = 0
         edgelist = []
         for obj in group:
+            # Sum up the size in bytes
+            total_size += obejctinfo.get_size(obj)
             # TODO: Need a get all edges that target 'obj'
             # * Incoming edges
             srcreclist = ei.get_sources_records(obj)
@@ -558,6 +560,8 @@ def get_key_objects( group = None,
         # In this case there _SHOULD_ only be one KEY OBJECT.
         edgelist = []
         for obj in group:
+            # Sum up the size in bytes
+            total_size += obejctinfo.get_size(obj)
             # TODO: Need a get all edges that target 'obj'
             # * Incoming edges
             srcreclist = ei.get_sources_records(obj)
@@ -628,10 +632,9 @@ def get_key_objects( group = None,
             # print "ERROR: can't classify object-"
             objectinfo.debug_object(group[0])
         # Either way nothing in the result
-        result = None
     cycle_summary["keyobject_map"] = cycledict
     cycle_summary["cyclenodes"] = cyclenode_summary
-    return result
+    return (result, total_size)
 
 def main_process( global_config = {},
                   main_config = {},
@@ -676,10 +679,8 @@ def main_process( global_config = {},
     with open("key-object-summary.csv", mode = "wb") as key_summary_fp:
         # Key object general statistics
         key_summary_writer = csv.writer(key_summary_fp)
-        header = [ "total_objects", "total_key_objects",
-                   "percent_stack_all", "percent_stack_key",
-                   "percent_heap_all", "percent_heap_key",
-                   "percent_progend_all", "percent_progend_key", ]
+        header = [ "benchmark",
+                   "dsite_1", "dsite_2", "dsite_3", "dsite_4", "dsite_5", ]
         key_summary_writer.writerow(header)
         for bmark in worklist_config.keys():
             hostlist = worklist_config[bmark]
