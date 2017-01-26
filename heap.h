@@ -749,9 +749,9 @@ class Object {
         // Single death context
         // Getter
         string getDeathContextSiteName() const {
-            Method *mymeth = this->m_methodDeathSite;
-            return (mymeth ? mymeth->getName() : "NONAME");
-            // return this->m_deathsite_name;
+            // Method *mymeth = this->m_methodDeathSite;
+            // return (mymeth ? mymeth->getName() : "NONAME");
+            return this->m_deathsite_name;
         }
         // Setter
         void setDeathContextSiteName( string &new_dsite ) {

@@ -385,8 +385,9 @@ class ExecState
 
         // Update the Object pointer to simple Death context pair map
         void UpdateObj2DeathContext( Object *obj,
-                                     string alloc_site ) {
-            this->m_objDeath2cmap[obj] = alloc_site;
+                                     string death_site ) {
+            this->m_objDeath2cmap[obj] = death_site;
+            obj->setDeathContextSiteName(death_site);
             // TODO: Old code using context pair
             // TODO: UpdateObj2Context( obj,
             // TODO:                    cpair,

@@ -593,13 +593,14 @@ class ObjectInfoReader:
 
     def get_death_context_using_record( self, rec = None ):
         if self.__DEATHCONTEXT__ == "SINGLE":
-            first = rec[ get_index("CONTEXT1") ] if rec != None else "NONE"
+            result = rec[ get_index("CONTEXT1") ] if rec != None else "NONE1"
         elif self.__DEATHCONTEXT__ == "PAIR":
-            first = rec[ get_index("CONTEXT1") ] if rec != None else "NONE"
-            second = rec[ get_index("CONTEXT2") ] if rec != None else "NONE"
-            return (first, second)
+            first = rec[ get_index("CONTEXT1") ] if rec != None else "NONE2a"
+            second = rec[ get_index("CONTEXT2") ] if rec != None else "NONE2b"
+            result = (first, second)
         else:
             raise ValueError("Unknown DEATHCONTEXT mode: %s" % str(self.__DEATHCONTEXT__))
+        return result
 
     def get_death_context_type( self, objId = 0 ):
         rec = self.get_record(objId)

@@ -285,7 +285,9 @@ def read_dgroups_from_pickle( result = [],
     dsites_size = sorted( key_objects["DSITES_SIZE"].items(),
                           key = itemgetter(1),
                           reverse = True )
+    print "Y:", str(dsites_size[0:5])
     newrow = newrow + [ x[0] for x in dsites_size[0:5] ]
+    print "X:", newrow
     # Write out the row
     key_summary_writer.writerow( newrow )
     # Print out key object counts by type
