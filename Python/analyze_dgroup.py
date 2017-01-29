@@ -752,7 +752,7 @@ def main_process( global_config = {},
                     # Remove if it's there
                     os.remove( bakpath )
                 move( tgtpath, bakpath )
-            shutil.copy( srcpath, tgtpath )
+            copy( srcpath, tgtpath )
     print "DONE."
     exit(100)
     if mprflag:
