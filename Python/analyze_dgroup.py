@@ -11,7 +11,7 @@ import re
 import ConfigParser
 from multiprocessing import Process, Manager
 import sqlite3
-from shutil import copy 
+from shutil import copy, move
 import cPickle
 from itertools import chain
 import networkx as nx
@@ -202,8 +202,8 @@ def read_dgroups_from_pickle( result = [],
                                edgedb_filename = edgedb_filename,
                                cachesize = obj_cachesize,
                                logger = logger )
-    # Unlike the ObjectInfoReader for DB files, EdgeInfoReader does all the 
-    # necessary initialization in __init__. I need to fix this aysmmetry in 
+    # Unlike the ObjectInfoReader for DB files, EdgeInfoReader does all the
+    # necessary initialization in __init__. I need to fix this aysmmetry in
     # the API design somehow. Maybe later. TODO TODO - RLV 29 Dec 2016
     #===========================================================================
     # Read in SUMMARY
@@ -224,7 +224,7 @@ def read_dgroups_from_pickle( result = [],
         dgroups_data = cPickle.load(fptr)
     #===========================================================================
     # Process
-    # 
+    #
     # TODO: # Idea 1: for each group, check that each object in the group have the same
     # TODO: # died by
     # TODO: diedby_results = check_diedby_stats( dgroups_data = dgroups_data,
@@ -298,15 +298,15 @@ def read_dgroups_from_pickle( result = [],
     # TODO     print "%s -> %d" % (mytype, num)
     # TODO     print "   -> %s" % str(dss[mytype])
     # TODO print "--------------------------------------------------------------------------------"
-    # 
+    #
     #       * size stats for groups that died by stack
     #            + first should be number of key objects
     #            + then average size of sub death group
     #===========================================================================
     # Write out to ???? TODO
-    # 
+    #
     # pickle_filename = os.path.join( workdir, bmark + "-DGROUPS.pickle" )
-    
+
 
 def read_edgeinfo_with_stability_into_db( result = [],
                                           bmark = "",
@@ -381,7 +381,7 @@ def get_key_using_last_heap_update( group = [],
         newgroup = list(group)
         newgroup.remove(key)
     else:
-        raise RuntimeError("No key objects.") 
+        raise RuntimeError("No key objects.")
     return (key, newgroup)
 
 def filter_edges( edgelist = [],
@@ -420,7 +420,7 @@ def get_key_objects( group = None,
     tgt = 0
     assert( len(group) > 0 )
     # NOTE:
-    # If the group died by stack, then there are no last edges 
+    # If the group died by stack, then there are no last edges
     #
     # from the heap to speak of. We look for objects without last edges.
     # Get the group death time. This works because by definition, all objects
@@ -469,11 +469,11 @@ def get_key_objects( group = None,
         for srcnode in result.keys():
             cycledict[srcnode] = False
         for nxnode in nxgraph.nodes():
-            # TODO: Determine if it has cycles 
+            # TODO: Determine if it has cycles
             if nxnode in result:
                 try:
-                    cycle_elist = nx.find_cycle(nxgraph, nxnode) 
-                    cycledict[nxnode] = True 
+                    cycle_elist = nx.find_cycle(nxgraph, nxnode)
+                    cycledict[nxnode] = True
                     cycle_nodes = get_cycle_nodes( cycle_elist )
                 except nx.exception.NetworkXNoCycle as e:
                     cycle_elist = []
@@ -482,7 +482,7 @@ def get_key_objects( group = None,
                 cyclenode_summary[nxnode] = cycle_nodes
                 # sys.stdout.write( "   node[%d] -> (%d, %d) cycle %s.\n" %
                 #                   ( (nxnode), len(cycle_nodes),
-                #                     nxgraph.number_of_edges(), 
+                #                     nxgraph.number_of_edges(),
                 #                     ("YES" if cycledict[nxnode] else "NO") ) )
                 # TODO: Don't need this: sys.stdout.write( "        nodes: %s\n" % str(nxgraph.nodes()) )
         # TODO: Do we care about cycles of size 1?
@@ -505,7 +505,7 @@ def get_key_objects( group = None,
             obj_edgelist = [ x for x in srcreclist if
                              (ei.get_death_time_from_rec(x) == dtime) ]
             if len(obj_edgelist) == 0:
-                # Must be a key object 
+                # Must be a key object
                 assert( obj not in result )
                 result[obj] = []
             else:
@@ -541,11 +541,11 @@ def get_key_objects( group = None,
         for srcnode in result.keys():
             cycledict[srcnode] = False
         for nxnode in nxgraph.nodes():
-            # TODO: Determine if it has cycles 
+            # TODO: Determine if it has cycles
             if nxnode in result:
                 try:
-                    cycle_elist = nx.find_cycle(nxgraph, nxnode) 
-                    cycledict[nxnode] = True 
+                    cycle_elist = nx.find_cycle(nxgraph, nxnode)
+                    cycledict[nxnode] = True
                     cycle_nodes = get_cycle_nodes( cycle_elist )
                 except nx.exception.NetworkXNoCycle as e:
                     cycle_elist = []
@@ -553,7 +553,7 @@ def get_key_objects( group = None,
                     cycle_nodes = set()
                 # sys.stdout.write( "   node[%d] -> (%d, %d) cycle %s.\n" %
                 #                   ( (nxnode), len(cycle_nodes),
-                #                     len(cycle_elist), 
+                #                     len(cycle_elist),
                 #                     ("YES" if cycledict[nxnode] else "NO") ) )
                 # TODO: Don't need this: sys.stdout.write( "        nodes: %s\n" % str(nxgraph.nodes()) )
     elif ( objectinfo.died_by_heap(group[0]) or
@@ -578,7 +578,7 @@ def get_key_objects( group = None,
             obj_edgelist = [ x for x in srcreclist if
                              (ei.get_death_time_from_rec(x) == dtime) ]
             if len(obj_edgelist) == 0:
-                # Must be a key object 
+                # Must be a key object
                 assert( obj not in result )
                 result[obj] = []
             else:
@@ -601,7 +601,7 @@ def get_key_objects( group = None,
         else:
             # if len(result) > 1:
             #     print "ERROR: multiple key objects."
-            #     TODO raise RuntimeError("Multiple key objects.") 
+            #     TODO raise RuntimeError("Multiple key objects.")
             key, newgroup = get_key_using_last_heap_update( group = group,
                                                             graph = nxgraph,
                                                             objectinfo = objectinfo,
@@ -611,18 +611,18 @@ def get_key_objects( group = None,
             cycledict[srcnode] = False
         flag = False
         for nxnode in nxgraph.nodes():
-            # TODO: Determine if it has cycles 
+            # TODO: Determine if it has cycles
             if nxnode in result:
                 flag = True
                 try:
-                    cycle_elist = nx.find_cycle(nxgraph, nxnode) 
+                    cycle_elist = nx.find_cycle(nxgraph, nxnode)
                     cycledict[nxnode] = True
                 except nx.exception.NetworkXNoCycle as e:
                     cycle_elist = []
                     cycledict[nxnode] = False
                 # sys.stdout.write( "   node[%d] -> (%d, %d) cycle %s.\n" %
                 #                   ( (nxnode), nxgraph.number_of_nodes(),
-                #                     nxgraph.number_of_edges(), 
+                #                     nxgraph.number_of_edges(),
                 #                     ("YES" if cycledict[nxnode] else "NO") ) )
                 # sys.stdout.write( "        nodes: %s\n" % str(nxgraph.nodes()) )
         # TODO DEBUG if not flag:
@@ -683,7 +683,7 @@ def main_process( global_config = {},
     results = {}
     procs_dgroup = {}
     dblist = []
-    # Print out 
+    # Print out
     with open(KEY_OBJECT_SUMMARY, mode = "wb") as key_summary_fp:
         # Key object general statistics
         key_summary_writer = csv.writer(key_summary_fp)
@@ -705,7 +705,7 @@ def main_process( global_config = {},
                 results[bmark] = manager.list([ bmark, ])
                 # NOTE: The order of the args tuple is important!
                 # ======================================================================
-                # Read in the death groups from dgroups2db.py 
+                # Read in the death groups from dgroups2db.py
                 p = Process( target = read_dgroups_from_pickle,
                              args = ( results[bmark],
                                       bmark,
@@ -751,12 +751,12 @@ def main_process( global_config = {},
                 if os.path.isfile( bakpath ):
                     # Remove if it's there
                     os.remove( bakpath )
-                shutil.move( tgtpath, backup_cycle_cpp_dir )
+                move( tgtpath, backup_cycle_cpp_dir )
             shutil.copy( srcpath, tgtpath )
     print "DONE."
     exit(100)
     if mprflag:
-        # Poll the processes 
+        # Poll the processes
         done = False
         while not done:
             done = True
