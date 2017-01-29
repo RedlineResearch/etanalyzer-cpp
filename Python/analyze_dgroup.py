@@ -42,6 +42,8 @@ import time
 
 pp = pprint.PrettyPrinter( indent = 4 )
 
+KEY_OBJECT_SUMMARY = "key-object-summary.csv"
+
 def setup_logger( targetdir = ".",
                   filename = "analyze_dgroup.py.log",
                   logger_name = 'analyze_dgroup.py',
@@ -654,7 +656,7 @@ def main_process( global_config = {},
                   mprflag = False,
                   debugflag = False,
                   logger = None ):
-    global pp
+    global pp, KEY_OBJECT_SUMMARY
     # This is where the summary CSV files are. We get the
     # bmark-CYCLES.csv files here.
     cycle_cpp_dir = global_config["cycle_cpp_dir"]
@@ -682,7 +684,7 @@ def main_process( global_config = {},
     procs_dgroup = {}
     dblist = []
     # Print out 
-    with open("key-object-summary.csv", mode = "wb") as key_summary_fp:
+    with open(KEY_OBJECT_SUMMARY, mode = "wb") as key_summary_fp:
         # Key object general statistics
         key_summary_writer = csv.writer(key_summary_fp)
         header = [ "benchmark",
@@ -736,6 +738,21 @@ def main_process( global_config = {},
                                           key_summary_writer = key_summary_writer,
                                           debugflag = debugflag,
                                           logger = logger )
+            # Copy file from workdir
+            srcpath = os.path.join( workdir, KEY_OBJECT_SUMMARY )
+            # Check to see if filename exists in workdir
+            tgtpath = os.path.join( main_config["output"], KEY_OBJECT_SUMMARY )
+            if os.path.isfile(tgtpath):
+                # Moving the older into BAK directory
+                bakfilename = "%s-%s-%s" % (today, time, KEY_OBJECT_SUMMARY)
+                TEMPpath = os.path.join( main_config["output"], BAK )
+                bakpath = os.path.join( TEMPpath, bakfilename )
+                # And check the bakpath
+                if os.path.isfile( bakpath ):
+                    # Remove if it's there
+                    os.remove( bakpath )
+                shutil.move( tgtpath, backup_cycle_cpp_dir )
+            shutil.copy( srcpath, tgtpath )
     print "DONE."
     exit(100)
     if mprflag:
