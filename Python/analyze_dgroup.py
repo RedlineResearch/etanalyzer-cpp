@@ -751,7 +751,7 @@ def main_process( global_config = {},
                 if os.path.isfile( bakpath ):
                     # Remove if it's there
                     os.remove( bakpath )
-                move( tgtpath, backup_cycle_cpp_dir )
+                move( tgtpath, bakpath )
             shutil.copy( srcpath, tgtpath )
     print "DONE."
     exit(100)
