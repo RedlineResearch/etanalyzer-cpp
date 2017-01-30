@@ -54,7 +54,7 @@ class ClassInfo
         static void read_names_file( const char *filename,
                                      string main_package,
                                      string main_function );
-        static void read_names_file_nomain( const char *filename );
+        static void read_names_file_no_mainfunc( const char *filename );
         static void __read_names_file( const char *filename,
                                        string main_class,
                                        string main_function );

@@ -21,5 +21,8 @@ simulator-edges
 version.cpp
 simulator-type1
 simulator-find-main
+simulator-context
 *~
 z-DEL
+*-OLD.*
+*-BAK

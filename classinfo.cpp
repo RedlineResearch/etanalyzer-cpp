@@ -23,13 +23,6 @@ bool ClassInfo::main_flag = true;
 // Main method
 Method * ClassInfo::_main_method = NULL;
 
-// -- Read in the names file
-void ClassInfo::read_names_file_nomain( const char *filename )
-{
-    ClassInfo::unset_main_flag();
-    ClassInfo::__read_names_file( filename, "", "" );
-}
-
 // -- Read in the names file with main
 void ClassInfo::read_names_file( const char *filename,
                                  string main_class,
@@ -39,6 +32,16 @@ void ClassInfo::read_names_file( const char *filename,
     ClassInfo::__read_names_file( filename,
                                   main_class,
                                   main_function );
+}
+
+// -- Read in the names file with main
+void ClassInfo::read_names_file_no_mainfunc( const char *filename )
+{
+    ClassInfo::unset_main_flag();
+    string main_class("--NOMAIN--");
+    ClassInfo::__read_names_file( filename,
+                                  main_class,
+                                  main_class ); // reuse the string
 }
 
 // -- Read in the names file
