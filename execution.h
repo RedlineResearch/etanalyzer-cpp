@@ -223,9 +223,11 @@ class Thread
         // -- Return from method m
         void Return(Method* m);
         // -- Get current CC
-        CCNode* TopCC();
+        CCNode * TopCC();
         // -- Get current method
-        Method* TopMethod();
+        Method * TopMethod();
+        // -- Get stack
+        MethodDeque top_N_methods(unsigned int N);
         // -- Get current dead locals
         LocalVarSet * TopLocalVarSet();
         // -- Get a stack trace
@@ -360,10 +362,10 @@ class ExecState
         void Return(Method* m, unsigned int threadid);
 
         // -- Get the top method in thread t
-        Method* TopMethod(unsigned int threadid);
+        Method * TopMethod(unsigned int threadid);
 
         // -- Get the top calling context in thread t
-        CCNode* TopCC(unsigned int threadid);
+        CCNode * TopCC(unsigned int threadid);
 
         // Get begin iterator of thread map
         ThreadMap::iterator begin_threadmap() { return this->m_threads.begin(); }

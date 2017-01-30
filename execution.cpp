@@ -220,7 +220,7 @@ CCNode* Thread::TopCC()
 }
 
 // -- Get current method
-Method* Thread::TopMethod()
+Method *Thread::TopMethod()
 {
     if (this->m_kind == ExecMode::Full) {
         return TopCC()->getMethod();
@@ -231,12 +231,42 @@ Method* Thread::TopMethod()
             return m_methods.back();
         } else {
             // cout << "ERROR: Asking for top of empty stack" << endl;
-            return 0;
+            return NULL;
         }
     }
 
     cout << "ERROR: Unkown mode " << m_kind << endl;
-    return 0;
+    return NULL;
+}
+
+// -- Get N current methods. Only makes sense if N > 1.
+//    For N == 1, use TopMethod()
+MethodDeque Thread::top_N_methods(unsigned int N)
+{
+    assert( N > 1 );
+    MethodDeque result;
+    if (this->m_kind == ExecMode::Full) {
+        // TODO: NOT IMPLEMENTED YET FOR FULL MODE
+        assert(false);
+        // TODO DELETE return TopCC()->getMethod();
+        return result;
+    }
+    else if (this->m_kind == ExecMode::StackOnly) {
+        unsigned int count = 0;
+        for ( auto it = this->m_methods.begin();
+              (it != this->m_methods.end()) || (count < N);
+              it++ ) {
+            result.push_back(*it);
+        }
+        while (count < N ) {
+            result.push_back(NULL);
+        }
+    } else {
+        cout << "ERROR: Unkown mode " << m_kind << endl;
+        assert(result.size() == 0);
+        return result; // empty deque
+    }
+    // NOTHING GOES HERE.
 }
 
 // -- Get current dead locals
