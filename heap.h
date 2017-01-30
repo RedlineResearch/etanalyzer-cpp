@@ -292,7 +292,11 @@ class HeapState {
         unsigned int size() const { return m_objects.size(); }
         unsigned long int liveSize() const { return m_liveSize; }
         unsigned long int maxLiveSize() const { return m_maxLiveSize; }
+
         unsigned int getAllocTime() const { return m_alloc_time; }
+        void incAllocTime( unsigned int inc ) {
+            this->m_alloc_time += inc;
+        }
 
         unsigned int getTotalDiedByStack2() const { return m_totalDiedByStack_ver2; }
         unsigned int getTotalDiedByHeap2() const { return m_totalDiedByHeap_ver2; }

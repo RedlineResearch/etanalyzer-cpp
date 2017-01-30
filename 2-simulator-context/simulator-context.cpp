@@ -197,58 +197,13 @@ bool member( Object* obj, const ObjectSet& theset )
     return theset.find(obj) != theset.end();
 }
 
-unsigned int closure( ObjectSet& roots,
-                      ObjectSet& premarked,
-                      ObjectSet& result )
-{
-    unsigned int mark_work = 0;
 
-    vector<Object*> worklist;
-
-    // -- Initialize the worklist with only unmarked roots
-    for ( ObjectSet::iterator i = roots.begin();
-          i != roots.end();
-          i++ ) {
-        Object* root = *i;
-        if ( !member(root, premarked) ) {
-            worklist.push_back(root);
-        }
-    }
-
-    // -- Do DFS until the worklist is empty
-    while (worklist.size() > 0) {
-        Object* obj = worklist.back();
-        worklist.pop_back();
-        result.insert(obj);
-        mark_work++;
-
-        const EdgeMap& fields = obj->getFields();
-        for ( EdgeMap::const_iterator p = fields.begin();
-              p != fields.end();
-              p++ ) {
-            Edge* edge = p->second;
-            Object* target = edge->getTarget();
-            if (target) {
-                // if (target->isLive(Exec.NowUp())) {
-                if ( !member(target, premarked) &&
-                     !member(target, result) ) {
-                    worklist.push_back(target);
-                }
-                // } else {
-                // cout << "WEIRD: Found a dead object " << target->info() << " from " << obj->info() << endl;
-                // }
-            }
-        }
-    }
-
-    return mark_work;
-}
-
-unsigned int count_live( ObjectSet & objects, unsigned int at_time )
+unsigned int count_live( ObjectSet & objects,
+                         unsigned int at_time )
 {
     int count = 0;
     // -- How many are actually live
-    for ( ObjectSet::iterator p = objects.begin();
+    for ( auto p = objects.begin();
           p != objects.end();
           p++ ) {
         Object* obj = *p;
@@ -425,14 +380,15 @@ unsigned int read_trace_file( FILE *f )
                     // if (!as) {
                     //     cerr << "DBG: objId[ " << tokenizer.getInt(1) << " ] has no alloc site." << endl;
                     // } // END DEBUG
-                    obj = Heap.allocate( tokenizer.getInt(1),    // id
-                                         tokenizer.getInt(2),    // size
-                                         tokenizer.getChar(0),   // kind of alloc
-                                         tokenizer.getString(3), // type
-                                         as,      // AllocSite pointer
-                                         els,     // length IF applicable
-                                         thread,  // thread Id
-                                         Exec.NowUp() ); // Current time
+                    Heap.incAllocTime( tokenizer.getInt(2) ); // size
+                    // TODO DELETE MAYBE obj = Heap.allocate( tokenizer.getInt(1),    // id
+                    // TODO DELETE MAYBE                      tokenizer.getInt(2),    // size
+                    // TODO DELETE MAYBE                      tokenizer.getChar(0),   // kind of alloc
+                    // TODO DELETE MAYBE                      tokenizer.getString(3), // type
+                    // TODO DELETE MAYBE                      as,      // AllocSite pointer
+                    // TODO DELETE MAYBE                      els,     // length IF applicable
+                    // TODO DELETE MAYBE                      thread,  // thread Id
+                    // TODO DELETE MAYBE                      Exec.NowUp() ); // Current time
                     AllocationTime = Heap.getAllocTime();
                     Exec.SetAllocTime( AllocationTime );
                     if (as) {
