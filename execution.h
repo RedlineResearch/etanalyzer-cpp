@@ -398,6 +398,7 @@ class ExecState
             while ( (count < 2) &&
                     (methdeque.size() > 0) ) {
                 Method *next_method = methdeque.front();
+                methdeque.pop_front();
                 string next_name;
                 count += 1;
                 if (next_method) {
@@ -410,7 +411,6 @@ class ExecState
                 if (count == 1) {
                     this->m_objDeath2cmap[obj] = next_name;
                 }
-                methdeque.pop_front();
             }
             while (count < 2) {
                 string next_name("NULL_METHOD");
