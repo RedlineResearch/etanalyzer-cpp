@@ -226,6 +226,9 @@ class Thread
         CCNode * TopCC();
         // -- Get current method
         Method * TopMethod();
+        // -- Get method N from the top (0 based).
+        //    This means the TopMethod() is equivalent to TopMethod(0)
+        Method * TopMethod( unsigned int num );
         // -- Get stack
         MethodDeque top_N_methods(unsigned int N);
         // -- Get current dead locals
@@ -362,7 +365,10 @@ class ExecState
         void Return(Method* m, unsigned int threadid);
 
         // -- Get the top method in thread t
-        Method * TopMethod(unsigned int threadid);
+        Method *TopMethod(unsigned int threadid);
+        // -- Get n-th from the top method in thread t
+        Method *TopMethod( unsigned int threadid,
+                           unsigned int num );
 
         // -- Get the top calling context in thread t
         CCNode * TopCC(unsigned int threadid);
@@ -404,6 +410,7 @@ class ExecState
                 if (count == 1) {
                     this->m_objDeath2cmap[obj] = next_name;
                 }
+                methdeque.pop_front();
             }
             while (count < 2) {
                 string next_name("NULL_METHOD");

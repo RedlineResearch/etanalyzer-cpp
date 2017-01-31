@@ -239,6 +239,28 @@ Method *Thread::TopMethod()
     return NULL;
 }
 
+// -- Get method 'num' from the top (zero-based)
+Method *Thread::TopMethod( unsigned int num )
+{
+    if (this->m_kind == ExecMode::Full) {
+        assert(false);
+        return TopCC()->getMethod();
+    }
+
+    if (this->m_kind == ExecMode::StackOnly) {
+        if (this->m_methods.size() > num) {
+            return this->m_methods[num + 1];
+        } else {
+            // cout << "ERROR: Asking for " << num
+            //      << "-th from top but stack is smaller." << endl;
+            return NULL;
+        }
+    }
+
+    cout << "ERROR: Unkown mode " << m_kind << endl;
+    return NULL;
+}
+
 // -- Get N current methods. Only makes sense if N > 1.
 //    For N == 1, use TopMethod()
 MethodDeque Thread::top_N_methods(unsigned int N)
@@ -252,12 +274,13 @@ MethodDeque Thread::top_N_methods(unsigned int N)
     }
     else if (this->m_kind == ExecMode::StackOnly) {
         unsigned int count = 0;
-        while ((count < N) && count < this->m_methods.size()) {
-            result.push_back(this->m_methods[count]);
+        unsigned int stacksize = this->m_methods.size();
+        while ((count < N) && count < stacksize) {
+            result.push_front(this->TopMethod(count));
             count++;
         }
         while (count < N ) {
-            result.push_back(NULL);
+            result.push_front(NULL);
             count++;
         }
     } else {
@@ -408,7 +431,24 @@ void ExecState::Return(Method* m, unsigned int threadid)
 // -- Get the top method in thread t
 Method* ExecState::TopMethod(unsigned int threadid)
 {
-    return getThread(threadid)->TopMethod();
+    Thread *thread = getThread(threadid);
+    if (thread) {
+        return thread->TopMethod();
+    } else {
+        return NULL;
+    }
+}
+
+// -- Get the top method in thread t
+Method *ExecState::TopMethod( unsigned int threadid,
+                              unsigned int num )
+{
+    Thread *thread = getThread(threadid);
+    if (thread) {
+        return thread->TopMethod(num);
+    } else {
+        return NULL;
+    }
 }
 
 // -- Get the top calling context in thread t
