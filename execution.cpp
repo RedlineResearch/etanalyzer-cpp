@@ -249,23 +249,22 @@ MethodDeque Thread::top_N_methods(unsigned int N)
         // TODO: NOT IMPLEMENTED YET FOR FULL MODE
         assert(false);
         // TODO DELETE return TopCC()->getMethod();
-        return result;
     }
     else if (this->m_kind == ExecMode::StackOnly) {
         unsigned int count = 0;
-        for ( auto it = this->m_methods.begin();
-              (it != this->m_methods.end()) || (count < N);
-              it++ ) {
-            result.push_back(*it);
+        while ((count < N) && count < this->m_methods.size()) {
+            result.push_back(this->m_methods[count]);
+            count++;
         }
         while (count < N ) {
             result.push_back(NULL);
+            count++;
         }
     } else {
         cout << "ERROR: Unkown mode " << m_kind << endl;
         assert(result.size() == 0);
-        return result; // empty deque
     }
+    return result;
     // NOTHING GOES HERE.
 }
 
