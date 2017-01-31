@@ -438,7 +438,8 @@ class Object {
         // Time of last update away. This is the 'timestamp' in the Merlin algorithm
         unsigned int m_actual_last_timestamp;
         // Method where this object died
-        Method *m_methodDeathSite;
+        Method *m_methodDeathSite; // level 1
+        Method *m_methodDeathSite_l2; // level 2
         // Last method to decrement reference count
         Method *m_lastMethodDecRC;
         // Method where the refcount went to 0, if ever. If null, then
@@ -474,6 +475,7 @@ class Object {
         // TODO: // The option is there if it seems better to do so, but chose to go the simpler route.
 
         string m_deathsite_name;
+        string m_deathsite_name_l2;
 
         DequeId_t m_alloc_context;
         // If ExecMode is Full, this contains the full list of the stack trace at allocation.
@@ -527,6 +529,7 @@ class Object {
             , m_last_update_null(indeterminate)
             , m_last_update_away_from_static(false)
             , m_methodDeathSite(0)
+            , m_methodDeathSite_l2(0)
             , m_methodRCtoZero(NULL)
             , m_lastMethodDecRC(NULL)
             , m_decToZero(indeterminate)
@@ -536,6 +539,7 @@ class Object {
             , m_last_object(NULL)
             , m_key_type(KeyType::UNKNOWN_KEYTYPE)
             , m_deathsite_name("NONE")
+            , m_deathsite_name_l2("NONE")
             // , m_death_cpair(NULL, NULL)
             , m_reftarget_type(ObjectRefType::UNKNOWN)
         {
@@ -682,9 +686,25 @@ class Object {
         // Set the last update from static flag to false
         void unsetLastUpdateFromStatic() { m_last_update_away_from_static = false; }
         // Get the death site according the the Death event
-        Method *getDeathSite() const { return m_methodDeathSite; }
+        Method *getDeathSite() const { return this->m_methodDeathSite; }
+        // Get the death site according the the Death event using the level
+        Method *getL1DeathSite() const { return this->m_methodDeathSite; }
+        Method *getL2DeathSite() const { return this->m_methodDeathSite_l2; }
         // Set the death site because of a Death event
-        void setDeathSite(Method * method) { m_methodDeathSite = method; }
+        void setDeathSite(Method * method) {
+            // Assumes first level only
+            this->m_methodDeathSite = method;
+        }
+        void setDeathSite( Method * method,
+                           unsigned int count ) {
+            if (count == 1) {
+                this->m_methodDeathSite = method;
+            } else if (count == 2) {
+                this->m_methodDeathSite_l2 = method;
+            } else {
+                assert(false);
+            }
+        }
         // Get the last method to decrement the reference count
         Method *getLastMethodDecRC() const { return m_lastMethodDecRC; }
         // Get the method to decrement the reference count to zero
@@ -750,16 +770,29 @@ class Object {
         // --------------------------------------------------------------------------------
         // --------------------------------------------------------------------------------
 
-        // Single death context
+        // First level death context
         // Getter
-        string getDeathContextSiteName() const {
+        string getDeathContextSiteName( unsigned int level ) const {
             // Method *mymeth = this->m_methodDeathSite;
             // return (mymeth ? mymeth->getName() : "NONAME");
-            return this->m_deathsite_name;
+            if (level == 1) {
+                return this->m_deathsite_name;
+            } else if (level == 2) {
+                return this->m_deathsite_name_l2;
+            } else {
+                assert(false);
+            }
         }
         // Setter
-        void setDeathContextSiteName( string &new_dsite ) {
-            this->m_deathsite_name = new_dsite;
+        void setDeathContextSiteName( string &new_dsite,
+                                      unsigned int level ) {
+            if (level == 1) {
+                this->m_deathsite_name = new_dsite;
+            } else if (level == 2) {
+                this->m_deathsite_name_l2 = new_dsite;
+            } else {
+                assert(false);
+            }
         }
 
         // Set allocation context list

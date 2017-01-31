@@ -387,9 +387,33 @@ class ExecState
 
         // Update the Object pointer to simple Death context pair map
         void UpdateObj2DeathContext( Object *obj,
-                                     string death_site ) {
-            this->m_objDeath2cmap[obj] = death_site;
-            obj->setDeathContextSiteName(death_site);
+                                     MethodDeque &methdeque ) {
+            unsigned int count = 0;
+            while ( (count < 2) &&
+                    (methdeque.size() > 0) ) {
+                Method *next_method = methdeque.front();
+                string next_name;
+                count += 1;
+                if (next_method) {
+                    next_name = next_method->getName();
+                } else {
+                    next_name = "NULL_METHOD";
+                }
+                obj->setDeathSite(next_method, count);
+                obj->setDeathContextSiteName(next_name, count);
+                if (count == 1) {
+                    this->m_objDeath2cmap[obj] = next_name;
+                }
+            }
+            while (count < 2) {
+                string next_name("NULL_METHOD");
+                count += 1;
+                obj->setDeathSite(NULL, count);
+                obj->setDeathContextSiteName(next_name, count);
+                if (count == 1) {
+                    this->m_objDeath2cmap[obj] = next_name;
+                }
+            }
             // TODO: Old code using context pair
             // TODO: UpdateObj2Context( obj,
             // TODO:                    cpair,

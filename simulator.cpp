@@ -607,6 +607,7 @@ unsigned int read_trace_file( FILE *f,
                                        eifile );
                         // Get the current method
                         Method *topMethod = NULL;
+                        MethodDeque top_2_methods;
                         // TODO: ContextPair cpair;
                         CPairType cptype;
                         Thread *thread;
@@ -621,21 +622,25 @@ unsigned int read_trace_file( FILE *f,
                         if (thread) {
                             // TODO: cpair = thread->getContextPair();
                             // TODO: cptype = thread->getContextPairType();
+                            unsigned int count = 0;
                             topMethod = thread->TopMethod();
+                            top_2_methods = thread->top_N_methods(2);
                             if (cckind == ExecMode::Full) {
                                 // Get full stacktrace
                                 DequeId_t strace = thread->stacktrace_using_id();
                                 obj->setDeathContextList( strace );
                             }
                             // Set the death site
-                            if (topMethod) {
-                                obj->setDeathSite(topMethod);
-                                Exec.UpdateObj2DeathContext( obj,
-                                                             topMethod->getName() );
-                            } else {
-                                Exec.UpdateObj2DeathContext( obj,
-                                                             "NULL_METHOD" );
-                            }
+                            Exec.UpdateObj2DeathContext( obj,
+                                                         top_2_methods );
+                            // TODO DELETE if (topMethod) {
+                            // TODO DELETE     obj->setDeathSite(topMethod);
+                            // TODO DELETE     Exec.UpdateObj2DeathContext( obj,
+                            // TODO DELETE                                  topMethod->getName() );
+                            // TODO DELETE } else {
+                            // TODO DELETE     Exec.UpdateObj2DeathContext( obj,
+                            // TODO DELETE                                  "NULL_METHOD" );
+                            // TODO DELETE }
                             // Death reason setting
                             Reason myreason;
                             if (thread->isLocalVariable(obj)) {
@@ -1083,7 +1088,8 @@ void output_all_objects2( string &objectinfo_filename,
         // TODO string death_method2 = (death_meth_ptr2 ? death_meth_ptr2->getName() : "NONAME");
         // END TODO: CONTEXT PAIR funcionality
         
-        string death_method = object->getDeathContextSiteName();
+        string death_method_l1 = object->getDeathContextSiteName(1);
+        string death_method_l2 = object->getDeathContextSiteName(2);
         string allocsite_name = object->getAllocSiteName();
         ObjectRefType objstability = object->getRefTargetType();
         // S -> Stable
@@ -1103,10 +1109,10 @@ void output_all_objects2( string &objectinfo_filename,
                                                     : "H")
             << "," << dgroup_kind
             //--------------------------------------------------------------------------------
-            << "," << death_method // Single level context for death
+            << "," << death_method_l1 // Fisrt level context for death
             // TODO << "," << death_method1 // Part 1 of simple context pair - death site
             //--------------------------------------------------------------------------------
-            << "," << "X" //  padding - used to be death_method2
+            << "," << death_method_l2 // Second level context for death
             // TODO << "," << death_method2 // part 2 of simple context pair - death site
             //--------------------------------------------------------------------------------
             << "," << "S" //  padding - used to be deathContextType - S for SINGLE
