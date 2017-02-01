@@ -1092,6 +1092,7 @@ void output_all_objects2( string &objectinfo_filename,
         
         string death_method_l1 = object->getDeathContextSiteName(1);
         string death_method_l2 = object->getDeathContextSiteName(2);
+        string death_method_nonjavalib = object->get_nonJavaLib_death_context();
         string allocsite_name = object->getAllocSiteName();
         ObjectRefType objstability = object->getRefTargetType();
         // S -> Stable
@@ -1115,8 +1116,7 @@ void output_all_objects2( string &objectinfo_filename,
             //--------------------------------------------------------------------------------
             << "," << death_method_l2 // Second level context for death
             //--------------------------------------------------------------------------------
-            << "," << "NONJAVA-TODO" //  padding - TODO make into firstNonJavaLibMethod
-            // TODO << "," << (object->getDeathContextType() == CPairType::CP_Call ? "C" : "R") // C is call. R is return.
+            << "," << death_method_nonjavalib // first nonJavaLib method
             //--------------------------------------------------------------------------------
             << "," << "TODO" //  Full death context height
             // TODO << "," << alloc_method1 // Part 1 of simple context pair - alloc site
