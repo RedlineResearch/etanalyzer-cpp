@@ -527,7 +527,7 @@ void ExecState::UpdateObj2DeathContext( Object *obj,
         next_name = (next_method ? next_method->getName() : "NULL_METHOD");
         obj->setDeathSite(next_method, count);
         obj->setDeathContextSiteName(next_name, count);
-        if (!nonjava_flag && is_javalib_method(next_name)) {
+        if (!nonjava_flag && !is_javalib_method(next_name)) {
             obj->set_nonJavaLib_death_context(next_name);
             nonjava_flag = true;
         }
@@ -544,7 +544,7 @@ void ExecState::UpdateObj2DeathContext( Object *obj,
             if (count == 1) {
                 this->m_objDeath2cmap[obj] = next_name;
             }
-            if (!nonjava_flag && is_javalib_method(next_name)) {
+            if (!nonjava_flag && !is_javalib_method(next_name)) {
                 obj->set_nonJavaLib_death_context(next_name);
                 nonjava_flag = true;
             }
