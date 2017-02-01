@@ -476,6 +476,7 @@ class Object {
 
         string m_deathsite_name;
         string m_deathsite_name_l2;
+        string m_nonjavalib_death_context;
 
         DequeId_t m_alloc_context;
         // If ExecMode is Full, this contains the full list of the stack trace at allocation.
@@ -540,6 +541,7 @@ class Object {
             , m_key_type(KeyType::UNKNOWN_KEYTYPE)
             , m_deathsite_name("NONE")
             , m_deathsite_name_l2("NONE")
+            , m_nonjavalib_death_context("NONE")
             // , m_death_cpair(NULL, NULL)
             , m_reftarget_type(ObjectRefType::UNKNOWN)
         {
@@ -793,6 +795,15 @@ class Object {
             } else {
                 assert(false);
             }
+        }
+
+
+        string get_nonJavaLib_death_context() const {
+            return this->m_nonjavalib_death_context;
+        }
+
+        void set_nonJavaLib_death_context( string &new_dcontext ) {
+            this->m_nonjavalib_death_context = new_dcontext;
         }
 
         // Set allocation context list

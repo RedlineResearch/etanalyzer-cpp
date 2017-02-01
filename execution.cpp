@@ -248,8 +248,10 @@ Method *Thread::TopMethod( unsigned int num )
     }
 
     if (this->m_kind == ExecMode::StackOnly) {
-        if (this->m_methods.size() > num) {
-            return this->m_methods[num + 1];
+        unsigned int mysize = this->m_methods.size();
+        if (mysize > num) {
+            // return this->m_methods[num + 1];
+            return this->m_methods[mysize - num - 1];
         } else {
             // cout << "ERROR: Asking for " << num
             //      << "-th from top but stack is smaller." << endl;
@@ -276,12 +278,64 @@ MethodDeque Thread::top_N_methods(unsigned int N)
         unsigned int count = 0;
         unsigned int stacksize = this->m_methods.size();
         while ((count < N) && count < stacksize) {
-            result.push_front(this->TopMethod(count));
+            result.push_back(this->TopMethod(count));
             count++;
         }
         while (count < N ) {
-            result.push_front(NULL);
+            result.push_back(NULL);
             count++;
+        }
+    } else {
+        cout << "ERROR: Unkown mode " << m_kind << endl;
+        assert(result.size() == 0);
+    }
+    return result;
+    // NOTHING GOES HERE.
+}
+
+
+//-----------------------------------------------------------------------------
+// Private helper function for determining whether
+// a function is a Java library.
+// If the function name starts with 'java', then it's
+// a Java library function
+bool is_javalib_method( string &methname )
+{
+    // Since we're looking for 'java' at the start,
+    // the method name has to be longer than 4 characters.
+    if (methname.size() < 4) {
+        return false;
+    }
+    return  ( (methname[0] == 'j') &&
+              (methname[1] == 'a') &&
+              (methname[2] == 'v') &&
+              (methname[3] == 'a') );
+}
+//-----------------------------------------------------------------------------
+
+// -- Get all Java library methods from top of call stack +
+//    first non Java method
+MethodDeque Thread::top_javalib_methods()
+{
+    MethodDeque result;
+    if (this->m_kind == ExecMode::Full) {
+        // TODO: NOT IMPLEMENTED YET FOR FULL MODE
+        assert(false);
+    }
+    else if (this->m_kind == ExecMode::StackOnly) {
+        unsigned int count = 0;
+        unsigned int stacksize = this->m_methods.size();
+        while (count < stacksize) {
+            Method *mptr = this->TopMethod(count);
+            string mname = (mptr ? mptr->getName() : "NULL_METHOD");
+            result.push_back(mptr);
+            count++;
+            if (!is_javalib_method(mname)) {
+                break;
+            }
+        }
+        if (result.size() == 0) {
+            result.push_back(NULL);
         }
     } else {
         cout << "ERROR: Unkown mode " << m_kind << endl;
@@ -456,6 +510,64 @@ CCNode* ExecState::TopCC(unsigned int threadid)
 {
     return getThread(threadid)->TopCC();
 }
+
+// Update the Object pointer to simple Death context pair map
+void ExecState::UpdateObj2DeathContext( Object *obj,
+                                        MethodDeque &methdeque )
+{
+    unsigned int count = 0;
+    bool nonjava_flag = false;
+    string nonjava_method;
+    while ( (count < 2) &&
+            (methdeque.size() > 0) ) {
+        Method *next_method = methdeque.front();
+        methdeque.pop_front();
+        string next_name;
+        count += 1;
+        next_name = (next_method ? next_method->getName() : "NULL_METHOD");
+        obj->setDeathSite(next_method, count);
+        obj->setDeathContextSiteName(next_name, count);
+        if (!nonjava_flag && is_javalib_method(next_name)) {
+            obj->set_nonJavaLib_death_context(next_name);
+            nonjava_flag = true;
+        }
+        if (count == 1) {
+            this->m_objDeath2cmap[obj] = next_name;
+        }
+    }
+    if (count < 2) {
+        while (count < 2) {
+            string next_name("NULL_METHOD");
+            count += 1;
+            obj->setDeathSite(NULL, count);
+            obj->setDeathContextSiteName(next_name, count);
+            if (count == 1) {
+                this->m_objDeath2cmap[obj] = next_name;
+            }
+            if (!nonjava_flag && is_javalib_method(next_name)) {
+                obj->set_nonJavaLib_death_context(next_name);
+                nonjava_flag = true;
+            }
+        }
+    }
+    if (!nonjava_flag) {
+        if (methdeque.size() > 0) {
+            Method *last_method = methdeque.back();
+            string last_name( last_method ? last_method->getName() : "NULL_METHOD" );
+            if (!is_javalib_method(last_name)) {
+                last_name = "NULL_METHOD";
+            }
+            obj->set_nonJavaLib_death_context(last_name);
+            nonjava_flag = true; 
+        }
+    }
+    // TODO: Old code using context pair
+    // TODO: UpdateObj2Context( obj,
+    // TODO:                    cpair,
+    // TODO:                    cptype,
+    // TODO:                    EventKind::Death );
+}
+
 
 // -
 // Utility files

@@ -608,6 +608,7 @@ unsigned int read_trace_file( FILE *f,
                         // Get the current method
                         Method *topMethod = NULL;
                         MethodDeque top_2_methods;
+                        MethodDeque javalib_context;
                         // TODO: ContextPair cpair;
                         CPairType cptype;
                         Thread *thread;
@@ -624,7 +625,8 @@ unsigned int read_trace_file( FILE *f,
                             // TODO: cptype = thread->getContextPairType();
                             unsigned int count = 0;
                             topMethod = thread->TopMethod();
-                            top_2_methods = thread->top_N_methods(2);
+                            // top_2_methods = thread->top_N_methods(2);
+                            javalib_context = thread->top_javalib_methods();
                             if (cckind == ExecMode::Full) {
                                 // Get full stacktrace
                                 DequeId_t strace = thread->stacktrace_using_id();
@@ -632,7 +634,7 @@ unsigned int read_trace_file( FILE *f,
                             }
                             // Set the death site
                             Exec.UpdateObj2DeathContext( obj,
-                                                         top_2_methods );
+                                                         javalib_context );
                             // TODO DELETE if (topMethod) {
                             // TODO DELETE     obj->setDeathSite(topMethod);
                             // TODO DELETE     Exec.UpdateObj2DeathContext( obj,
@@ -1038,8 +1040,8 @@ void output_all_objects2( string &objectinfo_filename,
     object_info_file << "---------------[ OBJECT INFO ]--------------------------------------------------" << endl;
     const vector<string> header( { "objId", "createTime", "deathTime", "size", "type",
                                    "diedBy", "lastUpdate", "subCause", "clumpKind",
-                                   "deathContext1", "deathContext2", "deathContextType",
-                                   "allocContext1", "allocContext2", "allocContextType",
+                                   "deathContext1", "deathContext2", "firstNonJavaLibMethod",
+                                   "deatchContext_height", "allocContext2", "allocContextType",
                                    "createTime_alloc", "deathTime_alloc",
                                    "allocSiteName", "stability", "last_actual_timestamp" } );
 
@@ -1110,15 +1112,13 @@ void output_all_objects2( string &objectinfo_filename,
             << "," << dgroup_kind
             //--------------------------------------------------------------------------------
             << "," << death_method_l1 // Fisrt level context for death
-            // TODO << "," << death_method1 // Part 1 of simple context pair - death site
             //--------------------------------------------------------------------------------
             << "," << death_method_l2 // Second level context for death
-            // TODO << "," << death_method2 // part 2 of simple context pair - death site
             //--------------------------------------------------------------------------------
-            << "," << "S" //  padding - used to be deathContextType - S for SINGLE
+            << "," << "NONJAVA-TODO" //  padding - TODO make into firstNonJavaLibMethod
             // TODO << "," << (object->getDeathContextType() == CPairType::CP_Call ? "C" : "R") // C is call. R is return.
             //--------------------------------------------------------------------------------
-            << "," << "X" //  padding - used to be alloc_method1
+            << "," << "TODO" //  Full death context height
             // TODO << "," << alloc_method1 // Part 1 of simple context pair - alloc site
             //--------------------------------------------------------------------------------
             << "," << "X" //  padding - used to be alloc_method2
