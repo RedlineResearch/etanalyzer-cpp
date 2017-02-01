@@ -323,6 +323,14 @@ MethodDeque Thread::top_javalib_methods()
         assert(false);
     }
     else if (this->m_kind == ExecMode::StackOnly) {
+        // TODO Some testing code. Should move these out into a unit testing
+        //      framework.
+        // TODO string test1("java/lang/Shutdown.shutdown");
+        // TODO string test2("SHOULD FAIL");
+        // TODO string test3("");
+        // TODO assert( is_javalib_method(test1) ); 
+        // TODO assert( !is_javalib_method(test2) ); 
+        // TODO assert( !is_javalib_method(test3) ); 
         unsigned int count = 0;
         unsigned int stacksize = this->m_methods.size();
         while (count < stacksize) {
@@ -331,6 +339,10 @@ MethodDeque Thread::top_javalib_methods()
             result.push_back(mptr);
             count++;
             if (!is_javalib_method(mname)) {
+                // This check and break statement is placed after
+                // the push onto the result deque. This means that
+                // at least one non Java library method may be included
+                // in the result.
                 break;
             }
         }
@@ -527,15 +539,16 @@ void ExecState::UpdateObj2DeathContext( Object *obj,
         next_name = (next_method ? next_method->getName() : "NULL_METHOD");
         obj->setDeathSite(next_method, count);
         obj->setDeathContextSiteName(next_name, count);
-        if (!nonjava_flag && !is_javalib_method(next_name)) {
-            obj->set_nonJavaLib_death_context(next_name);
-            nonjava_flag = true;
-        }
         if (count == 1) {
             this->m_objDeath2cmap[obj] = next_name;
         }
+        if (!nonjava_flag && !is_javalib_method(next_name)) {
+            obj->set_nonJavaLib_death_context(next_name);
+            nonjava_flag = true;
+            break;
+        }
     }
-    if (count < 2) {
+    if (!nonjava_flag && (count < 2)) {
         while (count < 2) {
             string next_name("NULL_METHOD");
             count += 1;
@@ -547,19 +560,21 @@ void ExecState::UpdateObj2DeathContext( Object *obj,
             if (!nonjava_flag && !is_javalib_method(next_name)) {
                 obj->set_nonJavaLib_death_context(next_name);
                 nonjava_flag = true;
+                break;
             }
         }
     }
     if (!nonjava_flag) {
+        string last_name;
         if (methdeque.size() > 0) {
             Method *last_method = methdeque.back();
-            string last_name( last_method ? last_method->getName() : "NULL_METHOD" );
-            if (!is_javalib_method(last_name)) {
-                last_name = "NULL_METHOD";
-            }
-            obj->set_nonJavaLib_death_context(last_name);
-            nonjava_flag = true; 
+            last_name = ( last_method ? last_method->getName() : "NULL_METHOD" );
+        } else {
+            last_name = "NULL_METHOD";
         }
+        obj->set_nonJavaLib_death_context(last_name);
+        nonjava_flag = true; // probably don't need to set the flag, but just in
+                             // case someone adds some code later on.
     }
     // TODO: Old code using context pair
     // TODO: UpdateObj2Context( obj,
