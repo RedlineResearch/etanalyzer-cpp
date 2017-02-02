@@ -123,6 +123,10 @@ def update_key_object_summary( newgroup = {},
         summary["DSITES"] = Counter()
     if "DSITES_SIZE" not in summary:
         summary["DSITES_SIZE"] = defaultdict(int)
+    if "NONJLIB_DSITES" not in summary:
+        summary["NONJLIB_DSITES"] = Counter()
+    if "NONJLIB_SIZE" not in summary:
+        summary["NONJLIB_SIZE"] = defaultdict(int)
     if "TYPES" not in summary:
         summary["TYPES"] = Counter()
     if "TYPE_DSITES" not in summary:
@@ -134,8 +138,11 @@ def update_key_object_summary( newgroup = {},
     cdict = summary["CAUSE"]
     dsitesdict = summary["DSITES"]
     dsites_size = summary["DSITES_SIZE"]
+    nonjlib_dsitesdict = summary["NONJLIB_DSITES"]
+    nonjlib_dsites_size = summary["NONJLIB_SIZE"]
     typedict = summary["TYPES"]
     type_dsites = summary["TYPE_DSITES"]
+    # TODO: nonjlib_type_dsites = summary["NONJLIB_TYPE_DSITES"]
     # Remember the total size of the group in bytes
     # ------------------------------------------------------------
     # Part 1 - Get the by heap/stack/etc stats for key objects only
@@ -157,10 +164,16 @@ def update_key_object_summary( newgroup = {},
         summary["GROUPLIST"][key] = glist
         mytype = oi.get_type(key)
         typedict[mytype] += 1
+        # First level death site
         dsite = oi.get_death_context(key)
         dsitesdict[dsite] += 1
         dsites_size[dsite] += total_size
         type_dsites[type][dsite] += 1
+        # Non java library death site
+        nonjdsite = oi.get_non_javalib_context(key)
+        nonjlib_dsitesdict[nonjdsite] += 1
+        nonjlib_dsites_size[nonjdsite] += total_size
+        # TODO: nonjlib_type_dsites[type][nonjdsite] += 1
 
 def read_dgroups_from_pickle( result = [],
                               bmark = "",
@@ -280,18 +293,31 @@ def read_dgroups_from_pickle( result = [],
     # Save the CSV file the key object summary
     total_objects = summary_reader.get_number_of_objects()
     num_key_objects = len(key_objects["GROUPLIST"])
+    #-------------------------------------------------------------------------------
+    # First level death sites
     newrow = [ bmark, ]
     # Get the top 5 death sites
-    # TODO: Get the top 5 sites in terms of size
     #     * Use "DSITES_SIZE" and sort. Get top 5.
     dsites_size = sorted( key_objects["DSITES_SIZE"].items(),
                           key = itemgetter(1),
                           reverse = True )
-    print "Y:", str(dsites_size[0:5])
+    # TODO DELETE DEBUG print "Y:", str(dsites_size[0:5])
     newrow = newrow + [ x[0] for x in dsites_size[0:5] ]
-    print "X:", newrow
+    #-------------------------------------------------------------------------------
+    # First non Java library function
+    newrow_nonjlib = [ bmark + " NONJ", ]
+    # Get the top 5 death sites
+    #     * Use "NONJLIB_SIZE" and sort. Get top 5.
+    nonjlib_dsites_size = sorted( key_objects["NONJLIB_SIZE"].items(),
+                                  key = itemgetter(1),
+                                  reverse = True )
+    # TODO DELETE DEBUG print "Y:", str(nonjlib_dsites_size[0:5])
+    newrow_nonjlib = newrow_nonjlib + [ x[0] for x in nonjlib_dsites_size[0:5] ]
+    #-------------------------------------------------------------------------------
+    # TODO DELETE DEBUG print "X:", newrow
     # Write out the row
     key_summary_writer.writerow( newrow )
+    key_summary_writer.writerow( newrow_nonjlib )
     # Print out key object counts by type
     # TODO print "---[ Key object counts by type ]------------------------------------------------"
     # TODO for mytype, num in keytype_counter.iteritems():

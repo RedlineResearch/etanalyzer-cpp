@@ -99,10 +99,10 @@ def get_index( field = None ):
                  "GARBTYPE" : 7,
                  "CONTEXT1" : 8,
                  "CONTEXT2" : 9,
-                 "DEATH_CONTEXT_TYPE" : 10,
-                 "ALLOC_CONTEXT1" : 11,
-                 "ALLOC_CONTEXT2" : 12,
-                 "ALLOC_CONTEXT_TYPE" : 13,
+                 "NONJAVA_LIB_CONTEXT" : 10,
+                 "DEATH_CONTEXT_HEIGHT" : 11,
+                 "PADDING1" : 12,
+                 "PADDING2" : 13,
                  "ATIME_ALLOC" : 14,
                  "DTIME_ALLOC" : 15,
                  "ALLOCSITE" : 16,
@@ -208,10 +208,10 @@ class ObjectInfoReader:
                 rec[ get_raw_index("GARBTYPE") ],
                 rec[ get_raw_index("CONTEXT1") ], # USED - single death context
                 rec[ get_raw_index("CONTEXT2") ], # UNUSED PADDING
-                rec[ get_raw_index("DEATH_CONTEXT_TYPE") ], # UNUSED PADDING
-                rec[ get_raw_index("ALLOC_CONTEXT1") ], # UNUSED PADDING
-                rec[ get_raw_index("ALLOC_CONTEXT2") ], # UNUSED PADDING
-                rec[ get_raw_index("ALLOC_CONTEXT_TYPE") ], # UNUSED PADDING
+                rec[ get_raw_index("NONJAVA_LIB_CONTEXT") ], # UNUSED PADDING
+                rec[ get_raw_index("DEATH_CONTEXT_HEIGHT") ], # UNUSED PADDING
+                rec[ get_raw_index("PADDING1") ], # UNUSED PADDING
+                rec[ get_raw_index("PADDING2") ], # UNUSED PADDING
                 int(rec[ get_raw_index("ATIME_ALLOC") ]),
                 int(rec[ get_raw_index("DTIME_ALLOC") ]),
                 rec[ get_raw_index("ALLOCSITE") ],
@@ -602,29 +602,19 @@ class ObjectInfoReader:
             raise ValueError("Unknown DEATHCONTEXT mode: %s" % str(self.__DEATHCONTEXT__))
         return result
 
-    def get_death_context_type( self, objId = 0 ):
+    def get_death_context_height( self, objId = 0 ):
         rec = self.get_record(objId)
-        return self.get_death_context_type_using_record(rec)
+        return self.get_death_context_height_using_record(rec)
 
-    def get_death_context_type_using_record( self, rec = None ):
-        return rec[ get_index("DEATH_CONTEXT_TYPE") ] if rec != None else "NONE"
+    def get_death_context_height_using_record( self, rec = None ):
+        return rec[ get_index("DEATH_CONTEXT_HEIGHT") ] if rec != None else "NONE"
 
-    # Alloc context functions
-    def get_alloc_context( self, objId = 0 ):
+    def get_non_javalib_context( self, objId = 0 ):
         rec = self.get_record(objId)
-        return self.get_alloc_context_record(rec)
+        return self.get_non_javalib_context_using_record(rec)
 
-    def get_alloc_context_record( self, rec = None ):
-        first = rec[ get_index("ALLOC_CONTEXT1") ] if rec != None else "NONE"
-        second = rec[ get_index("ALLOC_CONTEXT2") ] if rec != None else "NONE"
-        return (first, second)
-
-    def get_alloc_context_type( self, objId = 0 ):
-        rec = self.get_record(objId)
-        return self.get_alloc_context_type_using_record(rec)
-
-    def get_alloc_context_type_using_record( self, rec = None ):
-        return rec[ get_index("ALLOC_CONTEXT_TYPE") ] if rec != None else "NONE"
+    def get_non_javalib_context_using_record( self, rec = None ):
+        return rec[ get_index("NONJAVA_LIB_CONTEXT") ] if rec != None else "NONE"
 
     # Allocsite functions
     def get_allocsite( self, objId = 0 ):
@@ -633,8 +623,6 @@ class ObjectInfoReader:
 
     def get_allocsite_using_record( self, rec = None ):
         return rec[ get_index("ALLOCSITE") ] if rec != None else "NONE"
-        # TODO TODO
-        # return rec[ get_index("ALLOC_CONTEXT1") ] if rec != None else "NONE"
 
     def get_stack_died_by_attr( self, objId = 0 ):
         rec = self.get_record(objId)
