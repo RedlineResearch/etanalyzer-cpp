@@ -770,7 +770,7 @@ def main_process( global_config = {},
             tgtpath = os.path.join( main_config["output"], KEY_OBJECT_SUMMARY )
             if os.path.isfile(tgtpath):
                 # Moving the older into BAK directory
-                bakfilename = "%s-%s-%s" % (today, time, KEY_OBJECT_SUMMARY)
+                bakfilename = "%s-%s-%s" % (today, timenow, KEY_OBJECT_SUMMARY)
                 TEMPpath = os.path.join( main_config["output"], "BAK" )
                 bakpath = os.path.join( TEMPpath, bakfilename )
                 # And check the bakpath
