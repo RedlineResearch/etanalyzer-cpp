@@ -770,6 +770,8 @@ def main_process( global_config = {},
                                           key_summary_writer = key_summary_writer,
                                           debugflag = debugflag,
                                           logger = logger )
+                key_summary_fp.flush()
+                os.fsync(key_summary_fp.fileno())
             # Copy file from workdir
             srcpath = os.path.join( workdir, KEY_OBJECT_SUMMARY )
             # Check to see if filename exists in workdir
