@@ -21,7 +21,7 @@ from collections import defaultdict
 #   - This one is my own library:
 from mypytools import mean, stdev, variance
 from mypytools import check_host, create_work_directory, process_host_config, \
-    process_worklist_config, dfs_iter, remove_dupes
+    process_worklist_config, dfs_iter, remove_dupes, bytes_to_MB
 
 # TODO: Do we need 'sqorm.py' or 'sqlitetools.py'?
 #       Both maybe? TODO
@@ -293,26 +293,32 @@ def read_dgroups_from_pickle( result = [],
     # Save the CSV file the key object summary
     total_objects = summary_reader.get_number_of_objects()
     num_key_objects = len(key_objects["GROUPLIST"])
+    size_died_at_end = summary_reader.get_size_died_at_end()
+    size_total_allocation = summary_reader.get_final_garbology_alloc_time()
     #-------------------------------------------------------------------------------
     # First level death sites
-    newrow = [ bmark, ]
+    newrow = [ (bmark,), ]
     # Get the top 5 death sites
     #     * Use "DSITES_SIZE" and sort. Get top 5.
     dsites_size = sorted( key_objects["DSITES_SIZE"].items(),
                           key = itemgetter(1),
                           reverse = True )
     # TODO DELETE DEBUG print "Y:", str(dsites_size[0:5])
-    newrow = newrow + [ x[0] for x in dsites_size[0:5] ]
+    newrow = newrow + [ (x[0], bytes_to_MB(x[1]))
+                        for x in dsites_size[0:5] ]
+    newrow = [ x for tup in newrow for x in tup ]
     #-------------------------------------------------------------------------------
     # First non Java library function
-    newrow_nonjlib = [ bmark + " NONJ", ]
+    newrow_nonjlib = [ ((bmark + " NONJ"),), ]
     # Get the top 5 death sites
     #     * Use "NONJLIB_SIZE" and sort. Get top 5.
     nonjlib_dsites_size = sorted( key_objects["NONJLIB_SIZE"].items(),
                                   key = itemgetter(1),
                                   reverse = True )
     # TODO DELETE DEBUG print "Y:", str(nonjlib_dsites_size[0:5])
-    newrow_nonjlib = newrow_nonjlib + [ x[0] for x in nonjlib_dsites_size[0:5] ]
+    newrow_nonjlib = newrow_nonjlib + [ (x[0], bytes_to_MB(x[1]))
+                                        for x in nonjlib_dsites_size[0:5] ]
+    newrow_nonjlib = [ x for tup in newrow_nonjlib for x in tup ]
     #-------------------------------------------------------------------------------
     # TODO DELETE DEBUG print "X:", newrow
     # Write out the row
