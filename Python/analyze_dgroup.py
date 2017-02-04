@@ -264,16 +264,20 @@ def read_dgroups_from_pickle( result = [],
     cycle_summary = {}
     count = 0
     key_objects = defaultdict( dict )
+    seen_objects = set()
+    total_alloc = 0
     for gnum, glist in dgroups_data["group2list"].iteritems():
         # - for every death group dg:
         #       get the last edge for every object
         result, total_size = get_key_objects( group = glist,
+                                              seen_objects = seen_objects,
                                               edgeinfo = edgeinfo,
                                               objectinfo = objectinfo,
                                               cycle_summary = cycle_summary,
                                               logger = logger )
         count += 1
         if len(result) > 0:
+            total_alloc += total_size
             update_key_object_summary( newgroup = result,
                                        summary = key_objects,
                                        objectinfo = objectinfo,
@@ -442,7 +446,8 @@ def get_cycle_nodes( edgelist = [] ):
 
 # This should return a dictionary where:
 #     key -> group (list INCLUDES key)
-def get_key_objects( group = None,
+def get_key_objects( group = {},
+                     seen_objects = set(),
                      edgeinfo = None,
                      objectinfo = None,
                      cycle_summary = {},
@@ -479,6 +484,9 @@ def get_key_objects( group = None,
         result = { group[0] : [] }
         edgelist = []
         for obj in group:
+            if obj in seen_objects:
+                # Dupe. TODO: Log a warning/error
+                continue
             # Sum up the size in bytes
             total_size += objectinfo.get_size(obj)
             # Need a get all edges that target 'obj'
