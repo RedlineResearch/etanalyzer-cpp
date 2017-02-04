@@ -266,16 +266,20 @@ def read_dgroups_from_pickle( result = [],
     key_objects = defaultdict( dict )
     seen_objects = set()
     total_alloc = 0
+    total_died_at_end_size = 0
     for gnum, glist in dgroups_data["group2list"].iteritems():
         # - for every death group dg:
         #       get the last edge for every object
-        result, total_size = get_key_objects( group = glist,
-                                              seen_objects = seen_objects,
-                                              edgeinfo = edgeinfo,
-                                              objectinfo = objectinfo,
-                                              cycle_summary = cycle_summary,
-                                              logger = logger )
+        result, total_size, died_at_end_size = get_key_objects( group = glist,
+                                                                seen_objects = seen_objects,
+                                                                edgeinfo = edgeinfo,
+                                                                objectinfo = objectinfo,
+                                                                cycle_summary = cycle_summary,
+                                                                logger = logger )
         count += 1
+        if died_at_end_size > 0:
+            assert(len(result) == 0)
+            total_died_at_end_size += died_at_end_size
         if len(result) > 0:
             total_alloc += total_size
             update_key_object_summary( newgroup = result,
@@ -301,26 +305,28 @@ def read_dgroups_from_pickle( result = [],
     size_total_allocation = summary_reader.get_final_garbology_alloc_time()
     #-------------------------------------------------------------------------------
     # First level death sites
-    newrow = [ (bmark,), ]
+    total_alloc_MB = bytes_to_MB(total_alloc)
+    actual_alloc_MB = bytes_to_MB( total_alloc - total_died_at_end_size )
+    newrow = [ (bmark,), total_alloc_MB, actual_alloc_MB, ]
     # Get the top 5 death sites
     #     * Use "DSITES_SIZE" and sort. Get top 5.
     dsites_size = sorted( key_objects["DSITES_SIZE"].items(),
                           key = itemgetter(1),
                           reverse = True )
-    # TODO DELETE DEBUG print "Y:", str(dsites_size[0:5])
-    newrow = newrow + [ (x[0], bytes_to_MB(x[1]))
+    newrow = newrow + [ (x[0], bytes_to_MB(x[1]), ((x[1]/actual_alloc_MB) * 100.0),)
                         for x in dsites_size[0:5] ]
     newrow = [ x for tup in newrow for x in tup ]
     #-------------------------------------------------------------------------------
     # First non Java library function
+    # TODO TODO: Add allocation total
     newrow_nonjlib = [ ((bmark + " NONJ"),), ]
     # Get the top 5 death sites
     #     * Use "NONJLIB_SIZE" and sort. Get top 5.
     nonjlib_dsites_size = sorted( key_objects["NONJLIB_SIZE"].items(),
                                   key = itemgetter(1),
                                   reverse = True )
-    # TODO DELETE DEBUG print "Y:", str(nonjlib_dsites_size[0:5])
-    newrow_nonjlib = newrow_nonjlib + [ (x[0], bytes_to_MB(x[1]))
+    # TODO TODO Add dsite-total, dsite percentage using MB
+    newrow_nonjlib = newrow_nonjlib + [ (x[0], bytes_to_MB(x[1]), ((x[1]/actual_alloc_MB) * 100.0),)
                                         for x in nonjlib_dsites_size[0:5] ]
     newrow_nonjlib = [ x for tup in newrow_nonjlib for x in tup ]
     #-------------------------------------------------------------------------------
@@ -477,6 +483,7 @@ def get_key_objects( group = {},
     #     key = Key object ID
     #     value = Cycle group list. It SHOULD include the key object ID.
     total_size = 0 # Total size of group
+    died_at_end_size = 0
     # Check DIED BY STACK and single
     if objectinfo.died_by_stack(group[0]) and len(group) == 1:
         # sys.stdout.write( "DBS 1: %d --" % len(group) )
@@ -675,14 +682,19 @@ def get_key_objects( group = {},
     else:
         if objectinfo.died_at_end(group[0]) or objectinfo.died_by_program_end(group[0]):
             # Ignore anything at program end
-            pass
+            for obj in group:
+                if obj in seen_objects:
+                    # Dupe. TODO: Log a warning/error
+                    continue
+                # Sum up the size in bytes
+                died_at_end_size += objectinfo.get_size(obj)
         else:
             # print "ERROR: can't classify object-"
             objectinfo.debug_object(group[0])
         # Either way nothing in the result
     cycle_summary["keyobject_map"] = cycledict
     cycle_summary["cyclenodes"] = cyclenode_summary
-    return (result, total_size)
+    return (result, total_size, died_at_end_size)
 
 def main_process( global_config = {},
                   main_config = {},
@@ -727,8 +739,12 @@ def main_process( global_config = {},
     with open(KEY_OBJECT_SUMMARY, mode = "wb") as key_summary_fp:
         # Key object general statistics
         key_summary_writer = csv.writer(key_summary_fp)
-        header = [ "benchmark",
-                   "dsite_1", "dsite_2", "dsite_3", "dsite_4", "dsite_5", ]
+        header = [ "benchmark", "alloc-total", "actual-alloc-total",
+                   "dsite_1", "dsite_1-total", "dsite_1-%",
+                   "dsite_2", "dsite_2-total", "dsite_2-%",
+                   "dsite_3", "dsite_3-total", "dsite_3-%",
+                   "dsite_4", "dsite_4-total", "dsite_4-%",
+                   "dsite_5", "dsite_5-total", "dsite_5-%", ]
         key_summary_writer.writerow(header)
         for bmark in worklist_config.keys():
             hostlist = worklist_config[bmark]
