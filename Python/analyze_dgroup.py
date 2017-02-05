@@ -280,7 +280,7 @@ def read_dgroups_from_pickle( result = [],
         if died_at_end_size > 0:
             assert(len(result) == 0)
             total_died_at_end_size += died_at_end_size
-        if len(result) > 0:
+        elif len(result) > 0:
             total_alloc += total_size
             update_key_object_summary( newgroup = result,
                                        summary = key_objects,
@@ -306,14 +306,15 @@ def read_dgroups_from_pickle( result = [],
     #-------------------------------------------------------------------------------
     # First level death sites
     total_alloc_MB = bytes_to_MB(total_alloc)
-    actual_alloc_MB = bytes_to_MB( total_alloc - total_died_at_end_size )
-    newrow = [ (bmark,), total_alloc_MB, actual_alloc_MB, ]
+    actual_alloc = total_alloc - total_died_at_end_size
+    actual_alloc_MB = bytes_to_MB(actual_alloc)
+    newrow = [ (bmark, total_alloc_MB, actual_alloc_MB) ]
     # Get the top 5 death sites
     #     * Use "DSITES_SIZE" and sort. Get top 5.
     dsites_size = sorted( key_objects["DSITES_SIZE"].items(),
                           key = itemgetter(1),
                           reverse = True )
-    newrow = newrow + [ (x[0], bytes_to_MB(x[1]), ((x[1]/actual_alloc_MB) * 100.0),)
+    newrow = newrow + [ (x[0], bytes_to_MB(x[1]), ((x[1]/actual_alloc) * 100.0),)
                         for x in dsites_size[0:5] ]
     newrow = [ x for tup in newrow for x in tup ]
     #-------------------------------------------------------------------------------
@@ -326,7 +327,7 @@ def read_dgroups_from_pickle( result = [],
                                   key = itemgetter(1),
                                   reverse = True )
     # TODO TODO Add dsite-total, dsite percentage using MB
-    newrow_nonjlib = newrow_nonjlib + [ (x[0], bytes_to_MB(x[1]), ((x[1]/actual_alloc_MB) * 100.0),)
+    newrow_nonjlib = newrow_nonjlib + [ (x[0], bytes_to_MB(x[1]), ((x[1]/actual_alloc) * 100.0),)
                                         for x in nonjlib_dsites_size[0:5] ]
     newrow_nonjlib = [ x for tup in newrow_nonjlib for x in tup ]
     #-------------------------------------------------------------------------------
