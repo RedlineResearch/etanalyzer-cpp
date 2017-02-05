@@ -4,8 +4,8 @@ PROJECT(etanalyzer-cpp)
 # Bring the headers. Is this needed only if they are in a different directory?
 # include_directories(include)
 
-# SET(SOURCES simulator.cpp execution.cpp heap.cpp classinfo.cpp tokenizer.cpp
-#     analyze.cpp version.cpp)
+SET(SOURCES simulator.cpp execution.cpp heap.cpp classinfo.cpp tokenizer.cpp
+    analyze.cpp version.cpp)
 
 MESSAGE( STATUS ${CMAKE_SOURCE_DIR} )
 EXECUTE_PROCESS( COMMAND sh ${CMAKE_SOURCE_DIR}/create-version-cpp.sh
@@ -14,7 +14,8 @@ EXECUTE_PROCESS( COMMAND sh ${CMAKE_SOURCE_DIR}/create-version-cpp.sh
 # The file(GLOB...) allows for wildcard additions if needed:
 # file(GLOB SOURCES "src/*.cpp")
 
-# ADD_EXECUTABLE(simulator ${SOURCES})
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -std=c++11 -g -Werror -static ")
+ADD_EXECUTABLE(simulator ${SOURCES})
 
 
 # SAVE CODE:
