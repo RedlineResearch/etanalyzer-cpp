@@ -7,7 +7,7 @@ PROJECT(etanalyzer-cpp)
 SET(SOURCES_SIM simulator.cpp execution.cpp heap.cpp classinfo.cpp tokenizer.cpp
     analyze.cpp version.cpp)
 
-SET(SOURCES_SIM_TYPE1 simulator.cpp execution.cpp heap.cpp classinfo.cpp tokenizer.cpp
+SET(SOURCES_SIM_FIND_MAIN simulator-find-main.cpp execution.cpp heap.cpp classinfo.cpp tokenizer.cpp
     analyze.cpp version.cpp)
 
 EXECUTE_PROCESS( COMMAND sh ${CMAKE_SOURCE_DIR}/create-version-cpp.sh
@@ -19,6 +19,8 @@ EXECUTE_PROCESS( COMMAND sh ${CMAKE_SOURCE_DIR}/create-version-cpp.sh
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -std=c++11 -g -Werror -static ")
 ADD_EXECUTABLE(simulator ${SOURCES_SIM})
 
-ADD_EXECUTABLE(simulator-type1 ${SOURCES_SIM_TYPE1})
+ADD_EXECUTABLE(simulator-type1 ${SOURCES_SIM})
 TARGET_COMPILE_DEFINITIONS(simulator-type1 
                            PRIVATE ENABLE_TYPE1)
+
+ADD_EXECUTABLE(simulator-find-main ${SOURCES_SIM_FIND_MAIN})
