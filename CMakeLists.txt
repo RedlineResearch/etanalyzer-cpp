@@ -16,8 +16,18 @@ EXECUTE_PROCESS( COMMAND sh ${CMAKE_SOURCE_DIR}/create-version-cpp.sh
 # The file(GLOB...) allows for wildcard additions if needed:
 # file(GLOB SOURCES "src/*.cpp")
 
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -std=c++11 -g -Werror -static ")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -std=c++11 -g -Werror")
+
+# Main static simulator
 ADD_EXECUTABLE(simulator ${SOURCES_SIM})
+
+# Non-static simulator
+# TODO: Add a build option to enable static building when needed
+#       Need to change the SET to the TARGET_COMPILE_OPTIONS
+# SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -std=c++11 -g -Werror -static")
+# ADD_EXECUTABLE(simulator-type1 ${SOURCES_SIM})
+# TARGET_COMPILE_OPTIONS(simulator-dyn
+#                        PRIVATE static)
 
 ADD_EXECUTABLE(simulator-type1 ${SOURCES_SIM})
 TARGET_COMPILE_DEFINITIONS(simulator-type1 
