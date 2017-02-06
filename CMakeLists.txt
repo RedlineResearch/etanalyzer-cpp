@@ -4,10 +4,12 @@ PROJECT(etanalyzer-cpp)
 # Bring the headers. Is this needed only if they are in a different directory?
 # include_directories(include)
 
-SET(SOURCES simulator.cpp execution.cpp heap.cpp classinfo.cpp tokenizer.cpp
+SET(SOURCES_SIM simulator.cpp execution.cpp heap.cpp classinfo.cpp tokenizer.cpp
     analyze.cpp version.cpp)
 
-MESSAGE( STATUS ${CMAKE_SOURCE_DIR} )
+SET(SOURCES_SIM_TYPE1 simulator.cpp execution.cpp heap.cpp classinfo.cpp tokenizer.cpp
+    analyze.cpp version.cpp)
+
 EXECUTE_PROCESS( COMMAND sh ${CMAKE_SOURCE_DIR}/create-version-cpp.sh
                  OUTPUT_FILE version.cpp )
 
@@ -15,10 +17,8 @@ EXECUTE_PROCESS( COMMAND sh ${CMAKE_SOURCE_DIR}/create-version-cpp.sh
 # file(GLOB SOURCES "src/*.cpp")
 
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -std=c++11 -g -Werror -static ")
-ADD_EXECUTABLE(simulator ${SOURCES})
+ADD_EXECUTABLE(simulator ${SOURCES_SIM})
 
-
-# SAVE CODE:
-#                  COMMAND awk "BEGIN {print \"#include \\\"version.hpp\\\"\"} {print \"const char *build_git_sha = \\\"\"$0\"\\\";\"} END {}"
-#                  COMMAND date
-#                  COMMAND awk "BEGIN {print \"const char *build_git_time = \\\"\"$0\"\\\";\"} END {}"
+ADD_EXECUTABLE(simulator-type1 ${SOURCES_SIM_TYPE1})
+TARGET_COMPILE_DEFINITIONS(simulator-type1 
+                           PRIVATE ENABLE_TYPE1)
