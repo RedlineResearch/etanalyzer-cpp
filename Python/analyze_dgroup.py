@@ -114,32 +114,15 @@ def update_key_object_summary( newgroup = {},
                                objectinfo = {},
                                total_size = 0,
                                logger = None ):
-    # TODO: Use defaultdict TODO
-    if "GROUPLIST" not in summary:
-        summary["GROUPLIST"] = {}
-    if "CAUSE" not in summary:
-        summary["CAUSE"] = Counter()
-    if "DSITES" not in summary:
-        summary["DSITES"] = Counter()
-    if "DSITES_SIZE" not in summary:
-        summary["DSITES_SIZE"] = defaultdict(int)
-    if "NONJLIB_DSITES" not in summary:
-        summary["NONJLIB_DSITES"] = Counter()
-    if "NONJLIB_SIZE" not in summary:
-        summary["NONJLIB_SIZE"] = defaultdict(int)
-    if "TYPES" not in summary:
-        summary["TYPES"] = Counter()
-    if "TYPE_DSITES" not in summary:
-        summary["TYPE_DSITES"] = defaultdict(Counter)
-    if "TOTAL_SIZE" not in summary:
-        summary["TOTAL_SIZE"] = {}
     # Rename/alias long names:
     oi = objectinfo
     cdict = summary["CAUSE"]
     dsitesdict = summary["DSITES"]
     dsites_size = summary["DSITES_SIZE"]
+    dsites_distr = summary["DSITES_DISTRIBUTION"]
     nonjlib_dsitesdict = summary["NONJLIB_DSITES"]
     nonjlib_dsites_size = summary["NONJLIB_SIZE"]
+    nonjlib_distr = summary["NONJLIB_DISTRIBUTION"]
     typedict = summary["TYPES"]
     type_dsites = summary["TYPE_DSITES"]
     # TODO: nonjlib_type_dsites = summary["NONJLIB_TYPE_DSITES"]
@@ -161,9 +144,9 @@ def update_key_object_summary( newgroup = {},
     for key, glist in newgroup.iteritems():
         # Well, there should really be only one group in newgroup...
         summary["TOTAL_SIZE"][key] = total_size
-        summary["GROUPLIST"][key] = glist
         if key in glist:
             glist.append(key)
+        summary["GROUPLIST"][key] = glist
         mytype = oi.get_type(key)
         typedict[mytype] += 1
         # First level death site
@@ -176,6 +159,12 @@ def update_key_object_summary( newgroup = {},
         nonjlib_dsitesdict[nonjdsite] += 1
         nonjlib_dsites_size[nonjdsite] += total_size
         # TODO: nonjlib_type_dsites[type][nonjdsite] += 1
+        # Update the distribution summaries
+        dist = oi.get_died_by_distribution(set(glist))
+        dsites_distr[dsite]["STACK"] += dist["STACK"]
+        dsites_distr[dsite]["HEAP"] += dist["HEAP"]
+        nonjlib_distr[dsite]["STACK"] += dist["STACK"]
+        nonjlib_distr[dsite]["HEAP"] += dist["HEAP"]
 
 def read_dgroups_from_pickle( result = [],
                               bmark = "",
@@ -265,7 +254,17 @@ def read_dgroups_from_pickle( result = [],
     dss = deathsite_summary # alias
     cycle_summary = {}
     count = 0
-    key_objects = defaultdict( dict )
+    key_objects = { "GROUPLIST" : {},
+                    "CAUSE" : Counter(),
+                    "DSITES" : Counter(),
+                    "DSITES_SIZE" : defaultdict(int),
+                    "DSITES_DISTRIBUTION" : defaultdict( lambda: defaultdict(int) ),
+                    "NONJLIB_DSITES" : Counter(),
+                    "NONJLIB_SIZE" : defaultdict(int),
+                    "NONJLIB_DISTRIBUTION" : defaultdict( lambda: defaultdict(int) ),
+                    "TYPES" : Counter(),
+                    "TYPE_DSITES" : defaultdict(Counter),
+                    "TOTAL_SIZE" : {}, }
     seen_objects = set()
     total_alloc = 0
     total_died_at_end_size = 0

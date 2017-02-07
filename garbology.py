@@ -543,6 +543,7 @@ class ObjectInfoReader:
         typeId = rec[ get_index("TYPE") ]
         return self.rev_typedict[typeId][0] == "["
 
+    # Died by stack
     def died_by_stack( self, objId = 0 ):
         rec = self.objdict[objId]
         return self.died_by_stack_using_record(rec)
@@ -550,6 +551,7 @@ class ObjectInfoReader:
     def died_by_stack_using_record( self, rec = [] ):
         return (rec[get_index("DIEDBY")] == "S")
 
+    # Died by heap
     def died_by_heap( self, objId = 0 ):
         rec = self.objdict[objId]
         return self.died_by_heap_using_record(rec)
@@ -557,13 +559,29 @@ class ObjectInfoReader:
     def died_by_heap_using_record( self, rec = [] ):
         return (rec[get_index("DIEDBY")] == "H")
 
+    # Died by stack after heap
+    def died_by_stack_after_heap( self, objId = 0 ):
+        rec = self.objdict[objId]
+        return self.died_by_stack_after_heap_using_record(rec)
+
+    def died_by_stack_after_heap_using_record( self, rec = [] ):
+        return (rec[get_index("STATTR")] == "SHEAP")
+
+    # Died by global
+    def died_by_global_using_record( self, rec = [] ):
+        return (rec[get_index("DIEDBY")] == "G")
+
     def died_by_global( self, objId = 0 ):
-        return (self.objdict[objId][get_index("DIEDBY")] == "G") if (objId in self.objdict) \
-            else False
+        rec = self.objdict[objId]
+        return self.died_by_global_using_record(rec)
+
+    # Died by program end
+    def died_by_program_end_using_record( self, rec = [] ):
+        return (rec[get_index("DIEDBY")] == "E")
 
     def died_by_program_end( self, objId = 0 ):
-        return (self.objdict[objId][get_index("DIEDBY")] == "E") if (objId in self.objdict) \
-            else False
+        rec = self.objdict[objId]
+        return self.died_by_program_end_using_record(rec)
 
     def group_died_by_stack( self, grouplist = [] ):
         for obj in grouplist:
@@ -594,15 +612,29 @@ class ObjectInfoReader:
 
     def get_died_by_distribution( self,
                                   objset = [] ):
+        """Return a dictionary with 'STACK' and 'HEAP' as keys.
+        Values of the dictionary correspond to the object set's total size in
+        number of bytes.
+        """
         assert(type(objset) is set)
+        odict = self.objdict # rename to shorter name
+        result = { "STACK" : 0, "HEAP" : 0 }
         for objId in objset:
-            assert( rec in self.objdict )
-            rec = self.objdict[objId]
-            if self.died_by_stack_using_record(rec):
-                pass # DIED BY STACK
-            elif self.died_by_heap_using_record(rec):
-                pass # DIED BY STACK
-
+            assert( objId in odict )
+            rec = odict[objId]
+            if ( self.died_by_heap_using_record(rec) or
+                 self.died_by_stack_after_heap_using_record(rec) or
+                 self.died_by_global_using_record(rec) ):
+                result["HEAP"] += self.get_size_using_record(rec)
+            elif self.died_by_stack_using_record(rec):
+                # DIED BY STACK
+                result["STACK"] += self.get_size_using_record(rec)
+            elif self.died_by_program_end_using_record(rec):
+                pass
+            else:
+                print "STATTR[ %s ]" % rec[get_index["STATTR"]]
+                assert(False)
+        return result
 
     # Death context functions
     def get_death_context( self, objId = 0 ):
