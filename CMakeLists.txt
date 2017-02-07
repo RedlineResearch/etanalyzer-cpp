@@ -3,6 +3,15 @@ PROJECT(etanalyzer-cpp)
 
 # Bring the headers. Is this needed only if they are in a different directory?
 # include_directories(include)
+FIND_PACKAGE(Boost REQUIRED)
+ADD_LIBRARY(boost INTERFACE IMPORTED)
+SET_PROPERTY(TARGET boost PROPERTY
+             INTERFACE_INCLUDE_DIRECTORIES ${Boost_INCLUDE_DIR})
+
+ADD_SUBDIRECTORY(EASTL)
+INCLUDE_DIRECTORIES(EASTL/include)
+INCLUDE_DIRECTORIES(EASTL/test/packages/EABase/include/Common)
+TARGET_LINK_LIBRARIES(EASTL)
 
 SET(SOURCES_SIM simulator.cpp execution.cpp heap.cpp classinfo.cpp tokenizer.cpp
     analyze.cpp version.cpp)
