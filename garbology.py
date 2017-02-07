@@ -544,12 +544,18 @@ class ObjectInfoReader:
         return self.rev_typedict[typeId][0] == "["
 
     def died_by_stack( self, objId = 0 ):
-        return (self.objdict[objId][get_index("DIEDBY")] == "S") if (objId in self.objdict) \
-            else False
+        rec = self.objdict[objId]
+        return self.died_by_stack_using_record(rec)
+
+    def died_by_stack_using_record( self, rec = [] ):
+        return (rec[get_index("DIEDBY")] == "S")
 
     def died_by_heap( self, objId = 0 ):
-        return (self.objdict[objId][get_index("DIEDBY")] == "H") if (objId in self.objdict) \
-            else False
+        rec = self.objdict[objId]
+        return self.died_by_heap_using_record(rec)
+
+    def died_by_heap_using_record( self, rec = [] ):
+        return (rec[get_index("DIEDBY")] == "H")
 
     def died_by_global( self, objId = 0 ):
         return (self.objdict[objId][get_index("DIEDBY")] == "G") if (objId in self.objdict) \
@@ -585,6 +591,18 @@ class ObjectInfoReader:
                                        (died_by, rec[ get_index("DIEDBY") ]) )
                     flag = False
         return flag
+
+    def get_died_by_distribution( self,
+                                  objset = [] ):
+        assert(type(objset) is set)
+        for objId in objset:
+            assert( rec in self.objdict )
+            rec = self.objdict[objId]
+            if self.died_by_stack_using_record(rec):
+                pass # DIED BY STACK
+            elif self.died_by_heap_using_record(rec):
+                pass # DIED BY STACK
+
 
     # Death context functions
     def get_death_context( self, objId = 0 ):

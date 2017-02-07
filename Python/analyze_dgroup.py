@@ -162,6 +162,8 @@ def update_key_object_summary( newgroup = {},
         # Well, there should really be only one group in newgroup...
         summary["TOTAL_SIZE"][key] = total_size
         summary["GROUPLIST"][key] = glist
+        if key in glist:
+            glist.append(key)
         mytype = oi.get_type(key)
         typedict[mytype] += 1
         # First level death site
