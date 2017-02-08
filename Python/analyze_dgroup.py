@@ -161,7 +161,7 @@ def update_key_object_summary( newgroup = {},
         # TODO: nonjlib_type_dsites[type][nonjdsite] += 1
         # Update the distribution summaries
         if ( oi.died_by_heap(key) or
-             oi.died_by_stack_after_heap or
+             oi.died_by_stack_after_heap(key) or
              oi.died_by_global(key) ):
             dsites_distr[dsite]["HEAP"] += total_size
             nonjlib_distr[dsite]["HEAP"] += total_size
