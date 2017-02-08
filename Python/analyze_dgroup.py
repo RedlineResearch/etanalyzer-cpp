@@ -322,7 +322,7 @@ def read_dgroups_from_pickle( result = [],
     num_key_objects = len(key_objects["GROUPLIST"])
     size_died_at_end = summary_reader.get_size_died_at_end()
     size_total_allocation = summary_reader.get_final_garbology_alloc_time()
-    dsites_gcount = summary["DSITES_GROUP_COUNT"]
+    dsites_gcount = key_objects["DSITES_GROUP_COUNT"]
     #-------------------------------------------------------------------------------
     # First level death sites
     total_alloc_MB = bytes_to_MB(total_alloc)
@@ -348,7 +348,7 @@ def read_dgroups_from_pickle( result = [],
     # Get the top 5 death sites
     #     * Use "NONJLIB_SIZE" and sort. Get top 5.
     nonjlib_distr = key_objects["NONJLIB_DISTRIBUTION"]
-    nonjlib_gcount = summary["NONJLIB_GROUP_COUNT"]
+    nonjlib_gcount = key_objects["NONJLIB_GROUP_COUNT"]
     nonjlib_dsites_size = sorted( key_objects["NONJLIB_SIZE"].items(),
                                   key = itemgetter(1),
                                   reverse = True )
