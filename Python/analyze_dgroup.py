@@ -119,9 +119,11 @@ def update_key_object_summary( newgroup = {},
     cdict = summary["CAUSE"]
     dsitesdict = summary["DSITES"]
     dsites_size = summary["DSITES_SIZE"]
+    dsites_gcount = summary["DSITES_GROUP_COUNT"]
     dsites_distr = summary["DSITES_DISTRIBUTION"]
     nonjlib_dsitesdict = summary["NONJLIB_DSITES"]
     nonjlib_dsites_size = summary["NONJLIB_SIZE"]
+    nonjlib_gcount = summary["NONJLIB_GROUP_COUNT"]
     nonjlib_distr = summary["NONJLIB_DISTRIBUTION"]
     typedict = summary["TYPES"]
     type_dsites = summary["TYPE_DSITES"]
@@ -154,6 +156,9 @@ def update_key_object_summary( newgroup = {},
         dsitesdict[dsite] += 1
         dsites_size[dsite] += total_size
         type_dsites[type][dsite] += 1
+        # Update group counts
+        dsites_gcount[dsite] += 1
+        nonjlib_gcount[dsite] += 1
         # Non java library death site
         nonjdsite = oi.get_non_javalib_context(key)
         nonjlib_dsitesdict[nonjdsite] += 1
@@ -269,9 +274,11 @@ def read_dgroups_from_pickle( result = [],
                     "CAUSE" : Counter(),
                     "DSITES" : Counter(),
                     "DSITES_SIZE" : defaultdict(int),
+                    "DSITES_GROUP_COUNT" : Counter(),
                     "DSITES_DISTRIBUTION" : defaultdict( lambda: defaultdict(int) ),
                     "NONJLIB_DSITES" : Counter(),
                     "NONJLIB_SIZE" : defaultdict(int),
+                    "NONJLIB_GROUP_COUNT" : Counter(),
                     "NONJLIB_DISTRIBUTION" : defaultdict( lambda: defaultdict(int) ),
                     "TYPES" : Counter(),
                     "TYPE_DSITES" : defaultdict(Counter),
@@ -315,6 +322,7 @@ def read_dgroups_from_pickle( result = [],
     num_key_objects = len(key_objects["GROUPLIST"])
     size_died_at_end = summary_reader.get_size_died_at_end()
     size_total_allocation = summary_reader.get_final_garbology_alloc_time()
+    dsites_gcount = summary["DSITES_GROUP_COUNT"]
     #-------------------------------------------------------------------------------
     # First level death sites
     total_alloc_MB = bytes_to_MB(total_alloc)
@@ -329,23 +337,26 @@ def read_dgroups_from_pickle( result = [],
                           reverse = True )
     newrow = newrow + [ ( x[0], bytes_to_MB(x[1]), ((x[1]/actual_alloc) * 100.0),
                           ((dsites_distr[x[0]]["STACK"]/x[1]) * 100.0),
-                          ((dsites_distr[x[0]]["HEAP"]/x[1]) * 100.0), )
+                          ((dsites_distr[x[0]]["HEAP"]/x[1]) * 100.0),
+                          dsites_gcount[x[0]] )
                         for x in dsites_size[0:5] ]
     newrow = [ x for tup in newrow for x in tup ]
     #-------------------------------------------------------------------------------
     # First non Java library function
     # TODO TODO: Add allocation total
-    newrow_nonjlib = [ ((bmark + " NONJ"),), ]
+    newrow_nonjlib = [ ((bmark + " NONJ"), total_alloc_MB, actual_alloc_MB), ]
     # Get the top 5 death sites
     #     * Use "NONJLIB_SIZE" and sort. Get top 5.
     nonjlib_distr = key_objects["NONJLIB_DISTRIBUTION"]
+    nonjlib_gcount = summary["NONJLIB_GROUP_COUNT"]
     nonjlib_dsites_size = sorted( key_objects["NONJLIB_SIZE"].items(),
                                   key = itemgetter(1),
                                   reverse = True )
     # TODO TODO Add dsite-total, dsite percentage using MB
     newrow_nonjlib = newrow_nonjlib + [ ( x[0], bytes_to_MB(x[1]), ((x[1]/actual_alloc) * 100.0),
                                           ((nonjlib_distr[x[0]]["STACK"]/x[1]) * 100.0),
-                                          ((nonjlib_distr[x[0]]["HEAP"]/x[1]) * 100.0), )
+                                          ((nonjlib_distr[x[0]]["HEAP"]/x[1]) * 100.0),
+                                          nonjlib_gcount[x[0]] )
                                         for x in nonjlib_dsites_size[0:5] ]
     newrow_nonjlib = [ x for tup in newrow_nonjlib for x in tup ]
     #-------------------------------------------------------------------------------
@@ -759,11 +770,11 @@ def main_process( global_config = {},
         # Key object general statistics
         key_summary_writer = csv.writer(key_summary_fp)
         header = [ "benchmark", "alloc-total", "actual-alloc-total",
-                   "dsite_1", "dsite_1-total", "dsite_1-%", "dsite_1-by-stack-%",  "dsite_1-by-heap-%",
-                   "dsite_2", "dsite_2-total", "dsite_2-%", "dsite_2-by-stack-%",  "dsite_2-by-heap-%",
-                   "dsite_3", "dsite_3-total", "dsite_3-%", "dsite_3-by-stack-%",  "dsite_3-by-heap-%",
-                   "dsite_4", "dsite_4-total", "dsite_4-%", "dsite_4-by-stack-%",  "dsite_4-by-heap-%",
-                   "dsite_5", "dsite_5-total", "dsite_5-%", "dsite_5-by-stack-%",  "dsite_5-by-heap-%", ]
+                   "dsite_1", "dsite_1-total", "dsite_1-%", "dsite_1-by-stack-%",  "dsite_1-by-heap-%", "number-groups",
+                   "dsite_2", "dsite_2-total", "dsite_2-%", "dsite_2-by-stack-%",  "dsite_2-by-heap-%", "number-groups",
+                   "dsite_3", "dsite_3-total", "dsite_3-%", "dsite_3-by-stack-%",  "dsite_3-by-heap-%", "number-groups",
+                   "dsite_4", "dsite_4-total", "dsite_4-%", "dsite_4-by-stack-%",  "dsite_4-by-heap-%", "number-groups",
+                   "dsite_5", "dsite_5-total", "dsite_5-%", "dsite_5-by-stack-%",  "dsite_5-by-heap-%", "number-groups", ]
         key_summary_writer.writerow(header)
         for bmark in worklist_config.keys():
             hostlist = worklist_config[bmark]
