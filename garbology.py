@@ -616,25 +616,26 @@ class ObjectInfoReader:
         Values of the dictionary correspond to the object set's total size in
         number of bytes.
         """
-        assert(type(objset) is set)
-        odict = self.objdict # rename to shorter name
-        result = { "STACK" : 0, "HEAP" : 0 }
-        for objId in objset:
-            assert( objId in odict )
-            rec = odict[objId]
-            if ( self.died_by_heap_using_record(rec) or
-                 self.died_by_stack_after_heap_using_record(rec) or
-                 self.died_by_global_using_record(rec) ):
-                result["HEAP"] += self.get_size_using_record(rec)
-            elif self.died_by_stack_using_record(rec):
-                # DIED BY STACK
-                result["STACK"] += self.get_size_using_record(rec)
-            elif self.died_by_program_end_using_record(rec):
-                pass
-            else:
-                print "STATTR[ %s ]" % rec[get_index["STATTR"]]
-                assert(False)
-        return result
+        raise RuntimeError( "This shouldn't be called. Thinking about whether this could stay here or be removed completely." )
+        # TODO assert(type(objset) is set)
+        # TODO odict = self.objdict # rename to shorter name
+        # TODO result = { "STACK" : 0, "HEAP" : 0 }
+        # TODO for objId in objset:
+        # TODO     assert( objId in odict )
+        # TODO     rec = odict[objId]
+        # TODO     if ( self.died_by_heap_using_record(rec) or
+        # TODO          self.died_by_stack_after_heap_using_record(rec) or
+        # TODO          self.died_by_global_using_record(rec) ):
+        # TODO         result["HEAP"] += self.get_size_using_record(rec)
+        # TODO     elif self.died_by_stack_using_record(rec):
+        # TODO         # DIED BY STACK
+        # TODO         result["STACK"] += self.get_size_using_record(rec)
+        # TODO     elif self.died_by_program_end_using_record(rec):
+        # TODO         pass
+        # TODO     else:
+        # TODO         print "STATTR[ %s ]" % rec[get_index["STATTR"]]
+        # TODO         assert(False)
+        # TODO return result
 
     # Death context functions
     def get_death_context( self, objId = 0 ):

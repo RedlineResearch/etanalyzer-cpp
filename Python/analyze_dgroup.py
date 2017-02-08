@@ -160,11 +160,22 @@ def update_key_object_summary( newgroup = {},
         nonjlib_dsites_size[nonjdsite] += total_size
         # TODO: nonjlib_type_dsites[type][nonjdsite] += 1
         # Update the distribution summaries
-        dist = oi.get_died_by_distribution(set(glist))
-        dsites_distr[dsite]["STACK"] += dist["STACK"]
-        dsites_distr[dsite]["HEAP"] += dist["HEAP"]
-        nonjlib_distr[dsite]["STACK"] += dist["STACK"]
-        nonjlib_distr[dsite]["HEAP"] += dist["HEAP"]
+        if ( oi.died_by_heap(key) or
+             oi.died_by_stack_after_heap or
+             oi.died_by_global(key) ):
+            dsites_distr[dsite]["HEAP"] += total_size
+            nonjlib_distr[dsite]["HEAP"] += total_size
+        elif oi.died_by_stack(key):
+            dsites_distr[dsite]["STACK"] += total_size
+            nonjlib_distr[dsite]["STACK"] += total_size
+        else:
+            # Sanity check
+            if not ( oi.died_by_program_end(key) or oi.died_at_end(key) ):
+                # Debug something that fell outside of all categories
+                logger.critical( "Unable to classify objId[ %d ][ %s ]"
+                                 % (key, oi.get_type(key)) )
+                sys.stderr.write( "Unable to classify objId[ %d ][ %s ]\n"
+                                  % (key, oi.get_type(key)) )
 
 def read_dgroups_from_pickle( result = [],
                               bmark = "",
@@ -312,10 +323,13 @@ def read_dgroups_from_pickle( result = [],
     newrow = [ (bmark, total_alloc_MB, actual_alloc_MB) ]
     # Get the top 5 death sites
     #     * Use "DSITES_SIZE" and sort. Get top 5.
+    dsites_distr = key_objects["DSITES_DISTRIBUTION"]
     dsites_size = sorted( key_objects["DSITES_SIZE"].items(),
                           key = itemgetter(1),
                           reverse = True )
-    newrow = newrow + [ (x[0], bytes_to_MB(x[1]), ((x[1]/actual_alloc) * 100.0),)
+    newrow = newrow + [ ( x[0], bytes_to_MB(x[1]), ((x[1]/actual_alloc) * 100.0),
+                          ((dsites_distr[x[0]]["STACK"]/x[1]) * 100.0),
+                          ((dsites_distr[x[0]]["HEAP"]/x[1]) * 100.0), )
                         for x in dsites_size[0:5] ]
     newrow = [ x for tup in newrow for x in tup ]
     #-------------------------------------------------------------------------------
@@ -324,11 +338,14 @@ def read_dgroups_from_pickle( result = [],
     newrow_nonjlib = [ ((bmark + " NONJ"),), ]
     # Get the top 5 death sites
     #     * Use "NONJLIB_SIZE" and sort. Get top 5.
+    nonjlib_distr = key_objects["NONJLIB_DISTRIBUTION"]
     nonjlib_dsites_size = sorted( key_objects["NONJLIB_SIZE"].items(),
                                   key = itemgetter(1),
                                   reverse = True )
     # TODO TODO Add dsite-total, dsite percentage using MB
-    newrow_nonjlib = newrow_nonjlib + [ (x[0], bytes_to_MB(x[1]), ((x[1]/actual_alloc) * 100.0),)
+    newrow_nonjlib = newrow_nonjlib + [ ( x[0], bytes_to_MB(x[1]), ((x[1]/actual_alloc) * 100.0),
+                                          ((nonjlib_distr[x[0]]["STACK"]/x[1]) * 100.0),
+                                          ((nonjlib_distr[x[0]]["HEAP"]/x[1]) * 100.0), )
                                         for x in nonjlib_dsites_size[0:5] ]
     newrow_nonjlib = [ x for tup in newrow_nonjlib for x in tup ]
     #-------------------------------------------------------------------------------
@@ -742,11 +759,11 @@ def main_process( global_config = {},
         # Key object general statistics
         key_summary_writer = csv.writer(key_summary_fp)
         header = [ "benchmark", "alloc-total", "actual-alloc-total",
-                   "dsite_1", "dsite_1-total", "dsite_1-%",
-                   "dsite_2", "dsite_2-total", "dsite_2-%",
-                   "dsite_3", "dsite_3-total", "dsite_3-%",
-                   "dsite_4", "dsite_4-total", "dsite_4-%",
-                   "dsite_5", "dsite_5-total", "dsite_5-%", ]
+                   "dsite_1", "dsite_1-total", "dsite_1-%", "dsite_1-by-stack-%",  "dsite_1-by-heap-%",
+                   "dsite_2", "dsite_2-total", "dsite_2-%", "dsite_2-by-stack-%",  "dsite_2-by-heap-%",
+                   "dsite_3", "dsite_3-total", "dsite_3-%", "dsite_3-by-stack-%",  "dsite_3-by-heap-%",
+                   "dsite_4", "dsite_4-total", "dsite_4-%", "dsite_4-by-stack-%",  "dsite_4-by-heap-%",
+                   "dsite_5", "dsite_5-total", "dsite_5-%", "dsite_5-by-stack-%",  "dsite_5-by-heap-%", ]
         key_summary_writer.writerow(header)
         for bmark in worklist_config.keys():
             hostlist = worklist_config[bmark]
