@@ -408,7 +408,11 @@ class ObjectInfoReader:
 
     def get_type( self, objId = 0 ):
         rec = self.get_record(objId)
-        typeId = rec[ get_index("TYPE") ] if rec != None else None
+        return self.get_type_using_record(rec)
+
+    def get_type_using_record( self, rec = {} ):
+        assert( rec != None )
+        typeId = rec[ get_index("TYPE") ]
         if not self.useDB_as_source:
             return self.rev_typedict[typeId] if typeId != None \
                 else "NONE"

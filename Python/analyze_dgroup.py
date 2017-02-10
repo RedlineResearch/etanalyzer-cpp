@@ -89,6 +89,57 @@ def check_diedby_stats( dgroups_data = {},
             break
     return result
 
+def get_group_died_by_attribute( group = set(),
+                                 objectinfo = {} ):
+    oi = objectinfo
+    result = defaultdict( list )
+    for objId in group:
+        cause = objectinfo.get_death_cause(objId)
+        result[cause].append(objId)
+    # Check here. There should only be one cause.
+    assert(len(result) > 0)
+    if len(result) == 1:
+        # As expected. The following works because keys() should
+        # have EXACTLY one key.
+        cause = result.keys()[0]
+    else:
+        # While this shouldn't happen, this is how we fix the errors.
+        if "E" in result.keys():
+            # First if any are Died by End, everything should be.
+            # TODO: This should be fixed in the simulator. If not there,
+            #       then in csvinfo2db.py. - RLV
+            cause = "E"
+        elif "S" in result.keys():
+            cause = "S"
+        else:
+            # More than one Died By XXX. DEBUG.
+            print "=====[ DEBUG MULTIPLE CAUSES ]=================================================="
+            for cause, objlist in result.iteritems():
+                print "------------------------------------------------------------"
+                print "Cause[ %s ]:" % cause
+                for objId in objlist:
+                    rec = oi.get_record(objId)
+                    print "    [%d] : %s - %d" % ( objId,
+                                                   oi.get_type_using_record(rec),
+                                                   oi.get_death_time_using_record(rec) )
+                print "------------------------------------------------------------"
+            # If that didn't work, let's break the tie democratically.
+            clist = sorted( [ (c, len(olist)) for c, olist in result.items() ],
+                            key = itemgetter(1),
+                            reverse = True )
+            print "Sorted cause list:"
+            pp.pprint(clist)
+            print "================================================================================"
+            cause = clist[0][0]
+            if (cause == "G" or cause == "H"):
+                cause = "H"
+            else:
+                raise RuntimeError("DEBUG: %s" % str(clist))
+                
+    return "STACK" if cause == "S" else \
+        ( "HEAP" if (cause == "H" or cause == "G") else
+          ( "END" if cause == "E" else None ) )
+
 # GLOBAL:
 #     summary dictionary layout:
 #        key - summary name of table. Possible keys are:
@@ -146,7 +197,7 @@ def update_key_object_summary( newgroup = {},
     for key, glist in newgroup.iteritems():
         # Well, there should really be only one group in newgroup...
         summary["TOTAL_SIZE"][key] = total_size
-        if key in glist:
+        if key not in glist:
             glist.append(key)
         summary["GROUPLIST"][key] = glist
         mytype = oi.get_type(key)
@@ -236,7 +287,8 @@ def read_dgroups_from_pickle( result = [],
     summary_reader = SummaryReader( summary_file = summary_filename,
                                     logger = logger )
     summary_reader.read_summary_file()
-    #=========================================================================== # Read in DGROUPS from the pickle file
+    #===========================================================================
+    # Read in DGROUPS from the pickle file
     picklefile = os.path.join( dgroups2db_config["output"],
                                bmark + dgroups2db_config["file-dgroups"] )
     assert(os.path.isfile(picklefile))
@@ -289,17 +341,19 @@ def read_dgroups_from_pickle( result = [],
     for gnum, glist in dgroups_data["group2list"].iteritems():
         # - for every death group dg:
         #       get the last edge for every object
-        result, total_size, died_at_end_size = get_key_objects( group = glist,
-                                                                seen_objects = seen_objects,
-                                                                edgeinfo = edgeinfo,
-                                                                objectinfo = objectinfo,
-                                                                cycle_summary = cycle_summary,
-                                                                logger = logger )
+        result, total_size, died_at_end_size, cause = get_key_objects( group = glist,
+                                                                       seen_objects = seen_objects,
+                                                                       edgeinfo = edgeinfo,
+                                                                       objectinfo = objectinfo,
+                                                                       cycle_summary = cycle_summary,
+                                                                       logger = logger )
         count += 1
-        if died_at_end_size > 0:
+        if cause == "END":
             assert(len(result) == 0)
+            assert( died_at_end_size > 0 )
             total_died_at_end_size += died_at_end_size
         elif len(result) > 0:
+            assert( (cause == "HEAP") or (cause == "STACK") )
             total_alloc += total_size
             update_key_object_summary( newgroup = result,
                                        summary = key_objects,
@@ -515,10 +569,16 @@ def get_key_objects( group = {},
     total_size = 0 # Total size of group
     died_at_end_size = 0
     # Check DIED BY STACK and single
-    if objectinfo.died_by_stack(group[0]) and len(group) == 1:
+    cause = get_group_died_by_attribute( group = set(group),
+                                         objectinfo = objectinfo )
+    assert( cause != None and
+            ( cause == "HEAP" or
+              cause == "STACK" or
+              cause == "END" ) )
+    if (cause == "STACK") and (len(group) == 1):
         # sys.stdout.write( "DBS 1: %d --" % len(group) )
         # Then this is a key object for a death group by itself
-        result = { group[0] : [] }
+        result = { group[0] : [ group[0] ] }
         edgelist = []
         for obj in group:
             if obj in seen_objects:
@@ -546,7 +606,7 @@ def get_key_objects( group = {},
         for srcnode in result.keys():
             cycledict[srcnode] = False
         for nxnode in nxgraph.nodes():
-            # TODO: Determine if it has cycles
+            # Determine if it has cycles
             if nxnode in result:
                 try:
                     cycle_elist = nx.find_cycle(nxgraph, nxnode)
@@ -561,9 +621,8 @@ def get_key_objects( group = {},
                 #                   ( (nxnode), len(cycle_nodes),
                 #                     nxgraph.number_of_edges(),
                 #                     ("YES" if cycledict[nxnode] else "NO") ) )
-                # TODO: Don't need this: sys.stdout.write( "        nodes: %s\n" % str(nxgraph.nodes()) )
         # TODO: Do we care about cycles of size 1?
-    elif objectinfo.died_by_stack(group[0]):
+    elif (cause == "STACK"):
         assert( len(group) > 1 )
         # sys.stdout.write( "DBS 2: %d" % len(group) )
         # DIED BY STACK
@@ -633,12 +692,7 @@ def get_key_objects( group = {},
                 #                     len(cycle_elist),
                 #                     ("YES" if cycledict[nxnode] else "NO") ) )
                 # TODO: Don't need this: sys.stdout.write( "        nodes: %s\n" % str(nxgraph.nodes()) )
-    elif ( objectinfo.died_by_heap(group[0]) or
-           objectinfo.died_by_global(group[0]) ):
-        # if objectinfo.died_by_heap(group[0]):
-        #     sys.stdout.write( "DBH: %d --" % len(group) )
-        # elif objectinfo.died_by_global(group[0]):
-        #     sys.stdout.write( "DB Global: %d" % len(group) )
+    elif cause == "HEAP":
         # DIED BY HEAP and GLOBAL
         # We look for all objects that do not have any incoming edge with
         # the same death time as itself. These are the KEY OBJECTS.
@@ -710,7 +764,7 @@ def get_key_objects( group = {},
         # TODO DEBUG     pp.pprint(nxgraph.nodes())
         # TODO DEBUG     print "--------------------------------------------------------------------------------"
     else:
-        if objectinfo.died_at_end(group[0]) or objectinfo.died_by_program_end(group[0]):
+        if cause == "END":
             # Ignore anything at program end
             for obj in group:
                 if obj in seen_objects:
@@ -719,12 +773,12 @@ def get_key_objects( group = {},
                 # Sum up the size in bytes
                 died_at_end_size += objectinfo.get_size(obj)
         else:
-            # print "ERROR: can't classify object-"
+            print "***** ERROR: can't classify object - cause[ %s ]*****" % str(cause)
             objectinfo.debug_object(group[0])
         # Either way nothing in the result
     cycle_summary["keyobject_map"] = cycledict
     cycle_summary["cyclenodes"] = cyclenode_summary
-    return (result, total_size, died_at_end_size)
+    return (result, total_size, died_at_end_size, cause)
 
 def main_process( global_config = {},
                   main_config = {},
