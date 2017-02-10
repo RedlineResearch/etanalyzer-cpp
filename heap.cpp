@@ -353,20 +353,29 @@ void HeapState::end_of_program( unsigned int cur_time,
                                eifile,
                                Reason::END_OF_PROGRAM_REASON );
             }
+            string progend("PROG_END");
             obj->unsetDiedByStackFlag();
             obj->unsetDiedByHeapFlag();
             obj->setDiedAtEndFlag();
             obj->setReason( Reason::END_OF_PROGRAM_REASON, cur_time );
             obj->setLastEvent( LastEvent::END_OF_PROGRAM_EVENT );
+            // Unset the death site.
+                obj->setDeathContextSiteName( progend, 1 );
+                obj->setDeathContextSiteName( progend, 2 );
         } else {
             if (obj->getDeathTime() == cur_time) {
+                string progend("PROG_END");
                 obj->unsetDiedByStackFlag();
                 obj->unsetDiedByHeapFlag();
                 obj->setDiedAtEndFlag();
                 obj->setReason( Reason::END_OF_PROGRAM_REASON, cur_time );
                 obj->setLastEvent( LastEvent::END_OF_PROGRAM_EVENT );
+                // Unset the death site.
+                obj->setDeathContextSiteName( progend, 1 );
+                obj->setDeathContextSiteName( progend, 2 );
             }
             else {
+                // TODO
                 if (obj->getDeathTime() > cur_time) {
                     cerr << "Object ID[" << obj->getId() << "] has later death time["
                          << obj->getDeathTime() << "than final time: " << cur_time << endl;
@@ -443,7 +452,7 @@ deque< deque<int> > HeapState::scan_queue( EdgeList& edgelist )
 {
     deque< deque<int> > result;
     cout << "Queue size: " << this->m_candidate_map.size() << endl;
-    for ( map<unsigned int, bool>::iterator i = this->m_candidate_map.begin();
+    for ( auto i = this->m_candidate_map.begin();
           i != this->m_candidate_map.end();
           ++i ) {
         int objId = i->first;
@@ -481,7 +490,7 @@ NodeId_t HeapState::getNodeId( ObjectId_t objId, bimap< ObjectId_t, NodeId_t >& 
 
 // TODO Documentation :)
 void HeapState::scan_queue2( EdgeList& edgelist,
-                             map<unsigned int, bool>& not_candidate_map )
+                             std::map<unsigned int, bool>& not_candidate_map )
 {
     typedef std::set< std::pair< ObjectId_t, unsigned int >, compclass > CandidateSet_t;
     typedef std::map< ObjectId_t, unsigned int > Object2Utime_t;
@@ -506,7 +515,7 @@ void HeapState::scan_queue2( EdgeList& edgelist,
     //    objId <-> graph ID
     //
     // Get all the candidate objects and sort according to last update time.
-    for ( map<unsigned int, bool>::iterator i = this->m_candidate_map.begin();
+    for ( auto i = this->m_candidate_map.begin();
           i != this->m_candidate_map.end();
           ++i ) {
         ObjectId_t objId = i->first;

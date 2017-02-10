@@ -13,6 +13,10 @@
 #include <boost/logic/tribool.hpp>
 #include <boost/bimap.hpp>
 
+// EASTL version of map
+#include <EASTL/map.h>
+#include <EASTL/algorithm.h>
+
 #include "classinfo.h"
 #include "refstate.h"
 
@@ -78,19 +82,20 @@ enum class CPairType
 typedef unsigned int ObjectId_t;
 typedef unsigned int FieldId_t;
 typedef unsigned int VTime_t;
-typedef map<ObjectId_t, Object *> ObjectMap;
-typedef map<ObjectId_t, Edge *> EdgeMap;
+typedef std::map<ObjectId_t, Object *> ObjectMap;
+typedef eastl::map<ObjectId_t, Object *> EA_ObjectMap;
+typedef std::map<ObjectId_t, Edge *> EdgeMap;
 typedef set<Object *> ObjectSet;
 typedef set<Edge *> EdgeSet;
 typedef deque< pair<int, int> > EdgeList;
 typedef std::map< Object *, std::set< Object * > * > KeySet_t;
 
 enum class EdgeState : std::uint8_t; // forward declaration
-// typedef map< Edge *, EdgeState > EdgeStateMap;
-typedef map< std::pair<Edge *, VTime_t>, EdgeState > EdgeStateMap;
+// typedef std::map< Edge *, EdgeState > EdgeStateMap;
+typedef std::map< std::pair<Edge *, VTime_t>, EdgeState > EdgeStateMap;
 typedef set< std::pair<Edge *, VTime_t>, EdgeState > EdgeStateSet;
 
-typedef map<Method *, set<string> *> DeathSitesMap;
+typedef std::map<Method *, set<string> *> DeathSitesMap;
 // Where we save the method death sites. This has to be method pointer
 // to:
 // 1) set of object pointers
@@ -116,7 +121,7 @@ typedef bimap<ObjectId_t, ObjectId_t> BiMap_t;
 //     FOUND = 2,
 //     UNKNOWN_STATUS = 99,
 // };
-// typedef map<ObjectId_t, std::pair<KeyStatus, ObjectId_t>> LookupMap;
+// typedef std::map<ObjectId_t, std::pair<KeyStatus, ObjectId_t>> LookupMap;
 
 struct compclass {
     bool operator() ( const std::pair< ObjectId_t, unsigned int >& lhs,
@@ -157,7 +162,7 @@ class HeapState {
         EdgeSet m_edges;
 
         // Map from IDs to bool if possible cyle root
-        map<unsigned int, bool> m_candidate_map;
+        std::map<unsigned int, bool> m_candidate_map;
 
         // Map from Edge * to Edgestate. This is where we save Edges which 
         // we can't output to the edgeinfo file yet because we don't know the
@@ -339,7 +344,7 @@ class HeapState {
         void unset_candidate(unsigned int objId);
         deque< deque<int> > scan_queue( EdgeList& edgelist );
         void scan_queue2( EdgeList& edgelist,
-                          map<unsigned int, bool>& ncmap );
+                          std::map<unsigned int, bool>& ncmap );
         void set_reason_for_cycles( deque< deque<int> >& cycles );
 
         ObjectPtrMap_t& get_whereis() { return m_whereis; }
