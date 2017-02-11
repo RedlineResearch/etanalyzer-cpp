@@ -435,6 +435,9 @@ unsigned int read_trace_file( FILE *f,
                                          els,     // length IF applicable
                                          thread,  // thread Id
                                          Exec.NowUp() ); // Current time
+#ifdef _SIZE_DEBUG
+		    cout << "OS: " << sizeof(obj) << endl;
+#endif // _SIZE_DEBUG
                     AllocationTime = Heap.getAllocTime();
                     Exec.SetAllocTime( AllocationTime );
                     if (as) {
@@ -529,7 +532,10 @@ unsigned int read_trace_file( FILE *f,
                                 unsigned int field_id = tokenizer.getInt(4);
                                 new_edge = Heap.make_edge( obj, field_id,
                                                            target, Exec.NowUp() );
-                            } 
+#ifdef _SIZE_DEBUG
+				cout << "ES: " << sizeof(new_edge) << endl;
+#endif // _SIZE_DEBUG
+                            }
                             Method *topMethod = NULL;
                             if (thread) {
                                 topMethod = thread->TopMethod();
