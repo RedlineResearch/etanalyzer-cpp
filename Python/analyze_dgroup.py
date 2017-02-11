@@ -9,7 +9,7 @@ import logging
 import pprint
 import re
 import ConfigParser
-from multiprocessing import Process, Manager
+from multiprocessing import Process, Manager, Queue
 import sqlite3
 from shutil import copy, move
 import cPickle
@@ -242,7 +242,6 @@ def read_dgroups_from_pickle( result = [],
                               summary_config = {},
                               cycle_cpp_dir = "",
                               obj_cachesize = 5000000,
-                              key_summary_writer = None,
                               debugflag = False,
                               logger = None ):
     assert(logger != None)
@@ -341,28 +340,28 @@ def read_dgroups_from_pickle( result = [],
     for gnum, glist in dgroups_data["group2list"].iteritems():
         # - for every death group dg:
         #       get the last edge for every object
-        result, total_size, died_at_end_size, cause = get_key_objects( group = glist,
-                                                                       seen_objects = seen_objects,
-                                                                       edgeinfo = edgeinfo,
-                                                                       objectinfo = objectinfo,
-                                                                       cycle_summary = cycle_summary,
-                                                                       logger = logger )
+        key_result, total_size, died_at_end_size, cause = get_key_objects( group = glist,
+                                                                           seen_objects = seen_objects,
+                                                                           edgeinfo = edgeinfo,
+                                                                           objectinfo = objectinfo,
+                                                                           cycle_summary = cycle_summary,
+                                                                           logger = logger )
         count += 1
         if cause == "END":
-            assert(len(result) == 0)
+            assert(len(key_result) == 0)
             assert( died_at_end_size > 0 )
             total_died_at_end_size += died_at_end_size
-        elif len(result) > 0:
+        elif len(key_result) > 0:
             assert( (cause == "HEAP") or (cause == "STACK") )
             total_alloc += total_size
-            update_key_object_summary( newgroup = result,
+            update_key_object_summary( newgroup = key_result,
                                        summary = key_objects,
                                        objectinfo = objectinfo,
                                        total_size = total_size,
                                        logger = logger )
-            # TODO DEBUG print "%d: %s" % (count, result)
+            # TODO DEBUG print "%d: %s" % (count, key_result)
             ktc = keytype_counter # Short alias
-            for key, subgroup in result.iteritems():
+            for key, subgroup in key_result.iteritems():
                 # Summary of key types
                 keytype = objectinfo.get_type(key)
                 ktc[keytype] += 1
@@ -416,20 +415,19 @@ def read_dgroups_from_pickle( result = [],
     #-------------------------------------------------------------------------------
     # TODO DELETE DEBUG print "X:", newrow
     # Write out the row
-    key_summary_writer.writerow( newrow )
-    key_summary_writer.writerow( newrow_nonjlib )
-    # Print out key object counts by type
-    # TODO print "---[ Key object counts by type ]------------------------------------------------"
-    # TODO for mytype, num in keytype_counter.iteritems():
-    # TODO     print "%s -> %d" % (mytype, num)
-    # TODO     print "   -> %s" % str(dss[mytype])
-    # TODO print "--------------------------------------------------------------------------------"
+    # TODO: REMOVE: key_summary_writer.writerow( newrow )
+    # TODO: REMOVE: key_summary_writer.writerow( newrow_nonjlib )
+    if not mprflag:
+        result.append( newrow )
+        result.append( newrow_nonjlib )
+    else:
+        result.put( newrow )
+        result.put( newrow_nonjlib )
     #
     #       * size stats for groups that died by stack
     #            + first should be number of key objects
     #            + then average size of sub death group
     #===========================================================================
-    # Write out to ???? TODO
     #
     # pickle_filename = os.path.join( workdir, bmark + "-DGROUPS.pickle" )
 
@@ -839,10 +837,9 @@ def main_process( global_config = {},
             # Else we can run for 'bmark'
             cachesize = int(cachesize_config[bmark])
             if mprflag:
-                assert(False)
                 print "=======[ Spawning %s ]================================================" \
                     % bmark
-                results[bmark] = manager.list([ bmark, ])
+                results[bmark] = Queue()
                 # NOTE: The order of the args tuple is important!
                 # ======================================================================
                 # Read in the death groups from dgroups2db.py
@@ -850,13 +847,12 @@ def main_process( global_config = {},
                              args = ( results[bmark],
                                       bmark,
                                       workdir,
-                                      mprflag,
+                                      True, # mprflag
                                       dgroups2db_config,
                                       objectinfo_db_config,
                                       summary_config,
                                       cycle_cpp_dir,
                                       cachesize,
-                                      key_summary_writer,
                                       debugflag,
                                       logger ) )
                 procs_dgroup[bmark] = p
@@ -865,19 +861,20 @@ def main_process( global_config = {},
                 print "=======[ Running %s ]=================================================" \
                     % bmark
                 print "     Reading in death groups..."
-                results[bmark] = [ bmark, ]
+                results[bmark] = []
                 read_dgroups_from_pickle( result = results[bmark],
                                           bmark = bmark,
                                           workdir = workdir,
-                                          mprflag = mprflag,
+                                          mprflag = False,
                                           dgroups2db_config = dgroups2db_config,
                                           objectinfo_db_config = objectinfo_db_config,
                                           summary_config = summary_config,
                                           cycle_cpp_dir = cycle_cpp_dir,
                                           obj_cachesize = cachesize,
-                                          key_summary_writer = key_summary_writer,
                                           debugflag = debugflag,
                                           logger = logger )
+                for row in results[bmark]:
+                    key_summary_writer.writerow( row )
                 key_summary_fp.flush()
                 os.fsync(key_summary_fp.fileno())
             # Copy file from workdir
@@ -895,8 +892,6 @@ def main_process( global_config = {},
                     os.remove( bakpath )
                 move( tgtpath, bakpath )
             copy( srcpath, tgtpath )
-    print "DONE."
-    exit(100)
     if mprflag:
         # Poll the processes
         done = False
@@ -909,11 +904,18 @@ def main_process( global_config = {},
                     done = False
                 else:
                     del procs_dgroup[bmark]
+                    while not results[bmark].empty():
+                        row = results[bmark].get()
+                        key_summary_writer.writerow( row )
+                    key_summary_fp.flush()
+                    os.fsync(key_summary_fp.fileno())
                     timenow = time.asctime()
                     logger.debug( "[%s] - done at %s" % (bmark, timenow) )
         print "======[ Processes DONE ]========================================================"
         sys.stdout.flush()
     print "================================================================================"
+    print "DONE."
+    exit(0)
     # Copy all the databases into MAIN directory.
     dest = main_config["output"]
     for filename in os.listdir( workdir ):
