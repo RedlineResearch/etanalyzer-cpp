@@ -220,10 +220,10 @@ def update_key_object_summary( newgroup = {},
              oi.died_by_stack_after_heap(key) or
              oi.died_by_global(key) ):
             dsites_distr[dsite]["HEAP"] += total_size
-            nonjlib_distr[dsite]["HEAP"] += total_size
+            nonjlib_distr[nonjdsite]["HEAP"] += total_size
         elif oi.died_by_stack(key):
             dsites_distr[dsite]["STACK"] += total_size
-            nonjlib_distr[dsite]["STACK"] += total_size
+            nonjlib_distr[nonjdsite]["STACK"] += total_size
         else:
             # Sanity check
             if not ( oi.died_by_program_end(key) or oi.died_at_end(key) ):
