@@ -275,7 +275,7 @@ class HeapState {
         void enableObjectDebug() { m_obj_debug_flag = true; }
         void disableObjectDebug() { m_obj_debug_flag = false; }
 
-        Object* allocate( unsigned int id,
+        Object *allocate( unsigned int id,
                           unsigned int size,
                           char kind,
                           char *type,
@@ -283,6 +283,8 @@ class HeapState {
                           unsigned int els,
                           Thread *thread,
                           unsigned int create_time );
+        // TODO: DOC
+        Object *allocate( Object * objptr );
 
         Object* getObject(unsigned int id);
 

@@ -133,6 +133,27 @@ Object* HeapState::allocate( unsigned int id,
     return obj;
 }
 
+Object *HeapState::allocate( Object * obj )
+{
+    // Design decision: allocation time isn't 0 based.
+    this->m_alloc_time += obj->getSize();
+    // Add to object map
+    this->m_objects[obj->getId()] = obj;
+    // Add to live set. Given that it's a set, duplicates are not a problem.
+    this->m_liveset.insert(obj);
+
+    if (this->m_objects.size() % 100000 == 0) {
+        cout << "OBJECTS: " << this->m_objects.size() << endl;
+    }
+    unsigned long int temp = this->m_liveSize + obj->getSize();
+    // Max live size calculation
+    this->m_liveSize = ( (temp < this->m_liveSize) ? ULONG_MAX : temp );
+    if (this->m_maxLiveSize < this->m_liveSize) {
+        this->m_maxLiveSize = this->m_liveSize;
+    }
+    return obj;
+}
+
 // -- Manage heap
 Object* HeapState::getObject(unsigned int id)
 {
