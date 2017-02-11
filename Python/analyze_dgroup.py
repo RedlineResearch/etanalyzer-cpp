@@ -892,27 +892,27 @@ def main_process( global_config = {},
                     os.remove( bakpath )
                 move( tgtpath, bakpath )
             copy( srcpath, tgtpath )
-    if mprflag:
-        # Poll the processes
-        done = False
-        while not done:
-            done = True
-            for bmark in procs_dgroup.keys():
-                proc = procs_dgroup[bmark]
-                proc.join(60)
-                if proc.is_alive():
-                    done = False
-                else:
-                    del procs_dgroup[bmark]
-                    while not results[bmark].empty():
-                        row = results[bmark].get()
-                        key_summary_writer.writerow( row )
-                    key_summary_fp.flush()
-                    os.fsync(key_summary_fp.fileno())
-                    timenow = time.asctime()
-                    logger.debug( "[%s] - done at %s" % (bmark, timenow) )
-        print "======[ Processes DONE ]========================================================"
-        sys.stdout.flush()
+        if mprflag:
+            # Poll the processes
+            done = False
+            while not done:
+                done = True
+                for bmark in procs_dgroup.keys():
+                    proc = procs_dgroup[bmark]
+                    proc.join(60)
+                    if proc.is_alive():
+                        done = False
+                    else:
+                        del procs_dgroup[bmark]
+                        while not results[bmark].empty():
+                            row = results[bmark].get()
+                            key_summary_writer.writerow( row )
+                        key_summary_fp.flush()
+                        os.fsync(key_summary_fp.fileno())
+                        timenow = time.asctime()
+                        logger.debug( "[%s] - done at %s" % (bmark, timenow) )
+            print "======[ Processes DONE ]========================================================"
+            sys.stdout.flush()
     print "================================================================================"
     print "DONE."
     exit(0)
