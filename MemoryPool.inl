@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <sys/mman.h>
+#include <time.h>
 #include <string>
 #include <boost/lexical_cast.hpp>
 #include <boost/uuid/uuid.hpp>
@@ -42,7 +43,10 @@ using boost::uuids::uuid;
 //------------------------------------------------------------------------------
 string make_uuid()
 {
-    return lexical_cast< string >((random_generator())());
+    time_t seconds = time(0);
+    string ts = lexical_cast< string >( seconds );
+    ts += "-";
+    return ts + lexical_cast< string >((random_generator())());
 }
 
 
