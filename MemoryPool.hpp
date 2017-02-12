@@ -31,66 +31,74 @@ class MemoryPool
 {
     public:
         /* Member types */
-        typedef T               value_type;
-        typedef T*              pointer;
-        typedef T&              reference;
-        typedef const T*        const_pointer;
-        typedef const T&        const_reference;
-        typedef size_t          size_type;
-        typedef ptrdiff_t       difference_type;
+        typedef T value_type;
+        typedef T* pointer_t;
+        typedef T& reference;
+        typedef const T* const_pointer;
+        typedef const T& const_reference;
+        typedef size_t size_type;
+        typedef ptrdiff_t difference_type;
         typedef std::false_type propagate_on_container_copy_assignment;
-        typedef std::true_type  propagate_on_container_move_assignment;
-        typedef std::true_type  propagate_on_container_swap;
+        typedef std::true_type propagate_on_container_move_assignment;
+        typedef std::true_type propagate_on_container_swap;
 
         template <typename U> struct rebind {
             typedef MemoryPool<U> other;
         };
 
         /* Member functions */
-        MemoryPool() noexcept;
+        MemoryPool( string &basedir ) noexcept;
         MemoryPool(const MemoryPool& memoryPool) noexcept;
         MemoryPool(MemoryPool&& memoryPool) noexcept;
         template <class U> MemoryPool(const MemoryPool<U>& memoryPool) noexcept;
 
         ~MemoryPool() noexcept;
 
-        MemoryPool& operator=(const MemoryPool& memoryPool) = delete;
-        MemoryPool& operator=(MemoryPool&& memoryPool) noexcept;
+        MemoryPool& operator=( const MemoryPool& memoryPool ) = delete;
+        MemoryPool& operator=( MemoryPool&& memoryPool ) noexcept;
 
-        pointer address(reference x) const noexcept;
-        const_pointer address(const_reference x) const noexcept;
+        pointer_t address( reference x) const noexcept;
+        const_pointer address( const_reference x ) const noexcept;
 
         // Can only allocate one object at a time. n and hint are ignored
-        pointer allocate(size_type n = 1, const_pointer hint = 0);
-        void deallocate(pointer p, size_type n = 1);
+        pointer_t allocate( size_type n = 1, const_pointer hint = 0 );
+        void deallocate(pointer_t p, size_type n = 1);
 
         size_type max_size() const noexcept;
 
         template <class U, class... Args> void construct(U* p, Args&&... args);
         template <class U> void destroy(U* p);
 
-        template <class... Args> pointer newElement(Args&&... args);
-        void deleteElement(pointer p);
+        template <class... Args> pointer_t newElement(Args&&... args);
+        void deleteElement( pointer_t p );
 
+        void set_tmpbuf( char *bufptr ) {
+            this->tmpbuf_ = bufptr;
+        };
     private:
         union Slot_ {
             value_type element;
             Slot_* next;
         };
 
-        typedef char* data_pointer_;
-        typedef Slot_ slot_type_;
-        typedef Slot_* slot_pointer_;
+        typedef char *data_pointer_t;
+        typedef Slot_ slot_type_t;
+        typedef Slot_ *slot_pointer_t;
 
-        slot_pointer_ currentBlock_;
-        slot_pointer_ currentSlot_;
-        slot_pointer_ lastSlot_;
-        slot_pointer_ freeSlots_;
+        slot_pointer_t currentBlock_;
+        slot_pointer_t currentSlot_;
+        slot_pointer_t lastSlot_;
+        slot_pointer_t freeSlots_;
 
-        size_type padPointer(data_pointer_ p, size_type align) const noexcept;
+        string basedir_;
+        char * tmpbuf_;
+
+        size_type padPointer( data_pointer_t p, size_type align ) const noexcept;
         void allocateBlock();
+        void allocateBlock_mmap();
 
-        static_assert(BlockSize >= 2 * sizeof(slot_type_), "BlockSize too small.");
+        static_assert( BlockSize >= 2 * sizeof(slot_type_t),
+                       "BlockSize too small." );
 };
 
 #include "MemoryPool.inl"

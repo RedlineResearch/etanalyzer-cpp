@@ -16,6 +16,9 @@ TARGET_LINK_LIBRARIES(EASTL)
 SET(SOURCES_SIM simulator.cpp execution.cpp heap.cpp classinfo.cpp tokenizer.cpp
     analyze.cpp version.cpp)
 
+SET(SOURCES_SIM_POOL simulator-pool.cpp execution.cpp heap.cpp classinfo.cpp tokenizer.cpp
+    analyze.cpp version.cpp)
+
 SET(SOURCES_SIM_FIND_MAIN simulator-find-main.cpp execution.cpp heap.cpp classinfo.cpp tokenizer.cpp
     analyze.cpp version.cpp)
 
@@ -29,6 +32,11 @@ SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -std=c++11 -g -Werror")
 
 # Main static simulator
 ADD_EXECUTABLE(simulator ${SOURCES_SIM})
+# TARGET_COMPILE_DEFINITIONS(simulator
+#                            PRIVATE _SIZE_DEBUG)
+
+# Main static simulator
+ADD_EXECUTABLE(simulator-pool ${SOURCES_SIM_POOL})
 
 # Non-static simulator
 # TODO: Add a build option to enable static building when needed

@@ -23,211 +23,272 @@
 #ifndef MEMORY_BLOCK_TCC
 #define MEMORY_BLOCK_TCC
 
+#include <stdio.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <string>
+#include <boost/lexical_cast.hpp>
+#include <boost/uuid/uuid.hpp>
+#include <boost/uuid/uuid_generators.hpp>
+#include <boost/uuid/uuid_io.hpp>
+
+using std::string;
+using boost::lexical_cast;
+using boost::uuids::random_generator;
+using boost::uuids::uuid;
+
+//------------------------------------------------------------------------------
+//   Utility functions
+//------------------------------------------------------------------------------
+string make_uuid()
+{
+    return lexical_cast< string >((random_generator())());
+}
 
 
-template <typename T, size_t BlockSize>
+int open_sparse_tempfile( string &basedir,
+                          size_t mysize,
+                          char *tmpbuf )
+{
+    // Create temp filename
+    char sep = '/';
+    string tempname;
+    if (basedir[basedir.length() - 1] == sep) {
+        tempname = basedir + make_uuid();
+    } else {
+        tempname = basedir + sep + make_uuid();
+    }
+    // open for the file descriptor
+    int fdesc = open( tempname.c_str(), O_CREAT | O_RDWR );
+    // fopen the file for read/write, truncating if it exists.
+    FILE *fptr = fdopen( fdesc, "w+" );
+    // fseek to the desired file size - 1.
+    // int result = fseek( fptr, mysize - 1, SEEK_CUR );
+    int result = fwrite( tmpbuf, 1, mysize, fptr );
+    // TODO: Check for -1 => Out of Memory error.
+    assert(result == mysize);
+    fclose(fptr);
+    fdesc = open( tempname.c_str(), O_RDWR );
+    return fdesc;
+}
+
+//------------------------------------------------------------------------------
+
+// DOC: TODO
+template< typename T, size_t BlockSize>
 inline typename MemoryPool<T, BlockSize>::size_type
-MemoryPool<T, BlockSize>::padPointer(data_pointer_ p, size_type align)
-const noexcept
+MemoryPool<T, BlockSize>::padPointer( data_pointer_t p,
+                                      size_type align ) const noexcept
 {
-  uintptr_t result = reinterpret_cast<uintptr_t>(p);
-  return ((align - result) % align);
+    uintptr_t result = reinterpret_cast< uintptr_t >(p);
+    return ((align - result) % align);
 }
 
-
-
-template <typename T, size_t BlockSize>
-MemoryPool<T, BlockSize>::MemoryPool()
-noexcept
-:   currentBlock_(nullptr)
-,   currentSlot_(nullptr)
-,   lastSlot_(nullptr)
-,   freeSlots_(nullptr)
+// DOC: TODO
+template< typename T, size_t BlockSize>
+MemoryPool<T, BlockSize>::MemoryPool( string &basedir ) noexcept
+    : currentBlock_(nullptr)
+    , currentSlot_(nullptr)
+    , lastSlot_(nullptr)
+    , freeSlots_(nullptr)
+    , basedir_(basedir)
+    , tmpbuf_(nullptr)
 {
 }
 
-
-
-template <typename T, size_t BlockSize>
-MemoryPool<T, BlockSize>::MemoryPool(const MemoryPool& memoryPool)
-noexcept :
-MemoryPool()
-{}
-
-
-
-template <typename T, size_t BlockSize>
-MemoryPool<T, BlockSize>::MemoryPool(MemoryPool&& memoryPool)
-noexcept
-:   currentBlock_(memoryPool.currentBlock_)
-,   currentSlot_(memoryPool.currentSlot_)
-,   lastSlot_(memoryPool.lastSlot_)
-,   freeSlots_(memoryPool.freeSlots)
+// DOC: TODO
+template< typename T, size_t BlockSize>
+MemoryPool<T, BlockSize>::MemoryPool( const MemoryPool& ) noexcept
+    : MemoryPool()
 {
-    memoryPool.currentBlock_ = nullptr;
 }
 
-
-template <typename T, size_t BlockSize>
-template<class U>
-MemoryPool<T, BlockSize>::MemoryPool(const MemoryPool<U>& memoryPool)
-noexcept :
-MemoryPool()
-{}
-
-
-
-template <typename T, size_t BlockSize>
-MemoryPool<T, BlockSize>&
-MemoryPool<T, BlockSize>::operator=(MemoryPool&& memoryPool)
-noexcept
+// DOC: TODO
+template< typename T, size_t BlockSize>
+MemoryPool<T, BlockSize>::MemoryPool( MemoryPool &&mempool ) noexcept
+    : currentBlock_(mempool.currentBlock_)
+    , currentSlot_(mempool.currentSlot_)
+    , lastSlot_(mempool.lastSlot_)
+    , freeSlots_(mempool.freeSlots)
+    , basedir_(mempool.basedir_)
 {
-  if (this != &memoryPool)
-  {
-    std::swap(currentBlock_, memoryPool.currentBlock_);
-    currentSlot_ = memoryPool.currentSlot_;
-    lastSlot_ = memoryPool.lastSlot_;
-    freeSlots_ = memoryPool.freeSlots;
-  }
-  return *this;
+    mempool.currentBlock_ = nullptr;
 }
 
-
-
-template <typename T, size_t BlockSize>
-MemoryPool<T, BlockSize>::~MemoryPool()
-noexcept
+// DOC: TODO
+template< typename T, size_t BlockSize >
+template< class U >
+MemoryPool<T, BlockSize>::MemoryPool( const MemoryPool<U>& ) noexcept
+    : MemoryPool()
 {
-  slot_pointer_ curr = currentBlock_;
-  while (curr != nullptr) {
-    slot_pointer_ prev = curr->next;
-    operator delete(reinterpret_cast<void*>(curr));
-    curr = prev;
-  }
 }
 
-
-
-template <typename T, size_t BlockSize>
-inline typename MemoryPool<T, BlockSize>::pointer
-MemoryPool<T, BlockSize>::address(reference x)
-const noexcept
+// DOC: TODO
+template< typename T, size_t BlockSize >
+MemoryPool< T, BlockSize > &
+MemoryPool<T, BlockSize>::operator=( MemoryPool&& mempool ) noexcept
 {
-  return &x;
+    if (this != &mempool) {
+        std::swap( currentBlock_,
+                   mempool.currentBlock_ );
+        this->currentSlot_ = mempool.currentSlot_;
+        this->lastSlot_ = mempool.lastSlot_;
+        this->freeSlots_ = mempool.freeSlots;
+    }
+    return *this;
 }
 
-
-
-template <typename T, size_t BlockSize>
-inline typename MemoryPool<T, BlockSize>::const_pointer
-MemoryPool<T, BlockSize>::address(const_reference x)
-const noexcept
+// DOC: TODO
+template< typename T, size_t BlockSize >
+MemoryPool< T, BlockSize >::~MemoryPool() noexcept
 {
-  return &x;
+    slot_pointer_t curr = currentBlock_;
+    while (curr != nullptr) {
+        slot_pointer_t prev = curr->next;
+        // operator delete(reinterpret_cast< void * >(curr));
+        munmap(reinterpret_cast< void * >(curr), BlockSize);
+        curr = prev;
+    }
 }
 
+// DOC: TODO
+template< typename T, size_t BlockSize >
+inline typename MemoryPool< T, BlockSize >::pointer_t
+MemoryPool<T, BlockSize>::address(reference x) const noexcept
+{
+    return &x;
+}
 
+// DOC: TODO
+template< typename T, size_t BlockSize >
+inline typename MemoryPool< T, BlockSize >::const_pointer
+MemoryPool< T, BlockSize >::address( const_reference x ) const noexcept
+{
+    return &x;
+}
 
-template <typename T, size_t BlockSize>
+// DOC: TODO
+template< typename T, size_t BlockSize >
 void
-MemoryPool<T, BlockSize>::allocateBlock()
+MemoryPool< T, BlockSize >::allocateBlock()
 {
-  // Allocate space for the new block and store a pointer to the previous one
-  data_pointer_ newBlock = reinterpret_cast<data_pointer_>(operator new(BlockSize));
-  reinterpret_cast<slot_pointer_>(newBlock)->next = currentBlock_;
-  currentBlock_ = reinterpret_cast<slot_pointer_>(newBlock);
-  // Pad block body to satisfy the alignment requirements for elements
-  data_pointer_ body = newBlock + sizeof(slot_pointer_);
-  size_type bodyPadding = padPointer(body, alignof(slot_type_));
-  currentSlot_ = reinterpret_cast<slot_pointer_>(body + bodyPadding);
-  lastSlot_ = reinterpret_cast<slot_pointer_>(newBlock + BlockSize - sizeof(slot_type_) + 1);
+    // Allocate space for the new block and store a pointer to the previous one
+    data_pointer_t newBlock = reinterpret_cast<data_pointer_t>(operator new(BlockSize));
+    reinterpret_cast< slot_pointer_t >(newBlock)->next = currentBlock_;
+    currentBlock_ = reinterpret_cast< slot_pointer_t >(newBlock);
+    // Pad block body to satisfy the alignment requirements for elements
+    data_pointer_t body = newBlock + sizeof(slot_pointer_t);
+    size_type bodyPadding = padPointer(body, alignof(slot_type_t));
+    currentSlot_ = reinterpret_cast< slot_pointer_t >(body + bodyPadding);
+    lastSlot_ = reinterpret_cast< slot_pointer_t >(newBlock + BlockSize - sizeof(slot_type_t) + 1);
+}
+
+// DOC: TODO
+template< typename T, size_t BlockSize >
+void
+MemoryPool< T, BlockSize >::allocateBlock_mmap()
+{
+    // Allocate space for the new block and store a pointer to the previous one
+    int fdesc = open_sparse_tempfile( this->basedir_,
+                                      BlockSize,
+                                      this->tmpbuf_ );
+    void *vptr = mmap( NULL,
+                       BlockSize,
+                       PROT_READ | PROT_WRITE,
+                       MAP_PRIVATE,
+                       fdesc,
+                       0 );
+    data_pointer_t newBlock = reinterpret_cast<data_pointer_t>(vptr);
+    reinterpret_cast< slot_pointer_t >(newBlock)->next = currentBlock_;
+    currentBlock_ = reinterpret_cast< slot_pointer_t >(newBlock);
+    // Pad block body to satisfy the alignment requirements for elements
+    data_pointer_t body = newBlock + sizeof(slot_pointer_t);
+    size_type bodyPadding = padPointer(body, alignof(slot_type_t));
+    currentSlot_ = reinterpret_cast< slot_pointer_t >(body + bodyPadding);
+    lastSlot_ = reinterpret_cast< slot_pointer_t >(newBlock + BlockSize - sizeof(slot_type_t) + 1);
+}
+
+// DOC: TODO
+template< typename T, size_t BlockSize >
+inline typename MemoryPool< T, BlockSize >::pointer_t
+MemoryPool< T, BlockSize >::allocate( size_type n,
+                                      const_pointer hint )
+{
+    if (this->freeSlots_ != nullptr) {
+        pointer_t result = reinterpret_cast< pointer_t >( this->freeSlots_ );
+        this->freeSlots_ = this->freeSlots_->next;
+        return result;
+    }
+    else {
+        if (this->currentSlot_ >= this->lastSlot_) {
+            // this->allocateBlock();
+            this->allocateBlock_mmap();
+        }
+        return reinterpret_cast< pointer_t >(this->currentSlot_++);
+    }
+}
+
+// DOC: TODO
+template< typename T, size_t BlockSize >
+inline void
+MemoryPool< T, BlockSize >::deallocate( pointer_t p,
+                                        size_type n )
+{
+    if (p != nullptr) {
+        reinterpret_cast< slot_pointer_t >(p)->next = this->freeSlots_;
+        this->freeSlots_ = reinterpret_cast< slot_pointer_t >(p);
+    }
+}
+
+// DOC: TODO
+template< typename T, size_t BlockSize >
+inline typename MemoryPool< T, BlockSize >::size_type
+MemoryPool< T, BlockSize >::max_size() const noexcept
+{
+    size_type maxBlocks = (-1 / BlockSize);
+    return ( (BlockSize - sizeof(data_pointer_t)) /
+             (sizeof(slot_type_t) * maxBlocks) );
+}
+
+// DOC: TODO
+template< typename T, size_t BlockSize >
+template< class UType, class... Args >
+inline void
+MemoryPool<T, BlockSize>::construct( UType *p, Args &&... args )
+{
+    new (p) UType (std::forward<Args>(args)...);
 }
 
 
 
-template <typename T, size_t BlockSize>
-inline typename MemoryPool<T, BlockSize>::pointer
-MemoryPool<T, BlockSize>::allocate(size_type n, const_pointer hint)
+template< typename T, size_t BlockSize >
+template< class UType >
+inline void
+MemoryPool< T, BlockSize>::destroy( UType *p )
 {
-  if (freeSlots_ != nullptr) {
-    pointer result = reinterpret_cast<pointer>(freeSlots_);
-    freeSlots_ = freeSlots_->next;
+    p->~UType();
+}
+
+// DOC: TODO
+template< typename T, size_t BlockSize >
+template< class... Args >
+inline typename MemoryPool< T, BlockSize >::pointer_t
+MemoryPool< T, BlockSize >::newElement( Args &&... args )
+{
+    pointer_t result = allocate();
+    construct< value_type >( result, std::forward<Args>(args)... );
     return result;
-  }
-  else {
-    if (currentSlot_ >= lastSlot_)
-      allocateBlock();
-    return reinterpret_cast<pointer>(currentSlot_++);
-  }
 }
 
-
-
-template <typename T, size_t BlockSize>
+// DOC: TODO
+template< typename T, size_t BlockSize >
 inline void
-MemoryPool<T, BlockSize>::deallocate(pointer p, size_type n)
+MemoryPool< T, BlockSize >::deleteElement( pointer_t p )
 {
-  if (p != nullptr) {
-    reinterpret_cast<slot_pointer_>(p)->next = freeSlots_;
-    freeSlots_ = reinterpret_cast<slot_pointer_>(p);
-  }
+    if (p != nullptr) {
+        p->~value_type();
+        deallocate(p);
+    }
 }
-
-
-
-template <typename T, size_t BlockSize>
-inline typename MemoryPool<T, BlockSize>::size_type
-MemoryPool<T, BlockSize>::max_size()
-const noexcept
-{
-  size_type maxBlocks = -1 / BlockSize;
-  return (BlockSize - sizeof(data_pointer_)) / sizeof(slot_type_) * maxBlocks;
-}
-
-
-
-template <typename T, size_t BlockSize>
-template <class U, class... Args>
-inline void
-MemoryPool<T, BlockSize>::construct(U* p, Args&&... args)
-{
-  new (p) U (std::forward<Args>(args)...);
-}
-
-
-
-template <typename T, size_t BlockSize>
-template <class U>
-inline void
-MemoryPool<T, BlockSize>::destroy(U* p)
-{
-  p->~U();
-}
-
-
-
-template <typename T, size_t BlockSize>
-template <class... Args>
-inline typename MemoryPool<T, BlockSize>::pointer
-MemoryPool<T, BlockSize>::newElement(Args&&... args)
-{
-  pointer result = allocate();
-  construct<value_type>(result, std::forward<Args>(args)...);
-  return result;
-}
-
-
-
-template <typename T, size_t BlockSize>
-inline void
-MemoryPool<T, BlockSize>::deleteElement(pointer p)
-{
-  if (p != nullptr) {
-    p->~value_type();
-    deallocate(p);
-  }
-}
-
-
 
 #endif // MEMORY_BLOCK_TCC

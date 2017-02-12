@@ -367,7 +367,7 @@ void apply_merlin( std::deque< Object * > &new_garbage )
 //   Read and process trace events
 unsigned int read_trace_file( FILE *f,
                               ofstream &eifile,
-                              MemoryPool<Object> &objpool )
+                              MemoryPool<Object, 655360> &objpool )
 {
     // eifile is the edge_info_file
     Tokenizer tokenizer(f);
@@ -1483,8 +1483,15 @@ int main(int argc, char* argv[])
                                 main_function );
 
     cout << "Start trace..." << endl;
-    MemoryPool<Object> objpool;
-    FILE* f = fdopen(0, "r");
+    // TODO: The path to the NVME is hardcoded for now.
+    // We could make it an argument. s/could/probably should/
+    // - RLV
+    string basedir("/data/rveroy/NVME/tmp");
+    MemoryPool<Object, 655360> objpool( basedir );
+    char tmpbuf[655360];
+    memset( tmpbuf, 0, 655360);
+    objpool.set_tmpbuf( tmpbuf );
+    FILE *f = fdopen(0, "r");
     ofstream edge_info_file(edgeinfo_filename);
     edge_info_file << "---------------[ EDGE INFO ]----------------------------------------------------" << endl;
     unsigned int total_objects = read_trace_file( f,
