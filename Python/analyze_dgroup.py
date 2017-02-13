@@ -207,13 +207,12 @@ def update_key_object_summary( newgroup = {},
         dsitesdict[dsite] += 1
         dsites_size[dsite] += total_size
         type_dsites[type][dsite] += 1
-        # Update group counts
         dsites_gcount[dsite] += 1
-        nonjlib_gcount[dsite] += 1
         # Non java library death site
         nonjdsite = oi.get_non_javalib_context(key)
         nonjlib_dsitesdict[nonjdsite] += 1
         nonjlib_dsites_size[nonjdsite] += total_size
+        nonjlib_gcount[nonjdsite] += 1
         # TODO: nonjlib_type_dsites[type][nonjdsite] += 1
         # Update the distribution summaries
         if ( oi.died_by_heap(key) or
