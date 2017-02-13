@@ -286,9 +286,14 @@ class HeapState {
         // TODO: DOC
         Object *allocate( Object * objptr );
 
-        Object* getObject(unsigned int id);
+        Object *getObject(unsigned int id);
 
-        Edge* make_edge( Object* source, unsigned int field_id, Object* target, unsigned int cur_time);
+        Edge *make_edge( Object *source,
+                         unsigned int field_id,
+                         Object *target,
+                         unsigned int cur_time );
+
+        Edge *make_edge( Edge *edgeptr );
 
         void makeDead( Object * obj,
                        unsigned int death_time,

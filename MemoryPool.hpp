@@ -72,9 +72,6 @@ class MemoryPool
         template <class... Args> pointer_t newElement(Args&&... args);
         void deleteElement( pointer_t p );
 
-        void set_tmpbuf( char *bufptr ) {
-            this->tmpbuf_ = bufptr;
-        };
     private:
         union Slot_ {
             value_type element;
@@ -91,7 +88,6 @@ class MemoryPool
         slot_pointer_t freeSlots_;
 
         string basedir_;
-        char * tmpbuf_;
 
         size_type padPointer( data_pointer_t p, size_type align ) const noexcept;
         void allocateBlock();

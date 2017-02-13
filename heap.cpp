@@ -166,9 +166,9 @@ Object* HeapState::getObject(unsigned int id)
     }
 }
 
-Edge* HeapState::make_edge( Object* source,
+Edge* HeapState::make_edge( Object *source,
                             FieldId_t field_id,
-                            Object* target,
+                            Object *target,
                             unsigned int cur_time )
 {
     Edge* new_edge = new Edge( source, field_id,
@@ -182,6 +182,23 @@ Edge* HeapState::make_edge( Object* source,
     }
 
     return new_edge;
+}
+
+Edge *
+HeapState::make_edge( Edge *edgeptr )
+{
+    // Edge* new_edge = new Edge( source, field_id,
+    //                            target, cur_time );
+    this->m_edges.insert(edgeptr);
+    Object *target = edgeptr->getTarget();
+    assert(target != NULL);
+    // TODO target->setPointedAtByHeap();
+
+    if (this->m_edges.size() % 100000 == 0) {
+        cout << "EDGES: " << this->m_edges.size() << endl;
+    }
+
+    return edgeptr;
 }
 
 void HeapState::makeDead( Object *obj,

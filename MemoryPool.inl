@@ -51,8 +51,7 @@ string make_uuid()
 
 
 int open_sparse_tempfile( string &basedir,
-                          size_t mysize,
-                          char *tmpbuf )
+                          size_t mysize )
 {
     // Create temp filename
     char sep = '/';
@@ -63,16 +62,13 @@ int open_sparse_tempfile( string &basedir,
         tempname = basedir + sep + make_uuid();
     }
     // open for the file descriptor
-    int fdesc = open( tempname.c_str(), O_CREAT | O_RDWR );
-    // fopen the file for read/write, truncating if it exists.
-    FILE *fptr = fdopen( fdesc, "w+" );
-    // fseek to the desired file size - 1.
-    // int result = fseek( fptr, mysize - 1, SEEK_CUR );
-    int result = fwrite( tmpbuf, 1, mysize, fptr );
+    // open the file for read/write, truncating if it exists.
+    int fdesc = open( tempname.c_str(),
+                      O_CREAT | O_RDWR,
+                      S_IRUSR | S_IWUSR );
+    int result = ftruncate( fdesc, mysize );
+    lseek( fdesc, 0, SEEK_SET );
     // TODO: Check for -1 => Out of Memory error.
-    assert(result == mysize);
-    fclose(fptr);
-    fdesc = open( tempname.c_str(), O_RDWR );
     return fdesc;
 }
 
@@ -96,7 +92,6 @@ MemoryPool<T, BlockSize>::MemoryPool( string &basedir ) noexcept
     , lastSlot_(nullptr)
     , freeSlots_(nullptr)
     , basedir_(basedir)
-    , tmpbuf_(nullptr)
 {
 }
 
@@ -193,18 +188,23 @@ void
 MemoryPool< T, BlockSize >::allocateBlock_mmap()
 {
     // Allocate space for the new block and store a pointer to the previous one
-    int fdesc = open_sparse_tempfile( this->basedir_,
-                                      BlockSize,
-                                      this->tmpbuf_ );
+    int fdesc = open_sparse_tempfile( this->basedir_, BlockSize );
+    slot_pointer_t curslot = this->currentBlock_;
+    int result;
+    while (curslot != nullptr) {
+        result = msync( curslot, BlockSize, MS_SYNC | MS_INVALIDATE );
+        result = madvise( curslot, BlockSize, MADV_DONTNEED );
+        curslot = curslot->next;
+    }
     void *vptr = mmap( NULL,
                        BlockSize,
                        PROT_READ | PROT_WRITE,
-                       MAP_PRIVATE,
+                       MAP_SHARED,
                        fdesc,
                        0 );
     data_pointer_t newBlock = reinterpret_cast<data_pointer_t>(vptr);
-    reinterpret_cast< slot_pointer_t >(newBlock)->next = currentBlock_;
-    currentBlock_ = reinterpret_cast< slot_pointer_t >(newBlock);
+    reinterpret_cast< slot_pointer_t >(newBlock)->next = this->currentBlock_;
+    this->currentBlock_ = reinterpret_cast< slot_pointer_t >(newBlock);
     // Pad block body to satisfy the alignment requirements for elements
     data_pointer_t body = newBlock + sizeof(slot_pointer_t);
     size_type bodyPadding = padPointer(body, alignof(slot_type_t));

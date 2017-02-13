@@ -367,7 +367,8 @@ void apply_merlin( std::deque< Object * > &new_garbage )
 //   Read and process trace events
 unsigned int read_trace_file( FILE *f,
                               ofstream &eifile,
-                              MemoryPool<Object, 1342177280> &objpool )
+                              MemoryPool<Object, 1342177280> &objpool,
+                              MemoryPool<Edge, 1342177280> &edgepool )
 {
     // eifile is the edge_info_file
     Tokenizer tokenizer(f);
@@ -544,8 +545,13 @@ unsigned int read_trace_file( FILE *f,
                             if (target) {
                                 // Increment and decrement refcounts
                                 unsigned int field_id = tokenizer.getInt(4);
-                                new_edge = Heap.make_edge( obj, field_id,
-                                                           target, Exec.NowUp() );
+                                // TODO: new_edge = Heap.make_edge( obj, field_id,
+                                // TODO:                            target, Exec.NowUp() );
+                                new_edge = edgepool.newElement( obj,
+                                                                field_id,
+                                                                target,
+                                                                Exec.NowUp() );
+                                Heap.make_edge( new_edge );
 #ifdef _SIZE_DEBUG
 				cout << "ES: " << sizeof(*new_edge) << endl;
 #endif // _SIZE_DEBUG
@@ -1488,15 +1494,14 @@ int main(int argc, char* argv[])
     // - RLV
     string basedir("/data/rveroy/NVME/tmp");
     MemoryPool<Object, 1342177280> objpool( basedir );
-    char tmpbuf[1342177280];
-    memset( tmpbuf, 0, 1342177280);
-    objpool.set_tmpbuf( tmpbuf );
+    MemoryPool<Edge, 1342177280> edgepool( basedir );
     FILE *f = fdopen(0, "r");
     ofstream edge_info_file(edgeinfo_filename);
     edge_info_file << "---------------[ EDGE INFO ]----------------------------------------------------" << endl;
     unsigned int total_objects = read_trace_file( f,
                                                   edge_info_file,
-                                                  objpool );
+                                                  objpool,
+                                                  edgepool );
     unsigned int final_time = Exec.NowUp() + 1;
     unsigned int final_time_alloc = Heap.getAllocTime();
     cout << "Done at update time: " << Exec.NowUp() << endl;
