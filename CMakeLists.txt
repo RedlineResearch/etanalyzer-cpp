@@ -15,6 +15,9 @@ INCLUDE_DIRECTORIES(EASTL/include)
 INCLUDE_DIRECTORIES(EASTL/test/packages/EABase/include/Common)
 TARGET_LINK_LIBRARIES(EASTL)
 
+EXECUTE_PROCESS( COMMAND sh ${CMAKE_SOURCE_DIR}/create-version-cpp.sh
+                 OUTPUT_FILE ${CMAKE_SOURCE_DIR}/version.cpp )
+
 SET(SOURCES_SIM simulator.cpp execution.cpp heap.cpp classinfo.cpp tokenizer.cpp
     analyze.cpp version.cpp)
 
@@ -23,9 +26,6 @@ SET(SOURCES_SIM_POOL simulator-pool.cpp execution.cpp heap.cpp classinfo.cpp tok
 
 SET(SOURCES_SIM_FIND_MAIN simulator-find-main.cpp execution.cpp heap.cpp classinfo.cpp tokenizer.cpp
     analyze.cpp version.cpp)
-
-EXECUTE_PROCESS( COMMAND sh ${CMAKE_SOURCE_DIR}/create-version-cpp.sh
-                 OUTPUT_FILE version.cpp )
 
 # The file(GLOB...) allows for wildcard additions if needed:
 # file(GLOB SOURCES "src/*.cpp")
