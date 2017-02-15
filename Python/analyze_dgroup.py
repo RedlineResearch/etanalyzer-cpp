@@ -357,12 +357,12 @@ def read_dgroups_from_pickle( result = [],
                     "DSITES_SIZE" : defaultdict(int),
                     "DSITES_GROUP_COUNT" : Counter(),
                     "DSITES_DISTRIBUTION" : defaultdict( lambda: defaultdict(int) ),
-                    "DSITES_AGE" : defaultdict( lambda: { "max" : 0, "min" : 0, "ave" : 0 } )
+                    "DSITES_AGE" : defaultdict( lambda: { "max" : 0, "min" : 0, "ave" : 0 } ),
                     "NONJLIB_DSITES" : Counter(),
                     "NONJLIB_SIZE" : defaultdict(int),
                     "NONJLIB_GROUP_COUNT" : Counter(),
                     "NONJLIB_DISTRIBUTION" : defaultdict( lambda: defaultdict(int) ),
-                    "NONJLIB_AGE" : defaultdict( lambda: { "max" : 0, "min" : 0, "ave" : 0 } )
+                    "NONJLIB_AGE" : defaultdict( lambda: { "max" : 0, "min" : 0, "ave" : 0 } ),
                     "TYPES" : Counter(),
                     "TYPE_DSITES" : defaultdict(Counter),
                     "TOTAL_SIZE" : {}, }
