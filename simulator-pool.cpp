@@ -1621,10 +1621,10 @@ int main(int argc, char* argv[])
                                   stability_summary );
         // TODO: What next? 
         // Output cycles
-        set<int> node_set;
-        output_cycles( keyset,
-                       cycle_filename,
-                       node_set );
+        // set<int> node_set;
+        // output_cycles( keyset,
+        //                cycle_filename,
+        //                node_set );
         // TODO: Moved the edge output to as needed instead of all at the end.
         // TODO // Output all edges
         unsigned int added_edges = output_edges( Heap,
