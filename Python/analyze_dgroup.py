@@ -116,7 +116,9 @@ def update_age_summaries( dsite = None,
         #   + count : ... is actually count objects long already
         new_count = len(new_age_list) - 1 + count
         agedict[mydsite]["gensum"] = (new_count, new_total)
-        agedict[mydsite]["min"] = min( new_min, agedict[mydsite]["min"] )
+        agedict[mydsite]["min"] = \
+            min( new_min, agedict[mydsite]["min"] ) if (agedict[mydsite]["min"] != 0) \
+            else new_min
         agedict[mydsite]["max"] = max( new_max, agedict[mydsite]["max"] )
 
 def get_group_died_by_attribute( group = set(),
