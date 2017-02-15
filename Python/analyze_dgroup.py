@@ -98,8 +98,8 @@ def update_age_summaries( dsite = None,
     # Rename/alias into shorter names
     oi = objectinfo
     age_list = [ oi.get_age_ALLOC(objId) for objId in glist ]
-    filter( lambda x: x == 0,
-            age_list )
+    age_list = filter( lambda x: x != 0,
+                       age_list )
     if len(age_list) == 0:
         return
     new_min = min(age_list)
