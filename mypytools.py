@@ -49,9 +49,9 @@ def add_partial(x, partials):
         x = hi
     partials[i:] = [x]
 
-def _generalised_sum( data, func ):
+def generalised_sum( data, func ):
     """
-    >>> _generalised_sum( [1.0, 2.0, 3.0, 4.0], None )
+    >>> generalised_sum( [1.0, 2.0, 3.0, 4.0], None )
     (4, 10.0)
     """
     try:
@@ -80,7 +80,7 @@ def mean( data ):
     >>> mean([1.0, 2.0, 3.0, 4.0])
     2.5
     """
-    n, total = _generalised_sum(data, None)
+    n, total = generalised_sum(data, None)
     if n == 0:
         raise ValueError('mean of empty sequence is not defined')
     return total / n
@@ -88,7 +88,7 @@ def mean( data ):
 def _SS( data, m ):
     if m is None:
         m = mean( as_sequence(data) )
-    return _generalised_sum( data, lambda x: (x - m)**2 )
+    return generalised_sum( data, lambda x: (x - m)**2 )
 
 def variance(data, m = None):
     """
@@ -366,6 +366,7 @@ def bytes_to_MB( numbytes = 0 ):
     return numbytes / 1048576
 
 __all__ = [ "mean", "merge_two_dicts", "stdev", "variance", "email_message",
+            "generalised_sum",
             "get_file_fp", "check_host", "get_actual_hostname", "process_host_config",
             "process_worklist_config",
             "is_specjvm", "is_dacapo", "is_minibench",

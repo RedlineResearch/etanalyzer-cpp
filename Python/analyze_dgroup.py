@@ -19,7 +19,7 @@ from operator import itemgetter
 from collections import Counter
 from collections import defaultdict
 #   - This one is my own library:
-from mypytools import mean, stdev, variance
+from mypytools import mean, stdev, variance, generalised_sum
 from mypytools import check_host, create_work_directory, process_host_config, \
     process_worklist_config, dfs_iter, remove_dupes, bytes_to_MB
 
@@ -97,18 +97,27 @@ def update_age_summaries( dsite = None,
                           objectinfo = {} ):
     # Rename/alias into shorter names
     oi = objectinfo
-    age_list = []
-    for objId in glist:
-        rec = oi.get_record(objId)
-        atime = oi.get_alloc_time_using_record_ALLOC(rec)
-        dtime = oi.get_death_time_using_record_ALLOC(rec)
-        age_list.append(dtime - atime)
-    dsites_age[dsite]["max"] = max(age_list)
-    dsites_age[dsite]["min"] = min(age_list)
-    dsites_age[dsite]["ave"] = mean(age_list)
-    nonjlib_age[nonjdsite]["max"] = max(age_list)
-    nonjlib_age[nonjdsite]["min"] = min(age_list)
-    nonjlib_age[nonjdsite]["ave"] = mean(age_list)
+    age_list = [ oi.get_age_ALLOC(objId) for objId in glist ]
+    filter( lambda x: x == 0,
+            age_list )
+    if len(age_list) == 0:
+        return
+    new_min = min(age_list)
+    new_max = max(age_list)
+    for agedict, mydsite in [ (dsites_age, dsite), (nonjlib_age, nonjdsite) ]:
+        count, total = agedict[mydsite]["gensum"]
+        # TODO DEBUG ONLY print "XXX", count, total
+        new_age_list = [ total ]
+        new_age_list.extend( age_list )
+        _tmp, new_total = generalised_sum( new_age_list, None )
+        # _tmp is ignored
+        # Save the new count of objects.
+        #   - 1     : is needed because the total is counted as one BUT
+        #   + count : ... is actually count objects long already
+        new_count = len(new_age_list) - 1 + count
+        agedict[mydsite]["gensum"] = (new_count, new_total)
+        agedict[mydsite]["min"] = min( new_min, agedict[mydsite]["min"] )
+        agedict[mydsite]["max"] = max( new_max, agedict[mydsite]["max"] )
 
 def get_group_died_by_attribute( group = set(),
                                  objectinfo = {} ):
@@ -356,13 +365,17 @@ def read_dgroups_from_pickle( result = [],
                     "DSITES" : Counter(),
                     "DSITES_SIZE" : defaultdict(int),
                     "DSITES_GROUP_COUNT" : Counter(),
-                    "DSITES_DISTRIBUTION" : defaultdict( lambda: defaultdict(int) ),
-                    "DSITES_AGE" : defaultdict( lambda: { "max" : 0, "min" : 0, "ave" : 0 } ),
+                    "DSITES_DISTRIBUTION" :
+                        defaultdict( lambda: defaultdict(int) ),
+                    "DSITES_AGE" :
+                        defaultdict( lambda: { "max" : 0, "min" : 0, "ave" : 0, "gensum" : (0, 0) } ),
                     "NONJLIB_DSITES" : Counter(),
                     "NONJLIB_SIZE" : defaultdict(int),
                     "NONJLIB_GROUP_COUNT" : Counter(),
-                    "NONJLIB_DISTRIBUTION" : defaultdict( lambda: defaultdict(int) ),
-                    "NONJLIB_AGE" : defaultdict( lambda: { "max" : 0, "min" : 0, "ave" : 0 } ),
+                    "NONJLIB_DISTRIBUTION" :
+                        defaultdict( lambda: defaultdict(int) ),
+                    "NONJLIB_AGE" :
+                        defaultdict( lambda: { "max" : 0, "min" : 0, "ave" : 0, "gensum" : (0, 0) } ),
                     "TYPES" : Counter(),
                     "TYPE_DSITES" : defaultdict(Counter),
                     "TOTAL_SIZE" : {}, }
@@ -409,6 +422,20 @@ def read_dgroups_from_pickle( result = [],
     size_total_allocation = summary_reader.get_final_garbology_alloc_time()
     dsites_gcount = key_objects["DSITES_GROUP_COUNT"]
     #-------------------------------------------------------------------------------
+    # Alloc age computation TODO TODO TODO
+    # Max and min have been maintained for each death site so nothing needed here.
+    # Update the averages/mean:
+    dsites_age = key_objects["DSITES_AGE"]
+    for mydsite in dsites_age.keys():
+        count, total = dsites_age[mydsite]["gensum"]
+        dsites_age[mydsite]["ave"] = (total / count) if count > 0 \
+            else 0
+    nonjlib_age = key_objects["NONJLIB_AGE"]
+    for mydsite in nonjlib_age.keys():
+        count, total = nonjlib_age[mydsite]["gensum"]
+        assert( count > 0 )
+        nonjlib_age[mydsite]["ave"] = total / count
+    #-------------------------------------------------------------------------------
     # First level death sites
     total_alloc_MB = bytes_to_MB(total_alloc)
     actual_alloc = total_alloc - total_died_at_end_size
@@ -423,7 +450,8 @@ def read_dgroups_from_pickle( result = [],
     newrow = newrow + [ ( x[0], bytes_to_MB(x[1]), ((x[1]/actual_alloc) * 100.0),
                           ((dsites_distr[x[0]]["STACK"]/x[1]) * 100.0),
                           ((dsites_distr[x[0]]["HEAP"]/x[1]) * 100.0),
-                          dsites_gcount[x[0]] )
+                          dsites_gcount[x[0]],
+                          dsites_age[x[0]]["min"], dsites_age[x[0]]["max"],  dsites_age[x[0]]["ave"], )
                         for x in dsites_size[0:5] ]
     newrow = [ x for tup in newrow for x in tup ]
     #-------------------------------------------------------------------------------
@@ -438,11 +466,13 @@ def read_dgroups_from_pickle( result = [],
                                   key = itemgetter(1),
                                   reverse = True )
     # TODO TODO Add dsite-total, dsite percentage using MB
+    dsites_age = key_objects["DSITES_AGE"]
+    nonjlib_age = key_objects["NONJLIB_AGE"]
     newrow_nonjlib = newrow_nonjlib + [ ( x[0], bytes_to_MB(x[1]), ((x[1]/actual_alloc) * 100.0),
                                           ((nonjlib_distr[x[0]]["STACK"]/x[1]) * 100.0),
                                           ((nonjlib_distr[x[0]]["HEAP"]/x[1]) * 100.0),
                                           nonjlib_gcount[x[0]],
-                                          dsites_age[x[0]]["min"], dsites_age[x[0]]["max"],  dsites_age[x[0]]["ave"], )
+                                          nonjlib_age[x[0]]["min"], nonjlib_age[x[0]]["max"],  nonjlib_age[x[0]]["ave"], )
                                         for x in nonjlib_dsites_size[0:5] ]
     newrow_nonjlib = [ x for tup in newrow_nonjlib for x in tup ]
     #-------------------------------------------------------------------------------
