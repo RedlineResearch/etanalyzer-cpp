@@ -89,6 +89,27 @@ def check_diedby_stats( dgroups_data = {},
             break
     return result
 
+def update_age_summaries( dsite = None,
+                          nonjdsite = None,
+                          glist = [],
+                          dsites_age = {},
+                          nonjlib_age = {},
+                          objectinfo = {} ):
+    # Rename/alias into shorter names
+    oi = objectinfo
+    age_list = []
+    for objId in glist:
+        rec = oi.get_record(objId)
+        atime = oi.get_alloc_time_using_record_ALLOC(rec)
+        dtime = oi.get_death_time_using_record_ALLOC(rec)
+        age_list.append(dtime - atime)
+    dsites_age[dsite]["max"] = max(age_list)
+    dsites_age[dsite]["min"] = min(age_list)
+    dsites_age[dsite]["ave"] = mean(age_list)
+    nonjlib_age[nonjdsite]["max"] = max(age_list)
+    nonjlib_age[nonjdsite]["min"] = min(age_list)
+    nonjlib_age[nonjdsite]["ave"] = mean(age_list)
+
 def get_group_died_by_attribute( group = set(),
                                  objectinfo = {} ):
     oi = objectinfo
@@ -135,7 +156,7 @@ def get_group_died_by_attribute( group = set(),
                 cause = "H"
             else:
                 raise RuntimeError("DEBUG: %s" % str(clist))
-                
+
     return "STACK" if cause == "S" else \
         ( "HEAP" if (cause == "H" or cause == "G") else
           ( "END" if cause == "E" else None ) )
@@ -172,10 +193,12 @@ def update_key_object_summary( newgroup = {},
     dsites_size = summary["DSITES_SIZE"]
     dsites_gcount = summary["DSITES_GROUP_COUNT"]
     dsites_distr = summary["DSITES_DISTRIBUTION"]
+    dsites_age = summary["DSITES_AGE"]
     nonjlib_dsitesdict = summary["NONJLIB_DSITES"]
     nonjlib_dsites_size = summary["NONJLIB_SIZE"]
     nonjlib_gcount = summary["NONJLIB_GROUP_COUNT"]
     nonjlib_distr = summary["NONJLIB_DISTRIBUTION"]
+    nonjlib_age = summary["NONJLIB_AGE"]
     typedict = summary["TYPES"]
     type_dsites = summary["TYPE_DSITES"]
     # TODO: nonjlib_type_dsites = summary["NONJLIB_TYPE_DSITES"]
@@ -231,6 +254,13 @@ def update_key_object_summary( newgroup = {},
                                  % (key, oi.get_type(key)) )
                 sys.stderr.write( "Unable to classify objId[ %d ][ %s ]\n"
                                   % (key, oi.get_type(key)) )
+        update_age_summaries( dsite = dsite,
+                              nonjdsite = nonjdsite,
+                              glist = glist,
+                              dsites_age = dsites_age,
+                              nonjlib_age = nonjlib_age,
+                              objectinfo = oi )
+
 
 def read_dgroups_from_pickle( result = [],
                               bmark = "",
@@ -242,6 +272,7 @@ def read_dgroups_from_pickle( result = [],
                               cycle_cpp_dir = "",
                               obj_cachesize = 5000000,
                               debugflag = False,
+                              cycle_result = [],
                               logger = None ):
     assert(logger != None)
     # print os.listdir( )
@@ -318,7 +349,7 @@ def read_dgroups_from_pickle( result = [],
     keytype_counter = Counter()
     deathsite_summary = defaultdict( Counter )
     dss = deathsite_summary # alias
-    cycle_summary = {}
+    cycle_summary = Counter() # Keys are type tuples
     count = 0
     key_objects = { "GROUPLIST" : {},
                     "CAUSE" : Counter(),
@@ -326,10 +357,12 @@ def read_dgroups_from_pickle( result = [],
                     "DSITES_SIZE" : defaultdict(int),
                     "DSITES_GROUP_COUNT" : Counter(),
                     "DSITES_DISTRIBUTION" : defaultdict( lambda: defaultdict(int) ),
+                    "DSITES_AGE" : defaultdict( lambda: { "max" : 0, "min" : 0, "ave" : 0 } )
                     "NONJLIB_DSITES" : Counter(),
                     "NONJLIB_SIZE" : defaultdict(int),
                     "NONJLIB_GROUP_COUNT" : Counter(),
                     "NONJLIB_DISTRIBUTION" : defaultdict( lambda: defaultdict(int) ),
+                    "NONJLIB_AGE" : defaultdict( lambda: { "max" : 0, "min" : 0, "ave" : 0 } )
                     "TYPES" : Counter(),
                     "TYPE_DSITES" : defaultdict(Counter),
                     "TOTAL_SIZE" : {}, }
@@ -408,7 +441,8 @@ def read_dgroups_from_pickle( result = [],
     newrow_nonjlib = newrow_nonjlib + [ ( x[0], bytes_to_MB(x[1]), ((x[1]/actual_alloc) * 100.0),
                                           ((nonjlib_distr[x[0]]["STACK"]/x[1]) * 100.0),
                                           ((nonjlib_distr[x[0]]["HEAP"]/x[1]) * 100.0),
-                                          nonjlib_gcount[x[0]] )
+                                          nonjlib_gcount[x[0]],
+                                          dsites_age[x[0]]["min"], dsites_age[x[0]]["max"],  dsites_age[x[0]]["ave"], )
                                         for x in nonjlib_dsites_size[0:5] ]
     newrow_nonjlib = [ x for tup in newrow_nonjlib for x in tup ]
     #-------------------------------------------------------------------------------
@@ -419,9 +453,11 @@ def read_dgroups_from_pickle( result = [],
     if not mprflag:
         result.append( newrow )
         result.append( newrow_nonjlib )
+        cycle_result.append( cycle_summary )
     else:
         result.put( newrow )
         result.put( newrow_nonjlib )
+        cycle_result.put( cycle_summary )
     #
     #       * size stats for groups that died by stack
     #            + first should be number of key objects
@@ -530,6 +566,17 @@ def get_cycle_nodes( edgelist = [] ):
         nodeset.add(edge[0])
         nodeset.add(edge[1])
     return nodeset
+
+def update_cycle_summary( cycle_summary = {},
+                          cycledict = {},
+                          cyclenode_summary = {},
+                          objectinfo = {} ):   
+    oi = objectinfo
+    for key, nlist in cyclenode_summary.iteritems():
+        typelist = list( set( [ oi.get_type(x) for x in nlist ] ) )
+        if len(typelist) > 0:
+            tup = tuple( sorted( typelist ) )
+            cycle_summary[tup] += 1
 
 # This should return a dictionary where:
 #     key -> group (list INCLUDES key)
@@ -773,8 +820,10 @@ def get_key_objects( group = {},
             print "***** ERROR: can't classify object - cause[ %s ]*****" % str(cause)
             objectinfo.debug_object(group[0])
         # Either way nothing in the result
-    cycle_summary["keyobject_map"] = cycledict
-    cycle_summary["cyclenodes"] = cyclenode_summary
+    update_cycle_summary( cycle_summary = cycle_summary,
+                          cycledict = cycledict,
+                          cyclenode_summary = cyclenode_summary,
+                          objectinfo = objectinfo )
     return (result, total_size, died_at_end_size, cause)
 
 def main_process( global_config = {},
@@ -814,6 +863,7 @@ def main_process( global_config = {},
     cycle_cpp_dir = global_config["cycle_cpp_dir"]
     manager = Manager()
     results = {}
+    cycle_summary_all = {}
     procs_dgroup = {}
     dblist = []
     # Print out
@@ -822,10 +872,21 @@ def main_process( global_config = {},
         key_summary_writer = csv.writer(key_summary_fp)
         header = [ "benchmark", "alloc-total", "actual-alloc-total",
                    "dsite_1", "dsite_1-total", "dsite_1-%", "dsite_1-by-stack-%",  "dsite_1-by-heap-%", "number-groups",
+                              "dsite_1-min-alloc-age", "dsite_1-max-alloc-age", "dsite_1-ave-alloc-age",
+                              # TODO young vs old (total count or percentage?)
                    "dsite_2", "dsite_2-total", "dsite_2-%", "dsite_2-by-stack-%",  "dsite_2-by-heap-%", "number-groups",
+                              "dsite_2-min-alloc-age", "dsite_2-max-alloc-age", "dsite_2-ave-alloc-age",
+                              # TODO young vs old (total count or percentage?)
                    "dsite_3", "dsite_3-total", "dsite_3-%", "dsite_3-by-stack-%",  "dsite_3-by-heap-%", "number-groups",
+                              "dsite_3-min-alloc-age", "dsite_3-max-alloc-age", "dsite_3-ave-alloc-age",
+                              # TODO young vs old (total count or percentage?)
                    "dsite_4", "dsite_4-total", "dsite_4-%", "dsite_4-by-stack-%",  "dsite_4-by-heap-%", "number-groups",
-                   "dsite_5", "dsite_5-total", "dsite_5-%", "dsite_5-by-stack-%",  "dsite_5-by-heap-%", "number-groups", ]
+                              "dsite_4-min-alloc-age", "dsite_4-max-alloc-age", "dsite_4-ave-alloc-age",
+                              # TODO young vs old (total count or percentage?)
+                   "dsite_5", "dsite_5-total", "dsite_5-%", "dsite_5-by-stack-%",  "dsite_5-by-heap-%", "number-groups",
+                              "dsite_5-min-alloc-age", "dsite_5-max-alloc-age", "dsite_5-ave-alloc-age",
+                              # TODO young vs old (total count or percentage?)
+                              ]
         key_summary_writer.writerow(header)
         for bmark in worklist_config.keys():
             hostlist = worklist_config[bmark]
@@ -839,6 +900,7 @@ def main_process( global_config = {},
                 print "=======[ Spawning %s ]================================================" \
                     % bmark
                 results[bmark] = Queue()
+                cycle_summary_all[bmark] = Queue()
                 # NOTE: The order of the args tuple is important!
                 # ======================================================================
                 # Read in the death groups from dgroups2db.py
@@ -853,6 +915,7 @@ def main_process( global_config = {},
                                       cycle_cpp_dir,
                                       cachesize,
                                       debugflag,
+                                      cycle_summary_all[bmark],
                                       logger ) )
                 procs_dgroup[bmark] = p
                 p.start()
@@ -861,6 +924,7 @@ def main_process( global_config = {},
                     % bmark
                 print "     Reading in death groups..."
                 results[bmark] = []
+                cycle_summary_all[bmark] = []
                 read_dgroups_from_pickle( result = results[bmark],
                                           bmark = bmark,
                                           workdir = workdir,
@@ -871,6 +935,7 @@ def main_process( global_config = {},
                                           cycle_cpp_dir = cycle_cpp_dir,
                                           obj_cachesize = cachesize,
                                           debugflag = debugflag,
+                                          cycle_result = cycle_summary_all[bmark],
                                           logger = logger )
                 for row in results[bmark]:
                     key_summary_writer.writerow( row )
@@ -912,6 +977,12 @@ def main_process( global_config = {},
                         logger.debug( "[%s] - done at %s" % (bmark, timenow) )
             print "======[ Processes DONE ]========================================================"
             sys.stdout.flush()
+            # TODO: Need to output cycle information
+        else:
+            # TODO TEMPORARY OUTPUT
+            print "=====[ Cycle Summary ]=========================================================="
+            pp.pprint( cycle_summary_all )
+            print "=====[ END Cycle Summary ]======================================================"
     print "================================================================================"
     print "DONE."
     exit(0)
