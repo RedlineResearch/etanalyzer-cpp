@@ -95,6 +95,7 @@ def update_age_summaries( dsite = None,
                           dsites_age = {},
                           nonjlib_age = {},
                           objectinfo = {} ):
+    assert( dsite != None and nonjdsite != None )
     # Rename/alias into shorter names
     oi = objectinfo
     age_list = [ oi.get_age_ALLOC(objId) for objId in glist ]
@@ -120,6 +121,26 @@ def update_age_summaries( dsite = None,
             min( new_min, agedict[mydsite]["min"] ) if (agedict[mydsite]["min"] != 0) \
             else new_min
         agedict[mydsite]["max"] = max( new_max, agedict[mydsite]["max"] )
+
+def update_group_summaries( glist_len = None,
+                            dsite_dict = {},
+                            nonjlib_dict = {} ):
+    assert( glist_len != None )
+    dsite_dict["min"] = \
+        min( glist_len, dsite_dict["min"] ) if (dsite_dict["min"] != 0) \
+        else glist_len
+    nonjlib_dict["min"] = \
+        min( glist_len, nonjlib_dict["min"] ) if (nonjlib_dict["min"] != 0) \
+        else glist_len
+    dsite_dict["max"] = max( glist_len, dsite_dict["max"] )
+    nonjlib_dict["max"] = max( glist_len, nonjlib_dict["max"] )
+    # Get running total/sum
+    #   DSite
+    old_count, old_total = dsite_dict["gensum"]
+    dsite_dict["gensum"] = (old_count + 1, old_total + glist_len)
+    #   Nonjlib
+    old_count, old_total = nonjlib_dict["gensum"]
+    nonjlib_dict["gensum"] = (old_count + 1, old_total + glist_len)
 
 def get_group_died_by_attribute( group = set(),
                                  objectinfo = {} ):
@@ -203,11 +224,13 @@ def update_key_object_summary( newgroup = {},
     dsitesdict = summary["DSITES"]
     dsites_size = summary["DSITES_SIZE"]
     dsites_gcount = summary["DSITES_GROUP_COUNT"]
+    dsites_gstats = summary["DSITES_GROUP_STATS"]
     dsites_distr = summary["DSITES_DISTRIBUTION"]
     dsites_age = summary["DSITES_AGE"]
     nonjlib_dsitesdict = summary["NONJLIB_DSITES"]
     nonjlib_dsites_size = summary["NONJLIB_SIZE"]
     nonjlib_gcount = summary["NONJLIB_GROUP_COUNT"]
+    nonjlib_gstats = summary["NONJLIB_GROUP_STATS"]
     nonjlib_distr = summary["NONJLIB_DISTRIBUTION"]
     nonjlib_age = summary["NONJLIB_AGE"]
     typedict = summary["TYPES"]
@@ -271,6 +294,9 @@ def update_key_object_summary( newgroup = {},
                               dsites_age = dsites_age,
                               nonjlib_age = nonjlib_age,
                               objectinfo = oi )
+        update_group_summaries( glist_len = len(glist),
+                                dsite_dict = dsites_gstats[dsite],
+                                nonjlib_dict = nonjlib_gstats[nonjdsite] )
 
 
 def read_dgroups_from_pickle( result = [],
@@ -367,6 +393,8 @@ def read_dgroups_from_pickle( result = [],
                     "DSITES" : Counter(),
                     "DSITES_SIZE" : defaultdict(int),
                     "DSITES_GROUP_COUNT" : Counter(),
+                    "DSITES_GROUP_STATS" :
+                        defaultdict( lambda: { "max" : 0, "min" : 0, "ave" : 0, "gensum" : (0, 0) } ),
                     "DSITES_DISTRIBUTION" :
                         defaultdict( lambda: defaultdict(int) ),
                     "DSITES_AGE" :
@@ -374,6 +402,8 @@ def read_dgroups_from_pickle( result = [],
                     "NONJLIB_DSITES" : Counter(),
                     "NONJLIB_SIZE" : defaultdict(int),
                     "NONJLIB_GROUP_COUNT" : Counter(),
+                    "NONJLIB_GROUP_STATS" :
+                        defaultdict( lambda: { "max" : 0, "min" : 0, "ave" : 0, "gensum" : (0, 0) } ),
                     "NONJLIB_DISTRIBUTION" :
                         defaultdict( lambda: defaultdict(int) ),
                     "NONJLIB_AGE" :
