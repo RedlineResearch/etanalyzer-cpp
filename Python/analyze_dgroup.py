@@ -122,7 +122,7 @@ def update_age_summaries( dsite = None,
             else new_min
         agedict[mydsite]["max"] = max( new_max, agedict[mydsite]["max"] )
         # Update counter
-        agedict[mydsite]["counter"][glist_len] += 1
+        agedict[mydsite]["counter"].update( age_list )
 
 def update_group_summaries( glist_len = None,
                             dsite_dict = {},
