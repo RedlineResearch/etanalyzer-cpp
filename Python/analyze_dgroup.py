@@ -462,6 +462,7 @@ def read_dgroups_from_pickle( result = [],
     # Max and min have been maintained for each death site so nothing needed here.
     # Update the averages/mean:
     dsites_age = key_objects["DSITES_AGE"]
+    dsites_gstats = key_objects["DSITES_GROUP_STATS"]
     for mydsite in dsites_age.keys():
         count, total = dsites_age[mydsite]["gensum"]
         dsites_age[mydsite]["ave"] = (total / count) if count > 0 \
@@ -470,6 +471,7 @@ def read_dgroups_from_pickle( result = [],
         dsites_gstats[mydsite]["ave"] = (gtotal / gcount) if gcount > 0 \
             else 0
     nonjlib_age = key_objects["NONJLIB_AGE"]
+    nonjlib_gstats = key_objects["NONJLIB_GROUP_STATS"]
     for mydsite in nonjlib_age.keys():
         count, total = nonjlib_age[mydsite]["gensum"]
         assert( count > 0 )
