@@ -121,6 +121,8 @@ def update_age_summaries( dsite = None,
             min( new_min, agedict[mydsite]["min"] ) if (agedict[mydsite]["min"] != 0) \
             else new_min
         agedict[mydsite]["max"] = max( new_max, agedict[mydsite]["max"] )
+        # Update counter
+        agedict[mydsite]["counter"][glist_len] += 1
 
 def update_group_summaries( glist_len = None,
                             dsite_dict = {},
@@ -141,9 +143,6 @@ def update_group_summaries( glist_len = None,
     #   Nonjlib
     old_count, old_total = nonjlib_dict["gensum"]
     nonjlib_dict["gensum"] = (old_count + 1, old_total + glist_len)
-    # Update counters
-    dsite_dict["counter"][glist_len] += 1
-    nonjlib_dict["counter"][glist_len] += 1
 
 def get_group_died_by_attribute( group = set(),
                                  objectinfo = {} ):
