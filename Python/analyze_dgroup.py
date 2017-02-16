@@ -141,6 +141,9 @@ def update_group_summaries( glist_len = None,
     #   Nonjlib
     old_count, old_total = nonjlib_dict["gensum"]
     nonjlib_dict["gensum"] = (old_count + 1, old_total + glist_len)
+    # Update counters
+    dsite_dict["counter"][glist_len] += 1
+    nonjlib_dict["counter"][glist_len] += 1
 
 def get_group_died_by_attribute( group = set(),
                                  objectinfo = {} ):
@@ -398,7 +401,8 @@ def read_dgroups_from_pickle( result = [],
                     "DSITES_DISTRIBUTION" :
                         defaultdict( lambda: defaultdict(int) ),
                     "DSITES_AGE" :
-                        defaultdict( lambda: { "max" : 0, "min" : 0, "ave" : 0, "gensum" : (0, 0) } ),
+                        defaultdict( lambda: { "max" : 0, "min" : 0, "ave" : 0, "gensum" : (0, 0),
+                                               "counter" : Counter () } ),
                     "NONJLIB_DSITES" : Counter(),
                     "NONJLIB_SIZE" : defaultdict(int),
                     "NONJLIB_GROUP_COUNT" : Counter(),
@@ -407,7 +411,8 @@ def read_dgroups_from_pickle( result = [],
                     "NONJLIB_DISTRIBUTION" :
                         defaultdict( lambda: defaultdict(int) ),
                     "NONJLIB_AGE" :
-                        defaultdict( lambda: { "max" : 0, "min" : 0, "ave" : 0, "gensum" : (0, 0) } ),
+                        defaultdict( lambda: { "max" : 0, "min" : 0, "ave" : 0, "gensum" : (0, 0),
+                                               "counter" : Counter (), } ),
                     "TYPES" : Counter(),
                     "TYPE_DSITES" : defaultdict(Counter),
                     "TOTAL_SIZE" : {}, }
@@ -462,11 +467,17 @@ def read_dgroups_from_pickle( result = [],
         count, total = dsites_age[mydsite]["gensum"]
         dsites_age[mydsite]["ave"] = (total / count) if count > 0 \
             else 0
+        gcount, gtotal = dsites_gstats[mydsite]["gensum"]
+        dsites_gstats[mydsite]["ave"] = (gtotal / gcount) if gcount > 0 \
+            else 0
     nonjlib_age = key_objects["NONJLIB_AGE"]
     for mydsite in nonjlib_age.keys():
         count, total = nonjlib_age[mydsite]["gensum"]
         assert( count > 0 )
         nonjlib_age[mydsite]["ave"] = total / count
+        gcount, gtotal = nonjlib_gstats[mydsite]["gensum"]
+        nonjlib_gstats[mydsite]["ave"] = (gtotal / gcount) if gcount > 0 \
+            else 0
     #-------------------------------------------------------------------------------
     # First level death sites
     total_alloc_MB = bytes_to_MB(total_alloc)
@@ -483,6 +494,7 @@ def read_dgroups_from_pickle( result = [],
                           ((dsites_distr[x[0]]["STACK"]/x[1]) * 100.0),
                           ((dsites_distr[x[0]]["HEAP"]/x[1]) * 100.0),
                           dsites_gcount[x[0]],
+                          dsites_gstats[x[0]]["min"], dsites_gstats[x[0]]["max"], dsites_gstats[x[0]]["ave"],
                           dsites_age[x[0]]["min"], dsites_age[x[0]]["max"],  dsites_age[x[0]]["ave"], )
                         for x in dsites_size[0:5] ]
     newrow = [ x for tup in newrow for x in tup ]
@@ -504,6 +516,7 @@ def read_dgroups_from_pickle( result = [],
                                           ((nonjlib_distr[x[0]]["STACK"]/x[1]) * 100.0),
                                           ((nonjlib_distr[x[0]]["HEAP"]/x[1]) * 100.0),
                                           nonjlib_gcount[x[0]],
+                                          nonjlib_gstats[x[0]]["min"], nonjlib_gstats[x[0]]["max"], nonjlib_gstats[x[0]]["ave"],
                                           nonjlib_age[x[0]]["min"], nonjlib_age[x[0]]["max"],  nonjlib_age[x[0]]["ave"], )
                                         for x in nonjlib_dsites_size[0:5] ]
     newrow_nonjlib = [ x for tup in newrow_nonjlib for x in tup ]
@@ -934,18 +947,23 @@ def main_process( global_config = {},
         key_summary_writer = csv.writer(key_summary_fp)
         header = [ "benchmark", "alloc-total", "actual-alloc-total",
                    "dsite_1", "dsite_1-total", "dsite_1-%", "dsite_1-by-stack-%",  "dsite_1-by-heap-%", "number-groups",
+                              "dsite_1-group-min", "dsite_1-group-max", "dsite_1-group-ave",
                               "dsite_1-min-alloc-age", "dsite_1-max-alloc-age", "dsite_1-ave-alloc-age",
                               # TODO young vs old (total count or percentage?)
                    "dsite_2", "dsite_2-total", "dsite_2-%", "dsite_2-by-stack-%",  "dsite_2-by-heap-%", "number-groups",
+                              "dsite_2-group-min", "dsite_2-group-max", "dsite_2-group-ave",
                               "dsite_2-min-alloc-age", "dsite_2-max-alloc-age", "dsite_2-ave-alloc-age",
                               # TODO young vs old (total count or percentage?)
                    "dsite_3", "dsite_3-total", "dsite_3-%", "dsite_3-by-stack-%",  "dsite_3-by-heap-%", "number-groups",
+                              "dsite_3-group-min", "dsite_3-group-max", "dsite_3-group-ave",
                               "dsite_3-min-alloc-age", "dsite_3-max-alloc-age", "dsite_3-ave-alloc-age",
                               # TODO young vs old (total count or percentage?)
                    "dsite_4", "dsite_4-total", "dsite_4-%", "dsite_4-by-stack-%",  "dsite_4-by-heap-%", "number-groups",
+                              "dsite_4-group-min", "dsite_4-group-max", "dsite_4-group-ave",
                               "dsite_4-min-alloc-age", "dsite_4-max-alloc-age", "dsite_4-ave-alloc-age",
                               # TODO young vs old (total count or percentage?)
                    "dsite_5", "dsite_5-total", "dsite_5-%", "dsite_5-by-stack-%",  "dsite_5-by-heap-%", "number-groups",
+                              "dsite_5-group-min", "dsite_5-group-max", "dsite_5-group-ave",
                               "dsite_5-min-alloc-age", "dsite_5-max-alloc-age", "dsite_5-ave-alloc-age",
                               # TODO young vs old (total count or percentage?)
                               ]
