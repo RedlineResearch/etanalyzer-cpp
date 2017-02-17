@@ -481,8 +481,14 @@ unsigned int read_trace_file( FILE *f,
                     // Set lastEvent and heap/stack flags for new target
                     if (target) {
                         if ( obj && 
-                             obj != target &&
-                             !(obj->wasRoot()) ) {
+                             obj != target
+                             /* && !(obj->wasRoot())
+                              * NOTE: This was the original code which in resulted
+                              * in LESS Died By STACK after HEAP. Making this change
+                              * to see if the results match the intuition of the code
+                              * being analyzed. - RLV 2017 Feb 16
+                              * */
+                           ) {
                             target->setPointedAtByHeap();
                         }
                         target->setLastTimestamp( Exec.NowUp() );
