@@ -597,21 +597,23 @@ def get_key_using_last_heap_update( group = [],
         newgroup = list(group)
         newgroup.remove(key)
     elif len(candidates) > 1:
-        logger.warning( "Multiple key objects: %s" % str(candidates) )
-        mytypes = [ objectinfo.get_type(x) for x in candidates ]
-        logger.warning( " - types: %s\n" % str(mytypes) )
         # Choose one
         lastts_max = max( [ objectinfo.get_last_actual_timestamp(x) for x in candidates ] )
         ts_candidates = [ x for x in candidates if objectinfo.get_last_actual_timestamp(x) == lastts_max ]
-        if len(ts_candidates) > 1:
+        if len(ts_candidates) == 1:
+            key = ts_candidates[0]
+        elif len(ts_candidates) > 1:
+            logger.warning( "Multiple key objects: %s" % str(ts_candidates) )
+            mytypes = [ objectinfo.get_type(x) for x in ts_candidates ]
+            logger.warning( " - types: %s\n" % str(mytypes) )
             # sys.stdout.write( " -- Multiple key objects: %s :: " % str(ts_candidates) )
             # sys.stdout.write( " >>> Using last timestamp returned multiple too. Use the oldest one." )
+            assert(False)
             key = sorted(ts_candidates)[0]
-        elif len(ts_candidates) == 1:
-            key = ts_candidates[0]
         else:
             # sys.stdout.write( " -- Multiple key objects: %s :: " % str(ts_candidates) )
             # sys.stdout.write( " >>> Using last timestamp didn't return anything. Use the oldest one." )
+            assert(False)
             key = sorted(candidates)[0]
         newgroup = list(group)
         newgroup.remove(key)
