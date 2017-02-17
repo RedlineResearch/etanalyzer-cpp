@@ -43,6 +43,7 @@ import time
 pp = pprint.PrettyPrinter( indent = 4 )
 
 KEY_OBJECT_SUMMARY = "key-object-summary.csv"
+RAW_KEY_OBJECT_FILENAME = "raw-key-object-summary.csv"
 
 def setup_logger( targetdir = ".",
                   filename = "analyze_dgroup.py.log",
@@ -300,6 +301,41 @@ def update_key_object_summary( newgroup = {},
                                 dsite_dict = dsites_gstats[dsite],
                                 nonjlib_dict = nonjlib_gstats[nonjdsite] )
 
+def raw_output_to_csv( key = None,
+                       subgroup = [],
+                       raw_writer = None,
+                       objectinfo = {},
+                       total_size = 0 ):
+    assert( key != None )
+    assert( key not in subgroup ) # TODO DEBUG TEMPORARY ONLY
+    subgroup.insert( 0, key )
+    # Rename objectinfo
+    oi = objectinfo
+    # Get object record
+    keyrec = oi.get_record( key )
+    # Type
+    keytype = oi.get_type_using_record( keyrec )
+    # Key alloc age
+    keyage = oi.get_age_using_record_ALLOC( keyrec )
+    # Oldest object age in the group
+    oldest_age = max( [ oi.get_age_ALLOC(x) for x in subgroup ] )
+    # Key object allocation method
+    key_alloc_method = oi.get_allocsite_using_record( keyrec )
+    # Death cause of key object
+    cause = objectinfo.get_death_cause(objId)
+    if cause == "S":
+        # By STACK. TODO
+        pass
+    elif ( cause == "H" or cause == "G" ):
+        # By HEAP. TODO
+        pass
+    elif cause == "E":
+        # By program end, which should have been ignored.
+        # Log a WARNING. TODO
+        pass
+    else:
+        raise RuntimeError("Unexpected death cause: %s" % cause)
+        
 
 def read_dgroups_from_pickle( result = [],
                               bmark = "",
@@ -418,39 +454,47 @@ def read_dgroups_from_pickle( result = [],
     seen_objects = set()
     total_alloc = 0
     total_died_at_end_size = 0
-    for gnum, glist in dgroups_data["group2list"].iteritems():
-        # - for every death group dg:
-        #       get the last edge for every object
-        key_result, total_size, died_at_end_size, cause = get_key_objects( group = glist,
-                                                                           seen_objects = seen_objects,
-                                                                           edgeinfo = edgeinfo,
-                                                                           objectinfo = objectinfo,
-                                                                           cycle_summary = cycle_summary,
-                                                                           logger = logger )
-        count += 1
-        if cause == "END":
-            assert(len(key_result) == 0)
-            assert( died_at_end_size > 0 )
-            total_died_at_end_size += died_at_end_size
-        elif len(key_result) > 0:
-            assert( (cause == "HEAP") or (cause == "STACK") )
-            total_alloc += total_size
-            update_key_object_summary( newgroup = key_result,
-                                       summary = key_objects,
+    rawpath = os.path.join( workdir, RAW_KEY_OBJECT_FILENAME )
+    with open( rawpath ) as fpraw:
+        raw_writer = csv.writer(fpraw)
+        for gnum, glist in dgroups_data["group2list"].iteritems():
+            # - for every death group dg:
+            #       get the last edge for every object
+            key_result, total_size, died_at_end_size, cause = get_key_objects( group = glist,
+                                                                               seen_objects = seen_objects,
+                                                                               edgeinfo = edgeinfo,
+                                                                               objectinfo = objectinfo,
+                                                                               cycle_summary = cycle_summary,
+                                                                               logger = logger )
+            count += 1
+            if cause == "END":
+                assert(len(key_result) == 0)
+                assert( died_at_end_size > 0 )
+                total_died_at_end_size += died_at_end_size
+            elif len(key_result) > 0:
+                assert( (cause == "HEAP") or (cause == "STACK") )
+                total_alloc += total_size
+                update_key_object_summary( newgroup = key_result,
+                                           summary = key_objects,
+                                           objectinfo = objectinfo,
+                                           total_size = total_size,
+                                           logger = logger )
+                # TODO DEBUG print "%d: %s" % (count, key_result)
+                ktc = keytype_counter # Short alias
+                for key, subgroup in key_result.iteritems():
+                    # Summary of key types
+                    keytype = objectinfo.get_type(key)
+                    ktc[keytype] += 1
+                    groupsize = len(subgroup)
+                    # Summary of death locations
+                    deathsite = objectinfo.get_death_context(key)
+                    dss[keytype][deathsite] += 1
+                    raw_output_to_csv( key = key,
+                                       subgroup = subgroup,
+                                       raw_writer = raw_writer,
                                        objectinfo = objectinfo,
-                                       total_size = total_size,
-                                       logger = logger )
-            # TODO DEBUG print "%d: %s" % (count, key_result)
-            ktc = keytype_counter # Short alias
-            for key, subgroup in key_result.iteritems():
-                # Summary of key types
-                keytype = objectinfo.get_type(key)
-                ktc[keytype] += 1
-                groupsize = len(subgroup)
-                # Summary of death locations
-                deathsite = objectinfo.get_death_context(key)
-                dss[keytype][deathsite] += 1
-        # TODO DEBUG print "--------------------------------------------------------------------------------"
+                                       total_size = total_size )
+            # TODO DEBUG print "--------------------------------------------------------------------------------"
     # Save the CSV file the key object summary
     total_objects = summary_reader.get_number_of_objects()
     num_key_objects = len(key_objects["GROUPLIST"])
@@ -603,18 +647,17 @@ def get_key_using_last_heap_update( group = [],
         if len(ts_candidates) == 1:
             key = ts_candidates[0]
         elif len(ts_candidates) > 1:
+            # This MOST probably shouldn't happen. So debug the candidates
+            # and bail out.
             logger.warning( "Multiple key objects: %s" % str(ts_candidates) )
             mytypes = [ objectinfo.get_type(x) for x in ts_candidates ]
             logger.warning( " - types: %s\n" % str(mytypes) )
             # sys.stdout.write( " -- Multiple key objects: %s :: " % str(ts_candidates) )
             # sys.stdout.write( " >>> Using last timestamp returned multiple too. Use the oldest one." )
             assert(False)
-            key = sorted(ts_candidates)[0]
         else:
-            # sys.stdout.write( " -- Multiple key objects: %s :: " % str(ts_candidates) )
-            # sys.stdout.write( " >>> Using last timestamp didn't return anything. Use the oldest one." )
+            # This should never happen.
             assert(False)
-            key = sorted(candidates)[0]
         newgroup = list(group)
         newgroup.remove(key)
     else:
@@ -898,10 +941,12 @@ def get_key_objects( group = {},
             print "***** ERROR: can't classify object - cause[ %s ]*****" % str(cause)
             objectinfo.debug_object(group[0])
         # Either way nothing in the result
-    update_cycle_summary( cycle_summary = cycle_summary,
-                          cycledict = cycledict,
-                          cyclenode_summary = cyclenode_summary,
-                          objectinfo = objectinfo )
+    if cause != "END":
+        update_cycle_summary( cycle_summary = cycle_summary,
+                              cycledict = cycledict,
+                              cyclenode_summary = cyclenode_summary,
+                              objectinfo = objectinfo )
+    # There might be a better way to do this. - RLV
     return (result, total_size, died_at_end_size, cause)
 
 def main_process( global_config = {},
