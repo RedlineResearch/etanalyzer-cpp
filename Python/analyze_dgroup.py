@@ -354,7 +354,7 @@ def raw_output_to_csv( key = None,
             keytype, keyage, key_alloc_site, oldest_age,
             cause, dcont1, dcont2,
             str(pointed_at_by_heap) ]
-        
+    raw_writer.writerow(row)
 
 def read_dgroups_from_pickle( result = [],
                               bmark = "",
@@ -490,7 +490,6 @@ def read_dgroups_from_pickle( result = [],
                                                                                objectinfo = objectinfo,
                                                                                cycle_summary = cycle_summary,
                                                                                logger = logger )
-            count += 1
             if cause == "END":
                 assert(len(key_result) == 0)
                 assert( died_at_end_size > 0 )
@@ -506,6 +505,7 @@ def read_dgroups_from_pickle( result = [],
                 # TODO DEBUG print "%d: %s" % (count, key_result)
                 ktc = keytype_counter # Short alias
                 for key, subgroup in key_result.iteritems():
+                    count += 1
                     # Summary of key types
                     keytype = objectinfo.get_type(key)
                     ktc[keytype] += 1
@@ -519,6 +519,9 @@ def read_dgroups_from_pickle( result = [],
                                        objectinfo = objectinfo,
                                        total_size = total_size,
                                        logger = logger )
+                    # # TEMP DEBUG
+                    # if count % 100 == 99:
+                    #     fpraw.flush()
             # TODO DEBUG print "--------------------------------------------------------------------------------"
     # Save the CSV file the key object summary
     total_objects = summary_reader.get_number_of_objects()
