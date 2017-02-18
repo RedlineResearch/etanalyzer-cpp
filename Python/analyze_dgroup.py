@@ -308,6 +308,7 @@ def raw_output_to_csv( key = None,
                        total_size = 0 ):
     assert( key != None )
     assert( key not in subgroup ) # TODO DEBUG TEMPORARY ONLY
+    assert( len(set(subgroup)) == len(subgroup) )  # TODO DEBUG TEMPORARY ONLY
     subgroup.insert( 0, key )
     # Rename objectinfo
     oi = objectinfo
@@ -320,21 +321,26 @@ def raw_output_to_csv( key = None,
     # Oldest object age in the group
     oldest_age = max( [ oi.get_age_ALLOC(x) for x in subgroup ] )
     # Key object allocation method
-    key_alloc_method = oi.get_allocsite_using_record( keyrec )
+    key_alloc_site = oi.get_allocsite_using_record( keyrec )
     # Death cause of key object
-    cause = objectinfo.get_death_cause(objId)
+    cause = oi.get_death_cause(objId)
+    # HERE TODO: dcontext1 = oi.
     if cause == "S":
         # By STACK. TODO
-        pass
+        cause = "STACK"
     elif ( cause == "H" or cause == "G" ):
         # By HEAP. TODO
-        pass
+        cause = "HEAP"
     elif cause == "E":
         # By program end, which should have been ignored.
         # Log a WARNING. TODO
-        pass
+        # We don't care about things that are immortal.
+        return
     else:
         raise RuntimeError("Unexpected death cause: %s" % cause)
+    row = [ key, len(subgroup), total_size,
+            keytype, keyage, key_alloc_site, oldest_age,
+            cause, 
         
 
 def read_dgroups_from_pickle( result = [],
@@ -457,6 +463,11 @@ def read_dgroups_from_pickle( result = [],
     rawpath = os.path.join( workdir, RAW_KEY_OBJECT_FILENAME )
     with open( rawpath ) as fpraw:
         raw_writer = csv.writer(fpraw)
+        header = [ "objectId", "number-objects", "size-group",
+                   "key-type", "key-alloc-age", "key-alloc-site", "oldest-member-age",
+                   "death-cause", "death-context-1", "death-context-2",
+                   "pointed-at-by-heap", ]
+        raw_writer.writerow( header )
         for gnum, glist in dgroups_data["group2list"].iteritems():
             # - for every death group dg:
             #       get the last edge for every object

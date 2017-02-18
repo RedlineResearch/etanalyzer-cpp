@@ -207,7 +207,7 @@ class ObjectInfoReader:
                 rec[ get_raw_index("STATTR") ],
                 rec[ get_raw_index("GARBTYPE") ],
                 rec[ get_raw_index("CONTEXT1") ], # USED - single death context
-                rec[ get_raw_index("CONTEXT2") ], # UNUSED PADDING
+                rec[ get_raw_index("CONTEXT2") ],
                 rec[ get_raw_index("NONJAVA_LIB_CONTEXT") ], # UNUSED PADDING
                 rec[ get_raw_index("DEATH_CONTEXT_HEIGHT") ], # UNUSED PADDING
                 rec[ get_raw_index("PADDING1") ], # UNUSED PADDING
