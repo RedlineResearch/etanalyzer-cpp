@@ -475,7 +475,7 @@ def read_dgroups_from_pickle( result = [],
     total_alloc = 0
     total_died_at_end_size = 0
     rawpath = os.path.join( workdir, RAW_KEY_OBJECT_FILENAME )
-    with open( rawpath ) as fpraw:
+    with open( rawpath, "wb" ) as fpraw:
         raw_writer = csv.writer(fpraw)
         header = [ "objectId", "number-objects", "size-group",
                    "key-type", "key-alloc-age", "key-alloc-site", "oldest-member-age",
