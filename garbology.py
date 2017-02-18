@@ -650,12 +650,20 @@ class ObjectInfoReader:
         if self.__DEATHCONTEXT__ == "SINGLE":
             result = rec[ get_index("CONTEXT1") ] if rec != None else "NONE1"
         elif self.__DEATHCONTEXT__ == "PAIR":
+            # TODO: This seems like it's not going to get used. TODO
             first = rec[ get_index("CONTEXT1") ] if rec != None else "NONE2a"
             second = rec[ get_index("CONTEXT2") ] if rec != None else "NONE2b"
             result = (first, second)
         else:
             raise ValueError("Unknown DEATHCONTEXT mode: %s" % str(self.__DEATHCONTEXT__))
         return result
+
+    def get_death_context_L2( self, objId = 0 ):
+        rec = self.get_record(objId)
+        return self.get_death_context_L2_using_record(rec)
+
+    def get_death_context_L2_using_record( self, rec = None ):
+        return rec[ get_index("CONTEXT2") ] if rec != None else "NONE2b"
 
     def get_death_context_height( self, objId = 0 ):
         rec = self.get_record(objId)

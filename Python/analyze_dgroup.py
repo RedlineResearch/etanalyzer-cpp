@@ -305,7 +305,8 @@ def raw_output_to_csv( key = None,
                        subgroup = [],
                        raw_writer = None,
                        objectinfo = {},
-                       total_size = 0 ):
+                       total_size = 0,
+                       logger = None ):
     assert( key != None )
     assert( key not in subgroup ) # TODO DEBUG TEMPORARY ONLY
     assert( len(set(subgroup)) == len(subgroup) )  # TODO DEBUG TEMPORARY ONLY
@@ -326,8 +327,9 @@ def raw_output_to_csv( key = None,
     cause = oi.get_death_cause(objId)
     # HERE TODO: dcontext1 = oi.
     if cause == "S":
-        # By STACK. TODO
-        cause = "STACK"
+        # By STACK:
+        cause = "SHEAP" if oi.died_by_stack_after_heap_using_record( keyrec ) \
+            else "STACK"
     elif ( cause == "H" or cause == "G" ):
         # By HEAP. TODO
         cause = "HEAP"
@@ -335,12 +337,24 @@ def raw_output_to_csv( key = None,
         # By program end, which should have been ignored.
         # Log a WARNING. TODO
         # We don't care about things that are immortal.
+        logger.warning( "PROG END type objects shouldn't make it into this function." )
+        logger.warning( "ojbId[ %d ] type[ %s ] allocsite[ %s ]" %
+                        (key, keytype, key_alloc_site) )
         return
     else:
         raise RuntimeError("Unexpected death cause: %s" % cause)
+    # Death contexts
+    dcont1 = oi.get_death_context_using_record( keyrec )
+    dcont2 = oi.get_death_context_L2_using_record( keyrec )
+    # Pointed at by heap flag
+    # TODO: This is a correct hack. If the object was ever pointed at by the heap,
+    #       then it can only be either HEAP or SHEAP. Since we ignored immortal
+    #       objects that died at program's end, we don't need to account for those.
+    pointed_at_by_heap = (cause == "HEAP" or cause == "SHEAP")
     row = [ key, len(subgroup), total_size,
             keytype, keyage, key_alloc_site, oldest_age,
-            cause, 
+            cause, dcont1, dcont2,
+            str(pointed_at_by_heap) ]
         
 
 def read_dgroups_from_pickle( result = [],
@@ -504,7 +518,8 @@ def read_dgroups_from_pickle( result = [],
                                        subgroup = subgroup,
                                        raw_writer = raw_writer,
                                        objectinfo = objectinfo,
-                                       total_size = total_size )
+                                       total_size = total_size,
+                                       logger = logger )
             # TODO DEBUG print "--------------------------------------------------------------------------------"
     # Save the CSV file the key object summary
     total_objects = summary_reader.get_number_of_objects()
