@@ -308,7 +308,7 @@ def raw_output_to_csv( key = None,
                        total_size = 0,
                        logger = None ):
     assert( key != None )
-    assert( key not in subgroup ) # TODO DEBUG TEMPORARY ONLY
+    assert( key in subgroup ) # TODO DEBUG TEMPORARY ONLY
     assert( len(set(subgroup)) == len(subgroup) )  # TODO DEBUG TEMPORARY ONLY
     subgroup.insert( 0, key )
     # Rename objectinfo
