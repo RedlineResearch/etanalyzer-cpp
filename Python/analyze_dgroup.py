@@ -324,8 +324,7 @@ def raw_output_to_csv( key = None,
     # Key object allocation method
     key_alloc_site = oi.get_allocsite_using_record( keyrec )
     # Death cause of key object
-    cause = oi.get_death_cause(objId)
-    # HERE TODO: dcontext1 = oi.
+    cause = oi.get_death_cause_using_record( keyrec )
     if cause == "S":
         # By STACK:
         cause = "SHEAP" if oi.died_by_stack_after_heap_using_record( keyrec ) \
