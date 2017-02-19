@@ -390,6 +390,7 @@ void HeapState::end_of_program( unsigned int cur_time,
                                EdgeState::DEAD_BY_PROGRAM_END,
                                eifile,
                                Reason::END_OF_PROGRAM_REASON );
+                obj->setActualLastTimestamp( cur_time );
             }
             string progend("PROG_END");
             obj->unsetDiedByStackFlag();

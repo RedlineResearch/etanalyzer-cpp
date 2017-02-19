@@ -492,7 +492,7 @@ unsigned int read_trace_file( FILE *f,
                             target->setPointedAtByHeap();
                         }
                         target->setLastTimestamp( Exec.NowUp() );
-                        target->setActualLastTimestamp( Exec.NowUp() );
+                        // TODO: target->setActualLastTimestamp( Exec.NowUp() );
                         // TODO: Maybe LastUpdateFromStatic isn't the most descriptive
                         // So since target has an incoming edge, LastUpdateFromStatic
                         //    should be FALSE.
