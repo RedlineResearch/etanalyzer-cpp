@@ -680,6 +680,8 @@ def get_key_using_last_heap_update( group = [],
             logger.warning( "Multiple key objects: %s" % str(ts_candidates) )
             mytypes = [ objectinfo.get_type(x) for x in ts_candidates ]
             logger.warning( " - types: %s\n" % str(mytypes) )
+            grouptypes = set([ objectinfo.get_type(x) for x in group ])
+            logger.warning( " - group types: %s\n" % str(list(mytypes)) )
             # sys.stdout.write( " -- Multiple key objects: %s :: " % str(ts_candidates) )
             # sys.stdout.write( " >>> Using last timestamp returned multiple too. Use the oldest one." )
             assert(False)
