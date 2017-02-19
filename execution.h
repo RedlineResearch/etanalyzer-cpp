@@ -25,7 +25,7 @@ typedef map<Method *, CCNode *> FullCCMap;
 
 typedef map<MethodId_t, Thread *> ThreadMap;
 // TODO: This is the old context pair code:
-// TODO:  typedef map<ContextPair, unsigned int> ContextCountMap;
+typedef map<ContextPair, unsigned int> ContextPairCountMap;
 typedef map<string, unsigned int> ContextCountMap;
 typedef map<ContextPair, CPairType> ContextTypeMap_t;
 // TODO: typedef map<Object *, ContextPair> ObjectContextMap;
@@ -180,7 +180,7 @@ class Thread
         ContextCountMap &m_allocCountmap;
         // -- Map of simple Death death site (used to be context pair)
         //                     -> count of occurrences
-        ContextCountMap &m_deathCountmap;
+        ContextPairCountMap &m_deathPairCountMap;
         // Unused when we removed context pair functionality
         // TODO: UNUSED // Context type map - see documentation below in ExecState
         // TODO: UNUSED ContextTypeMap_t &m_contextTypeMap;
@@ -195,7 +195,7 @@ class Thread
         Thread( unsigned int id,
                 ExecMode kind,
                 ContextCountMap &allocCountmap,
-                ContextCountMap &deathCountmap,
+                ContextPairCountMap &deathCountMap,
                 ContextTypeMap_t &contextTypeMap,
                 ExecState &execstate,
                 ofstream &output,
@@ -207,7 +207,7 @@ class Thread
             , m_context( NULL, NULL )
             , m_cptype(CPairType::CP_None) 
             , m_allocCountmap(allocCountmap)
-            , m_deathCountmap(deathCountmap)
+            , m_deathPairCountMap(deathCountMap)
             // TODO: , m_contextTypeMap(contextTypeMap)
             , m_exec(execstate)
             , m_output(output)
@@ -311,7 +311,8 @@ class ExecState
             , m_methexit_time(0)
             , m_alloc_time(0)
             , m_allocCountmap()
-            , m_deathCountmap()
+            , m_deathPairCountMap()
+            , m_execPairCountMap()
             , m_objAlloc2cmap()
             , m_objDeath2cmap()
             , m_thread_stack()
@@ -467,7 +468,7 @@ class ExecState
         // TODO:     UpdateContextTypeMap( cpair, cptype );
 
         // TODO:     ContextCountMap &curcmap = ((ekind == EventKind::Allocation) ? this->m_allocCountmap
-        // TODO:                                                                  : this->m_deathCountmap);
+        // TODO:                                                                  : this->m_deathPairCountMap);
         // TODO:     auto it = curcmap.find( cpair );
         // TODO:     if (it != curcmap.end()) {
         // TODO:         curcmap[cpair] += 1; 
@@ -481,17 +482,35 @@ class ExecState
         // Call, Return, Both. (Don't use None)
         ContextTypeMap_t m_contextTypeMap;
 
-        // -- Map of simple Allocation context pair -> count of occurrences
+        // -- Map of simple Allocation context -> count of occurrences
         // TODO: Think about hiding this in an abstraction TODO
         ContextCountMap m_allocCountmap;
         ContextCountMap::iterator begin_allocCountmap() { return this->m_allocCountmap.begin(); }
         ContextCountMap::iterator end_allocCountmap() { return this->m_allocCountmap.end(); }
 
-        // -- Map of simple Death context pair -> count of occurrences
+        // -- Map of simple Death context -> count of occurrences
         // TODO: Think about hiding this in an abstraction TODO
-        ContextCountMap m_deathCountmap;
-        ContextCountMap::iterator begin_deathCountmap() { return this->m_deathCountmap.begin(); }
-        ContextCountMap::iterator end_deathCountmap() { return this->m_deathCountmap.end(); }
+        ContextPairCountMap m_deathPairCountMap;
+        ContextPairCountMap::iterator begin_deathCountMap() {
+            return this->m_deathPairCountMap.begin();
+        }
+        ContextPairCountMap::iterator end_deathCountMap() {
+            return this->m_deathPairCountMap.end();
+        }
+
+        // -- Map of execution context Pair -> count of occurrences
+        // TODO: Think about hiding this in an abstraction TODO
+        ContextPairCountMap m_execPairCountMap;
+        ContextPairCountMap::iterator begin_execPairCountMap() {
+            return this->m_execPairCountMap.begin();
+        }
+        ContextPairCountMap::iterator end_execPairCountMap() {
+            return this->m_execPairCountMap.end();
+        }
+        void IncCallContext( MethodDeque &top_2_methods ) {
+            ContextPair cpair = std::make_pair( top_2_methods[0], top_2_methods[1] );
+            this->m_execPairCountMap[cpair]++;
+        }
 
         // Get last global thread called
         Thread *get_last_thread() const {

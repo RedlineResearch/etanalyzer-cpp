@@ -131,6 +131,7 @@ void Thread::Call(Method *m)
 
     if (this->m_kind == ExecMode::StackOnly) {
         // Save (old_top, new_top) of m_methods
+        // NOT SURE IF THIS IS STILL NEEDED:
         ContextPair cpair;
         if (m_methods.size() > 0) {
             cpair = std::make_pair( m_methods.back(), m );
@@ -139,6 +140,8 @@ void Thread::Call(Method *m)
         }
         this->setContextPair( cpair, CPairType::CP_Call );
         // TODO this->debug_cpair( this->getContextPair(), "call" );
+        // END NOT NEEDED NOTE
+        // -------------------
         m_methods.push_back(m);
         // m_methods, m_locals, and m_deadlocals must be synched in pushing
         // TODO: Do we need to check for m existing in map?
@@ -146,6 +149,9 @@ void Thread::Call(Method *m)
         // Tracks.
         m_locals.push_back(new LocalVarSet());
         m_deadlocals.push_back(new LocalVarSet());
+        // Count 2 level contexts
+        MethodDeque top2meth = this->top_N_methods(2);
+        this->m_exec.IncCallContext( top2meth );
     }
 }
 
@@ -459,7 +465,7 @@ Thread* ExecState::getThread(unsigned int threadid)
         result = new Thread( threadid,
                              this->m_kind,
                              this->m_allocCountmap,
-                             this->m_deathCountmap,
+                             this->m_deathPairCountMap,
                              this->m_contextTypeMap,
                              *this,
                              *this->m_output,

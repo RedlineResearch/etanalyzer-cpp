@@ -1303,12 +1303,17 @@ void output_context_summary( string &context_death_count_filename,
                              ExecState &exstate )
 {
     ofstream context_death_count_file(context_death_count_filename);
-    for ( auto it = exstate.begin_deathCountmap();
-          it != exstate.end_deathCountmap();
+    for ( auto it = exstate.begin_deathCountMap();
+          it != exstate.end_deathCountMap();
           ++it ) {
-        string context = it->first;
+        ContextPair cpair = it->first;
         unsigned int total = it->second;
-        context_death_count_file << context << "," 
+        Method *first = std::get<0>(cpair); 
+        Method *second = std::get<1>(cpair); 
+        string meth1_name = (first ? first->getName() : "NONAME");
+        string meth2_name = (second ? second->getName() : "NONAME");
+        context_death_count_file << meth1_name << "," 
+                                 << meth2_name << "," 
                                  << total << endl;
     }
     context_death_count_file.close();
@@ -1321,8 +1326,8 @@ void output_context_summary( string &context_death_count_filename,
 // TODO:                                  ExecState &exstate )
 // TODO: {
 // TODO:     ofstream context_death_count_file(context_death_count_filename);
-// TODO:     for ( auto it = exstate.begin_deathCountmap();
-// TODO:           it != exstate.end_deathCountmap();
+// TODO:     for ( auto it = exstate.begin_deathCountMap();
+// TODO:           it != exstate.end_deathCountMap();
 // TODO:           ++it ) {
 // TODO:         ContextPair cpair = it->first;
 // TODO:         Method *first = std::get<0>(cpair); 
