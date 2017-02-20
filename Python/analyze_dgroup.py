@@ -345,6 +345,7 @@ def raw_output_to_csv( key = None,
     # Death contexts
     dcont1 = oi.get_death_context_using_record( keyrec )
     dcont2 = oi.get_death_context_L2_using_record( keyrec )
+    nonjavalib_cont = oi.get_non_javalib_context_using_record( keyrec )
     # Pointed at by heap flag
     # TODO: This is a correct hack. If the object was ever pointed at by the heap,
     #       then it can only be either HEAP or SHEAP. Since we ignored immortal
@@ -352,7 +353,7 @@ def raw_output_to_csv( key = None,
     pointed_at_by_heap = (cause == "HEAP" or cause == "SHEAP")
     row = [ key, len(subgroup), total_size,
             keytype, keyage, key_alloc_site, oldest_age,
-            cause, dcont1, dcont2,
+            cause, dcont1, dcont2, nonjavalib_cont,
             str(pointed_at_by_heap) ]
     raw_writer.writerow(row)
 
@@ -478,7 +479,7 @@ def read_dgroups_from_pickle( result = [],
         raw_writer = csv.writer(fpraw)
         header = [ "objectId", "number-objects", "size-group",
                    "key-type", "key-alloc-age", "key-alloc-site", "oldest-member-age",
-                   "death-cause", "death-context-1", "death-context-2",
+                   "death-cause", "death-context-1", "death-context-2", "non-Java-lib-context",
                    "pointed-at-by-heap", ]
         raw_writer.writerow( header )
         for gnum, glist in dgroups_data["group2list"].iteritems():
