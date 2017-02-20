@@ -660,39 +660,23 @@ def make_adjacency_list( nodes = [],
 def get_key_using_last_heap_update( group = [],
                                     graph = {},
                                     objectinfo = {},
+                                    result = {},
                                     logger = None ):
     # Empty?
     lastup_max = max( [ objectinfo.get_last_heap_update(x) for x in group ] )
     candidates = [ x for x in group if objectinfo.get_last_heap_update(x) == lastup_max ]
     if len(candidates) == 1:
-        key = candidates[0]
-        newgroup = list(group)
-        newgroup.remove(key)
+        result[candidates[0]] = []
     elif len(candidates) > 1:
         # Choose one
         lastts_max = max( [ objectinfo.get_last_actual_timestamp(x) for x in candidates ] )
         ts_candidates = [ x for x in candidates if objectinfo.get_last_actual_timestamp(x) == lastts_max ]
-        if len(ts_candidates) == 1:
-            key = ts_candidates[0]
-        elif len(ts_candidates) > 1:
-            # This MOST probably shouldn't happen. So debug the candidates
-            # and bail out.
-            logger.warning( "Multiple key objects: %s" % str(ts_candidates) )
-            mytypes = [ objectinfo.get_type(x) for x in ts_candidates ]
-            logger.warning( " - types: %s\n" % str(mytypes) )
-            grouptypes = set([ objectinfo.get_type(x) for x in group ])
-            logger.warning( " - group types: %s\n" % str(list(mytypes)) )
-            # sys.stdout.write( " -- Multiple key objects: %s :: " % str(ts_candidates) )
-            # sys.stdout.write( " >>> Using last timestamp returned multiple too. Use the oldest one." )
-            assert(False)
-        else:
-            # This should never happen.
-            assert(False)
-        newgroup = list(group)
-        newgroup.remove(key)
+        # Note that if the group died by STACK
+        assert( len(ts_candidates) > 0 )
+        for cand in ts_candidates:
+            result[cand] = []
     else:
         raise RuntimeError("No key objects.")
-    return (key, newgroup)
 
 def filter_edges( edgelist = [],
                   group = [],
@@ -857,11 +841,12 @@ def get_key_objects( group = {},
         discovered = { x : False for x in allobjs }
         # Clearly we need to use key objects as the starting points
         if len(result) == 0:
-            key, newgroup = get_key_using_last_heap_update( group = group,
-                                                            graph = nxgraph,
-                                                            objectinfo = objectinfo,
-                                                            logger = logger )
-            result[key] = newgroup
+            get_key_using_last_heap_update( group = group,
+                                            graph = nxgraph,
+                                            objectinfo = objectinfo,
+                                            result = result,
+                                            logger = logger )
+            # TODO result[key] = newgroup
         for srcnode in result.keys():
             if not discovered[srcnode]:
                 mygroup = dfs_iter( G = adjlist,
@@ -925,14 +910,12 @@ def get_key_objects( group = {},
                 # TODO newgroup.remove(key)
                 result[key] = newgroup
         else:
-            # if len(result) > 1:
-            #     print "ERROR: multiple key objects."
-            #     TODO raise RuntimeError("Multiple key objects.")
-            key, newgroup = get_key_using_last_heap_update( group = group,
-                                                            graph = nxgraph,
-                                                            objectinfo = objectinfo,
-                                                            logger = logger )
-            result[key] = newgroup
+            get_key_using_last_heap_update( group = group,
+                                            graph = nxgraph,
+                                            objectinfo = objectinfo,
+                                            result = result,
+                                            logger = logger )
+            # TODO result[key] = newgroup
         for srcnode in result.keys():
             cycledict[srcnode] = False
         flag = False
