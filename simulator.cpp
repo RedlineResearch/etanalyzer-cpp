@@ -1284,21 +1284,24 @@ unsigned int output_edges_OLD( HeapState &myheap,
 void output_context_summary( string &context_death_count_filename,
                              ExecState &exstate )
 {
-    ofstream context_death_count_file(context_death_count_filename);
-    for ( auto it = exstate.begin_deathCountMap();
-          it != exstate.end_deathCountMap();
+    ofstream cdeathfile(context_death_count_filename);
+    cdeathfile << "\"method1\",\"method2\",\"total_count\",\"death_count\""
+               << endl;
+    for ( auto it = exstate.begin_execPairCountMap();
+          it != exstate.end_execPairCountMap();
           ++it ) {
         ContextPair cpair = it->first;
         unsigned int total = it->second;
+        unsigned int dcount = 0;
         Method *first = std::get<0>(cpair); 
         Method *second = std::get<1>(cpair); 
         string meth1_name = (first ? first->getName() : "NONAME");
         string meth2_name = (second ? second->getName() : "NONAME");
-        context_death_count_file << meth1_name << "," 
-                                 << meth2_name << "," 
-                                 << total << endl;
+        cdeathfile << meth1_name << "," 
+                   << meth2_name << "," 
+                   << total << endl;
     }
-    context_death_count_file.close();
+    cdeathfile.close();
 }
 
 // ----------------------------------------------------------------------

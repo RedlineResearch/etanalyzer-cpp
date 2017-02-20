@@ -536,6 +536,7 @@ void ExecState::UpdateObj2DeathContext( Object *obj,
     unsigned int count = 0;
     bool nonjava_flag = false;
     string nonjava_method;
+    MethodDeque top_2_methods;
     while ( (count < 2) &&
             (methdeque.size() > 0) ) {
         Method *next_method = methdeque.front();
@@ -547,6 +548,9 @@ void ExecState::UpdateObj2DeathContext( Object *obj,
         obj->setDeathContextSiteName(next_name, count);
         if (count == 1) {
             this->m_objDeath2cmap[obj] = next_name;
+            top_2_methods.push_back(next_method);
+        } else if (count == 2) {
+            top_2_methods.push_back(next_method);
         }
         if (!nonjava_flag && !is_javalib_method(next_name)) {
             obj->set_nonJavaLib_death_context(next_name);
@@ -562,6 +566,9 @@ void ExecState::UpdateObj2DeathContext( Object *obj,
             obj->setDeathContextSiteName(next_name, count);
             if (count == 1) {
                 this->m_objDeath2cmap[obj] = next_name;
+                top_2_methods.push_back(NULL);
+            } else if (count == 2) {
+                top_2_methods.push_back(NULL);
             }
             if (!nonjava_flag && !is_javalib_method(next_name)) {
                 obj->set_nonJavaLib_death_context(next_name);
@@ -582,11 +589,13 @@ void ExecState::UpdateObj2DeathContext( Object *obj,
         nonjava_flag = true; // probably don't need to set the flag, but just in
                              // case someone adds some code later on.
     }
-    // TODO: Old code using context pair
-    // TODO: UpdateObj2Context( obj,
-    // TODO:                    cpair,
-    // TODO:                    cptype,
-    // TODO:                    EventKind::Death );
+    ContextPair cpair = std::make_pair( top_2_methods[0], top_2_methods[1] );
+    auto iter = this->m_deathPairCountMap.find(cpair);
+    if (iter == this->m_deathPairCountMap.end()) {
+        this->m_deathPairCountMap[cpair] = 0;
+    }
+    this->m_deathPairCountMap[cpair]++;
+
 }
 
 
