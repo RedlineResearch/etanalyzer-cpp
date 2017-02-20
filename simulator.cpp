@@ -1292,7 +1292,11 @@ void output_context_summary( string &context_death_count_filename,
           ++it ) {
         ContextPair cpair = it->first;
         unsigned int total = it->second;
-        unsigned int dcount = 0;
+        unsigned int dcount;
+        auto iter = exstate.m_deathPairCountMap.find(cpair);
+        dcount = ( (iter == exstate.m_deathPairCountMap.end())
+                   ? 0
+                   : exstate.m_deathPairCountMap[cpair] );
         Method *first = std::get<0>(cpair); 
         Method *second = std::get<1>(cpair); 
         string meth1_name = (first ? first->getName() : "NONAME");
