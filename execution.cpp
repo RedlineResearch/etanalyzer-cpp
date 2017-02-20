@@ -327,8 +327,7 @@ MethodDeque Thread::top_javalib_methods()
     if (this->m_kind == ExecMode::Full) {
         // TODO: NOT IMPLEMENTED YET FOR FULL MODE
         assert(false);
-    }
-    else if (this->m_kind == ExecMode::StackOnly) {
+    } else if (this->m_kind == ExecMode::StackOnly) {
         // TODO Some testing code. Should move these out into a unit testing
         //      framework.
         // TODO string test1("java/lang/Shutdown.shutdown");

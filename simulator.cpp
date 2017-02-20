@@ -419,10 +419,19 @@ unsigned int read_trace_file( FILE *f,
                     unsigned int els  = (tokenizer.numTokens() == 6) ? 0
                                                                      : tokenizer.getInt(5);
                     AllocSite *as = ClassInfo::TheAllocSites[tokenizer.getInt(4)];
-                    assert(thread);
-                    // TODO: // Get context pair
-                    // TODO: ContextPair cpair = thread->getContextPair();
-                    // TODO: CPairType cptype = thread->getContextPairType();
+                    string njlib_sitename;
+                    if (thread) {
+                        MethodDeque javalib_context = thread->top_javalib_methods();
+                        assert(javalib_context.size() > 0);
+                        Method *meth = javalib_context.back();
+                        njlib_sitename = ( meth ? meth->getName() : "NONAME" );
+                        // TODO:  if (cckind == ExecMode::Full) {
+                        // TODO:      // Get full stacktrace
+                        // TODO:      DequeId_t strace = thread->stacktrace_using_id();
+                        // TODO:  }
+                    } else {
+                        assert(false);
+                    } // if (thread) ... else
                     // DEBUG
                     // if (!as) {
                     //     cerr << "DBG: objId[ " << tokenizer.getInt(1) << " ] has no alloc site." << endl;
@@ -432,6 +441,7 @@ unsigned int read_trace_file( FILE *f,
                                          tokenizer.getChar(0),   // kind of alloc
                                          tokenizer.getString(3), // type
                                          as,      // AllocSite pointer
+                                         njlib_sitename, // NonJava-library alloc sitename
                                          els,     // length IF applicable
                                          thread,  // thread Id
                                          Exec.NowUp() ); // Current time
@@ -1057,7 +1067,8 @@ void output_all_objects2( string &objectinfo_filename,
                                    "deathContext1", "deathContext2", "firstNonJavaLibMethod",
                                    "deatchContext_height", "allocContext2", "allocContextType",
                                    "createTime_alloc", "deathTime_alloc",
-                                   "allocSiteName", "stability", "last_actual_timestamp" } );
+                                   "allocSiteName", "stability", "last_actual_timestamp",
+                                   "nonJavaLibAllocSiteName" } );
 
     for ( ObjectMap::iterator it = myheap.begin();
           it != myheap.end();
@@ -1108,6 +1119,7 @@ void output_all_objects2( string &objectinfo_filename,
         string death_method_l2 = object->getDeathContextSiteName(2);
         string death_method_nonjavalib = object->get_nonJavaLib_death_context();
         string allocsite_name = object->getAllocSiteName();
+        string nonjlib_allocsite_name = object->getNonJavaLibAllocSiteName();
         ObjectRefType objstability = object->getRefTargetType();
         // S -> Stable
         // U -> Unstable
@@ -1146,6 +1158,7 @@ void output_all_objects2( string &objectinfo_filename,
             << "," << allocsite_name
             << "," << stability  // S, U, or X
             << "," << object->getActualLastTimestamp()
+            << "," << nonjlib_allocsite_name
             << endl;
             // TODO: The following can be made into a lookup table:
             //       method names
@@ -1602,8 +1615,8 @@ int main(int argc, char* argv[])
                              dag_all_set,
                              all_keys,
                              final_time );
-        output_context_summary( context_death_count_filename,
-                                Exec );
+        // TODO 2017-0220 output_context_summary( context_death_count_filename,
+        // TODO 2017-0220                         Exec );
         output_reference_summary( reference_summary_filename,
                                   ref_reverse_summary_filename,
                                   stability_summary_filename,

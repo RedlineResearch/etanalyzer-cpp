@@ -176,6 +176,7 @@ unsigned int read_trace_file(FILE* f)
                     unsigned int els  = (tokenizer.numTokens() == 6) ? 0
                                                                      : tokenizer.getInt(5);
                     AllocSite* as = ClassInfo::TheAllocSites[tokenizer.getInt(4)];
+                    string sitename("DONTCARE");
                     assert(thread);
                     // We need to keep track of allocation time.
                     obj = Heap.allocate( tokenizer.getInt(1),    // id
@@ -183,6 +184,7 @@ unsigned int read_trace_file(FILE* f)
                                          tokenizer.getChar(0),   // kind of alloc
                                          tokenizer.getString(3), // type
                                          as,      // AllocSite pointer
+                                         sitename, // Non Java lib allocsite name
                                          els,     // length IF applicable
                                          thread,  // thread Id
                                          Exec.NowUp() ); // Current time

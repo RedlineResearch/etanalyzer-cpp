@@ -424,6 +424,9 @@ unsigned int read_trace_file( FILE *f,
                     unsigned int els  = (tokenizer.numTokens() == 6) ? 0
                                                                      : tokenizer.getInt(5);
                     AllocSite *as = ClassInfo::TheAllocSites[tokenizer.getInt(4)];
+                    // TODO TODO FIX THIS WITH THE NONJLIB CALL. see simulator.cpp
+                    string njlib_sitename("TODO");
+                    assert(false); // FIX ME TODO FIX ME TODO 2017-Feb-20 - RLV
                     assert(thread);
                     // TODO: // Get context pair
                     // TODO: ContextPair cpair = thread->getContextPair();
@@ -445,6 +448,7 @@ unsigned int read_trace_file( FILE *f,
                                               tokenizer.getChar(0),   // kind of alloc
                                               tokenizer.getString(3), // type
                                               as,      // AllocSite pointer
+                                              njlib_sitename, // Non Javalib alloc sitename
                                               els,     // length IF applicable
                                               thread,  // thread Id
                                               Exec.NowUp(),

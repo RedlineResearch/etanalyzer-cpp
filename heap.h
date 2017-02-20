@@ -280,6 +280,7 @@ class HeapState {
                           char kind,
                           char *type,
                           AllocSite *site, 
+                          string &nonjava_site_name,
                           unsigned int els,
                           Thread *thread,
                           unsigned int create_time );
@@ -403,8 +404,11 @@ class Object {
         unsigned int m_size;
         char m_kind;
         string m_type;
+        // Allocation sites
         AllocSite *m_site;
         string m_allocsite_name;
+        string m_nonjavalib_allocsite_name;
+
         unsigned int m_elements;
         Thread *m_thread;
 
@@ -508,6 +512,7 @@ class Object {
                 char kind,
                 char* type,
                 AllocSite* site,
+                string &nonjava_site_name,
                 unsigned int els,
                 Thread* thread,
                 unsigned int create_time,
@@ -517,6 +522,7 @@ class Object {
             , m_kind(kind)
             , m_type(type)
             , m_site(site)
+            , m_nonjavalib_allocsite_name(nonjava_site_name)
             , m_elements(els)
             , m_thread(thread)
             , m_deadFlag(false)
@@ -557,11 +563,12 @@ class Object {
             // , m_death_cpair(NULL, NULL)
             , m_reftarget_type(ObjectRefType::UNKNOWN)
         {
-            if (m_site) {
-                Method *mymeth = m_site->getMethod();
-                m_allocsite_name = (mymeth ? mymeth->getName() : "NONAME");
+            // Allocation site
+            if (site) {
+                Method *mymeth = site->getMethod();
+                this->m_allocsite_name = (mymeth ? mymeth->getName() : "NONAME");
             } else {
-                m_allocsite_name = "NONAME";
+                this->m_allocsite_name = "NONAME";
             }
         }
 
@@ -570,8 +577,20 @@ class Object {
         unsigned int getSize() const { return m_size; }
         const string& getType() const { return m_type; }
         char getKind() const { return m_kind; }
-        AllocSite * getAllocSite() const { return m_site; }
-        string getAllocSiteName() const { return m_allocsite_name; }
+        // Allocation sites
+        AllocSite * getAllocSite() const {
+            return m_site;
+        }
+        string getAllocSiteName() const {
+            return m_allocsite_name;
+        }
+        string getNonJavaLibAllocSiteName() const {
+            return this->m_nonjavalib_allocsite_name;
+        }
+        void setNonJavaLibAllocSiteName( string &newname ) {
+            this->m_nonjavalib_allocsite_name = newname;
+        }
+
         Thread * getThread() const { return m_thread; }
         VTime_t getCreateTime() const { return m_createTime; }
         VTime_t getDeathTime() const {
