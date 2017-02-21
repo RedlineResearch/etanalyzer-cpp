@@ -323,6 +323,8 @@ def raw_output_to_csv( key = None,
     oldest_age = max( [ oi.get_age_ALLOC(x) for x in subgroup ] )
     # Key object allocation method
     key_alloc_site = oi.get_allocsite_using_record( keyrec )
+    #  - and the non Java library portion of the allocation context
+    key_nonjlib_alloc_site = oi.get_non_javalib_alloc_sitename_using_record( keyrec )
     # Death cause of key object
     cause = oi.get_death_cause_using_record( keyrec )
     if cause == "S":
@@ -345,15 +347,18 @@ def raw_output_to_csv( key = None,
     # Death contexts
     dcont1 = oi.get_death_context_using_record( keyrec )
     dcont2 = oi.get_death_context_L2_using_record( keyrec )
-    nonjavalib_cont = oi.get_non_javalib_context_using_record( keyrec )
+    # TODO: The function get_non_javalib_context_using_record() refers
+    #       to part of the death context. The name should make this clear.
+    #   TODO: Change the name in garbology.py and then change it here.
+    nonjavalib_death_cont = oi.get_non_javalib_context_using_record( keyrec )
     # Pointed at by heap flag
     # TODO: This is a correct hack. If the object was ever pointed at by the heap,
     #       then it can only be either HEAP or SHEAP. Since we ignored immortal
     #       objects that died at program's end, we don't need to account for those.
     pointed_at_by_heap = (cause == "HEAP" or cause == "SHEAP")
     row = [ key, len(subgroup), total_size,
-            keytype, keyage, key_alloc_site, oldest_age,
-            cause, dcont1, dcont2, nonjavalib_cont,
+            keytype, keyage, key_alloc_site, key_nonjlib_alloc_site, oldest_age,
+            cause, dcont1, dcont2, nonjavalib_death_cont,
             str(pointed_at_by_heap) ]
     raw_writer.writerow(row)
 
@@ -478,7 +483,7 @@ def read_dgroups_from_pickle( result = [],
     with open( rawpath, "wb" ) as fpraw:
         raw_writer = csv.writer(fpraw)
         header = [ "objectId", "number-objects", "size-group",
-                   "key-type", "key-alloc-age", "key-alloc-site", "oldest-member-age",
+                   "key-type", "key-alloc-age", "key-alloc-site", "alloc-non-Java-lib-context", "oldest-member-age",
                    "death-cause", "death-context-1", "death-context-2", "non-Java-lib-context",
                    "pointed-at-by-heap", ]
         raw_writer.writerow( header )
