@@ -99,7 +99,7 @@ def get_index( field = None ):
                  "GARBTYPE" : 7,
                  "CONTEXT1" : 8,
                  "CONTEXT2" : 9,
-                 "NONJAVA_LIB_CONTEXT" : 10,
+                 "NONJAVA_LIB_DEATH_CONTEXT" : 10,
                  "DEATH_CONTEXT_HEIGHT" : 11,
                  "PADDING1" : 12,
                  "PADDING2" : 13,
@@ -108,6 +108,7 @@ def get_index( field = None ):
                  "ALLOCSITE" : 16,
                  "STABILITY" : 17,
                  "LAST_ACTUAL_TS" : 18,
+                 "NONJAVA_LIB_ALLOC_CONTEXT" : 19,
         }[field]
     except:
         return None
@@ -206,10 +207,10 @@ class ObjectInfoReader:
                 rec[ get_raw_index("LASTUP") ],
                 rec[ get_raw_index("STATTR") ],
                 rec[ get_raw_index("GARBTYPE") ],
-                rec[ get_raw_index("CONTEXT1") ], # USED - single death context
-                rec[ get_raw_index("CONTEXT2") ],
-                rec[ get_raw_index("NONJAVA_LIB_CONTEXT") ], # UNUSED PADDING
-                rec[ get_raw_index("DEATH_CONTEXT_HEIGHT") ], # UNUSED PADDING
+                rec[ get_raw_index("CONTEXT1") ], # TODO: Should rename to specify that 
+                rec[ get_raw_index("CONTEXT2") ], #     : this is part of death context.
+                rec[ get_raw_index("NONJAVA_LIB_DEATH_CONTEXT") ], # UNUSED PADDING
+                rec[ get_raw_index("DEATH_CONTEXT_HEIGHT") ],
                 rec[ get_raw_index("PADDING1") ], # UNUSED PADDING
                 rec[ get_raw_index("PADDING2") ], # UNUSED PADDING
                 int(rec[ get_raw_index("ATIME_ALLOC") ]),
@@ -217,6 +218,7 @@ class ObjectInfoReader:
                 rec[ get_raw_index("ALLOCSITE") ],
                 rec[ get_raw_index("STABILITY") ],
                 int(rec[ get_raw_index("LAST_ACTUAL_TS") ]),
+                rec[ get_raw_index("NONJAVA_LIB_ALLOC_CONTEXT") ],
                 ]
         return row
 
@@ -302,7 +304,7 @@ class ObjectInfoReader:
         #     -- part 1 of simple context pair - death site
         # 11- death method 2 (dmethod2) : TEXT
         #     -- part 2 of simple context pair - death site
-        # 12- death context type (dcontype) : TEXT
+        # 12- non-Java library death method (nonjlib_dsite) : TEXT
         #     -- Choices are [C,R] meaning C is call. R is return.
         # 13- allocation method 1 (amethod1) : TEXT
         #     -- part 1 of simple context pair - alloc site
@@ -316,6 +318,7 @@ class ObjectInfoReader:
         # 19- stability  (stability) : TEXT
         #     -- Choices are [S,U,X] meaning Stable, Unstable, Unknown
         # 20- last actual timestamp (last_actual_ts) : INTEGER
+        # 21- non-Java library allocate site (nonjlib_asite) : TEXT
         cur.execute( """CREATE TABLE objinfo (objid INTEGER PRIMARY KEY,
                                               atime INTEGER,
                                               dtime INTEGER,
@@ -327,7 +330,7 @@ class ObjectInfoReader:
                                               dgroupkind TEXT,
                                               dmethod1 TEXT,
                                               dmethod2 TEXT,
-                                              dcontype TEXT,
+                                              nonjlib_dsite TEXT,
                                               amethod1 TEXT,
                                               amethod2 TEXT,
                                               acontype TEXT,
@@ -335,7 +338,8 @@ class ObjectInfoReader:
                                               dtime_alloc INTEGER,
                                               asite_name TEXT,
                                               stability TEXT,
-                                              last_actual_ts INTEGER)""" )
+                                              last_actual_ts INTEGER,
+                                              nonjlib_asite TEXT)""" )
         conn.execute( 'DROP INDEX IF EXISTS idx_objectinfo_objid' )
         # Now create the type table which maps:
         #     typeId -> actual type
@@ -383,7 +387,7 @@ class ObjectInfoReader:
         # ----------------------------------------------------------------------
         # TODO call executemany here
         cur = self.outdbconn.cursor()
-        cur.executemany( "INSERT INTO objinfo VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", row_generator() )
+        cur.executemany( "INSERT INTO objinfo VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", row_generator() )
         cur.executemany( "INSERT INTO typetable VALUES (?,?)", type_row_generator() )
         cur.execute( 'CREATE UNIQUE INDEX idx_objectinfo_objid ON objinfo (objid)' )
         cur.execute( 'CREATE UNIQUE INDEX idx_typeinfo_typeid ON typetable (typeid)' )
@@ -677,7 +681,7 @@ class ObjectInfoReader:
         return self.get_non_javalib_context_using_record(rec)
 
     def get_non_javalib_context_using_record( self, rec = None ):
-        return rec[ get_index("NONJAVA_LIB_CONTEXT") ] if rec != None else "NONE"
+        return rec[ get_index("NONJAVA_LIB_DEATH_CONTEXT") ] if rec != None else "NONE"
 
     # Allocsite functions
     def get_allocsite( self, objId = 0 ):
@@ -686,6 +690,13 @@ class ObjectInfoReader:
 
     def get_allocsite_using_record( self, rec = None ):
         return rec[ get_index("ALLOCSITE") ] if rec != None else "NONE"
+
+    def get_non_javalib_alloc_sitename( self, objId = 0 ):
+        rec = self.get_record(objId)
+        return self.get_non_javalib_alloc_sitename_using_record(rec)
+
+    def get_non_javalib_alloc_sitename_using_record( self, rec = None ):
+        return rec[ get_index("NONJAVA_LIB_ALLOC_CONTEXT") ] if rec != None else "NONE"
 
     def get_stack_died_by_attr( self, objId = 0 ):
         rec = self.get_record(objId)
