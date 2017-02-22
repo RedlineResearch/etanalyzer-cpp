@@ -307,15 +307,10 @@ MethodDeque Thread::top_N_methods(unsigned int N)
 // a Java library function
 bool is_javalib_method( string &methname )
 {
-    // Since we're looking for 'java' at the start,
-    // the method name has to be longer than 4 characters.
-    if (methname.size() < 4) {
-        return false;
-    }
-    return  ( (methname[0] == 'j') &&
-              (methname[1] == 'a') &&
-              (methname[2] == 'v') &&
-              (methname[3] == 'a') );
+    return  ( (methname.substr(0,5) == "java/") ||
+              (methname.substr(0,4) == "sun/") ||
+              (methname.substr(0,8) == "com/sun/") ||
+              (methname.substr(0,8) == "com/ibm/") );
 }
 //-----------------------------------------------------------------------------
 
@@ -330,12 +325,18 @@ MethodDeque Thread::top_javalib_methods()
     } else if (this->m_kind == ExecMode::StackOnly) {
         // TODO Some testing code. Should move these out into a unit testing
         //      framework.
-        // TODO string test1("java/lang/Shutdown.shutdown");
-        // TODO string test2("SHOULD FAIL");
-        // TODO string test3("");
-        // TODO assert( is_javalib_method(test1) ); 
-        // TODO assert( !is_javalib_method(test2) ); 
-        // TODO assert( !is_javalib_method(test3) ); 
+        // string test1("java/lang/Shutdown.shutdown");
+        // string test2("SHOULD FAIL");
+        // string test3("");
+        // string test4("sun/some/method");
+        // string test5("com/sun/some/method");
+        // string test6("com/ibm/some/method");
+        // assert( is_javalib_method(test1) ); 
+        // assert( !is_javalib_method(test2) ); 
+        // assert( !is_javalib_method(test3) ); 
+        // assert( is_javalib_method(test4) ); 
+        // assert( is_javalib_method(test5) ); 
+        // assert( is_javalib_method(test6) ); 
         unsigned int count = 0;
         unsigned int stacksize = this->m_methods.size();
         while (count < stacksize) {
