@@ -310,7 +310,7 @@ def raw_output_to_csv( key = None,
     assert( key != None )
     assert( key in subgroup ) # TODO DEBUG TEMPORARY ONLY
     assert( len(set(subgroup)) == len(subgroup) )  # TODO DEBUG TEMPORARY ONLY
-    subgroup.insert( 0, key )
+    # subgroup.insert( 0, key )
     # Rename objectinfo
     oi = objectinfo
     # Get object record
@@ -360,7 +360,12 @@ def raw_output_to_csv( key = None,
             keytype, keyage, key_alloc_site, key_nonjlib_alloc_site, oldest_age,
             cause, dcont1, dcont2, nonjavalib_death_cont,
             str(pointed_at_by_heap) ]
-    raw_writer.writerow(row)
+    try:
+        raw_writer.writerow(row)
+    except:
+        print "%d : %s = %s" % (key, keytype, type(key_nonjlib_alloc_site))
+        pp.pprint(row)
+        exit(100)
 
 def read_dgroups_from_pickle( result = [],
                               bmark = "",
@@ -481,7 +486,8 @@ def read_dgroups_from_pickle( result = [],
     total_died_at_end_size = 0
     rawpath = os.path.join( workdir, bmark + "-" + RAW_KEY_OBJECT_FILENAME )
     with open( rawpath, "wb" ) as fpraw:
-        raw_writer = csv.writer(fpraw)
+        raw_writer = csv.writer( fpraw,
+                                 quoting = csv.QUOTE_NONNUMERIC )
         header = [ "objectId", "number-objects", "size-group",
                    "key-type", "key-alloc-age", "key-alloc-site", "alloc-non-Java-lib-context", "oldest-member-age",
                    "death-cause", "death-context-1", "death-context-2", "non-Java-lib-context",
