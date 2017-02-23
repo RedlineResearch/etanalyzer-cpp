@@ -53,3 +53,9 @@ TARGET_COMPILE_DEFINITIONS(simulator-type1
                            PRIVATE ENABLE_TYPE1)
 
 ADD_EXECUTABLE(simulator-find-main ${SOURCES_SIM_FIND_MAIN})
+
+# DEBUG simulator executable
+ADD_EXECUTABLE(simulator-debug ${SOURCES_SIM})
+TARGET_COMPILE_DEFINITIONS(simulator-debug
+                           PRIVATE DEBUG_SPECJBB)
+

@@ -299,12 +299,38 @@ MethodDeque Thread::top_N_methods(unsigned int N)
     // NOTHING GOES HERE.
 }
 
+// -- Get full context of methods.
+MethodDeque Thread::full_method_stack()
+{
+    MethodDeque result;
+    if (this->m_kind == ExecMode::Full) {
+        // TODO: NOT IMPLEMENTED YET FOR FULL MODE
+        //       Maybe should be called at all from FULL mode.
+        assert(false);
+    } else if (this->m_kind == ExecMode::StackOnly) {
+        unsigned int count = 0;
+        unsigned int stacksize = this->m_methods.size();
+        while (count < stacksize) {
+            result.push_back(this->TopMethod(count));
+            count++;
+        }
+    } else {
+        cout << "ERROR: Unkown mode " << m_kind << endl;
+        assert(result.size() == 0);
+    }
+    return result;
+    // NOTHING GOES HERE.
+}
 
 //-----------------------------------------------------------------------------
 // Private helper function for determining whether
 // a function is a Java library.
-// If the function name starts with 'java', then it's
-// a Java library function
+// If the function name starts with:
+// -   'java/'
+// -   'sun/'
+// -   'com/sun/'
+// -   'com/ibm/'
+// then it's a Java library function.
 bool is_javalib_method( string &methname )
 {
     return  ( (methname.substr(0,5) == "java/") ||

@@ -399,10 +399,12 @@ unsigned int read_trace_file( FILE *f,
             break;
         }
 
+#ifndef DEBUG_SPECJBB
         if (Exec.NowUp() % 1050000 == 1) {
             // cout << "  Method time: " << Exec.Now() << "   Alloc time: " << AllocationTime << endl;
             cout << "  Update time: " << Exec.NowUp() << " | Method time: TODO | Alloc time: " << AllocationTime << endl;
         }
+#endif // DEBUG_SPECJBB
 
         switch (tokenizer.getChar(0)) {
             case 'A':
@@ -446,7 +448,7 @@ unsigned int read_trace_file( FILE *f,
                                          thread,  // thread Id
                                          Exec.NowUp() ); // Current time
 #ifdef _SIZE_DEBUG
-		    cout << "OS: " << sizeof(obj) << endl;
+                    cout << "OS: " << sizeof(obj) << endl;
 #endif // _SIZE_DEBUG
                     AllocationTime = Heap.getAllocTime();
                     Exec.SetAllocTime( AllocationTime );
@@ -549,7 +551,7 @@ unsigned int read_trace_file( FILE *f,
                                 new_edge = Heap.make_edge( obj, field_id,
                                                            target, Exec.NowUp() );
 #ifdef _SIZE_DEBUG
-				cout << "ES: " << sizeof(new_edge) << endl;
+                                cout << "ES: " << sizeof(new_edge) << endl;
 #endif // _SIZE_DEBUG
                             }
                             Method *topMethod = NULL;
@@ -659,14 +661,22 @@ unsigned int read_trace_file( FILE *f,
                             // Set the death site
                             Exec.UpdateObj2DeathContext( obj,
                                                          javalib_context );
-                            // TODO DELETE if (topMethod) {
-                            // TODO DELETE     obj->setDeathSite(topMethod);
-                            // TODO DELETE     Exec.UpdateObj2DeathContext( obj,
-                            // TODO DELETE                                  topMethod->getName() );
-                            // TODO DELETE } else {
-                            // TODO DELETE     Exec.UpdateObj2DeathContext( obj,
-                            // TODO DELETE                                  "NULL_METHOD" );
-                            // TODO DELETE }
+#ifdef DEBUG_SPECJBB
+                            // if the object is of type [I
+                            if (obj->getType() == "[I") {
+                                MethodDeque cstack = thread->full_method_stack();
+                                cout << "---------------------------------------------------------------------" << endl;
+                                cout << "DEBUG: objectId[ " << obj->getId() << " ]:" << endl
+                                     << "    ";
+                                for ( auto iter = cstack.begin();
+                                      iter != cstack.end();
+                                      iter++ ) {
+                                   cout << (*iter)->getName() << " <- ";
+                                }
+                                cout << endl;
+                            }
+                            //
+#endif // DEBUG_SPECJBB
                             // Death reason setting
                             Reason myreason;
                             if (thread->isLocalVariable(obj)) {

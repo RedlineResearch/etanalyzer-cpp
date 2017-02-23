@@ -123,9 +123,11 @@ Object* HeapState::allocate( unsigned int id,
     // Add to live set. Given that it's a set, duplicates are not a problem.
     this->m_liveset.insert(obj);
 
+#ifndef DEBUG_SPECJBB
     if (this->m_objects.size() % 100000 == 0) {
         cout << "OBJECTS: " << this->m_objects.size() << endl;
     }
+#endif // DEBUG_SPECJBB
     unsigned long int temp = this->m_liveSize + obj->getSize();
     // Max live size calculation
     this->m_liveSize = ( (temp < this->m_liveSize) ? ULONG_MAX : temp );
@@ -179,9 +181,11 @@ Edge* HeapState::make_edge( Object *source,
     assert(target != NULL);
     // TODO target->setPointedAtByHeap();
 
+#ifndef DEBUG_SPECJBB
     if (m_edges.size() % 100000 == 0) {
         cout << "EDGES: " << m_edges.size() << endl;
     }
+#endif // DEBUG_SPECJBB
 
     return new_edge;
 }

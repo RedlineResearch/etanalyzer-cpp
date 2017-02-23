@@ -233,6 +233,8 @@ class Thread
         MethodDeque top_N_methods(unsigned int N);
         // -- Get top N Java-library methods + first non-Java library method
         MethodDeque top_javalib_methods();
+        // -- Get the full stack
+        MethodDeque full_method_stack();
         // -- Get current dead locals
         LocalVarSet * TopLocalVarSet();
         // -- Get a stack trace
