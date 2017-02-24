@@ -11,7 +11,6 @@ import pprint
 import re
 from operator import itemgetter
 from collections import Counter
-import networkx as nx
 import StringIO
 import csv
 import subprocess
@@ -109,8 +108,7 @@ def render_graphs( rscript_path = None,
                    barplot_script = None,
                    csvfile = None,
                    graph_dir = None,
-                   logger = None,
-                   debugflag = False ):
+                   logger = None ):
     assert( os.path.isfile( rscript_path ) )
     assert( os.path.isfile( barplot_script ) )
     assert( os.path.isfile( csvfile ) )
@@ -126,72 +124,29 @@ def render_graphs( rscript_path = None,
                                    stdin = subprocess.PIPE,
                                    stderr = subprocess.PIPE )
     result = renderproc.communicate()
-    if debugflag:
-        logger.debug("--------------------------------------------------------------------------------")
-        for x in result:
-            logger.debug(str(x))
-            print "XXX:", str(x)
-        logger.debug("--------------------------------------------------------------------------------")
+    # Send debug output to logger
+    logger.debug("--------------------------------------------------------------------------------")
+    for x in result:
+        logger.debug(str(x))
+        print "XXX:", str(x)
+    logger.debug("--------------------------------------------------------------------------------")
 
 # Outputs all the benchmarks and the related information
-def output_summary( output_path = None,
-                    output_path_ALL = None,
+def output_summary( output_path_ALL = None,
                     summary = None ):
-    # Print out results in this format:
-    # ========= <- divider
-    # benchmark:
-    # size,largest_cycle, number_types, lifetime_ave, lifetime_sd, min, max
-    #   10,            5,            2,           22,           5,   2,  50
-    # TODO: This documentation seems wrong. TODO
-    print "Summary output path: %s" % str(output_path)
-    # The latest summary
-    with open(output_path, "wb") as fp:
-        csvwriter = csv.writer(fp)
-        bmarklist = summary.keys()
-        # TODO: Multiple sorts of benchmark name?
-        #      - alphabetical is easiest to start with
-        #      - allocation size (largest first)
-        bmarklist = sorted( bmarklist, reverse = True )
-        header = [ "attribute", ]
-        header.extend( bmarklist )
-        csvwriter.writerow( header )
-        attributes = [ "number_of_objects", "size_allocated",
-                       "died_at_end_size", "interesting_size",
-                       "died_by_stack_size", "died_by_heap_size",
-                       "died_by_stack_after_heap_size", "died_by_stack_only_size",
-                       "max_live_size", ]
-        # d["last_update_null_heap"], d["last_update_null_stack"], 
-        # d["last_update_null_size"], d["last_update_null_heap_size"], d["last_update_null_stack_size"],
-        attrs_index = { attributes[x] : x for x in xrange(len(attributes)) }
-        for attr in attributes:
-            row = []
-            row.append( attr )
-            for bmark in bmarklist:
-                row.append( summary[bmark][attr] )
-            csvwriter.writerow( row )
-
     with open(output_path_ALL, "wb") as fpALL:
         csvwriter_ALL = csv.writer(fpALL)
-        header = [ "benchmark", "total_objects", "total_edges",
-                   "died_by_heap", "died_by_stack", "died_at_end",
-                   "died_by_stack_after_heap", "died_by_stack_only",
+        header = [ "benchmark", "total_objects",
                    "died_by_stack_size", "died_by_heap_size", "died_at_end_size",
-                   "max_live_size",
                    "died_by_stack_after_heap_size", "died_by_stack_only_size",
-                   # "last_update_null_heap", "last_update_null_stack", 
-                   # "last_update_null_size", "last_update_null_heap_size", "last_update_null_stack_size",
+                   "max_live_size",
                    ]
         csvwriter_ALL.writerow( header )
         for bmark, d in summary.iteritems():
-            row = [ bmark, d["number_of_objects"], d["number_of_edges"],
-                    d["died_by_heap"], d["died_by_stack"], d["died_at_end"],
-                    d["died_by_stack_after_heap"], d["died_by_stack_only"],
-                    d["last_update_null"],
+            row = [ bmark, d["number_of_objects"],
                     d["died_by_stack_size"], d["died_by_heap_size"], d["died_at_end_size"],
-                    d["max_live_size"],
                     d["died_by_stack_after_heap_size"], d["died_by_stack_only_size"],
-                    # d["last_update_null_heap"], d["last_update_null_stack"], 
-                    # d["last_update_null_size"], d["last_update_null_heap_size"], d["last_update_null_stack_size"],
+                    d["max_live_size"],
                     ]
             csvwriter_ALL.writerow( row )
 
@@ -212,10 +167,27 @@ def main_process( directory = None,
                   logger = None ):
     global pp
     olddir = os.getcwd()
-    worklist = [] # TODO TODO
+    worklist = [ "_201_compress",
+                 "_202_jess",
+                 "_205_raytrace",
+                 "_209_db",
+                 "_213_javac",
+                 "_222_mpegaudio",
+                 "_227_mtrt",
+                 "_228_jack",
+                 "avrora",
+                 "batik",
+                 "fop",
+                 "luindex",
+                 "lusearch",
+                 "specjbb",
+                 "tomcat",
+                 "xalan", ]
     # Add summary filename or create from function
+    summary = {}
+    count = 0
     for bmark in worklist:
-        summary_path = os.path.join( "./SUMMARY", bmark + "cpp-SUMMARY.csv" )
+        summary_path = os.path.join( "./SUMMARY", bmark + "-cpp-SUMMARY.csv" )
         if not os.path.isfile(summary_path):
             logger.critical("[ %s ] - SUMMARY: No such file: %s" % (bmark, str(summary_path)))
             print "[ %s ] - SUMMARY: No such file: %s" % (bmark, str(summary_path))
@@ -272,29 +244,20 @@ def main_process( directory = None,
         # DEBUG: if count >= 1:
         # DEBUG:     break
     print "======================================================================"
-    print "DEBUG END."
-    exit(100)
     print "===========[ SUMMARY ]================================================"
     output_path = directory
-    output_ALL = output + "-ALL.csv"
-    output_path_ALL = os.path.join( cycle_cpp_dir, output_ALL )
-    output_summary( output_path = output_path,
-                    output_path_ALL = output_path_ALL,
+    output_path_ALL = os.path.join( output_path, "died_by_summary.csv" )
+    output_summary( output_path_ALL = output_path_ALL,
                     summary = summary )
     old_dir = os.getcwd()
-    backup_old_graphs( graph_dir_path = graph_dir_path,
-                       pdfs_config = pdfs_config,
-                       backup_graph_dir_path = backup_graph_dir_path,
-                       base_temp_dir = temp_dir,
-                       workdir = workdir )
-    os.chdir( old_dir )
-    # run object_barplot.R
-    render_graphs( rscript_path = global_config["rscript_path"],
-                   barplot_script = global_config["barplot_script"],
+    # run ismm2017-plot.R
+    render_graphs( rscript_path = "/data/rveroy/bin/Rscript",
+                   barplot_script = "ismm2017-plot.R",
                    csvfile = output_path_ALL, # csvfile is the input from the output_summary earlier 
-                   graph_dir = global_config["graph_dir"],
-                   logger = logger,
-                   debugflag = debugflag )
+                   graph_dir = output_path,
+                   logger = logger )
+    print "DEBUG END."
+    exit(100)
     #=====[ DONE ]=============================================================
     os.chdir( olddir )
     # Print out results in this format:
@@ -341,16 +304,45 @@ def create_parser():
 def main():
     parser = create_parser()
     args = parser.parse_args()
-    result = process_config( args ) 
     # logging
     logger = setup_logger( filename = args.logfile,
-                           debugflag = global_config["debug"] )
+                           debugflag = True )
     #
     # Main processing
     #
-    return main_process( debugflag = global_config["debug"],
-                         directory = args.directory,
+    return main_process( directory = args.directory,
                          logger = logger )
 
 if __name__ == "__main__":
     main()
+
+
+#================================================================================
+# Old code from output_summary
+#
+#     print "Summary output path: %s" % str(output_path)
+#     # The latest summary
+#     with open(output_path, "wb") as fp:
+#         csvwriter = csv.writer(fp)
+#         bmarklist = summary.keys()
+#         # TODO: Multiple sorts of benchmark name?
+#         #      - alphabetical is easiest to start with
+#         #      - allocation size (largest first)
+#         bmarklist = sorted( bmarklist, reverse = True )
+#         header = [ "attribute", ]
+#         header.extend( bmarklist )
+#         csvwriter.writerow( header )
+#         attributes = [ "number_of_objects", "size_allocated",
+#                        "died_at_end_size", "interesting_size",
+#                        "died_by_stack_size", "died_by_heap_size",
+#                        "died_by_stack_after_heap_size", "died_by_stack_only_size",
+#                        "max_live_size", ]
+#         attrs_index = { attributes[x] : x for x in xrange(len(attributes)) }
+#         for attr in attributes:
+#             row = []
+#             row.append( attr )
+#             for bmark in bmarklist:
+#                 row.append( summary[bmark][attr] )
+#             csvwriter.writerow( row )
+#             print "XXX:", row
+# 
