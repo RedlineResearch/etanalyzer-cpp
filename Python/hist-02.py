@@ -34,9 +34,11 @@ class ClusterIndex:
 
         if byheap:
             self.by_heap[key] += 1
-        else:
-            # Necessary if we want the key to show up in iteration
-            self.by_heap[key] += 0
+        # else:
+        #     # Actually now that I think about it, probably not necessary since
+        #     # if a key has value zero if accessed on a read for the first time
+        #     # in the Counter class.
+        #     self.by_heap[key] += 0
 
     def print(self):
         for key in self.size:
@@ -46,7 +48,24 @@ class ClusterIndex:
         for key in self.size:
             fptr.write( "{} {:8d} {:8d} {:8d} {:3d} -- {:4d}  {:9d} -- {:9d} {:8d} {}\n".format(self.name, self.size[key], self.objects[key], self.groups[key], self.min_group[key], self.max_group[key], self.min_age[key], self.max_age[key], self.by_heap[key], key))
 
-    def csv_write( self, writer ):
+    def print_file_limit(self, fptr, number):
+        rows = []
+        for key in self.size.keys():
+            rows.append( [ self.size[key],
+                           self.objects[key],
+                           self.groups[key],
+                           self.min_group[key],
+                           self.max_group[key],
+                           self.min_age[key],
+                           self.max_age[key],
+                           self.by_heap[key],
+                           key ] )
+        rows = sorted( rows, key = itemgetter(0), reverse = True )
+        assert( number > 0 and number <= len(rows) )
+        for row in rows[:number]:
+            fptr.write( "{:8d} {:8d} {:8d} {:3d} -- {:4d}  {:9d} -- {:9d} {:8d} {}\n".format( row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], str(key)) )
+
+    def csv_write( self, writer, name ):
         header = [ "size", "objects", "groups", "min_group", "max_group", "min_age", "max_age", "by_heap", "allocsite", "deathsite" ]
         writer.writerow( header )
         rows = []
@@ -110,7 +129,9 @@ if __name__ == "__main__":
         by_type.print_file( outFile )
         by_all.print_file( outFile )
 
-    with open( "AD-" + bmark + ".csv", "w" ) as fptr:
+    with open( "AD-" + bmark + ".csv", "w" ) as fptr, \
+         open( "AD-" + bmark + ".txt", "w" ) as textfptr:
         writer = csv.writer(fptr, quoting = csv.QUOTE_NONNUMERIC )
-        by_contpair.csv_write( writer )
+        by_contpair.csv_write( writer, "AD" )
+        by_contpair.print_file_limit( textfptr, 10 )
 
