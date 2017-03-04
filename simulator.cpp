@@ -663,7 +663,8 @@ unsigned int read_trace_file( FILE *f,
                                                          javalib_context );
 #ifdef DEBUG_SPECJBB
                             // if the object is of type [I
-                            if (obj->getType() == "[I") {
+                            // SPECJBB if (obj->getType() == "[I") {
+                            if (obj->getType() == "Lspec/benchmarks/_205_raytrace/Point;") {
                                 MethodDeque cstack = thread->full_method_stack();
                                 cout << "---------------------------------------------------------------------" << endl;
                                 cout << "DEBUG: objectId[ " << obj->getId() << " ]:" << endl
