@@ -479,6 +479,14 @@ unsigned int read_trace_file( FILE *f,
                     unsigned int threadId = tokenizer.getInt(5);
                     unsigned int field = tokenizer.getInt(4);
                     Thread *thread = Exec.getThread(threadId);
+                    Method *topMethod = NULL;
+                    Method *topMethod_using_action = NULL;
+                    if (thread) {
+                        topMethod = thread->TopMethod();
+                        MethodDeque tjmeth = thread->top_javalib_methods();
+                        topMethod_using_action = tjmeth.back();
+                    }
+
                     Object *oldObj = Heap.getObject(oldTgtId);
                     LastEvent lastevent = LastEvent::UPDATE_UNKNOWN;
                     Exec.IncUpdateTime();
@@ -536,6 +544,10 @@ unsigned int read_trace_file( FILE *f,
                         } else {
                             oldObj->unsetLastUpdateFromStatic();
                         }
+                        // Last action site
+                        oldObj->setLastActionSite(topMethod_using_action);
+                        string last_action_name = topMethod_using_action->getName();
+                        oldObj->set_nonJavaLib_last_action_context( last_action_name );
                     }
                     if (oldTgtId == tgtId) {
                         // It sometimes happens that the newtarget is the same as
@@ -554,10 +566,6 @@ unsigned int read_trace_file( FILE *f,
                                 cout << "ES: " << sizeof(new_edge) << endl;
 #endif // _SIZE_DEBUG
                             }
-                            Method *topMethod = NULL;
-                            if (thread) {
-                                topMethod = thread->TopMethod();
-                            }
                             obj->updateField( new_edge,
                                               field_id,
                                               Exec.NowUp(),
@@ -567,6 +575,7 @@ unsigned int read_trace_file( FILE *f,
                                               lastevent, // last event to determine cause
                                               EdgeState::DEAD_BY_UPDATE, // edge is dead because of update
                                               eifile ); // output edge info file
+                            //
                             // NOTE: topMethod COULD be NULL here.
                             // DEBUG ONLY IF NEEDED
                             // Example:
@@ -769,9 +778,18 @@ unsigned int read_trace_file( FILE *f,
                         object->setLastTimestamp( Exec.NowUp() );
                         object->setActualLastTimestamp( Exec.NowUp() );
                         Thread *thread = Exec.getThread(threadId);
+                        Method *topMethod_using_action = NULL;
+                        if (thread) {
+                            MethodDeque tjmeth = thread->top_javalib_methods();
+                            topMethod_using_action = tjmeth.back();
+                        }
                         if (thread) {
                             thread->objectRoot(object);
                         }
+                        // Last action site
+                        object->setLastActionSite(topMethod_using_action);
+                        string last_action_name = topMethod_using_action->getName();
+                        object->set_nonJavaLib_last_action_context( last_action_name );
                     }
                     root_set.insert(objId);
                     // TODO last_map.setLast( threadId, LastEvent::ROOT, object );
@@ -1129,6 +1147,7 @@ void output_all_objects2( string &objectinfo_filename,
         string death_method_l1 = object->getDeathContextSiteName(1);
         string death_method_l2 = object->getDeathContextSiteName(2);
         string death_method_nonjavalib = object->get_nonJavaLib_death_context();
+        string last_action_method_nonjavalib = object->get_nonJavaLib_last_action_context();
         string allocsite_name = object->getAllocSiteName();
         string nonjlib_allocsite_name = object->getNonJavaLibAllocSiteName();
         ObjectRefType objstability = object->getRefTargetType();
@@ -1153,7 +1172,7 @@ void output_all_objects2( string &objectinfo_filename,
             //--------------------------------------------------------------------------------
             << "," << death_method_l2 // Second level context for death
             //--------------------------------------------------------------------------------
-            << "," << death_method_nonjavalib // first nonJavaLib method
+            << "," << last_action_method_nonjavalib // first nonJavaLib method
             //--------------------------------------------------------------------------------
             << "," << "TODO" //  Full death context height
             // TODO << "," << alloc_method1 // Part 1 of simple context pair - alloc site

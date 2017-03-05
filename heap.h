@@ -453,6 +453,8 @@ class Object {
         unsigned int m_last_timestamp;
         // Time of last update away. This is the 'timestamp' in the Merlin algorithm
         unsigned int m_actual_last_timestamp;
+        // Last action method
+        Method *m_last_action_method;
         // Method where this object died
         Method *m_methodDeathSite; // level 1
         Method *m_methodDeathSite_l2; // level 2
@@ -493,6 +495,7 @@ class Object {
         string m_deathsite_name;
         string m_deathsite_name_l2;
         string m_nonjavalib_death_context;
+        string m_nonjavalib_last_action_context;
 
         DequeId_t m_alloc_context;
         // If ExecMode is Full, this contains the full list of the stack trace at allocation.
@@ -547,6 +550,7 @@ class Object {
             , m_actual_last_timestamp(0)
             , m_last_update_null(indeterminate)
             , m_last_update_away_from_static(false)
+            , m_last_action_method(NULL)
             , m_methodDeathSite(0)
             , m_methodDeathSite_l2(0)
             , m_methodRCtoZero(NULL)
@@ -560,6 +564,7 @@ class Object {
             , m_deathsite_name("NONE")
             , m_deathsite_name_l2("NONE")
             , m_nonjavalib_death_context("NONE")
+            , m_nonjavalib_last_action_context("NONE")
             // , m_death_cpair(NULL, NULL)
             , m_reftarget_type(ObjectRefType::UNKNOWN)
         {
@@ -687,7 +692,14 @@ class Object {
         void setHeapReason( unsigned int t ) { m_reason = Reason::HEAP; m_last_action_time = t; }
         Reason setReason( Reason r, unsigned int t ) { m_reason = r; m_last_action_time = t; }
         Reason getReason() const { return m_reason; }
+        // Last action related
         unsigned int getLastActionTime() const { return m_last_action_time; }
+        Method *getLastActionSite() const {
+            return this->m_last_action_method;
+        }
+        void setLastActionSite( Method *newsite ) {
+            this->m_last_action_method = newsite;
+        }
         // Return the Merlin timestamp
         auto getLastTimestamp() -> unsigned int const {
             return this->m_last_timestamp;
@@ -835,6 +847,14 @@ class Object {
 
         void set_nonJavaLib_death_context( string &new_dcontext ) {
             this->m_nonjavalib_death_context = new_dcontext;
+        }
+
+        string get_nonJavaLib_last_action_context() const {
+            return this->m_nonjavalib_last_action_context;
+        }
+
+        void set_nonJavaLib_last_action_context( string &new_dcontext ) {
+            this->m_nonjavalib_last_action_context = new_dcontext;
         }
 
         // Set allocation context list
