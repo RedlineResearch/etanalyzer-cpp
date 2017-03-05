@@ -9,6 +9,7 @@ import re
 from pprint import PrettyPrinter
 import subprocess
 from tabulate import tabulate
+from math import ceil
 
 def setminmax(minmap, maxmap, key, v):
     minmap[key] = min(v, minmap[key])
@@ -52,15 +53,17 @@ class ClusterIndex:
         self.min_age = defaultdict( lambda: sys.maxsize )
         self.max_age = defaultdict( lambda: -1 )
         self.by_heap = Counter()
+        self.total_size = 0
 
-    def add(self, key, size, objs, age, byheap):
-        self.size[key] += size
+    def add(self, key, mysize, objs, age, byheap):
+        self.size[key] += mysize
         self.objects[key] += objs
         self.groups[key] += 1
 
         setminmax(self.min_age, self.max_age, key, age)
         setminmax(self.min_group, self.max_group, key, objs)
 
+        self.total_size += mysize
         if byheap:
             self.by_heap[key] += 1
         # else:
@@ -98,7 +101,8 @@ class ClusterIndex:
         header = [ "size", "objects", "groups", "min_group", "max_group",
                    "min_age", "max_age", "by_heap",
                    "allocsite", "deathsite",
-                   "allocpackage", "deathpackage", ]
+                   "allocpackage", "deathpackage",
+                   "alloc_same_death", ]
         writer.writerow( header )
         rows = []
         for key in self.size.keys():
@@ -127,13 +131,44 @@ class ClusterIndex:
                            allocsite,
                            deathsite,
                            allocpackage,
-                           deathpackage, ] )
+                           deathpackage,
+                           str( ((allocsite == deathsite) and (allocpackage == deathpackage)) ) ] )
         rows = sorted( rows, key = itemgetter(0), reverse = True )
         for row in rows[:10]:
             writer.writerow( row )
 
+    def samesite_latex_write( self, fptr ):
+        header = [ "Site", "Objects", "Groups", "Size(kB)", ]
+        alldata = sorted( self.objects.items(),
+                          key = itemgetter(1),
+                          reverse = True )
+        index = 0
+        data = []
+        allrows = []
+        print( "TOTAL SIZE:", self.total_size )
+        while ( len(data) < 10 and
+                index < len(alldata) ):
+            rec = alldata[index]
+            if rec[0] != "NOMATCH":
+                data.append( rec[0] )
+            index += 1
+        assert( len(data) == 10 )
+        fptr.write( "\\begin{table}\n    \\centering\n" )
+        for site in data:
+            row = [ site ]
+            row.append( "{:,d}".format(self.objects[site]) )
+            row.append( "{:,d}".format(self.groups[site]) )
+            row.append( "{:,d}".format(ceil(self.size[site]/1024)) )
+            allrows.append(row)
+        fptr.write( tabulate( allrows, header, tablefmt = "latex", stralign = "right" ) )
+        bmark_tex = bmark.replace("_", "\\_")
+        fptr.write( "\n    \\caption{%s}\n    \\label{%s}\n" %
+                    ( "Top contexts, using object count, where allocation site is the same as death site for %s. Size is in kilobytes." % bmark_tex,
+                      bmark + "-group-table" ) )
+        fptr.write( "\\end{table}\n" )
+
 if __name__ == "__main__":
-    csvfile = sys.argv[1]
+    csvfile = sys.argv[1] if not subprocflag else mytarget
 
     # Hardcoded to simplify filename generation. Could be changed if needed.
     regex = re.compile( "([a-z0-9_]+)-raw-key-object-summary.csv" )
@@ -148,14 +183,17 @@ if __name__ == "__main__":
     by_type = ClusterIndex("TYPE")
     by_all = ClusterIndex("ADT")
     by_contpair = ClusterIndex("CONTPAIR")
+    by_samesite = ClusterIndex("SAMESITE")
 
     groupsize = Counter()
 
     pp = PrettyPrinter( indent = 4 )
     gcount_file = bmark + "-GROUP-COUNT.txt"
+    site_texfile = bmark + "-SITES.tex"
     with open( csvfile, "r" ) as theFile, \
          open( bmark + ".txt", "w" ) as outFile, \
-         open( gcount_file, "w" ) as gcountFile:
+         open( gcount_file, "w" ) as gcountFile,\
+         open( site_texfile, "w" ) as siteTexFile:
         reader = csv.DictReader( theFile )
         for line in reader:
             size = int(line["size-group"])
@@ -167,18 +205,22 @@ if __name__ == "__main__":
 
             by_heap = (line["pointed-at-by-heap"] == "True")
             alloc = line["alloc-non-Java-lib-context"]
-            by_allocsite.add(alloc, size, objs, oldest, by_heap)
-            by_deathsite.add(context, size, objs, oldest, by_heap)
-            by_type.add(line["key-type"], size, objs, oldest, by_heap)
+            # TODO TEMP: by_allocsite.add(alloc, size, objs, oldest, by_heap)
+            # TODO TEMP: by_deathsite.add(context, size, objs, oldest, by_heap)
+            # TODO TEMP: by_type.add(line["key-type"], size, objs, oldest, by_heap)
 
-            k = '{} {} {}'.format(line["key-type"], alloc, context)
-            by_all.add(k, size, objs, oldest, by_heap)
-            by_contpair.add( (alloc, context), size, objs, oldest, by_heap )
+            # TODO TEMP: k = '{} {} {}'.format(line["key-type"], alloc, context)
+            # TODO TEMP: by_all.add(k, size, objs, oldest, by_heap)
+            # TODO TEMP: by_contpair.add( (alloc, context), size, objs, oldest, by_heap )
+            samesite_flag = (alloc == context)
+            site_to_add = alloc if samesite_flag else "NOMATCH"
+            by_samesite.add( site_to_add, size, objs, oldest, by_heap )
 
             # Size histograms
-            groupsize[objs] += 1
+            # TODO TEMP: groupsize[objs] += 1
 
-        outFile.write( "{}     {:8s} {:8s} {:8s} {:11s}  {:22s} {:8s} {}\n".format("TAG", "#bytes", "#objs", "#clusters", "cl-size", "cluster-age", "by-heap", "info"))
+            # Checking to see if alloc site is the same as the death site
+        # TODO TEMP: outFile.write( "{}     {:8s} {:8s} {:8s} {:11s}  {:22s} {:8s} {}\n".format("TAG", "#bytes", "#objs", "#clusters", "cl-size", "cluster-age", "by-heap", "info"))
         # ORIG: by_allocsite.print_file( outFile )
         # ORIG: by_deathsite.print_file( outFile )
         # ORIG: by_type.print_file( outFile )
@@ -186,8 +228,13 @@ if __name__ == "__main__":
         # GROUP SIZE: for num, count in groupsize.items():
         # GROUP SIZE:     for i in range(count):
         # GROUP SIZE:         gcountFile.write("%d\n" % num)
+        by_samesite.samesite_latex_write( siteTexFile )
 
     # TODO TEMP: with open( "AD-" + bmark + ".csv", "w" ) as fptr:
+    # TODO TEMP:     writer = csv.writer(fptr, quoting = csv.QUOTE_NONNUMERIC )
+    # TODO TEMP:     by_contpair.csv_write( writer )
+
+    # TODO TEMP: with open( bmark + ".csv", "w" ) as fptr:
     # TODO TEMP:     writer = csv.writer(fptr, quoting = csv.QUOTE_NONNUMERIC )
     # TODO TEMP:     by_contpair.csv_write( writer )
 
