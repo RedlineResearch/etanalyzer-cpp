@@ -219,7 +219,7 @@ int main(int argc, char* argv[])
     }
 
     cout << "Read names file..." << endl;
-    ClassInfo::read_names_file_nomain( argv[1] );
+    ClassInfo::read_names_file_no_mainfunc( argv[1] );
 
     cout << "Start trace..." << endl;
     FILE *f = fdopen(0, "r");
