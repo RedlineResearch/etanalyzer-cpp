@@ -75,14 +75,6 @@ void output_edge( Edge *edge,
     assert(target);
     unsigned int srcId = source->getId();
     unsigned int tgtId = target->getId();
-    if (srcId == 94200 && tgtId == 78449) {
-        cerr << srcId << ","
-            << tgtId << ","
-            << edge->getCreateTime() << ","
-            << endtime << ","
-            << edge->getSourceField() << ","
-            << static_cast<int>(estate) << endl;
-    }
     // Format is
     // srcId, tgtId, createTime, deathTime, sourceField, edgeState
     edge_info_file << srcId << ","
@@ -211,6 +203,17 @@ void HeapState::makeDead( Object *obj,
                           unsigned int death_time,
                           ofstream &eifile )
 {
+}
+
+void HeapState::makeDead_nosave( Object *obj,
+                                 unsigned int death_time )
+{
+}
+
+void HeapState::__makeDead( Object *obj,
+                            unsigned int death_time,
+                            ofstream *eifile_ptr )
+{
     if (!obj->isDead()) {
         // Livesize maintenance
         auto iter = this->m_liveset.find(obj);
@@ -232,7 +235,7 @@ void HeapState::makeDead( Object *obj,
         obj->makeDead( death_time,
                        this->m_alloc_time,
                        EdgeState::DEAD_BY_OBJECT_DEATH_NOT_SAVED,
-                       eifile,
+                       *eifile_ptr,
                        objreason );
     }
 }
@@ -378,6 +381,27 @@ Method * HeapState::get_method_death_site( Object *obj )
 void HeapState::end_of_program( unsigned int cur_time,
                                 ofstream &eifile )
 {
+    this->__end_of_program( cur_time,
+                            &eifile,
+                            true );
+}
+
+// TODO Documentation :)
+void HeapState::end_of_program_nosave( unsigned int cur_time )
+{
+    this->__end_of_program( cur_time,
+                            NULL,
+                            false );
+}
+
+// TODO Documentation :)
+void HeapState::__end_of_program( unsigned int cur_time,
+                                  ofstream *eifile_ptr,
+                                  bool save_edge_flag )
+{
+    if (save_edge_flag) {
+        assert(eifile_ptr);
+    }
     // -- Set death time of all remaining live objects
     //    Also set the flags for the interesting classifications.
     for ( ObjectMap::iterator i = m_objects.begin();
@@ -391,11 +415,18 @@ void HeapState::end_of_program( unsigned int cur_time,
             if (!obj->isDead()) {
                 // A hack: not sure why this check may be needed.
                 // TODO: Debug this.
-                obj->makeDead( cur_time,
-                               this->m_alloc_time,
-                               EdgeState::DEAD_BY_PROGRAM_END,
-                               eifile,
-                               Reason::END_OF_PROGRAM_REASON );
+                if (save_edge_flag) {
+                    obj->makeDead( cur_time,
+                                   this->m_alloc_time,
+                                   EdgeState::DEAD_BY_PROGRAM_END,
+                                   *eifile_ptr,
+                                   Reason::END_OF_PROGRAM_REASON );
+                } else {
+                    obj->makeDead_nosave( cur_time,
+                                          this->m_alloc_time,
+                                          EdgeState::DEAD_BY_PROGRAM_END,
+                                          Reason::END_OF_PROGRAM_REASON );
+                }
                 obj->setActualLastTimestamp( cur_time );
             }
             string progend("PROG_END");
@@ -800,6 +831,7 @@ string Object::info2() {
     return ss.str();
 }
 
+// Save the edge
 void Object::updateField( Edge *edge,
                           FieldId_t fieldId,
                           unsigned int cur_time,
@@ -809,7 +841,56 @@ void Object::updateField( Edge *edge,
                           LastEvent last_event,
                           EdgeState estate,
                           ofstream &eifile )
+
 {
+   this->__updateField( edge,
+                        fieldId,
+                        cur_time,
+                        method,
+                        reason,
+                        death_root,
+                        last_event,
+                        estate,
+                        &eifile,
+                        true );
+}
+
+void Object::updateField_nosave( Edge *edge,
+                                 FieldId_t fieldId,
+                                 unsigned int cur_time,
+                                 Method *method,
+                                 Reason reason,
+                                 Object *death_root,
+                                 LastEvent last_event,
+                                 EdgeState estate )
+{
+   this->__updateField( edge,
+                        fieldId,
+                        cur_time,
+                        method,
+                        reason,
+                        death_root,
+                        last_event,
+                        estate,
+                        NULL,
+                        false );
+}
+
+// Doesn't output to the edgefile.
+void Object::__updateField( Edge *edge,
+                            FieldId_t fieldId,
+                            unsigned int cur_time,
+                            Method *method,
+                            Reason reason,
+                            Object *death_root,
+                            LastEvent last_event,
+                            EdgeState estate,
+                            ofstream *eifile_ptr,
+                            bool save_edge_flag )
+{
+    if (save_edge_flag) {
+        assert(eifile_ptr);
+    }
     if (edge) {
         edge->setEdgeState( EdgeState::LIVE );
     }
@@ -824,10 +905,12 @@ void Object::updateField( Edge *edge,
                 // we'll do it somewhere else.
                 old_edge->setEdgeState( estate );
                 old_edge->setEndTime(cur_time);
-                output_edge( old_edge,
-                             cur_time,
-                             estate,
-                             eifile );
+                if (save_edge_flag) {
+                    output_edge( old_edge,
+                                 cur_time,
+                                 estate,
+                                 *eifile_ptr );
+                }
             }
             // -- Now we know the end time
             Object *old_target = old_edge->getTarget();
@@ -968,6 +1051,34 @@ void Object::makeDead( unsigned int death_time,
                        ofstream &edge_info_file,
                        Reason newreason )
 {
+    this->__makeDead( death_time,
+                      death_time_alloc,
+                      estate,
+                      &edge_info_file,
+                      newreason,
+                      true );
+}
+
+void Object::makeDead_nosave( unsigned int death_time,
+                              unsigned int death_time_alloc,
+                              EdgeState estate,
+                              Reason newreason )
+{
+    this->__makeDead( death_time,
+                      death_time_alloc,
+                      estate,
+                      NULL,
+                      newreason,
+                      false );
+}
+
+void Object::__makeDead( unsigned int death_time,
+                         unsigned int death_time_alloc,
+                         EdgeState estate,
+                         ofstream *edge_info_file_ptr,
+                         Reason newreason,
+                         bool save_edge_flag )
+{
     // -- Record the death time
     this->m_deathTime = death_time;
     this->m_deathTime_alloc = death_time_alloc;
@@ -1009,7 +1120,7 @@ void Object::makeDead( unsigned int death_time,
                 output_edge( edge,
                              death_time,
                              estate,
-                             edge_info_file );
+                             *edge_info_file_ptr );
             }
         }
     }

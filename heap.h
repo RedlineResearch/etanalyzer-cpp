@@ -299,6 +299,11 @@ class HeapState {
         void makeDead( Object * obj,
                        unsigned int death_time,
                        ofstream &eifile );
+        void makeDead_nosave( Object * obj,
+                              unsigned int death_time );
+        void __makeDead( Object * obj,
+                         unsigned int death_time,
+                         ofstream *eifile_ptr );
 
         ObjectMap::iterator begin() { return m_objects.begin(); }
         ObjectMap::iterator end() { return m_objects.end(); }
@@ -345,8 +350,13 @@ class HeapState {
         EdgeSet::iterator end_edges() { return m_edges.end(); }
         unsigned int numberEdges() { return m_edges.size(); }
 
+        // End of program event handling
         void end_of_program( unsigned int cur_time,
                              ofstream &edge_info_file );
+        void end_of_program_nosave( unsigned int cur_time );
+        void __end_of_program( unsigned int cur_time,
+                               ofstream *eifile_ptr,
+                               bool save_edge_flag );
 
         void set_candidate(unsigned int objId);
         void unset_candidate(unsigned int objId);
@@ -908,12 +918,42 @@ class Object {
                           LastEvent last_event,
                           EdgeState estate,
                           ofstream &eifile );
+        // -- Update a field
+        void updateField_nosave( Edge* edge,
+                                 FieldId_t fieldId,
+                                 unsigned int cur_time,
+                                 Method *method,
+                                 Reason reason,
+                                 Object *death_root,
+                                 LastEvent last_event,
+                                 EdgeState estate );
+        // -- Update a field
+        void __updateField( Edge* edge,
+                            FieldId_t fieldId,
+                            unsigned int cur_time,
+                            Method *method,
+                            Reason reason,
+                            Object *death_root,
+                            LastEvent last_event,
+                            EdgeState estate,
+                            ofstream *eifile_ptr,
+                            bool save_edge_flag );
         // -- Record death time
         void makeDead( unsigned int death_time,
                        unsigned int death_time_alloc,
                        EdgeState estate,
                        ofstream &eifile,
                        Reason newreason );
+        void makeDead_nosave( unsigned int death_time,
+                              unsigned int death_time_alloc,
+                              EdgeState estate,
+                              Reason newreason );
+        void __makeDead( unsigned int death_time,
+                         unsigned int death_time_alloc,
+                         EdgeState estate,
+                         ofstream *eifile_ptr,
+                         Reason newreason,
+                         bool save_edge_flag );
         // -- Set the color
         void recolor(Color newColor);
         // Mark object as red

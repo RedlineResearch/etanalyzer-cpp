@@ -27,6 +27,9 @@ SET(SOURCES_SIM_POOL simulator-pool.cpp execution.cpp heap.cpp classinfo.cpp tok
 SET(SOURCES_SIM_FIND_MAIN simulator-find-main.cpp execution.cpp heap.cpp classinfo.cpp tokenizer.cpp
     analyze.cpp version.cpp)
 
+SET(SOURCES_SIM_REFCOUNT simulator-ref.cpp execution.cpp heap.cpp classinfo.cpp tokenizer.cpp
+    analyze.cpp version.cpp)
+
 # The file(GLOB...) allows for wildcard additions if needed:
 # file(GLOB SOURCES "src/*.cpp")
 
@@ -59,3 +62,5 @@ ADD_EXECUTABLE(simulator-debug ${SOURCES_SIM})
 TARGET_COMPILE_DEFINITIONS(simulator-debug
                            PRIVATE DEBUG_SPECJBB)
 
+# Ref counting simulator executable
+ADD_EXECUTABLE(simulator-refcount ${SOURCES_SIM_REFCOUNT})
