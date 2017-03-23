@@ -54,6 +54,7 @@ class ClusterIndex:
         self.max_age = defaultdict( lambda: -1 )
         self.by_heap = Counter()
         self.total_size = 0
+        self.site2set = defaultdict( set )
 
     def add(self, key, mysize, objs, age, byheap):
         self.size[key] += mysize
@@ -71,6 +72,9 @@ class ClusterIndex:
         #     # if a key has value zero if accessed on a read for the first time
         #     # in the Counter class.
         #     self.by_heap[key] += 0
+
+    def update_site_count( self, key, tgtsite ):
+        self.site2set[key].add( tgtsite )  
 
     def print(self):
         for key in self.size:
@@ -167,8 +171,47 @@ class ClusterIndex:
                       bmark + "-group-table" ) )
         fptr.write( "\\end{table}\n" )
 
+    def alloc_latex_write( self, fptr, bmark ):
+        # Only valid for ALLOC type Clusters
+        assert( self.name == "DEATH" )
+        # ALLOC: header = [ "Benchmark", "Site", "Size(MB)", "Objects", "# of death sites", ]
+        header = [ "Benchmark", "Site", "Size(MB)", "Objects", "# of allocation sites", ]
+        alldata = sorted( self.size.items(),
+                          key = itemgetter(1),
+                          reverse = True )
+        data = []
+        allrows = []
+        print( "TOTAL SIZE:", self.total_size )
+        index = 0
+        while len(data) < 1:
+            rec = alldata[index]
+            if rec[0] != "NOMATCH":
+                data.append( rec[0] )
+                break
+            index += 1
+        assert( len(data) == 1 )
+        fptr.write( "\\begin{table*}\n    \\centering\n" )
+        bmark_tex = bmark.replace("_", "\\_")
+        for site in data:
+            row = [ bmark_tex, site ]
+            row.append( "{:,d}".format(ceil(self.size[site]/(1024*1024))) )
+            row.append( "{:,d}".format(self.objects[site]) )
+            row.append( "{:,d}".format(len(self.site2set[site])) )
+            allrows.append(row)
+        fptr.write( tabulate( allrows, header, tablefmt = "latex", stralign = "right" ) )
+        fptr.write( "\n    \\caption{%s}\n    \\label{%s}\n" %
+                    ( "Benchmark's top allocation site by size.",
+                      bmark + "-all-alloc-table" ) )
+        # DEATH: fptr.write( "\n    \\caption{%s}\n    \\label{%s}\n" %
+        # DEATH:             ( "Benchmark's top death site by size.",
+        # DEATH:               bmark + "-all-death-table" ) )
+        fptr.write( "\\end{table*}\n" )
+
 if __name__ == "__main__":
-    csvfile = sys.argv[1] if not subprocflag else mytarget
+    try:
+        csvfile = sys.argv[1] if not subprocflag else mytarget
+    except:
+        csvfile = sys.argv[1]
 
     # Hardcoded to simplify filename generation. Could be changed if needed.
     regex = re.compile( "([a-z0-9_]+)-raw-key-object-summary.csv" )
@@ -190,10 +233,17 @@ if __name__ == "__main__":
     pp = PrettyPrinter( indent = 4 )
     gcount_file = bmark + "-GROUP-COUNT.txt"
     site_texfile = bmark + "-SITES.tex"
-    with open( csvfile, "r" ) as theFile, \
-         open( bmark + ".txt", "w" ) as outFile, \
-         open( gcount_file, "w" ) as gcountFile,\
-         open( site_texfile, "w" ) as siteTexFile:
+    # alloc_texfile = bmark + "-ALLOC.tex"
+    #    open( alloc_texfile, "w" ) as allocTexFile:
+    # open( bmark + ".txt", "w" ) as outFile, \
+    # open( gcount_file, "w" ) as gcountFile,\
+    # open( site_texfile, "w" ) as siteTexFile, \
+    # open( death_texfile, "w" ) as deathTexFile:
+    death_texfile = bmark + "-DEATH.tex"
+    dset = set()
+    tmpsize = 0
+    tmpobjs = 0
+    with open( csvfile, "r" ) as theFile:
         reader = csv.DictReader( theFile )
         for line in reader:
             size = int(line["size-group"])
@@ -205,30 +255,41 @@ if __name__ == "__main__":
 
             by_heap = (line["pointed-at-by-heap"] == "True")
             alloc = line["alloc-non-Java-lib-context"]
-            # TODO TEMP: by_allocsite.add(alloc, size, objs, oldest, by_heap)
-            # TODO TEMP: by_deathsite.add(context, size, objs, oldest, by_heap)
+            # if alloc == "org/apache/lucene/queryParser/QueryParser.parse":
+            if context == "org/apache/lucene/queryParser/QueryParserTokenManager.ReInit":
+                dset.add( alloc )
+                tmpsize += size
+                tmpobjs += objs
+            # by_allocsite.add(alloc, size, objs, oldest, by_heap)
+            # by_allocsite.update_site_count( alloc, context )
+            # by_deathsite.add(context, size, objs, oldest, by_heap)
+            # by_deathsite.update_site_count( context, alloc )
             # TODO TEMP: by_type.add(line["key-type"], size, objs, oldest, by_heap)
 
             # TODO TEMP: k = '{} {} {}'.format(line["key-type"], alloc, context)
             # TODO TEMP: by_all.add(k, size, objs, oldest, by_heap)
             # TODO TEMP: by_contpair.add( (alloc, context), size, objs, oldest, by_heap )
-            samesite_flag = (alloc == context)
-            site_to_add = alloc if samesite_flag else "NOMATCH"
-            by_samesite.add( site_to_add, size, objs, oldest, by_heap )
+
+            # SAMESITE: samesite_flag = (alloc == context)
+            # SAMESITE: site_to_add = alloc if samesite_flag else "NOMATCH"
+            # SAMESITE: by_samesite.add( site_to_add, size, objs, oldest, by_heap )
 
             # Size histograms
             # TODO TEMP: groupsize[objs] += 1
 
             # Checking to see if alloc site is the same as the death site
+        print( len(dset), tmpsize, tmpobjs )
         # TODO TEMP: outFile.write( "{}     {:8s} {:8s} {:8s} {:11s}  {:22s} {:8s} {}\n".format("TAG", "#bytes", "#objs", "#clusters", "cl-size", "cluster-age", "by-heap", "info"))
         # ORIG: by_allocsite.print_file( outFile )
         # ORIG: by_deathsite.print_file( outFile )
+        # ALLOC: by_allocsite.alloc_latex_write( allocTexFile, bmark )
+        # DEATH: by_deathsite.alloc_latex_write( deathTexFile, bmark )
         # ORIG: by_type.print_file( outFile )
         # ORIG: by_all.print_file( outFile )
         # GROUP SIZE: for num, count in groupsize.items():
         # GROUP SIZE:     for i in range(count):
         # GROUP SIZE:         gcountFile.write("%d\n" % num)
-        by_samesite.samesite_latex_write( siteTexFile )
+        # SAMESITE: by_samesite.samesite_latex_write( siteTexFile )
 
     # TODO TEMP: with open( "AD-" + bmark + ".csv", "w" ) as fptr:
     # TODO TEMP:     writer = csv.writer(fptr, quoting = csv.QUOTE_NONNUMERIC )
