@@ -8,6 +8,7 @@ PROJECT(etanalyzer-cpp)
 # SET_PROPERTY(TARGET boost PROPERTY
 #              INTERFACE_INCLUDE_DIRECTORIES ${Boost_INCLUDE_DIR})
 
+INCLUDE_DIRECTORIES($(etanalyzer-cpp_SOURCE_DIR))
 INCLUDE_DIRECTORIES(boost_1_60_0)
 
 ADD_SUBDIRECTORY(EASTL)
@@ -28,6 +29,9 @@ SET(SOURCES_SIM_FIND_MAIN simulator-find-main.cpp execution.cpp heap.cpp classin
     analyze.cpp version.cpp)
 
 SET(SOURCES_SIM_REFCOUNT simulator-ref.cpp execution.cpp heap.cpp classinfo.cpp tokenizer.cpp
+    analyze.cpp version.cpp)
+
+SET(SOURCES_SIM_DB simulator-DB.cpp execution.cpp heap-DB.cpp classinfo.cpp tokenizer.cpp
     analyze.cpp version.cpp)
 
 # The file(GLOB...) allows for wildcard additions if needed:
@@ -64,3 +68,6 @@ TARGET_COMPILE_DEFINITIONS(simulator-debug
 
 # Ref counting simulator executable
 ADD_EXECUTABLE(simulator-refcount ${SOURCES_SIM_REFCOUNT})
+
+# Simulator using an out of memory (on-disk) db to reduce memory usage
+ADD_EXECUTABLE(simulator-DB ${SOURCES_SIM_DB})
