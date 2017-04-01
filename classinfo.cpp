@@ -55,6 +55,7 @@ void ClassInfo::__read_names_file( const char *filename,
         exit(-1);
     }
 
+    unsigned int maxId = 0;
     Tokenizer t(f);
     while ( ! t.isDone() ) {
         t.getLine();
@@ -97,7 +98,9 @@ void ClassInfo::__read_names_file( const char *filename,
                     Class *cls = TheClasses[t.getInt(2)];
                     string classname( t.getString(3) );
                     string methodname( t.getString(4) );
-                    Method *m = new Method(t.getInt(1), cls, t.getString(4), t.getString(5), t.getString(6));
+                    unsigned int my_id = t.getInt(1);
+                    Method *m = new Method(my_id, cls, t.getString(4), t.getString(5), t.getString(6));
+                    maxId = std::max(my_id, maxId);
                     // DEBUG
                     // cout << classname << " | " <<  methodname << endl;
                     if (ClassInfo::main_flag) {
@@ -141,7 +144,9 @@ void ClassInfo::__read_names_file( const char *filename,
                     // S <methodid> <classid> <id> <type> <dims>
                     // 0    1           2      3     4      5
                     Method* meth = TheMethods[t.getInt(1)];
-                    AllocSite* as = new AllocSite( t.getInt(3), // Id
+                    unsigned int my_id = t.getInt(3);
+                    maxId = std::max(my_id, maxId);
+                    AllocSite* as = new AllocSite( my_id, // Id
                                                    meth, // Method pointer
                                                    t.getString(3), // Maybe a hack? Use the ID as name.
                                                    t.getString(4), // descriptor which in this case means type
@@ -168,6 +173,8 @@ void ClassInfo::__read_names_file( const char *filename,
                 break;
         }
     }
+    
+    // TODO: Method *m = new Method(my_id, cls, t.getString(4), t.getString(5), t.getString(6));
 }
 
 

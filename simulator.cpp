@@ -786,10 +786,17 @@ unsigned int read_trace_file( FILE *f,
                         if (thread) {
                             thread->objectRoot(object);
                         }
-                        // Last action site
-                        object->setLastActionSite(topMethod_using_action);
-                        string last_action_name = topMethod_using_action->getName();
-                        object->set_nonJavaLib_last_action_context( last_action_name );
+                        if (topMethod_using_action) {
+                            // Last action site
+                            object->setLastActionSite(topMethod_using_action);
+                            string last_action_name = topMethod_using_action->getName();
+                            object->set_nonJavaLib_last_action_context( last_action_name );
+                        } else {
+                            // Last action site
+                            object->setLastActionSite(NULL);
+                            string last_action_name("VMCONTEXT");
+                            object->set_nonJavaLib_last_action_context( last_action_name );
+                        }
                     }
                     root_set.insert(objId);
                     // TODO last_map.setLast( threadId, LastEvent::ROOT, object );
