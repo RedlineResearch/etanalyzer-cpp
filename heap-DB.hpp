@@ -83,7 +83,7 @@ typedef unsigned int ObjectId_t;
 typedef unsigned int FieldId_t;
 typedef unsigned int VTime_t;
 typedef std::map<ObjectId_t, Object *> ObjectMap;
-typedef eastl::map<ObjectId_t, Object *> EA_ObjectMap;
+// typedef eastl::map<ObjectId_t, Object *> EA_ObjectMap;
 typedef std::map<ObjectId_t, Edge *> EdgeMap;
 typedef set<Object *> ObjectSet;
 typedef set<Edge *> EdgeSet;
