@@ -194,7 +194,6 @@ def main_process( output = None,
         simulator = simulator_config["simulator_exe"]
     else:
         logger.critical("Invalid runtype: %s - defaulting to 2" % str(runtype))
-    print "XXX:", simulator
     assert(os.path.isfile(simulator))
     # Create a directory
     # TODO Option: have a scratch test directory vs a date today directory
