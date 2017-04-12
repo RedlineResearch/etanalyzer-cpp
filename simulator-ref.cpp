@@ -177,7 +177,7 @@ set<unsigned int> root_set;
 map<unsigned int, unsigned int> deathrc_map;
 map<unsigned int, bool> not_candidate_map;
 
-EdgeSummary_t edge_summary;
+// TODO EdgeSummary_t edge_summary;
 Object2EdgeSrcMap_t obj2ref_map;
 
 
@@ -260,29 +260,29 @@ unsigned int count_live( ObjectSet & objects, unsigned int at_time )
     return count;
 }
 
-void update_reference_summaries( Object *src,
-                                 FieldId_t fieldId,
-                                 Object *tgt )
-{
-    // edge_summary : EdgeSummary_t is a global
-    // obj2ref_map : Object2EdgeSrcMap_t is a global
-    EdgeSrc_t ref = std::make_pair( src, fieldId );
-    // The reference 'ref' points to the new target
-    auto iter = edge_summary.find(ref);
-    if (iter == edge_summary.end()) {
-        // Not found. Create a new vector of Object pointers
-        edge_summary[ref] = std::vector< Object * >();
-    }
-    edge_summary[ref].push_back(tgt);
-    // Do the reverse mapping ONLY if tgt is not NULL
-    if (tgt) {
-        auto rev = obj2ref_map.find(tgt);
-        if (rev == obj2ref_map.end()) {
-            obj2ref_map[tgt] = std::move(std::vector< EdgeSrc_t >());
-        }
-        obj2ref_map[tgt].push_back(ref);
-    }
-}
+// void update_reference_summaries( Object *src,
+//                                  FieldId_t fieldId,
+//                                  Object *tgt )
+// {
+//     // edge_summary : EdgeSummary_t is a global
+//     // obj2ref_map : Object2EdgeSrcMap_t is a global
+//     EdgeSrc_t ref = std::make_pair( src, fieldId );
+//     // The reference 'ref' points to the new target
+//     auto iter = edge_summary.find(ref);
+//     if (iter == edge_summary.end()) {
+//         // Not found. Create a new vector of Object pointers
+//         edge_summary[ref] = std::vector< Object * >();
+//     }
+//     edge_summary[ref].push_back(tgt);
+//     // Do the reverse mapping ONLY if tgt is not NULL
+//     if (tgt) {
+//         auto rev = obj2ref_map.find(tgt);
+//         if (rev == obj2ref_map.end()) {
+//             obj2ref_map[tgt] = std::move(std::vector< EdgeSrc_t >());
+//         }
+//         obj2ref_map[tgt].push_back(ref);
+//     }
+// }
 
 // ----------------------------------------------------------------------
 //   Read and process trace events
@@ -462,83 +462,47 @@ unsigned int read_trace_file( FILE *f )
                     }
 
                     Object *oldObj = Heap.getObject(oldTgtId);
-                    LastEvent lastevent = LastEvent::UPDATE_UNKNOWN;
                     Exec.IncUpdateTime();
                     obj = Heap.getObject(objId);
                     // NOTE that we don't need to check for non-NULL source object 'obj'
                     // here. NULL means that it's a global/static reference.
                     target = ((tgtId > 0) ? Heap.getObject(tgtId) : NULL);
-                    if (obj) {
-                        update_reference_summaries( obj, field, target );
-                    }
+                    // TODO DELETE maybe: if (obj) {
+                    // TODO DELETE maybe:     update_reference_summaries( obj, field, target );
+                    // TODO DELETE maybe: }
                     // TODO last_map.setLast( threadId, LastEvent::UPDATE, obj );
                     // Set lastEvent and heap/stack flags for new target
                     if (target) {
                         if ( obj && 
                              obj != target
-                             /* && !(obj->wasRoot())
-                              * NOTE: This was the original code which in resulted
-                              * in LESS Died By STACK after HEAP. Making this change
-                              * to see if the results match the intuition of the code
-                              * being analyzed. - RLV 2017 Feb 16
-                              * */
                            ) {
                             target->setPointedAtByHeap();
                         }
                         target->setLastTimestamp( Exec.NowUp() );
-                        // TODO: target->setActualLastTimestamp( Exec.NowUp() );
-                        // TODO: Maybe LastUpdateFromStatic isn't the most descriptive
-                        // So since target has an incoming edge, LastUpdateFromStatic
-                        //    should be FALSE.
                         target->unsetLastUpdateFromStatic();
                     }
-                    // Set lastEvent and heap/stack flags for old target
                     if (oldObj) {
                         // Set the last time stamp for Merlin Algorithm purposes
                         oldObj->setLastTimestamp( Exec.NowUp() );
                         oldObj->setActualLastTimestamp( Exec.NowUp() );
-                        // Keep track of other properties
-                        if (tgtId != 0) {
-                            oldObj->unsetLastUpdateNull();
-                        } else {
-                            oldObj->setLastUpdateNull();
-                        }
-                        if (target) {
-                            if (oldTgtId != tgtId) {
-                                lastevent = LastEvent::UPDATE_AWAY_TO_VALID;
-                                oldObj->setLastEvent( lastevent  );
-                            }
-                        } else {
-                            // There's no need to check for oldTgtId == tgtId here.
-                            lastevent = LastEvent::UPDATE_AWAY_TO_NULL;
-                            oldObj->setLastEvent( lastevent );
-                        }
-                        if (field == 0) {
-                            oldObj->setLastUpdateFromStatic();
-                        } else {
-                            oldObj->unsetLastUpdateFromStatic();
-                        }
                         // Last action site
                         oldObj->setLastActionSite(topMethod_using_action);
                         string last_action_name = topMethod_using_action->getName();
                         oldObj->set_nonJavaLib_last_action_context( last_action_name );
                     }
-                    if (oldTgtId == tgtId) {
-                        // It sometimes happens that the newtarget is the same as
-                        // the old target. So we won't create any more new edges.
-                        // DEBUG: cout << "UPDATE same new == old: " << target << endl;
-                    } else {
+                    if (oldTgtId != tgtId) {
                         if (obj) {
                             Edge *new_edge = NULL;
                             // Can't call updateField if obj is NULL
                             if (target) {
                                 // Increment and decrement refcounts
                                 unsigned int field_id = tokenizer.getInt(4);
-                                new_edge = Heap.make_edge( obj, field_id,
-                                                           target, Exec.NowUp() );
-#ifdef _SIZE_DEBUG
-                                cout << "ES: " << sizeof(new_edge) << endl;
-#endif // _SIZE_DEBUG
+                                // TODO TODO This is probably where the refcount should be
+                                // TODO TODO TODO TODO
+                                new_edge = Heap.make_edge( obj,
+                                                           field_id,
+                                                           target,
+                                                           Exec.NowUp() );
                             }
                             obj->updateField_nosave( new_edge,
                                                      field_id,
