@@ -827,7 +827,8 @@ class Object {
 
         // First level death context
         // Getter
-        string getDeathContextSiteName( unsigned int level ) const {
+        string getDeathContextSiteName( unsigned int level ) const
+        {
             // Method *mymeth = this->m_methodDeathSite;
             // return (mymeth ? mymeth->getName() : "NONAME");
             if (level == 1) {
@@ -851,19 +852,23 @@ class Object {
         }
 
 
-        string get_nonJavaLib_death_context() const {
+        string get_nonJavaLib_death_context() const
+        {
             return this->m_nonjavalib_death_context;
         }
 
-        void set_nonJavaLib_death_context( string &new_dcontext ) {
+        void set_nonJavaLib_death_context( string &new_dcontext )
+        {
             this->m_nonjavalib_death_context = new_dcontext;
         }
 
-        string get_nonJavaLib_last_action_context() const {
+        string get_nonJavaLib_last_action_context() const
+        {
             return this->m_nonjavalib_last_action_context;
         }
 
-        void set_nonJavaLib_last_action_context( string &new_dcontext ) {
+        void set_nonJavaLib_last_action_context( string &new_dcontext )
+        {
             this->m_nonjavalib_last_action_context = new_dcontext;
         }
 

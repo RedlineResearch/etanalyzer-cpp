@@ -278,7 +278,8 @@ class Object
         // Time that m_reason happened
         unsigned int m_last_action_time;
         // Method where this object died
-        Method *m_methodDeathSite;
+        Method *m_methodDeathSite; // level 1
+        Method *m_methodDeathSite_l2; // level 2
         // Last method to decrement reference count
         Method *m_lastMethodDecRC;
         // Method where the refcount went to 0, if ever. If null, then
@@ -312,6 +313,10 @@ class Object
         CPairType  m_alloc_cptype;
         // NOTE: This could have been made into a single class which felt like overkill.
         // The option is there if it seems better to do so, but chose to go the simpler route.
+        string m_deathsite_name;
+        string m_deathsite_name_l2;
+        string m_nonjavalib_death_context;
+        string m_nonjavalib_last_action_context;
 
         DequeId_t m_alloc_context;
         // If ExecMode is Full, this contains the full list of the stack trace at allocation.
@@ -358,6 +363,7 @@ class Object
             , m_last_update_null(indeterminate)
             , m_last_update_away_from_static(false)
             , m_methodDeathSite(0)
+            , m_methodDeathSite_l2(0)
             , m_methodRCtoZero(NULL)
             , m_lastMethodDecRC(NULL)
             , m_decToZero(indeterminate)
@@ -433,8 +439,31 @@ class Object
         void unsetLastUpdateFromStatic() { m_last_update_away_from_static = false; }
         // Get the death site according the the Death event
         Method *getDeathSite() const { return m_methodDeathSite; }
+        // Get the death site according the the Death event using the level
+        Method *getL1DeathSite() const
+        {
+            return this->m_methodDeathSite;
+        }
+        Method *getL2DeathSite() const
+        {
+            return this->m_methodDeathSite_l2;
+        }
         // Set the death site because of a Death event
-        void setDeathSite(Method * method) { m_methodDeathSite = method; }
+        void setDeathSite(Method * method)
+        {
+            // Assumes first level only
+            this->m_methodDeathSite = method;
+        }
+        void setDeathSite( Method * method,
+                           unsigned int count ) {
+            if (count == 1) {
+                this->m_methodDeathSite = method;
+            } else if (count == 2) {
+                this->m_methodDeathSite_l2 = method;
+            } else {
+                assert(false);
+            }
+        }
         // Get the last method to decrement the reference count
         Method *getLastMethodDecRC() const { return m_lastMethodDecRC; }
         // Get the method to decrement the reference count to zero
@@ -476,6 +505,53 @@ class Object
         }
         // Get Death context type
         CPairType getDeathContextType() const { return this->m_death_cptype; }
+
+        // First level death context
+        // Getter
+        string getDeathContextSiteName( unsigned int level ) const
+        {
+            // Method *mymeth = this->m_methodDeathSite;
+            // return (mymeth ? mymeth->getName() : "NONAME");
+            if (level == 1) {
+                return this->m_deathsite_name;
+            } else if (level == 2) {
+                return this->m_deathsite_name_l2;
+            } else {
+                assert(false);
+            }
+        }
+        // Setter
+        void setDeathContextSiteName( string &new_dsite,
+                                      unsigned int level ) {
+            if (level == 1) {
+                this->m_deathsite_name = new_dsite;
+            } else if (level == 2) {
+                this->m_deathsite_name_l2 = new_dsite;
+            } else {
+                assert(false);
+            }
+        }
+
+
+        string get_nonJavaLib_death_context() const
+        {
+            return this->m_nonjavalib_death_context;
+        }
+
+        void set_nonJavaLib_death_context( string &new_dcontext )
+        {
+            this->m_nonjavalib_death_context = new_dcontext;
+        }
+
+        string get_nonJavaLib_last_action_context() const
+        {
+            return this->m_nonjavalib_last_action_context;
+        }
+
+        void set_nonJavaLib_last_action_context( string &new_dcontext )
+        {
+            this->m_nonjavalib_last_action_context = new_dcontext;
+        }
 
         // Set allocation context list
         void setAllocContextList( DequeId_t acontext_list ) {
