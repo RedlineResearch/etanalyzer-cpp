@@ -130,7 +130,7 @@ int Region::setGarbage( int newval )
 // Initialize all the memory and regions
 // Takes a std::vector list of sizes.
 // Assuming index of size corresponds to level
-bool MemoryMgr::initialize_memory( unsigned int heapsize )
+bool MemoryMgr::initialize_memory( unsigned long int heapsize )
 {
     // Do I send in a vector of NAMES for the regions?
     this->m_alloc_region = this->new_region( MemoryMgr::ALLOC,
@@ -702,7 +702,7 @@ void MemoryMgrDef::remove_edge( ObjectId_t src,
     return;
 }
 
-bool MemoryMgrDef::initialize_memory( unsigned int heapsize )
+bool MemoryMgrDef::initialize_memory( unsigned long int heapsize )
 {
     // Do I send in a vector of NAMES for the regions?
     MemoryMgr::initialize_memory( heapsize );
@@ -731,6 +731,8 @@ bool MemoryMgrDef::initialize_special_group( string &group_filename,
     // First line is a header:
     std::getline(infile, line);
     // TODO: Maybe make sure we have the right file?
+    //       Check the header which should be exactly like this:
+    //          groupId,number,death_time,list
     while (std::getline(infile, line)) {
         size_t pos = 0;
         string token;
@@ -1068,7 +1070,7 @@ void MemoryMgrDefVer2::remove_edge( ObjectId_t src,
     return;
 }
 
-bool MemoryMgrDefVer2::initialize_memory( unsigned int heapsize )
+bool MemoryMgrDefVer2::initialize_memory( unsigned long int heapsize )
 {
     // Do I send in a vector of NAMES for the regions?
     MemoryMgr::initialize_memory( heapsize );

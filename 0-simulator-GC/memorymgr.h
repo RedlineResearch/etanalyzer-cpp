@@ -38,18 +38,18 @@ typedef unsigned int EdgeId_t;
 // A pair of edge Ids
 typedef std::pair< ObjectId_t, ObjectId_t > ObjectIdPair_t;
 
-// If doing sets of things that aren't primitives, then you need
-// to supply a comparator class to the set definition.
-struct _compclass {
-    bool operator() ( const ObjectIdPair_t &lhs,
-                      const ObjectIdPair_t &rhs ) const {
-        if (lhs.first == rhs.first) {
-            return lhs.second < rhs.second;
-        } else {
-            return lhs.first < rhs.first;
-        }
-    }
-};
+// TODO DELETE: // If doing sets of things that aren't primitives, then you need
+// TODO DELETE: // to supply a comparator class to the set definition.
+// TODO DELETE: struct _compclass {
+// TODO DELETE:     bool operator() ( const ObjectIdPair_t &lhs,
+// TODO DELETE:                       const ObjectIdPair_t &rhs ) const {
+// TODO DELETE:         if (lhs.first == rhs.first) {
+// TODO DELETE:             return lhs.second < rhs.second;
+// TODO DELETE:         } else {
+// TODO DELETE:             return lhs.first < rhs.first;
+// TODO DELETE:         }
+// TODO DELETE:     }
+// TODO DELETE: };
 
 // A set of Edge pairs
 // TODO: TO DELETE
@@ -215,7 +215,7 @@ public:
     // Initializes all the regions. This should contain all knowledge
     // of how things are laid out. Virtual so you can reimplement
     // with different layouts.
-    virtual bool initialize_memory( unsigned int heapsize );
+    virtual bool initialize_memory( unsigned long int heapsize );
 
     // Initialize the grouped region of objects
     virtual bool initialize_special_group( string &group_filename,
@@ -406,7 +406,7 @@ public:
     //
     // Initializes all the regions. This should contain all knowledge
     // of how things are laid out.
-    virtual bool initialize_memory( unsigned int heapsize );
+    virtual bool initialize_memory( unsigned long int heapsize );
 
     // Initialize the grouped region of objects
     virtual bool initialize_special_group( string &group_filename,
@@ -459,7 +459,7 @@ public:
     //
     // Initializes all the regions. This should contain all knowledge
     // of how things are laid out.
-    virtual bool initialize_memory( unsigned int heapsize );
+    virtual bool initialize_memory( unsigned long int heapsize );
 
     // Initialize the grouped region of objects
     virtual bool initialize_special_group( string &group_filename,

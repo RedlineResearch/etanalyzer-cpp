@@ -5,7 +5,7 @@ bool HeapState::do_refcounting = true;
 bool HeapState::debug = false;
 unsigned int Object::g_counter = 0;
 
-bool HeapState::initialize_memory_basic( unsigned int heapsize )
+bool HeapState::initialize_memory_basic( unsigned long int heapsize )
 {
     // Initialize the BASIC memory manager
     this->m_memmgr_p = new MemoryMgr();
@@ -13,7 +13,7 @@ bool HeapState::initialize_memory_basic( unsigned int heapsize )
     return result;
 }
 
-bool HeapState::initialize_memory_deferred( unsigned int heapsize,
+bool HeapState::initialize_memory_deferred( unsigned long int heapsize,
                                             string &group_filename,
                                             int numgroups )
 {
@@ -29,7 +29,11 @@ bool HeapState::initialize_memory_deferred( unsigned int heapsize,
     return result;
 }
 
-bool HeapState::initialize_memory_deferred_VER2( unsigned int heapsize,
+// Initialize memory for the GC simulator
+//    - heapsize in bytes
+//    - group_filename is the group2list.csv file output from dgroups2db.py
+//    - numgroups to include (right now this can only be one)
+bool HeapState::initialize_memory_deferred_VER2( unsigned long heapsize,
                                                  string &group_filename,
                                                  int numgroups )
 {

@@ -267,11 +267,11 @@ int main(int argc, char* argv[])
     string dgroups_csvfile(argv[2]);
     string basename(argv[3]);
 
-    int memsize = std::stoi(argv[4]);
+    unsigned long memsize = std::stoul(argv[4]);
     cout << "Memory size: " << memsize << " bytes." << endl;
     
-    Heap.initialize_memory_deferred_VER2( memsize,
-                                          dgroups_csvfile,
+    Heap.initialize_memory_deferred_VER2( memsize, // in bytes
+                                          dgroups_csvfile, // output of dgroups2db.py
                                           1 ); // Number of groups to use
 
     // Hard coded number at this point. TODO

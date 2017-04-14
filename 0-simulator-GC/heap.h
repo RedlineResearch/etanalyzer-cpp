@@ -149,12 +149,12 @@ class HeapState
 
         // Initializes all the regions. Vector contains size of regions
         // corresponding to levels of regions according to index.
-        virtual bool initialize_memory_basic( unsigned int heapsize );
-        bool initialize_memory_deferred( unsigned int heapsize,
+        virtual bool initialize_memory_basic( unsigned long int heapsize );
+        bool initialize_memory_deferred( unsigned long int heapsize,
                                          string &group_filename,
                                          int numgroups );
 
-        bool initialize_memory_deferred_VER2( unsigned int heapsize,
+        bool initialize_memory_deferred_VER2( unsigned long heapsize,
                                               string &group_filename,
                                               int numgroups );
 
