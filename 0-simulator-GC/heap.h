@@ -209,14 +209,37 @@ class HeapState
         KeySet_t& get_keyset() { return m_keyset; }
 
         // GC related functions
-        deque<GCRecord_t> get_GC_history() { return this->m_memmgr_p->get_GC_history(); }
-        int get_number_of_collections() const { return this->m_memmgr_p->get_number_of_collections(); }
-        unsigned int get_mark_total() const { return this->m_memmgr_p->get_mark_total(); }
-        unsigned int get_mark_saved() const { return this->m_memmgr_p->get_mark_saved(); }
+        deque<GCRecord_t> get_GC_history()
+        {
+            return this->m_memmgr_p->get_GC_history();
+        }
+
+        int get_number_of_collections() const
+        {
+            return this->m_memmgr_p->get_number_of_collections();
+        }
+
+        unsigned int get_mark_total() const
+        {
+            return this->m_memmgr_p->get_mark_total();
+        }
+
+        unsigned int get_mark_saved() const
+        {
+            return this->m_memmgr_p->get_mark_saved();
+        }
 
         // Debug
-        int get_number_edges_removed() const { return this->m_memmgr_p->get_number_edges_removed(); }
-        int get_number_attempts_edges_removed() const { return this->m_memmgr_p->get_number_attempts_edges_removed(); }
+        int get_number_edges_removed() const
+        {
+            return this->m_memmgr_p->get_number_edges_removed();
+        }
+
+        int get_number_attempts_edges_removed() const
+        {
+            return this->m_memmgr_p->get_number_attempts_edges_removed();
+        }
+
         unsigned int get_region_edges_count() const { return this->m_memmgr_p->get_region_edges_count(); }
         unsigned int get_in_edges_count() const { return this->m_memmgr_p->get_in_edges_count(); }
         unsigned int get_out_edges_count() const { return this->m_memmgr_p->get_out_edges_count(); }

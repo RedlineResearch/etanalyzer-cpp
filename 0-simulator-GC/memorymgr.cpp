@@ -485,6 +485,7 @@ bool MemoryMgrDef::allocate( Object *object,
         // Add back the collected 
         this->m_free += collected_regular;
         if (objSize > this->m_free) {
+            // We still couldn't allocate enough so:
             // 2. Try again with the SPECIAL region.
             collected_special += this->m_defregion_p->collect( create_time, new_alloc_time );
             // Add back the SPECIAL collected 

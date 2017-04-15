@@ -280,7 +280,8 @@ public:
         return this->m_mark_nonregion_total;
     }
 
-    virtual unsigned int get_mark_saved() const {
+    virtual unsigned int get_mark_saved() const
+    {
         return this->m_mark_saved_total;
     }
 
@@ -414,8 +415,15 @@ public:
 
     // Mark count getter functions
     // Mark related getters
-    virtual unsigned int get_mark_saved_total() const { return this->m_mark_saved_total; }
-    virtual unsigned int get_mark_region_total() const { return this->m_mark_region_total; }
+    virtual unsigned int get_mark_saved_total() const
+    {
+        return this->m_mark_saved_total;
+    }
+
+    virtual unsigned int get_mark_region_total() const
+    {
+        return this->m_mark_region_total;
+    }
 
 protected:
     // Edge sets and remember sets
@@ -467,8 +475,15 @@ public:
 
     // Mark count getter functions
     // Mark related getters
-    virtual unsigned int get_mark_saved_total() const { return this->m_mark_saved_total; }
-    virtual unsigned int get_mark_region_total() const { return this->m_mark_region_total; }
+    virtual unsigned int get_mark_saved_total() const
+    {
+        return this->m_mark_saved_total;
+    }
+
+    virtual unsigned int get_mark_region_total() const
+    {
+        return this->m_mark_region_total;
+    }
 
 protected:
     // Edge sets and remember sets
