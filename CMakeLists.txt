@@ -67,7 +67,7 @@ TARGET_COMPILE_DEFINITIONS(simulator-debug
                            PRIVATE DEBUG_SPECJBB)
 
 # Ref counting simulator executable
-ADD_EXECUTABLE(simulator-refcount ${SOURCES_SIM_REFCOUNT})
+# TODO: ADD_EXECUTABLE(simulator-refcount ${SOURCES_SIM_REFCOUNT})
 
 # Simulator using an out of memory (on-disk) db to reduce memory usage
 ADD_EXECUTABLE(simulator-DB ${SOURCES_SIM_DB})

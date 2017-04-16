@@ -1,5 +1,6 @@
-# run_simulator.py 
+# run_GC_simulator.py 
 #
+from __future__ import division
 import argparse
 import os
 import sys
@@ -23,8 +24,8 @@ pp = pprint.PrettyPrinter( indent = 4 )
 __MY_VERSION__ = 5
 
 def setup_logger( targetdir = ".",
-                  filename = "run_simulator.log",
-                  logger_name = 'run_simulator',
+                  filename = "run_GC_simulator.log",
+                  logger_name = 'run_GC_simulator',
                   debugflag = 0 ):
     # Set up main logger
     logger = logging.getLogger( logger_name )
@@ -39,6 +40,7 @@ def setup_logger( targetdir = ".",
     filehandler.setFormatter( formatter )
     logger.addHandler( filehandler )
     return logger
+
 
 def get_trace_fp( tracefile = None,
                   logger = None ):
@@ -124,60 +126,55 @@ class SimProcessProtocol(  protocol.ProcessProtocol ):
         self.text = text
         # Replace text with the things to be sent to the simulator
 
-def main_process( output = None,
-                  benchmarks = None,
-                  category_bmarks = None,
-                  bmark_config = None,
-                  names_config = None,
-                  global_config = None,
-                  run_global_config = None,
-                  debugflag = None,
+def main_process( simulator = None,
+                  benchmark = None,
+                  tracefile = None,
+                  namesfile = None,
+                  dgroupsfile = None,
+                  output = None,
+                  minheap = 0,
+                  maxheap = 0,
+                  step = 4194304, # 4 MB default
+                  numprocs = 1,
+                  debugflag = False,
                   logger = None ):
-    # Directories
-    specdir = global_config["specjvm_dir"]
-    capodir = global_config["dacapo_dir"]
-    # Flags
-    cycle_flag = run_global_config["cycle_flag"]
-    objdebug_flag = run_global_config["objdebug_flag"]
-    # Executable
-    simulator = global_config["simulatorgc"]
-    # Create a directory
-    # TODO Option: have a scratch test directory vs a date today directory
-    # Currently have the date today
-    # Do the date today method.
-    t = datetime.date.today()
-    datestr = "%d-%02d%02d" % (t.year, t.month, t.day)
-    print "TODAY:", datestr
-    work_dir = run_global_config["simgc_work_dir"]
-    work_today = create_work_directory( work_dir, logger = logger )
-    olddir = os.getcwd()
-    os.chdir( work_today )
-    # Get the benchmark directories
-    specjvm_dir = global_config["specjvm_dir"]
-    dacapo_dir = global_config["dacapo_dir"]
-    print "DONE."
+    assert( benchmark != None )
+    assert( os.path.isfile( simulator ) )
+    assert( os.path.isfile( tracefile ) )
+    assert( os.path.isfile( namesfile ) )
+    assert( os.path.isfile( dgroupsfile ) )
+    assert( output != None )
+    assert( minheap >= 0 )
+    assert( type(maxheap) is int )
+    # Note: if maxheap = 0, then go until there's no GC.
+    assert( type(numprocs) is int )
+    assert( logger != None )
+    # TODO:
     procdict = {}
-    pp.pprint(benchmarks)
-    for bmark in benchmarks:
-        tracefile = (specdir + bmark_config[bmark]) if is_specjvm(bmark) else \
-            (dacapo_dir + bmark_config[bmark])
-        namesfile = (specjvm_dir + names_config[bmark]) if is_specjvm(bmark) else \
-            (dacapo_dir + names_config[bmark])
-        print "NAME:", namesfile, "=", os.path.isfile( namesfile )
-        # TODO TODO TODO TODO
+    # Option 1:
+    # Start from maxlivesize * 1.05
+    # Using the given increment, loop through until no GC. or until maxheap
+    #
+    # Option 2:
+    # Do a binary search. This works best when we start with max live size as starting point
+    # and say 5 to 7 times max live size? Or maybe just total allocation * 90% or something?
+    # start with min
+    end_heapsize = maxheap if (maxheap > 0) else (20 * minheap)
+    print "minheap:", minheap
+    print "end_heapsize:", end_heapsize
+    print "step:", step
+    for heapsize in range(minheap, end_heapsize, step):
         # Running the 'simulator-GC' needs the following args:
         #  simulator-GC _201_compress.names 0-CURRENT/_201_compress-DGROUPS.csv _201_compress 7918525
-        dgroupsname = "TODO_dgroups_name"
-        print dgroupsname
-        cmd = [ simulator, namesfile, dgroupsname, bmark, 1024 * 1024 ]
+        cmd = [ simulator, namesfile, dgroupsfile, benchmark, heapsize ]
         print cmd
-        continue
         fp = get_trace_fp( tracefile, logger )
-        # sproc = subprocess.Popen( cmd,
-        #                           stdout = subprocess.PIPE,
-        #                           stdin = fp,
-        #                           stderr = subprocess.PIPE )
-        # procdict[bmark] = sproc
+        continue
+        sproc = subprocess.Popen( cmd,
+                                  stdout = subprocess.PIPE,
+                                  stdin = fp,
+                                  stderr = subprocess.PIPE )
+        procdict[bmark] = sproc
         # result = sproc.communicate()
         # for x in result:
         #     print x
@@ -378,12 +375,27 @@ def create_parser():
     # set up arg parser
     parser = argparse.ArgumentParser()
     parser.add_argument( "output", help = "Target output filename." )
-    parser.add_argument( "--config",
-                         help = "Specify global configuration filename.",
+    parser.add_argument( "--simulator",
+                         dest = "simulator",
+                         help = "GC simulator executable path.",
                          action = "store" )
-    parser.add_argument( "--runconfig",
-                         help = "Specify run configuration filename.",
+    parser.add_argument( "--tracefile",
+                         dest = "tracefile",
+                         help = "Source ET event trace file.",
                          action = "store" )
+    parser.add_argument( "--namesfile",
+                         dest = "namesfile",
+                         help = "Associated ET names file.",
+                         action = "store" )
+    parser.add_argument( "--dgroupsfile",
+                         dest = "dgroupsfile",
+                         help = "Death groups file from dgroups2db.py.",
+                         action = "store" )
+    parser.add_argument( "--minheapsize",
+                         dest = "minheapsize",
+                         help = "Starting heap size.",
+                         action = "store",
+                         type = int )
     parser.add_argument( "--debug",
                          dest = "debugflag",
                          help = "Enable debug output.",
@@ -396,14 +408,6 @@ def create_parser():
                          dest = "benchmark",
                          help = "Select benchmark.",
                          action = "store" )
-    parser.add_argument( "--lastedge",
-                         dest = "lastedgeflag",
-                         help = "Enable last edge processing.",
-                         action = "store_true" )
-    parser.add_argument( "--no-lastedge",
-                         dest = "lastedgeflag",
-                         help = "Disable last edge processing.",
-                         action = "store_false" )
     parser.add_argument( "--logfile",
                          help = "Specify logfile name.",
                          action = "store" )
@@ -430,14 +434,7 @@ def process_global_config( gconfig ):
     config_parser = ConfigParser.ConfigParser()
     config_parser.read( gconfig )
     global_config = config_section_map( "global", config_parser )
-    benchmarks = config_section_map( "benchmarks", config_parser )
-    dacapo_config = config_section_map( "dacapo", config_parser )
-    dacapo_names = config_section_map( "dacapo_names", config_parser )
-    specjvm_config = config_section_map( "specjvm", config_parser )
-    specjvm_names = config_section_map( "specjvm_names", config_parser )
-    return ( global_config, benchmarks,
-             dacapo_config, dacapo_names,
-             specjvm_config, specjvm_names )
+    return global_config
 
 def process_runsim_config( runconfig ):
     runconfig_parser = ConfigParser.ConfigParser()
@@ -451,27 +448,20 @@ def main():
 
     parser = create_parser()
     args = parser.parse_args()
-    benchmark = args.benchmark
-    assert( args.config != None )
-    assert( args.runconfig != None )
-    global_config, category_benchmarks, dacapo_config, dacapo_names, \
-        specjvm_config, specjvm_names = process_global_config( args.config )
-    run_global_config, run_benchmarks = process_runsim_config( args.runconfig )
-    debugflag = run_global_config["debug"]
     # logging
     logger = setup_logger( filename = args.logfile,
-                           debugflag = debugflag  )
+                           debugflag = args.debugflag )
     #
     # Main processing
     #
-    return main_process( debugflag = debugflag,
+    return main_process( simulator = args.simulator,
+                         benchmark = args.benchmark,
+                         minheap = args.minheapsize,
+                         tracefile = args.tracefile,
+                         namesfile = args.namesfile,
+                         dgroupsfile = args.dgroupsfile,
                          output = args.output,
-                         benchmarks = run_benchmarks,
-                         category_bmarks = category_benchmarks,
-                         bmark_config = dict(specjvm_config, **dacapo_config),
-                         names_config = dict(specjvm_names, **dacapo_names),
-                         global_config = global_config,
-                         run_global_config = run_global_config,
+                         debugflag = args.debugflag,
                          logger = logger )
 
 if __name__ == "__main__":

@@ -19,6 +19,12 @@ import time
 # Defaultdicts are better than standard dictionaries!
 from collections import defaultdict
 
+# For drange
+def drange( x, y, jump ):
+    while x < y:
+        yield float(x)
+        x += decimal.Decimal(jump)
+
 def merge_two_dicts(x, y):
     '''Given two dicts, merge them into a new dict as a shallow copy.'''
     z = x.copy()
@@ -371,7 +377,8 @@ __all__ = [ "mean", "merge_two_dicts", "stdev", "variance", "email_message",
             "process_worklist_config",
             "is_specjvm", "is_dacapo", "is_minibench",
             "get_trace_fp", "hex2dec",
-            "dfs_iter", "remove_dupes", "bytes_to_MB", ]
+            "dfs_iter", "remove_dupes", "bytes_to_MB",
+            "drange", ]
 
 if __name__ == "__main__":
     import doctest

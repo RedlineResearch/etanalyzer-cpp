@@ -284,7 +284,7 @@ int main(int argc, char* argv[])
     unsigned int final_time = Exec.NowUp();
     cout << "Done at time " << Exec.NowUp() << endl
          << "Total objects: " << total_objects << endl
-         << "Heap.size:     " << Heap.size() << endl
+         << "Total allocated in bytes:     " << Heap.get_total_alloc() << endl
          << "Number of collections: " << Heap.get_number_of_collections() << endl;
     cout << "Mark total   : " << Heap.get_mark_total() << endl
          << "- mark saved : " << Heap.get_mark_saved() << endl

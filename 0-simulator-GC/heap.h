@@ -172,7 +172,8 @@ class HeapState
 
         Object* getObject(unsigned int id);
 
-        unsigned int get_total_alloc() const {
+        unsigned int get_total_alloc() const
+        {
             return this->m_alloc_time;
         }
 
@@ -185,7 +186,10 @@ class HeapState
 
         ObjectMap::iterator begin() { return m_objects.begin(); }
         ObjectMap::iterator end() { return m_objects.end(); }
-        unsigned int size() const { return m_objects.size(); }
+        unsigned int size() const
+        {
+            return this->m_objects.size();
+        }
         unsigned long int getLiveSize() const { return this->m_memmgr_p->getLiveSize(); }
         // TODO unsigned long int maxLiveSize() const { return m_maxLiveSize; }
         unsigned long int getMaxLiveSize() const { return this->m_memmgr_p->getMaxLiveSize(); }
