@@ -112,16 +112,26 @@ def create_work_directory( work_dir, logger = None, interactive = False ):
     return work_today
 
 def check_subprocesses( procdict = {},
-                        done_proclist = None ):
+                        done_proclist = None,
+                        finish_all_flag = False ):
     done = False
+    num = 0
+    count = 0
     while not done:
-        done = True
+        done = False
         for sproc in procdict.keys():
-            sproc.join(60)
-            if not sproc.is_alive():
-                done = False
+            if count % 20 == 1:
+                sys.stdout.write( "Checking process %s for size %d:"
+                                  % (str(sproc), procdict[sproc]) )
+            retcode = sproc.poll()
+            if retcode != None:
                 del procdict[sproc]
                 done_proclist.append(sproc)
+                done = True
+                num += 1
+        if finish_all_flag:
+            done = (len(procdict.keys()) == 0)
+    return num
 
 def get_output( done_proclist = [],
                 results = {} ):
@@ -196,6 +206,8 @@ def main_process( simulator = None,
     assert( logger != None )
     # TODO:
     procdict = {}
+    done_proclist = []
+    heapsize_dict = {}
     # Option 1:
     # Start from maxlivesize * 1.05
     # Using the given increment, loop through until no GC. or until maxheap
@@ -208,7 +220,6 @@ def main_process( simulator = None,
     print "minheap:", minheap
     print "end_heapsize:", end_heapsize
     print "step:", step
-    proc2heapsize = {}
     results = defaultdict( lambda: { "total_objects" : 0,
                                      "total_alloc" : 0,
                                      "number_collections" : 0,
@@ -224,7 +235,8 @@ def main_process( simulator = None,
                                   stdout = subprocess.PIPE,
                                   stdin = fp,
                                   stderr = subprocess.PIPE )
-        procdict[benchmark] = sproc
+        procdict[sproc] = heapsize
+        heapsize_dict[sproc] = heapsize
         # The output of the process we are interested in:
         #---------------------------------------------------------------------
         # Done at time 144677956
@@ -236,14 +248,28 @@ def main_process( simulator = None,
         # - total alloc: 362596760
         #---------------------------------------------------------------------
         rdict = results[sproc]
-        proc2heapsize[sproc] = heapsize
         if len(procdict.keys()) < numprocs:
-            pass
+            continue
         else:
+            num_done = check_subprocesses( procdict = procdict,
+                                           done_proclist = done_proclist,
+                                           finish_all_flag = False )
             get_output( done_proclist = done_proclist,
                         results = results )
+    num_done = check_subprocesses( procdict = procdict,
+                                   done_proclist = done_proclist,
+                                   finish_all_flag = True )
+    with open( outpu, "wb" ) as fptr:
+        writer = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
+        writer.writerow( [ "benchmark", "heapsize", "total_alloc",
+                           "number_collections", "mark_total", "mark_saved", ] )
+        for sproc, rdict in results.items():
+            heapsize = heapsize_dict[sproc]
+            row = [ benchmark, heapsize, rdict["total_alloc"], rdict["number_collections"],
+                    rdict["mark_total"], rdict["mark_saved"], ]
+            writer.writerow( row )
     print "DONE."
-    exit(3333)
+    exit(0)
 
 def create_parser():
     # set up arg parser
@@ -270,6 +296,11 @@ def create_parser():
                          help = "Starting heap size.",
                          action = "store",
                          type = int )
+    parser.add_argument( "--numprocs",
+                         dest = "numprocs",
+                         help = "Number of processes at a time.",
+                         action = "store",
+                         type = int )
     parser.add_argument( "--debug",
                          dest = "debugflag",
                          help = "Enable debug output.",
@@ -285,10 +316,9 @@ def create_parser():
     parser.add_argument( "--logfile",
                          help = "Specify logfile name.",
                          action = "store" )
-    parser.set_defaults( logfile = "run_simulator.log",
+    parser.set_defaults( logfile = "run_GC_simulator.log",
                          debugflag = False,
-                         lastedgeflag = False,
-                         benchmark = "_ALL_",
+                         numprocs = 1,
                          config = None )
     return parser
 
@@ -335,6 +365,7 @@ def main():
                          namesfile = args.namesfile,
                          dgroupsfile = args.dgroupsfile,
                          output = args.output,
+                         numprocs = args.numprocs,
                          debugflag = args.debugflag,
                          logger = logger )
 
