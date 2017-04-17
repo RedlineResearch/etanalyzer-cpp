@@ -295,7 +295,7 @@ int main(int argc, char* argv[])
     // TODO << " - number of in edges: " << Heap.get_in_edges_count() << endl
     // TODO << " - number of out edges: " << Heap.get_out_edges_count() << endl
     // TODO << " - number of nonregion edges: " << Heap.get_nonregion_edges_count() << endl;
-    reutrn Heap.get_number_of_collections();
+    return Heap.get_number_of_collections();
 }
 
 //--------------------------------------------------------------------------------

@@ -17,10 +17,9 @@ SET(SOURCES_SIM_GC simulator-GC.cpp execution.cpp heap.cpp classinfo.cpp tokeniz
 
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -std=c++11 -g -Werror")
 
-# Main static simulator
+# Main non-static simulator
 ADD_EXECUTABLE(simulator-GC ${SOURCES_SIM_GC})
-# TARGET_COMPILE_DEFINITIONS(simulator
-#                            PRIVATE _SIZE_DEBUG)
+
 
 #-------------------------------------------------------------------------------
 # Version 1 of simulator-GC
@@ -32,8 +31,9 @@ SET(SOURCES_SIM_GC_VER2 simulator-GC-ver2.cpp execution.cpp heap.cpp classinfo.c
 
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -std=c++11 -g -Werror")
 
-# Main static simulator
+# Main non-static simulator
 ADD_EXECUTABLE(simulator-GC-ver2 ${SOURCES_SIM_GC_VER2})
-# TARGET_COMPILE_DEFINITIONS(simulator
-#                            PRIVATE _SIZE_DEBUG)
 
+# Main static simulator
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static")
+ADD_EXECUTABLE(simulator-GC-ver2-static ${SOURCES_SIM_GC_VER2})
