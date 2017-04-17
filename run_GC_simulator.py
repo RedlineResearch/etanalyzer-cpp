@@ -15,7 +15,7 @@ import csv
 import datetime
 
 import subprocess
-from twisted.internet import protocol, reactor
+# TODO from twisted.internet import protocol, reactor
 
 from mypytools import mean, stdev, variance
 
