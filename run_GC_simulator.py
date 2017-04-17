@@ -115,8 +115,8 @@ def check_subprocesses( procdict = {},
                         done_proclist = None,
                         finish_all_flag = False ):
     done = False
-    num = 0
     count = 0
+    noGC_done = False
     while not done:
         done = False
         for sproc in procdict.keys():
@@ -128,12 +128,16 @@ def check_subprocesses( procdict = {},
                 del procdict[sproc]
                 done_proclist.append(sproc)
                 done = True
-                num += 1
+                # Only check if we haven't seen the ideal situation
+                if not noGC_done:
+                    # The return code from the simulator-GC is the number
+                    # of collections done.
+                    noGC_done = (retcode == 0)
             else:
                 time.sleep(60)
         if finish_all_flag:
             done = (len(procdict.keys()) == 0)
-    return num
+    return noGC_done
 
 def get_output( done_proclist = [],
                 results = {} ):
@@ -192,6 +196,7 @@ def main_process( simulator = None,
                   minheap = 0,
                   maxheap = 0,
                   numprocs = 1,
+                  step = 0,
                   debugflag = False,
                   logger = None ):
     assert( benchmark != None )
@@ -219,10 +224,11 @@ def main_process( simulator = None,
     # Do a binary search. This works best when we start with max live size as starting point
     # and say 5 to 7 times max live size? Or maybe just total allocation * 90% or something?
     # start with min
-    end_heapsize = maxheap if (maxheap > 0) else (20 * minheap)
+    end_heapsize = maxheap if (maxheap > 0) else (50 * minheap)
     print "minheap:", minheap
     print "end_heapsize:", end_heapsize
-    step = minheap // 2
+    if step <= 0:
+        step = minheap // 2
     print "step:", step
     results = defaultdict( lambda: { "total_objects" : 0,
                                      "total_alloc" : 0,
@@ -258,14 +264,16 @@ def main_process( simulator = None,
             if len(procdict.keys()) < numprocs:
                 continue
             else:
-                num_done = check_subprocesses( procdict = procdict,
-                                               done_proclist = done_proclist,
-                                               finish_all_flag = False )
-    get_output( done_proclist = done_proclist,
-                        results = results )
-    num_done = check_subprocesses( procdict = procdict,
-                                   done_proclist = done_proclist,
-                                   finish_all_flag = True )
+                noGC_done = check_subprocesses( procdict = procdict,
+                                                done_proclist = done_proclist,
+                                                finish_all_flag = False )
+                if noGC_done:
+                    break
+    # get_output( done_proclist = done_proclist,
+    #                     results = results )
+    check_subprocesses( procdict = procdict,
+                        done_proclist = done_proclist,
+                        finish_all_flag = True )
     # TODO with open( output, "wb" ) as fptr:
     # TODO     writer = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
     # TODO     writer.writerow( [ "benchmark", "heapsize", "total_alloc",
@@ -303,6 +311,11 @@ def create_parser():
                          help = "Starting heap size.",
                          action = "store",
                          type = int )
+    parser.add_argument( "--step",
+                         dest = "step",
+                         help = "Step increment for heap size.",
+                         action = "store",
+                         type = int )
     parser.add_argument( "--numprocs",
                          dest = "numprocs",
                          help = "Number of processes at a time.",
@@ -326,6 +339,7 @@ def create_parser():
     parser.set_defaults( logfile = "run_GC_simulator.log",
                          debugflag = False,
                          numprocs = 1,
+                         step = 0,
                          config = None )
     return parser
 
@@ -373,6 +387,7 @@ def main():
                          dgroupsfile = args.dgroupsfile,
                          output = args.output,
                          numprocs = args.numprocs,
+                         step = args.step,
                          debugflag = args.debugflag,
                          logger = logger )
 
