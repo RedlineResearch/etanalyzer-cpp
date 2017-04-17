@@ -129,6 +129,8 @@ def check_subprocesses( procdict = {},
                 done_proclist.append(sproc)
                 done = True
                 num += 1
+            else:
+                time.sleep(60)
         if finish_all_flag:
             done = (len(procdict.keys()) == 0)
     return num
@@ -189,7 +191,6 @@ def main_process( simulator = None,
                   output = None,
                   minheap = 0,
                   maxheap = 0,
-                  step = 4194304, # 4 MB default
                   numprocs = 1,
                   debugflag = False,
                   logger = None ):
@@ -205,6 +206,8 @@ def main_process( simulator = None,
     assert( type(numprocs) is int )
     assert( logger != None )
     # TODO:
+    basedir = "/data/rveroy/src/trace_drop/GC-SIM"
+    assert( os.path.isdir(basedir) )
     procdict = {}
     done_proclist = []
     heapsize_dict = {}
@@ -219,6 +222,7 @@ def main_process( simulator = None,
     end_heapsize = maxheap if (maxheap > 0) else (20 * minheap)
     print "minheap:", minheap
     print "end_heapsize:", end_heapsize
+    step = minheap // 2
     print "step:", step
     results = defaultdict( lambda: { "total_objects" : 0,
                                      "total_alloc" : 0,
@@ -226,48 +230,51 @@ def main_process( simulator = None,
                                      "mark_total" : 0,
                                      "mark_saved" : 0, } )
     for heapsize in range(minheap, end_heapsize, step):
-        # Running the 'simulator-GC' needs the following args:
-        #  simulator-GC _201_compress.names 0-CURRENT/_201_compress-DGROUPS.csv _201_compress 7918525
-        cmd = [ simulator, namesfile, dgroupsfile, benchmark, str(heapsize) ]
-        print cmd
-        fp = get_trace_fp( tracefile, logger )
-        sproc = subprocess.Popen( cmd,
-                                  stdout = subprocess.PIPE,
-                                  stdin = fp,
-                                  stderr = subprocess.PIPE )
-        procdict[sproc] = heapsize
-        heapsize_dict[sproc] = heapsize
-        # The output of the process we are interested in:
-        #---------------------------------------------------------------------
-        # Done at time 144677956
-        # Total objects: 5230301
-        # Total allocated in bytes:     362596760
-        # Number of collections: 1151
-        # Mark total   : 3341799675
-        # - mark saved : 14063174
-        # - total alloc: 362596760
-        #---------------------------------------------------------------------
-        rdict = results[sproc]
-        if len(procdict.keys()) < numprocs:
-            continue
-        else:
-            num_done = check_subprocesses( procdict = procdict,
-                                           done_proclist = done_proclist,
-                                           finish_all_flag = False )
-            get_output( done_proclist = done_proclist,
+        filename = "%s-%d.csv" % (benchmark, heapsize)
+        tgtpath = os.path.join( basedir, filename )
+        with open(tgtpath, "wb") as outfptr:
+            # Running the 'simulator-GC' needs the following args:
+            #  simulator-GC _201_compress.names 0-CURRENT/_201_compress-DGROUPS.csv _201_compress 7918525
+            cmd = [ simulator, namesfile, dgroupsfile, benchmark, str(heapsize) ]
+            print cmd
+            fp = get_trace_fp( tracefile, logger )
+            sproc = subprocess.Popen( cmd,
+                                      stdout = outfptr,
+                                      stdin = fp,
+                                      stderr = subprocess.PIPE )
+            procdict[sproc] = heapsize
+            heapsize_dict[sproc] = heapsize
+            # The output of the process we are interested in:
+            #---------------------------------------------------------------------
+            # Done at time 144677956
+            # Total objects: 5230301
+            # Total allocated in bytes:     362596760
+            # Number of collections: 1151
+            # Mark total   : 3341799675
+            # - mark saved : 14063174
+            # - total alloc: 362596760
+            #---------------------------------------------------------------------
+            rdict = results[sproc]
+            if len(procdict.keys()) < numprocs:
+                continue
+            else:
+                num_done = check_subprocesses( procdict = procdict,
+                                               done_proclist = done_proclist,
+                                               finish_all_flag = False )
+    get_output( done_proclist = done_proclist,
                         results = results )
     num_done = check_subprocesses( procdict = procdict,
                                    done_proclist = done_proclist,
                                    finish_all_flag = True )
-    with open( outpu, "wb" ) as fptr:
-        writer = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
-        writer.writerow( [ "benchmark", "heapsize", "total_alloc",
-                           "number_collections", "mark_total", "mark_saved", ] )
-        for sproc, rdict in results.items():
-            heapsize = heapsize_dict[sproc]
-            row = [ benchmark, heapsize, rdict["total_alloc"], rdict["number_collections"],
-                    rdict["mark_total"], rdict["mark_saved"], ]
-            writer.writerow( row )
+    # TODO with open( output, "wb" ) as fptr:
+    # TODO     writer = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
+    # TODO     writer.writerow( [ "benchmark", "heapsize", "total_alloc",
+    # TODO                        "number_collections", "mark_total", "mark_saved", ] )
+    # TODO     for sproc, rdict in results.items():
+    # TODO         heapsize = heapsize_dict[sproc]
+    # TODO         row = [ benchmark, heapsize, rdict["total_alloc"], rdict["number_collections"],
+    # TODO                 rdict["mark_total"], rdict["mark_saved"], ]
+    # TODO         writer.writerow( row )
     print "DONE."
     exit(0)
 
