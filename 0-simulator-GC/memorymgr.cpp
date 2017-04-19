@@ -725,7 +725,7 @@ bool MemoryMgrDef::initialize_special_group( string &group_filename,
     string line;
     string s;
     this->m_numgroups = numgroups;
-    assert( numgroups == 1 );
+    // assert( numgroups == 1 );
     int group_count = 0;
     // The file is a CSV file with the following header:
     //    groupId,number,death_time,list
@@ -1093,7 +1093,7 @@ bool MemoryMgrDefVer2::initialize_special_group( string &group_filename,
     string line;
     string s;
     this->m_numgroups = numgroups;
-    assert( numgroups == 1 );
+    // assert( numgroups == 1 );
     int group_count = 0;
     // The file is a CSV file with the following header:
     //    groupId,number,death_time,list

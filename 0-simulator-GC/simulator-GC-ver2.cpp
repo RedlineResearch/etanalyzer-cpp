@@ -272,7 +272,7 @@ int main(int argc, char* argv[])
     
     Heap.initialize_memory_deferred_VER2( memsize, // in bytes
                                           dgroups_csvfile, // output of dgroups2db.py
-                                          1 ); // Number of groups to use
+                                          3 ); // Number of groups to use
 
     // Hard coded number at this point. TODO
     cout << "Read names file..." << endl;
