@@ -44,6 +44,6 @@ ADD_EXECUTABLE(simulator-GC-ver2-static ${SOURCES_SIM_GC_VER2})
 SET(SOURCES_SIM_PAGC_VER1 simulator-PAGC-ver1.cpp execution.cpp heap.cpp classinfo.cpp tokenizer.cpp
     version.cpp memorymgr.cpp)
 
-## TODO: # Main non-static Program Aware GC simulator
-## TODO: ADD_EXECUTABLE(simulator-PAGC-ver1 ${SOURCES_SIM_PAGC_VER1})
+# Main non-static Program Aware GC simulator
+ADD_EXECUTABLE(simulator-PAGC-ver1 ${SOURCES_SIM_PAGC_VER1})
 
