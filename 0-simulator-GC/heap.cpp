@@ -49,6 +49,23 @@ bool HeapState::initialize_memory_deferred_VER2( unsigned long heapsize,
     return result;
 }
 
+// Initialize memory for the Program Aware GC simulator
+//    - heapsize in bytes
+bool HeapState::initialize_memory_PAGC_VER1( unsigned long heapsize,
+                                             string &PAGC_config_filename )
+{
+    cout << "initialize_memory_PAGC_VER1:" << endl;
+    // Initialize the BASIC memory manager
+    this->m_memmgr_PAGC_VER1_p = new MemoryMgrDef();
+    this->m_memmgr_p = static_cast<MemoryMgr *>(this->m_memmgr_PAGC_VER1_p);
+    bool result = this->m_memmgr_PAGC_VER1_p->initialize_memory( heapsize );
+    if (!result) {
+        return false;
+    }
+    // TODO: result = this->m_memmgr_PAGC_VER1_p->initialize_special_group( group_filename, numgroups );
+    return result;
+}
+
 // - TODO
 Object* HeapState::allocate( unsigned int id,
                              unsigned int size,

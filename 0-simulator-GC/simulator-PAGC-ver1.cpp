@@ -15,7 +15,7 @@ using namespace std;
 #include "classinfo.h"
 #include "execution.h"
 #include "heap.h"
-#include "refstate.h"
+#include "func_record.h"
 #include "summary.hpp"
 #include "version.hpp"
 
@@ -258,8 +258,8 @@ void debug_GC_history( deque< GCRecord_t > &GC_history )
 int main(int argc, char* argv[])
 {
     if (argc != 5) {
-        cout << "simulator-GC VERSION 2" << endl
-             << "Usage: " << argv[0] << " <namesfile> <dgroups-csv-file> <output base name> <memsize>" << endl
+        cout << "simulator-PAGC-ver1" << endl
+             << "Usage: " << argv[0] << " <namesfile> <PAGC-config-file> <output base name> <memsize>" << endl
              << "      git version: " <<  build_git_sha << endl
              << "      build date : " <<  build_git_time << endl;
         exit(1);

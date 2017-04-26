@@ -107,10 +107,16 @@ class HeapState
         ObjectMap m_objects;
         // -- Set of edges (all pointers)
         EdgeSet m_edges;
+
+        // Memory manager section. NOTE: Only one of the following should
+        // probably be eever used at a time.
         // Memory manager - basic GC
         MemoryMgr *m_memmgr_p;
         // Memory manager 2 -  deferred GC
         MemoryMgrDef *m_memmgrdef_p;
+        // Memory manager PAGC VERSION 1
+        // TODO TODO TODO
+        MemoryMgrDef *m_memmgr_PAGC_VER1_p;
 
         unsigned long int m_maxLiveSize; // max live size of program in bytes
         unsigned int m_alloc_time; // current alloc time
@@ -137,6 +143,7 @@ class HeapState
             : m_objects()
             , m_memmgr_p(NULL)
             , m_memmgrdef_p(NULL)
+            , m_memmgr_PAGC_VER1_p(NULL)
             , m_whereis( whereis )
             , m_keyset( keyset )
             , m_maxLiveSize(0)
@@ -157,6 +164,9 @@ class HeapState
         bool initialize_memory_deferred_VER2( unsigned long heapsize,
                                               string &group_filename,
                                               int numgroups );
+
+        bool initialize_memory_PAGC_VER1( unsigned long heapsize,
+                                          string &PAGC_config_filename );
 
         void enableObjectDebug() { m_obj_debug_flag = true; }
         void disableObjectDebug() { m_obj_debug_flag = false; }
