@@ -48,23 +48,23 @@ class Func_Record
 
         unsigned int setTotalObjects( unsigned int my_total_objects )
         {
-            this->total_objects = my_total_objects;
+            return (this->total_objects = my_total_objects);
         }
         unsigned int setTotalBytes( unsigned int my_total_bytes )
         {
-            this->total_bytes = my_total_bytes;
+            return (this->total_bytes = my_total_bytes);
         }
         unsigned int setTotalCalled ( unsigned int my_total_called )
         {
-            this->total_called = my_total_called;
+            return (this->total_called = my_total_called);
         }
         unsigned int setMaxBytesPerCall( unsigned int my_max_bytes_per_call )
         {
-            this->max_bytes_per_call = my_max_bytes_per_call;
+            return (this->max_bytes_per_call = my_max_bytes_per_call);
         }
         unsigned int setMinBytesPerCall( unsigned int my_min_bytes_per_call )
         {
-            this->min_bytes_per_call = my_min_bytes_per_call;
+            return (this->min_bytes_per_call = my_min_bytes_per_call);
         }
 
         void end_function_update( TypeSet_t &types_dead,

@@ -9,6 +9,8 @@
 #include <string>
 #include <utility>
 
+#include <boost/circular_buffer.hpp>
+
 using namespace std;
 
 #include "tokenizer.h"
