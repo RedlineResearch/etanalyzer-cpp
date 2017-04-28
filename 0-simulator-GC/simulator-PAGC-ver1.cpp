@@ -60,6 +60,16 @@ bool debug = false;
 set<unsigned int> root_set;
 
 
+// TODO:
+// 1. Create the heuristic function.
+// 2. Where does this function get called from?
+//      -> On the function exits of certain functions.
+// 3. Therefore we need to read in the list of functions we want to do this on.
+// 4. Keep track of lifetime garbage.
+// 5. Keep track of heuristic garbage.
+// 6. Keep track of other garbage characteristics:
+//      - per function garbage maybe?
+//      - minimum, maximum per function exit
 // ----------------------------------------------------------------------
 //   Read and process trace events
 
