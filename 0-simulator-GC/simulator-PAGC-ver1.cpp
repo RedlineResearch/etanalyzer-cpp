@@ -234,7 +234,7 @@ unsigned int read_trace_file( FILE *f,
                     method = ClassInfo::TheMethods[method_id];
                     thread_id = tokenizer.getInt(3);
                     Exec.Call(method, thread_id);
-                    dataout << "F " << method->getName() << endl;
+                    dataout << "F " << method_id << endl;
                 }
                 break;
 
