@@ -94,11 +94,7 @@ unsigned int read_trace_file( FILE *f,
 //
 //  Save the following events as processed from the original ET trace:
 //
-//  Current function
-//  F <func name ID>
-//     ??? Does the thread number matter? In this simplified analysis,
-//         we could possibly ignore the thread. Since we're doing a regression
-//         analysis, there is no need for causality.
+//  F <func name ID> cumulative total exits so far
 //  G <garbage cumulative size>
 //  A <allocation time == allocation cumulative size>
 //
@@ -157,6 +153,7 @@ unsigned int read_trace_file( FILE *f,
                                          Exec.NowUp() );
                     unsigned int old_alloc_time = AllocationTime;
                     AllocationTime += obj->getSize();
+                    dataout << "A " << AllocationTime << endl;
                 }
                 break;
 
@@ -220,6 +217,7 @@ unsigned int read_trace_file( FILE *f,
                         Thread *thread = Exec.getThread(threadId);
                         Heap.makeDead(obj, Exec.NowUp());
                         total_garbage += obj->getSize();
+                        dataout << "G " << total_garbage << endl;
                     } else {
                         assert(false);
                     }
@@ -236,6 +234,7 @@ unsigned int read_trace_file( FILE *f,
                     method = ClassInfo::TheMethods[method_id];
                     thread_id = tokenizer.getInt(3);
                     Exec.Call(method, thread_id);
+                    dataout << "F " << method->getName() << endl;
                 }
                 break;
 
