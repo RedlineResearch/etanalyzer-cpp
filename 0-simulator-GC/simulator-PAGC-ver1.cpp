@@ -61,19 +61,52 @@ set<unsigned int> root_set;
 
 
 // TODO:
-// 1. Create the heuristic function.
-// 2. Where does this function get called from?
-//      -> On the function exits of certain functions.
-// 3. Therefore we need to read in the list of functions we want to do this on.
-// 4. Keep track of lifetime garbage.
-// 5. Keep track of heuristic garbage.
-// 6. Keep track of other garbage characteristics:
+// 1. Keep track of lifetime garbage.
+//      * On D(eath) event, increase garabage.
+//      ? Can we figure out where it died? Probably not yet.
+// 2. Keep track of heuristic garbage.
+//      - this depends on heuristic function?
+// 3. Keep track of other garbage characteristics:
 //      - per function garbage maybe?
 //      - minimum, maximum per function exit
+// 4. Create the heuristic function.
+// 5. Where does this function get called from?
+//      -> On the function exits of certain functions.
+// 6. Therefore we need to read in the list of functions we want to do this on.
 // ----------------------------------------------------------------------
 //   Read and process trace events
 
-unsigned int read_trace_file(FILE* f)
+unsigned int read_trace_file( FILE *f,
+                              ofstream &dataout )
+// TODO: CHOOSE A DESIGN:
+//  Option 1: We are simply processing the file here for further analysis later.
+//            So we don't need to choose the functions here.
+//            + This will most likely save time in processing as we don't
+//              repeatedly need all object allocations.
+//            - Adds to development time because we need to do the post-processing
+//              analysis.
+//  Option 2: We do the processing here and we have the functions that we are
+//            interested in.
+//            + No need for post analysis.
+//            - Needs a run script to go through the functions
+//            - A lot of repeated work in reading in events we don't need.
+//              => This repeated work may be well worth the possible additional dev time.
+//
+//  Save the following events as processed from the original ET trace:
+//
+//  Current function
+//  F <func name ID>
+//     ??? Does the thread number matter? In this simplified analysis,
+//         we could possibly ignore the thread. Since we're doing a regression
+//         analysis, there is no need for causality.
+//  G <garbage cumulative size>
+//  A <allocation time == allocation cumulative size>
+//
+//  On the analysis, we only take a relatively small subset to try to do a regression analysis
+//  (or some other predictive analysis).
+//  EXPERIMENT 1: We choose the functions a priori.
+//  EXPERIMENT 2: We search for the best functions. We limit the number of functions.
+//     Sub EXPermient 2b: We could selectively go determine how many functions might help.
 {
     Tokenizer tokenizer(f);
 
@@ -86,7 +119,7 @@ unsigned int read_trace_file(FILE* f)
     Object *obj;
     Object *target;
     Method *method;
-    unsigned int total_objects = 0;
+    unsigned int total_garbage = 0;
 
     // -- Allocation time
     unsigned int AllocationTime = 0;
@@ -124,7 +157,6 @@ unsigned int read_trace_file(FILE* f)
                                          Exec.NowUp() );
                     unsigned int old_alloc_time = AllocationTime;
                     AllocationTime += obj->getSize();
-                    total_objects++;
                 }
                 break;
 
@@ -187,6 +219,7 @@ unsigned int read_trace_file(FILE* f)
                         unsigned int threadId = tokenizer.getInt(2);
                         Thread *thread = Exec.getThread(threadId);
                         Heap.makeDead(obj, Exec.NowUp());
+                        total_garbage += obj->getSize();
                     } else {
                         assert(false);
                     }
@@ -253,7 +286,7 @@ unsigned int read_trace_file(FILE* f)
                 break;
         }
     }
-    return total_objects;
+    return total_garbage;
 }
 
 void debug_GC_history( deque< GCRecord_t > &GC_history )
@@ -292,10 +325,11 @@ int main(int argc, char* argv[])
 
     cout << "Start trace..." << endl;
     FILE* f = fdopen(0, "r");
-    unsigned int total_objects = read_trace_file(f);
+    string newtrace_filename( basename + "-PAGC-TRACE.csv" );
+    ofstream newtrace_file( newtrace_filename );
+    unsigned int total_garbage = read_trace_file( f, newtrace_file );
     unsigned int final_time = Exec.NowUp();
     cout << "Done at time " << Exec.NowUp() << endl
-         << "Total objects: " << total_objects << endl
          << "Total allocated in bytes:     " << Heap.get_total_alloc() << endl
          << "Number of collections: " << Heap.get_number_of_collections() << endl;
     cout << "Mark total   : " << Heap.get_mark_total() << endl
