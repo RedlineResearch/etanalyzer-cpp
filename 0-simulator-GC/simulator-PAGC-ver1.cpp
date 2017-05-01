@@ -155,7 +155,7 @@ unsigned int read_trace_file( FILE *f,
                     //                      Exec.NowUp() );
                     unsigned int old_alloc_time = AllocationTime;
                     AllocationTime += my_size;
-                    dataout << "A " << AllocationTime << endl;
+                    dataout << "A," << AllocationTime << endl;
                 }
                 break;
 
@@ -177,7 +177,7 @@ unsigned int read_trace_file( FILE *f,
                     unsigned int objId = tokenizer.getInt(1);
                     unsigned int my_size = objmap[objId];
                     total_garbage += my_size;
-                    dataout << "G " << total_garbage << endl;
+                    dataout << "G," << total_garbage << endl;
                 }
                 break;
 
@@ -191,7 +191,7 @@ unsigned int read_trace_file( FILE *f,
                     method = ClassInfo::TheMethods[method_id];
                     thread_id = tokenizer.getInt(3);
                     Exec.Call(method, thread_id);
-                    dataout << "F " << method_id << endl;
+                    dataout << "F," << method_id << endl;
                 }
                 break;
 
