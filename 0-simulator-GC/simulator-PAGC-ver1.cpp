@@ -254,11 +254,11 @@ int main(int argc, char* argv[])
              << "      build date : " <<  build_git_time << endl;
         exit(1);
     }
-    // TODO string dgroups_csvfile(argv[2]);
-    string basename(argv[1]);
-
     cout << "Read names file..." << endl;
     ClassInfo::read_names_file_no_mainfunc( argv[1] );
+
+    // TODO string dgroups_csvfile(argv[2]);
+    string basename(argv[2]);
 
     cout << "Start running PAGC simulator on trace..." << endl;
     FILE* f = fdopen(0, "r");
