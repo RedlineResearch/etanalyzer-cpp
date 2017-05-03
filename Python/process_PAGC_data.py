@@ -145,23 +145,24 @@ def get_output( sourcefile = None,
             elif rec[0] == 'E':
                 # sys.stdout.write("EXIT:\n")
                 methodId = int(rec[1])
-                exit_funcs.add(methodId)
-                if state == "EXIT":
-                    pass
-                elif state == "GARBAGE":
+                if state == "GARBAGE":
                     state = "EXIT"
                     assert(len(exit_funcs) == 0)
+                elif state == "EXIT":
+                    pass
                 else:
                     raise RuntimeError("Unexpected state: %s" % state)
+                exit_funcs.add(methodId)
             elif rec[0] == 'G':
                 # sys.stdout.write("GARBAGE:\n")
                 if state == "GARBAGE":
                     garbage += int(rec[1])
                 elif state == "EXIT":
                     # Summarize the data point
-                    data[exit_funcs] = garbage
+                    exit_funcs = frozenset(exit_funcs)
+                    data[exit_funcs].append(garbage)
                     # Reset garbage and the exit function set
-                    garbage = 0
+                    garbage = int(rec[1])
                     exit_funcs = set()
                 else:
                     raise RuntimeError("Unexpected state: %s" % state)
@@ -173,8 +174,8 @@ def get_output( sourcefile = None,
                 sys.stdout.write("TODO: %s \n" % str(line))
                 assert(False)
             count += 1
-            if count >= 500:
-                break
+            # DEBUG if count >= 10000:
+            # DEBUG     break
     sys.stdout.write("DEBUG-done: %d bytes\n" % alloc_time)
     # DEBUG TODO pp.pprint(funcnames)
 
@@ -192,11 +193,11 @@ def main_process( benchmark = None,
     # Expecting the CSV input file in the following format:
     sourcefile = "./%s-PAGC-TRACE.csv" % benchmark
     print "================================================================================"
-    data = {}
+    data = defaultdict( list )
     get_output( sourcefile = sourcefile,
                 data = data,
                 funcnames = funcnames )
-    pp.pprint( data )
+    pp.pprint( dict(data) )
     print "================================================================================"
     print "Number of data points: %d" % len(data.keys())
     print "process_PAGC_data.py - DONE."
