@@ -12,6 +12,7 @@ import ConfigParser
 from collections import Counter
 from collections import defaultdict
 from operator import itemgetter
+from itertools import chain
 # import csv
 # import networkx as nx
 # import shutil
@@ -109,10 +110,13 @@ def read_names_file( names_filename,
             #     pass
             #     # Ignore the rest
 
+def get_function_stats( data = {},
+                        funcnames = {} ):
+    counter = Counter( chain( *(data.keys()) ) )
+    return counter
 
-def get_output( sourcefile = None,
-                data = {},
-                funcnames = {} ):
+def get_data( sourcefile = None,
+              data = {} ):
     # TODO: HERE TODO
     # TODO: What does the results dictionary look like?
     #       rdict = results[heapsize]
@@ -173,7 +177,7 @@ def get_output( sourcefile = None,
             else:
                 sys.stdout.write("TODO: %s \n" % str(line))
                 assert(False)
-            count += 1
+            # DEBUG count += 1
             # DEBUG if count >= 10000:
             # DEBUG     break
     sys.stdout.write("DEBUG-done: %d bytes\n" % alloc_time)
@@ -194,10 +198,11 @@ def main_process( benchmark = None,
     sourcefile = "./%s-PAGC-TRACE.csv" % benchmark
     print "================================================================================"
     data = defaultdict( list )
-    get_output( sourcefile = sourcefile,
-                data = data,
-                funcnames = funcnames )
-    pp.pprint( dict(data) )
+    get_data( sourcefile = sourcefile,
+              data = data )
+    counter = get_function_stats( data = data,
+                                  funcnames = funcnames )
+    pp.pprint( dict(counter) )
     print "================================================================================"
     print "Number of data points: %d" % len(data.keys())
     print "process_PAGC_data.py - DONE."
