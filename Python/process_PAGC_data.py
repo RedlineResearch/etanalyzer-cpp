@@ -73,51 +73,15 @@ def filename2tuple( worklist = [] ):
 def get_output( sourcefile = None,
                 results = {} ):
     # TODO: HERE TODO
-    rdict = results[heapsize]
+    # TODO: What does the results dictionary look like?
+    #       rdict = results[heapsize]
     # print "filename: %s = hsize %d" % (filename, heapsize)
-    no_GC_flag = False
     with open(filename, "rb") as fptr:
         for line in fptr:
             if line != '':
+                pass
                 # If time stamp ignore
-                if ( "  Method time:" in line or
-                     "Done at time" in line or
-                     "ERROR:" in line or
-                     "Memory size:" in line or
-                     "initialize_special_group:" in line ):
-                    continue
-                elif "GC[" in line:
-                    # TODO TODO TODO
-                    # Maybe check GC count just in case?
-                    # Like a last GC count.
-                    pass
-                else:
-                    tup  = line.split(":")
-                    if len(tup) != 2:
-                        continue
-                    key, val = tup
-                    try:
-                        val = int(re.sub("\s", "", val))
-                    except:
-                        continue
-                    val = val if val >= 0 else 0
-                    if "Total objects" in key:
-                        rdict["total_objects"] = val
-                    elif "Total allocated in bytes" in key:
-                        rdict["total_alloc"] = val
-                    elif "Number of collections" in key:
-                        rdict["number_collections"] = val
-                        no_GC_flag = (val == 0)
-                    elif "Mark total" in key:
-                        rdict["mark_total"] = val
-                    elif "- mark saved" in key:
-                        rdict["mark_saved"] = val
-                    elif "- total alloc" in key:
-                        assert( val == rdict["total_alloc"] )
-                    else:
-                        sys.stderr.write( "Unexpected line: %s" % line )
-                        sys.stdout.flush()
-                    # sys.stdout.write( line )
+                # sys.stdout.write( line )
 
 def main_process( benchmark = None,
                   debugflag = False,
