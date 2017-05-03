@@ -113,6 +113,9 @@ def read_names_file( names_filename,
 def get_function_stats( data = {},
                         funcnames = {} ):
     counter = Counter( chain( *(data.keys()) ) )
+    functions = sorted( counter.keys(),
+                        key = lambda x: counter[x],
+                        reverse = True )
     return counter
 
 def get_data( sourcefile = None,
