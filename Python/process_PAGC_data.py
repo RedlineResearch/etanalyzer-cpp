@@ -116,6 +116,9 @@ def get_function_stats( data = {},
     functions = sorted( counter.keys(),
                         key = lambda x: counter[x],
                         reverse = True )
+    print "==============================================================================="
+    pp.pprint(functions[:15])
+    print "==============================================================================="
     return counter
 
 def get_data( sourcefile = None,
