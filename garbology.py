@@ -2525,6 +2525,12 @@ class NamesReader:
                 #     TODO
                 # else if entity == "S":
                 #     TODO
+                # else if entity == "N":
+                #     1 - method Id
+                #     2 - class Id
+                #     3 - class name
+                #     4 - method name
+                #     5 - descriptor flags TODO TODO TODO
                 recordType = row[0]
                 if recordType == "F":
                     # print ".",
@@ -2545,6 +2551,12 @@ class NamesReader:
                         self.logger.error( "Duplicate field Id [%d]" % fieldId )
                         # TODO: Check to see that it matches up?
                         assert(False) # Bail out for now. This shouldn't happen though. TODO
+                elif recordType == "N":
+                    methodId = hex2dec(row[1])
+                    classId = hex2dec(row[2])
+                    className = row[3]
+                    methodName = row[4]
+                    desc_flags = row[5]
                 else:
                     # print recordType,
                     pass

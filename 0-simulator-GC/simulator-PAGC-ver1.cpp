@@ -191,7 +191,7 @@ unsigned int read_trace_file( FILE *f,
                     method = ClassInfo::TheMethods[method_id];
                     thread_id = tokenizer.getInt(3);
                     Exec.Call(method, thread_id);
-                    dataout << "F," << method_id << endl;
+                    // TODO: dataout << "F," << method_id << endl;
                 }
                 break;
 
@@ -205,6 +205,7 @@ unsigned int read_trace_file( FILE *f,
                     thread_id = (tokenizer.numTokens() == 4) ? tokenizer.getInt(3)
                                                              : tokenizer.getInt(4);
                     Exec.Return(method, thread_id);
+                    dataout << "E," << method_id << endl;
                 }
                 break;
 

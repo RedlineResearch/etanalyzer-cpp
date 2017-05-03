@@ -19,7 +19,7 @@ from operator import itemgetter
 
 # Possible useful libraries, classes and functions:
 #   - This one is my own library:
-from mypytools import mean, stdev, variance, check_host
+from mypytools import mean, stdev, variance, check_host, hex2dec
 
 # For timestamping directories and files.
 from datetime import datetime, date
@@ -70,34 +70,135 @@ def filename2tuple( worklist = [] ):
         result.append( (fname, heapsize) )
     return result
 
+
+# TODO: This should really be moved to garbology.py
+def read_names_file( names_filename,
+                     funcnames = None ):
+    with open( names_filename, "rb" ) as fp:
+        for line in fp:
+            line = line.rstrip()
+            row = line.split(" ")
+            # 0 - Entity type [N,F,C,E,I,S]
+            # if entity == "N":
+            #     1 - method Id
+            #     2 - class Id
+            #     3 - class name
+            #     4 - method name
+            #     5 - descriptor flags TODO TODO TODO
+            # else if entity == "F":
+            #     TODO: IGNORE
+            # else if entity == "C":
+            #     TODO: IGNORE
+            # else if entity == "E":
+            #     TODO: IGNORE
+            # else if entity == "I":
+            #     TODO: IGNORE
+            # else if entity == "S":
+            #     TODO: IGNORE
+            recordType = row[0]
+            if recordType == "N":
+                methodId = hex2dec(row[1])
+                classId = hex2dec(row[2])
+                className = row[3]
+                methodName = row[4]
+                desc_flags = row[5]
+                # The funcnames maps:
+                #      methodId -> (className, methodName) pair
+                funcnames[methodId] = ( className, methodName )
+            # else:
+            #     pass
+            #     # Ignore the rest
+
+
 def get_output( sourcefile = None,
-                results = {} ):
+                data = {},
+                funcnames = {} ):
     # TODO: HERE TODO
     # TODO: What does the results dictionary look like?
     #       rdict = results[heapsize]
     # print "filename: %s = hsize %d" % (filename, heapsize)
-    with open(filename, "rb") as fptr:
+    # I have 2 design possibilities here:
+    # OPTION 1:
+    #   - The counts reset at every garbage 
+    #   - We start with reading Garbage events, keeping the total
+    #   - When we hit an Exit event, we read in all Exit events before the next
+    #     garbage event.
+    #   - On next Garbage event, repeat as above.
+    # OPTION 2:
+    #   - Keep track of ALL functions.
+    #   - Now that I think about it, this seems wrong.
+    with open(sourcefile, "rb") as fptr:
+        count = 0
+        alloc_time = 0
+        garbage = 0
+        state = "GARBAGE"
+        exit_funcs = set()
         for line in fptr:
-            if line != '':
-                pass
-                # If time stamp ignore
-                # sys.stdout.write( line )
+            if line == '':
+                continue
+            line = line.rstrip()
+            rec = line.split(",")
+            # DEBUG: sys.stdout.write(str(rec) + "\n")
+            if rec[0] == 'A':
+                # sys.stdout.write("ALLOC:\n")
+                alloc_time += int(rec[1])
+            elif rec[0] == 'E':
+                # sys.stdout.write("EXIT:\n")
+                methodId = int(rec[1])
+                exit_funcs.add(methodId)
+                if state == "EXIT":
+                    pass
+                elif state == "GARBAGE":
+                    state = "EXIT"
+                    assert(len(exit_funcs) == 0)
+                else:
+                    raise RuntimeError("Unexpected state: %s" % state)
+            elif rec[0] == 'G':
+                # sys.stdout.write("GARBAGE:\n")
+                if state == "GARBAGE":
+                    garbage += int(rec[1])
+                elif state == "EXIT":
+                    # Summarize the data point
+                    data[exit_funcs] = garbage
+                    # Reset garbage and the exit function set
+                    garbage = 0
+                    exit_funcs = set()
+                else:
+                    raise RuntimeError("Unexpected state: %s" % state)
+            elif rec[0] == 'F':
+                # sys.stdout.write("FUNCTION:\n")
+                methodId = int(rec[1])
+                # TODO: output record
+            else:
+                sys.stdout.write("TODO: %s \n" % str(line))
+                assert(False)
+            count += 1
+            if count >= 500:
+                break
+    sys.stdout.write("DEBUG-done: %d bytes\n" % alloc_time)
+    # DEBUG TODO pp.pprint(funcnames)
 
 def main_process( benchmark = None,
+                  names_filename = None,
                   debugflag = False,
                   logger = None ):
     global pp
     # TODO Create the output directory
+    #-------------------------------------------------------------------------------
+    funcnames = {}
+    read_names_file( names_filename = names_filename,
+                     funcnames = funcnames )
     output_dir = "/data/rveroy/src/trace_drop/PAGC-ANALYSIS-1/"
     # Expecting the CSV input file in the following format:
     sourcefile = "./%s-PAGC-TRACE.csv" % benchmark
     print "================================================================================"
-    results = {}
+    data = {}
     get_output( sourcefile = sourcefile,
-                results = results )
-    pp.pprint( results )
+                data = data,
+                funcnames = funcnames )
+    pp.pprint( data )
     print "================================================================================"
-    print "Number of data points: %d" % len(results.keys())
+    print "Number of data points: %d" % len(data.keys())
     print "process_PAGC_data.py - DONE."
     exit(100)
 
@@ -173,6 +274,9 @@ def create_parser():
     parser.add_argument( "--benchmark",
                          help = "Benchmark name for filename base.",
                          action = "store" )
+    parser.add_argument( "--namesfile",
+                         help = "Names file which is output from Elephant Tracks.",
+                         action = "store" )
     parser.add_argument( "--debug",
                          dest = "debugflag",
                          help = "Enable debug output.",
@@ -200,6 +304,7 @@ def main():
     # Main processing
     #
     return main_process( benchmark = args.benchmark,
+                         names_filename = args.namesfile,
                          debugflag = args.debugflag,
                          logger = logger )
 
