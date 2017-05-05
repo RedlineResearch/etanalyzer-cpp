@@ -113,13 +113,62 @@ def read_names_file( names_filename,
 def get_function_stats( data = {},
                         funcnames = {} ):
     counter = Counter( chain( *(data.keys()) ) )
+    print "==============================================================================="
+    return counter
+
+def is_javalib_method( methname = None ):
+    return ( (methname[0:5] == "java/") or
+             (methname[0:4] == "sun/") or
+             (methname[0:8] == "com/sun/") or
+             (methname[0:8] == "com/ibm/") )
+
+def choose_functions_ver01( counter = {},
+                            data = {},
+                            funcnames = {} ):
     functions = sorted( counter.keys(),
                         key = lambda x: counter[x],
                         reverse = True )
-    print "==============================================================================="
-    pp.pprint(functions[:15])
-    print "==============================================================================="
-    return counter
+    funcdict = { key : counter[key] for key in functions }
+    # pp.pprint(functions[:15])
+    # DEBUG: for funcId in counter.keys():
+    # DEBUG:     print "X: %d -> %s" % (funcId, str(funcnames[funcId]))
+    count = 0
+    for sig, garbage in data.iteritems():
+        sig_sorted = sorted( sig,
+                             key = lambda x: counter[x],
+                             reverse = True )
+        # DEBUG: print "%d: %s" % (count, str(sig_sorted))
+        select = None
+        for funcId in sig_sorted:
+            myname = funcnames[funcId]
+            if not is_javalib_method(myname):
+                continue
+            else:
+                select = myname
+                break
+        if select == None:
+            print "--------------------------------------------------------------------------------"
+            for tmp in sig_sorted:
+                print funcnames[tmp]
+            print "--------------------------------------------------------------------------------"
+            count += 1
+        else:
+            print "X: %s" % select
+    print "No selection total: %d" % count
+    # Design considerations:
+    #    - size of garbage
+    #    - function type (library or application?)
+    #    - number of times function was called.
+    #    - number of garbage clusters the function is in
+    #    - closest to the death event
+    #    - consistency of garbage size
+    #
+    # Option 1:
+    #   Axiom 1: It's better to use a function that gets called more.
+    #   Axiom 2: It's better to use a function that generates a consistent
+    #            amount of garbage. (....maybe?)
+    #   Axiom 3: We'd rather use application functions rather than system library
+    #            functions.
 
 def get_data( sourcefile = None,
               data = {} ):
@@ -210,8 +259,13 @@ def main_process( benchmark = None,
                                   funcnames = funcnames )
     pp.pprint( dict(counter) )
     print "================================================================================"
+    choose_functions_ver01( counter = counter,
+                            data = data,
+                            funcnames = funcnames )
+    print "================================================================================"
     print "Number of data points: %d" % len(data.keys())
     print "process_PAGC_data.py - DONE."
+    print "================================================================================"
     exit(100)
 
 def config_section_map( section, config_parser ):
