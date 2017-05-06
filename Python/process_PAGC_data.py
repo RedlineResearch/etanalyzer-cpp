@@ -122,6 +122,12 @@ def is_javalib_method( methname = None ):
              (methname[0:8] == "com/sun/") or
              (methname[0:8] == "com/ibm/") )
 
+def is_blacklisted( methname = None ):
+    return False # TODO TODO
+    # - Object methods
+    # - init
+    # - run ? (or maybe allow it?)
+
 def choose_functions_ver01( counter = {},
                             data = {},
                             funcnames = {} ):
@@ -141,7 +147,7 @@ def choose_functions_ver01( counter = {},
         select = None
         for funcId in sig_sorted:
             myname = funcnames[funcId]
-            if not is_javalib_method(myname):
+            if is_javalib_method(myname):
                 continue
             else:
                 select = myname
@@ -153,7 +159,7 @@ def choose_functions_ver01( counter = {},
             print "--------------------------------------------------------------------------------"
             count += 1
         else:
-            print "X: %s" % select
+            print "X: %s" % str(select)
     print "No selection total: %d" % count
     # Design considerations:
     #    - size of garbage
