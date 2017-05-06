@@ -131,13 +131,15 @@ def is_blacklisted( methname = None ):
 def choose_functions_ver01( counter = {},
                             data = {},
                             funcnames = {} ):
-    functions = sorted( counter.keys(),
-                        key = lambda x: counter[x],
-                        reverse = True )
-    funcdict = { key : counter[key] for key in functions }
+    # TODO: This doesn't seem to be the right thing to do.
+    # TODO: functions = sorted( counter.keys(),
+    # TODO:                     key = lambda x: counter[x],
+    # TODO:                     reverse = True )
+    # TODO: funcdict = { key : counter[key] for key in functions }
     # pp.pprint(functions[:15])
     # DEBUG: for funcId in counter.keys():
     # DEBUG:     print "X: %d -> %s" % (funcId, str(funcnames[funcId]))
+    functions = defaultdict( list )
     count = 0
     for sig, garbage in data.iteritems():
         sig_sorted = sorted( sig,
@@ -159,8 +161,10 @@ def choose_functions_ver01( counter = {},
             print "--------------------------------------------------------------------------------"
             count += 1
         else:
-            print "X: %s" % str(select)
+            # print "X: %s" % str(select)
+            functions[select].append((sig, garbage))
     print "No selection total: %d" % count
+    return functions
     # Design considerations:
     #    - size of garbage
     #    - function type (library or application?)
@@ -265,11 +269,15 @@ def main_process( benchmark = None,
                                   funcnames = funcnames )
     pp.pprint( dict(counter) )
     print "================================================================================"
-    choose_functions_ver01( counter = counter,
-                            data = data,
-                            funcnames = funcnames )
+    functions = choose_functions_ver01( counter = counter,
+                                        data = data,
+                                        funcnames = funcnames )
     print "================================================================================"
     print "Number of data points: %d" % len(data.keys())
+    print "================================================================================"
+    print "Functions selected:"
+    for func, garblist in functions.iteritems():
+        print "%s -> %s" % (str(func), str(garblist))
     print "process_PAGC_data.py - DONE."
     print "================================================================================"
     exit(100)
