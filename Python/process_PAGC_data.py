@@ -114,6 +114,8 @@ def get_function_stats( data = {},
                         funcnames = {} ):
     counter = Counter( chain( *(data.keys()) ) )
     print "==============================================================================="
+    for sig, garblist in data.iteritems():
+        print "%s -> %s" % (str(sig), str(garblist))
     return counter
 
 def is_javalib_method( methname = None ):
