@@ -27,3 +27,9 @@ z-DEL
 *-OLD.*
 *-BAK
 *BUILD*
+.*fuse*
+debug*
+*.ps
+*.pdf
+*TEMP*
+*.class
