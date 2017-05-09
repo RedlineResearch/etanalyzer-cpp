@@ -203,7 +203,8 @@ def get_data( sourcefile = None,
         alloc_time = 0
         garbage = 0
         state = "GARBAGE"
-        exit_funcs = set()
+        # TODO: exit_funcs = set()
+        exit_funcs = []
         for line in fptr:
             if line == '':
                 continue
@@ -223,18 +224,21 @@ def get_data( sourcefile = None,
                     pass
                 else:
                     raise RuntimeError("Unexpected state: %s" % state)
-                exit_funcs.add(methodId)
+                # TODO: exit_funcs.add(methodId)
+                exit_funcs.append(methodId)
             elif rec[0] == 'G':
                 # sys.stdout.write("GARBAGE:\n")
                 if state == "GARBAGE":
                     garbage += int(rec[1])
                 elif state == "EXIT":
                     # Summarize the data point
-                    exit_funcs = frozenset(exit_funcs)
-                    data[exit_funcs].append(garbage)
+                    # TODO: exit_funcs = frozenset(exit_funcs)
+                    exit_funcs_tup = tuple(exit_funcs)
+                    data[exit_funcs_tup].append(garbage)
                     # Reset garbage and the exit function set
                     garbage = int(rec[1])
-                    exit_funcs = set()
+                    # TODO: exit_funcs = set()
+                    exit_funcs = []
                 else:
                     raise RuntimeError("Unexpected state: %s" % state)
             elif rec[0] == 'F':
@@ -269,7 +273,7 @@ def main_process( benchmark = None,
               data = data )
     counter = get_function_stats( data = data,
                                   funcnames = funcnames )
-    pp.pprint( dict(counter) )
+    # pp.pprint( dict(counter) )
     print "================================================================================"
     functions = choose_functions_ver01( counter = counter,
                                         data = data,
@@ -277,9 +281,34 @@ def main_process( benchmark = None,
     print "================================================================================"
     print "Number of data points: %d" % len(data.keys())
     print "================================================================================"
-    print "Functions selected:"
-    for func, garblist in functions.iteritems():
-        print "%s -> %s" % (str(func), str(garblist))
+    print "Functions selected: TODO"
+    single_count = 0
+    single_garbage_total = 0
+    mult_count = 0
+    mult_garbage_total = 0
+    for funcname, gtuplist in functions.iteritems():
+        print "%s:" % str(funcname)
+        assert(len(gtuplist) > 0)
+        single_flag = False
+        if len(gtuplist) == 1:
+            single_count += 1
+            single_flag = True
+        else:
+            mult_count += 1
+        for gtup in gtuplist:
+            # gtup is:
+            # ( sig tuple, list of garbage sizes )
+            # TODO TODO TODO
+            garblist = gtup[1]
+            if single_flag:
+                single_garbage_total += sum(garblist)
+            else:
+                mult_garbage_total += sum(garblist)
+            # DEBUG ONLY:
+            # sys.stdout.write( "%s -> %d, %.2f, %d\n" %
+            #                   (str(gtup[0]), min(garblist), mean(garblist), max(garblist)) )
+    print "Single  : count[ %d ]  garbage[ %d ]" % (single_count, single_garbage_total)
+    print "Multiple: count[ %d ]  garbage[ %d ]" % (mult_count, mult_garbage_total)
     print "process_PAGC_data.py - DONE."
     print "================================================================================"
     exit(100)
