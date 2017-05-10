@@ -137,7 +137,7 @@ def get_context_pair( select, sig ):
             (select != sig[index]) ):
         index += 1
     if index < len(sig):
-        caller = sig[index + 1] if (index == (len(sig) - 1)) \
+        caller = sig[index + 1] if (index < (len(sig) - 1)) \
                     else None
         return (sig[index], caller)
     else:
@@ -156,7 +156,7 @@ def choose_functions_ver01( counter = {},
                              reverse = True )
         select = None
         for funcId in sig_sorted:
-            # TODO: myname = funcnames[funcId]
+            myname = funcnames[funcId]
             if is_javalib_method(myname):
                 continue
             else:
