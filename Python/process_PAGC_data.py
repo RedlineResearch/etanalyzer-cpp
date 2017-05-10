@@ -270,8 +270,7 @@ def main_process( benchmark = None,
     funcnames = {}
     read_names_file( names_filename = names_filename,
                      funcnames = funcnames )
-    output_dir = "/data/rveroy/src/trace_drop/PAGC-ANALYSIS-1/"
-    # Expecting the CSV input file in the following format:
+    output_dir = "/data/rveroy/src/trace_drop/PAGC-ANALYSIS-1/" # Expecting the CSV input file in the following format:
     sourcefile = "./%s-PAGC-TRACE.csv" % benchmark
     print "================================================================================"
     data = defaultdict( list )
@@ -292,8 +291,14 @@ def main_process( benchmark = None,
     single_garbage_total = 0
     mult_count = 0
     mult_garbage_total = 0
-    for funcname, gtuplist in functions.iteritems():
-        print "%s:" % str(funcname)
+    for func, gtuplist in functions.iteritems():
+        if func[1] == None:
+            # Design Decision: Ignore any function pairs that aren't pairs.
+            continue
+        callee = funcnames[func[0]]
+        caller = funcnames[func[1]]
+        garblist = []
+        sys.stdout.write( "%s <- %s:" % (callee, caller) )
         assert(len(gtuplist) > 0)
         single_flag = False
         if len(gtuplist) == 1:
@@ -305,14 +310,14 @@ def main_process( benchmark = None,
             # gtup is:
             # ( sig tuple, list of garbage sizes )
             # TODO TODO TODO
-            garblist = gtup[1]
+            my_garblist = gtup[1]
+            garblist.extend( my_garblist )
             if single_flag:
-                single_garbage_total += sum(garblist)
+                single_garbage_total += sum(my_garblist)
             else:
-                mult_garbage_total += sum(garblist)
-            # DEBUG ONLY:
-            # sys.stdout.write( "%s -> %d, %.2f, %d\n" %
-            #                   (str(gtup[0]), min(garblist), mean(garblist), max(garblist)) )
+                mult_garbage_total += sum(my_garblist)
+        sys.stdout.write( "      min[ %d ] mean[ %.2f ] max[ %d ]\n" %
+                          (min(garblist), mean(garblist), max(garblist)) )
     print "Single  : count[ %d ]  garbage[ %d ]" % (single_count, single_garbage_total)
     print "Multiple: count[ %d ]  garbage[ %d ]" % (mult_count, mult_garbage_total)
     print "process_PAGC_data.py - DONE."
