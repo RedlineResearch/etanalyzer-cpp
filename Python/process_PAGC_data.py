@@ -130,31 +130,37 @@ def is_blacklisted( methname = None ):
     # - init
     # - run ? (or maybe allow it?)
 
+def get_context_pair( select, sig ):
+    assert( len(sig) > 0 )
+    index = 0
+    while ( (index < len(sig)) and
+            (select != sig[index]) ):
+        index += 1
+    if index < len(sig):
+        caller = sig[index + 1] if (index == (len(sig) - 1)) \
+                    else None
+        return (sig[index], caller)
+    else:
+        raise RuntimeError( "Lookfing for [%s] --> invalid signature: %s" %
+                            (select, str(sig)) )
+
 def choose_functions_ver01( counter = {},
                             data = {},
                             funcnames = {} ):
-    # TODO: This doesn't seem to be the right thing to do.
-    # TODO: functions = sorted( counter.keys(),
-    # TODO:                     key = lambda x: counter[x],
-    # TODO:                     reverse = True )
-    # TODO: funcdict = { key : counter[key] for key in functions }
-    # pp.pprint(functions[:15])
-    # DEBUG: for funcId in counter.keys():
-    # DEBUG:     print "X: %d -> %s" % (funcId, str(funcnames[funcId]))
     functions = defaultdict( list )
     count = 0
     for sig, garbage in data.iteritems():
+        # DESIGN Decision: Use the most often called functions.
         sig_sorted = sorted( sig,
                              key = lambda x: counter[x],
                              reverse = True )
-        # DEBUG: print "%d: %s" % (count, str(sig_sorted))
         select = None
         for funcId in sig_sorted:
-            myname = funcnames[funcId]
+            # TODO: myname = funcnames[funcId]
             if is_javalib_method(myname):
                 continue
             else:
-                select = myname
+                select = funcId
                 break
         if select == None:
             print "--------------------------------------------------------------------------------"
@@ -163,8 +169,8 @@ def choose_functions_ver01( counter = {},
             print "--------------------------------------------------------------------------------"
             count += 1
         else:
-            # print "X: %s" % str(select)
-            functions[select].append((sig, garbage))
+            cpair = get_context_pair( select, sig )
+            functions[cpair].append((sig, garbage))
     print "No selection total: %d" % count
     return functions
     # Design considerations:
