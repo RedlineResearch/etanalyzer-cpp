@@ -13,7 +13,7 @@ from collections import Counter
 from collections import defaultdict
 from operator import itemgetter
 from itertools import chain
-# import csv
+import csv
 # import networkx as nx
 # import shutil
 # from multiprocessing import Process, Manager
@@ -291,33 +291,46 @@ def main_process( benchmark = None,
     single_garbage_total = 0
     mult_count = 0
     mult_garbage_total = 0
-    for func, gtuplist in functions.iteritems():
-        if func[1] == None:
-            # Design Decision: Ignore any function pairs that aren't pairs.
-            continue
-        callee = funcnames[func[0]]
-        caller = funcnames[func[1]]
-        garblist = []
-        sys.stdout.write( "%s <- %s:" % (callee, caller) )
-        assert(len(gtuplist) > 0)
-        single_flag = False
-        if len(gtuplist) == 1:
-            single_count += 1
-            single_flag = True
-        else:
-            mult_count += 1
-        for gtup in gtuplist:
-            # gtup is:
-            # ( sig tuple, list of garbage sizes )
-            # TODO TODO TODO
-            my_garblist = gtup[1]
-            garblist.extend( my_garblist )
-            if single_flag:
-                single_garbage_total += sum(my_garblist)
+    with open( "%s-PAGC-FUNCTIONS.csv" % benchmark, "wb" ) as fptr:
+        csvwriter = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
+        header = [ "callee", "caller", "minimum", "mean", "stdev", "maximum",
+                   "called_id", "caller_id", ]
+        csvwriter.writerow( header )
+        for func, gtuplist in functions.iteritems():
+            if func[1] == None:
+                # Design Decision: Ignore any function pairs that aren't pairs.
+                continue
+            callee = funcnames[func[0]]
+            caller = funcnames[func[1]]
+            row = [ "%s.%s" % (callee[0], callee[1]),
+                    "%s.%s" % (caller[0], caller[1]), ]
+            garblist = []
+            sys.stdout.write( "%s <- %s:" % (callee, caller) )
+            assert(len(gtuplist) > 0)
+            single_flag = False
+            if len(gtuplist) == 1:
+                single_count += 1
+                single_flag = True
             else:
-                mult_garbage_total += sum(my_garblist)
-        sys.stdout.write( "      min[ %d ] mean[ %.2f ] max[ %d ]\n" %
-                          (min(garblist), mean(garblist), max(garblist)) )
+                mult_count += 1
+            for gtup in gtuplist:
+                # gtup is:
+                # ( sig tuple, list of garbage sizes )
+                # TODO TODO TODO
+                my_garblist = gtup[1]
+                garblist.extend( my_garblist )
+                if single_flag:
+                    single_garbage_total += sum(my_garblist)
+                else:
+                    mult_garbage_total += sum(my_garblist)
+            minimum = min(garblist)
+            maximum = max(garblist)
+            my_mean = mean(garblist)
+            my_stdev = stdev(garblist) if (len(garblist) > 1) else 0
+            row.extend( [ minimum, my_mean, my_stdev, maximum, func[0], func[1], ] )
+            csvwriter.writerow( row )
+            sys.stdout.write( "      min[ %d ] mean[ %.2f ] stdev[ %.2f ] max[ %d ]\n" %
+                              (minimum, my_mean, my_stdev, maximum) )
     print "Single  : count[ %d ]  garbage[ %d ]" % (single_count, single_garbage_total)
     print "Multiple: count[ %d ]  garbage[ %d ]" % (mult_count, mult_garbage_total)
     print "process_PAGC_data.py - DONE."
