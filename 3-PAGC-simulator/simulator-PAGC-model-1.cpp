@@ -56,6 +56,8 @@ typedef std::map< MethodId_t, Method2GRec_map_t > CPair2GRec_map_t;
 // ----------------------------------------------------------------------
 //   Globals
 
+// The pseudo-heap
+ObjectMap_t objmap;
 // The
 CPair2GRec_map_t cpairmap;
 
