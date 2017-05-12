@@ -96,6 +96,62 @@ set<unsigned int> root_set;
 // ----------------------------------------------------------------------
 //   Read and process trace events
 
+unsigned int populate_method_map( string &source_csv,
+                                  Method2GRec_map_t &mymap )
+{
+    std::ifstream infile( group_filename );
+    // First line is a header:
+    std::getline(infile, line);
+    // TODO: Maybe make sure we have the right file?
+    //       Check the header which should be exactly like this:
+    //     header = [ "callee", "caller", "minimum", "mean", "stdev", "maximum",
+    //                "called_id", "caller_id", ]
+    //     Note: this is Python code.
+    // TODO: Fix copy-pasta code.
+    while (std::getline(infile, line)) {
+        size_t pos = 0;
+        string token;
+        unsigned long int num;
+        int count = 0;
+        //------------------------------------------------------------
+        // Get the callee
+        pos = line.find(",");
+        assert( pos != string::npos );
+        s = line.substr(0, pos);
+        // DEBUG: cout << "CALLEE: " << s << endl;
+        int callee = std::stoi(s);
+        line.erase(0, pos + 1);
+        //------------------------------------------------------------
+        // Get the caller
+        pos = line.find(",");
+        assert( pos != string::npos );
+        s = line.substr(0, pos);
+        // DEBUG: cout << "CALLER: " << s << endl;
+        int caller = std::stoi(s);
+        line.erase(0, pos + 1);
+        //------------------------------------------------------------
+        // Get the minimum
+        pos = line.find(",");
+        assert( pos != string::npos );
+        s = line.substr(0, pos);
+        // DEBUG: cout << "MIN: " << s << endl;
+        int minimum = std::stoi(s);
+        line.erase(0, pos + 1);
+        //------------------------------------------------------------
+        // TODO TODO TODO TODO
+        // HERE
+        // Get the mean
+        mean = std::stoi(line);
+        pos = line.find(",");
+        assert( pos != string::npos );
+        s = line.substr(0, pos);
+        // DEBUG: cout << "MIN: " << s << endl;
+        int minimum = std::stoi(s);
+        line.erase(0, pos + 1);
+    }
+    return 0; // TODO
+}
+
 unsigned int read_trace_file( FILE *f,
                               ofstream &dataout )
 // TODO: CHOOSE A DESIGN:
