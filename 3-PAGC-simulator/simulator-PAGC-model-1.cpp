@@ -35,6 +35,8 @@ typedef struct _GarbageRec_t {
     double stdev; 
 } GarbageRec_t;
 
+typedef std::map< MethodId_t, string > FunctionName_map_t;
+
 // The pseudo-heap data structure
 typedef std::map< ObjectId_t, unsigned int > ObjectMap_t;
 
@@ -58,8 +60,10 @@ typedef std::map< MethodId_t, Method2GRec_map_t > CPair2GRec_map_t;
 
 // The pseudo-heap
 ObjectMap_t objmap;
-// The
+// The call pair data structure illustrated above
 CPair2GRec_map_t cpairmap;
+// The names map
+FunctionName_map_t namemap;
 
 // TODO: DELETE HeapState Heap( whereis, keyset );
 
@@ -110,6 +114,7 @@ unsigned int populate_method_map( string &source_csv,
     //     Note: this is Python code.
     // TODO: Fix copy-pasta code.
     while (std::getline(infile, line)) {
+        GarbageRec_t rec;
         size_t pos = 0;
         string token;
         string s;
@@ -119,17 +124,15 @@ unsigned int populate_method_map( string &source_csv,
         // Get the callee
         pos = line.find(",");
         assert( pos != string::npos );
-        s = line.substr(0, pos);
+        string callee = line.substr(0, pos);
         // DEBUG: cout << "CALLEE: " << s << endl;
-        int callee = std::stoi(s);
         line.erase(0, pos + 1);
         //------------------------------------------------------------
         // Get the caller
         pos = line.find(",");
         assert( pos != string::npos );
-        s = line.substr(0, pos);
+        string caller = line.substr(0, pos);
         // DEBUG: cout << "CALLER: " << s << endl;
-        int caller = std::stoi(s);
         line.erase(0, pos + 1);
         //------------------------------------------------------------
         // Get the minimum
@@ -137,18 +140,60 @@ unsigned int populate_method_map( string &source_csv,
         assert( pos != string::npos );
         s = line.substr(0, pos);
         // DEBUG: cout << "MIN: " << s << endl;
-        int minimum = std::stoi(s);
+        rec.minimum = std::stoi(s);
         line.erase(0, pos + 1);
         //------------------------------------------------------------
-        // TODO TODO TODO TODO
-        // HERE
         // Get the mean
         pos = line.find(",");
         assert( pos != string::npos );
         s = line.substr(0, pos);
         // DEBUG: cout << "MIN: " << s << endl;
-        int mean = std::stoi(s);
+        rec.mean = std::stoi(s);
         line.erase(0, pos + 1);
+        //------------------------------------------------------------
+        // Get the stdev
+        pos = line.find(",");
+        assert( pos != string::npos );
+        s = line.substr(0, pos);
+        // DEBUG: cout << "STDEV: " << s << endl;
+        rec.stdev = std::stoi(s);
+        line.erase(0, pos + 1);
+        //------------------------------------------------------------
+        // Get the maximum
+        pos = line.find(",");
+        assert( pos != string::npos );
+        s = line.substr(0, pos);
+        // DEBUG: cout << "MAX: " << s << endl;
+        rec.maximum = std::stoi(s);
+        line.erase(0, pos + 1);
+        //------------------------------------------------------------
+        // Get the callee_id
+        pos = line.find(",");
+        assert( pos != string::npos );
+        s = line.substr(0, pos);
+        // DEBUG: cout << "MAX: " << s << endl;
+        int callee_id = std::stoi(s);
+        line.erase(0, pos + 1);
+        //------------------------------------------------------------
+        // Get the caller_id
+        // DEBUG: cout << "MAX: " << line << endl;
+        int caller_id = std::stoi(line);
+        line.erase(0, pos + 1);
+        //------------------------------------------------------------
+        // Add the names to the map
+        auto niter = namemap.find(caller_id);
+        if (niter == namemap.end()) {
+        }
+        //------------------------------------------------------------
+        // Add to the call pair map
+        // First find if caller is in the
+        auto iter = cpairmap.find(caller_id);
+        if (iter == cpairmap.end()) {
+            Method2GRec_map_t *m2g_map = new Method2GRec_map_t();
+            cpairmap[caller_id] = *m2g_map;
+        }
+        cpairmap[caller_id][callee_id] = rec;
+        // cpairmap[caller][];
     }
     return 0; // TODO
 }
