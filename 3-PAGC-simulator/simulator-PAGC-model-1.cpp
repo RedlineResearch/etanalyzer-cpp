@@ -99,7 +99,8 @@ set<unsigned int> root_set;
 unsigned int populate_method_map( string &source_csv,
                                   Method2GRec_map_t &mymap )
 {
-    std::ifstream infile( group_filename );
+    std::ifstream infile( source_csv );
+    string line;
     // First line is a header:
     std::getline(infile, line);
     // TODO: Maybe make sure we have the right file?
@@ -111,6 +112,7 @@ unsigned int populate_method_map( string &source_csv,
     while (std::getline(infile, line)) {
         size_t pos = 0;
         string token;
+        string s;
         unsigned long int num;
         int count = 0;
         //------------------------------------------------------------
@@ -141,12 +143,11 @@ unsigned int populate_method_map( string &source_csv,
         // TODO TODO TODO TODO
         // HERE
         // Get the mean
-        mean = std::stoi(line);
         pos = line.find(",");
         assert( pos != string::npos );
         s = line.substr(0, pos);
         // DEBUG: cout << "MIN: " << s << endl;
-        int minimum = std::stoi(s);
+        int mean = std::stoi(s);
         line.erase(0, pos + 1);
     }
     return 0; // TODO
