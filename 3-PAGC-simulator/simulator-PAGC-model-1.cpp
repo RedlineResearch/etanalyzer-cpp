@@ -371,22 +371,22 @@ void debug_GC_history( deque< GCRecord_t > &GC_history )
 
 int main(int argc, char* argv[])
 {
-    if (argc != 3) {
+    if (argc != 4) {
         cout << "simulator-PAGC-model-1" << endl
-             << "Usage: " << argv[0] << " <PAGC csv filename> <output base name>" << endl
+             << "Usage: " << argv[0] << " <names filename>  <PAGC csv filename>  <output base name>" << endl
              << "      git version: " <<  build_git_sha << endl
              << "      build date : " <<  build_git_time << endl;
         exit(1);
     }
-    // TODO: cout << "Read names file..." << endl;
-    // TODO: ClassInfo::read_names_file_no_mainfunc( argv[1] );
-    string source_csv(argv[1]);
+    cout << "Read names file..." << endl;
+    ClassInfo::read_names_file_no_mainfunc( argv[1] );
+    string source_csv(argv[2]);
     Method2GRec_map_t mymap;
     unsigned int result_count = populate_method_map( source_csv,
                                                      mymap );
 
     cout << "populate count: " << result_count << endl;
-    string basename(argv[2]);
+    string basename(argv[3]);
 
     cout << "Start running PAGC simulator on trace..." << endl;
     FILE *f = fdopen(0, "r");
