@@ -112,14 +112,14 @@ unsigned int populate_method_map( string &source_csv,
     //     header = [ "callee", "caller", "minimum", "mean", "stdev", "maximum",
     //                "called_id", "caller_id", ]
     //     Note: this is Python code.
-    // TODO: Fix copy-pasta code.
+    int count = 0;
     while (std::getline(infile, line)) {
         GarbageRec_t rec;
         size_t pos = 0;
         string token;
         string s;
         unsigned long int num;
-        int count = 0;
+        ++count;
         //------------------------------------------------------------
         // Get the callee
         pos = line.find(",");
@@ -183,6 +183,11 @@ unsigned int populate_method_map( string &source_csv,
         // Add the names to the map
         auto niter = namemap.find(caller_id);
         if (niter == namemap.end()) {
+            namemap[caller_id] = caller;
+        }
+        niter = namemap.find(callee_id);
+        if (niter == namemap.end()) {
+            namemap[callee_id] = callee;
         }
         //------------------------------------------------------------
         // Add to the call pair map
@@ -193,9 +198,8 @@ unsigned int populate_method_map( string &source_csv,
             cpairmap[caller_id] = *m2g_map;
         }
         cpairmap[caller_id][callee_id] = rec;
-        // cpairmap[caller][];
     }
-    return 0; // TODO
+    return count;
 }
 
 unsigned int read_trace_file( FILE *f,
@@ -278,7 +282,6 @@ unsigned int read_trace_file( FILE *f,
                     //                      Exec.NowUp() );
                     unsigned int old_alloc_time = AllocationTime;
                     AllocationTime += my_size;
-                    dataout << "A," << AllocationTime << endl;
                 }
                 break;
 
@@ -300,7 +303,6 @@ unsigned int read_trace_file( FILE *f,
                     unsigned int objId = tokenizer.getInt(1);
                     unsigned int my_size = objmap[objId];
                     total_garbage += my_size;
-                    dataout << "G," << total_garbage << endl;
                 }
                 break;
 
@@ -314,7 +316,6 @@ unsigned int read_trace_file( FILE *f,
                     method = ClassInfo::TheMethods[method_id];
                     thread_id = tokenizer.getInt(3);
                     Exec.Call(method, thread_id);
-                    // TODO: dataout << "F," << method_id << endl;
                 }
                 break;
 
@@ -328,7 +329,6 @@ unsigned int read_trace_file( FILE *f,
                     thread_id = (tokenizer.numTokens() == 4) ? tokenizer.getInt(3)
                                                              : tokenizer.getInt(4);
                     Exec.Return(method, thread_id);
-                    dataout << "E," << method_id << endl;
                 }
                 break;
 
@@ -372,23 +372,27 @@ void debug_GC_history( deque< GCRecord_t > &GC_history )
 int main(int argc, char* argv[])
 {
     if (argc != 3) {
-        cout << "simulator-PAGC-ver1" << endl
-             << "Usage: " << argv[0] << " <namesfile>  <output base name>" << endl
+        cout << "simulator-PAGC-model-1" << endl
+             << "Usage: " << argv[0] << " <PAGC csv filename> <output base name>" << endl
              << "      git version: " <<  build_git_sha << endl
              << "      build date : " <<  build_git_time << endl;
         exit(1);
     }
-    cout << "Read names file..." << endl;
-    ClassInfo::read_names_file_no_mainfunc( argv[1] );
+    // TODO: cout << "Read names file..." << endl;
+    // TODO: ClassInfo::read_names_file_no_mainfunc( argv[1] );
+    string source_csv(argv[1]);
+    Method2GRec_map_t mymap;
+    unsigned int result_count = populate_method_map( source_csv,
+                                                     mymap );
 
-    // TODO string dgroups_csvfile(argv[2]);
+    cout << "populate count: " << result_count << endl;
     string basename(argv[2]);
 
     cout << "Start running PAGC simulator on trace..." << endl;
-    FILE* f = fdopen(0, "r");
-    string newtrace_filename( basename + "-PAGC-TRACE.csv" );
-    ofstream newtrace_file( newtrace_filename );
-    unsigned int total_garbage = read_trace_file( f, newtrace_file );
+    FILE *f = fdopen(0, "r");
+    string out_filename( basename + "-PAGC-MODEL-1.csv" );
+    ofstream outfile( out_filename );
+    unsigned int total_garbage = read_trace_file( f, outfile );
     unsigned int final_time = Exec.NowUp();
     cout << "Done at time " << Exec.NowUp() << endl;
     return 0;
