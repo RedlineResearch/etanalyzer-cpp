@@ -101,7 +101,7 @@ set<unsigned int> root_set;
 //   Read and process trace events
 
 unsigned int populate_method_map( string &source_csv,
-                                  Method2GRec_map_t &mymap )
+                                  CPair2GRec_map_t mycpairmap )
 {
     std::ifstream infile( source_csv );
     string line;
@@ -192,12 +192,12 @@ unsigned int populate_method_map( string &source_csv,
         //------------------------------------------------------------
         // Add to the call pair map
         // First find if caller is in the
-        auto iter = cpairmap.find(caller_id);
-        if (iter == cpairmap.end()) {
+        auto iter = mycpairmap.find(caller_id);
+        if (iter == mycpairmap.end()) {
             Method2GRec_map_t *m2g_map = new Method2GRec_map_t();
-            cpairmap[caller_id] = *m2g_map;
+            mycpairmap[caller_id] = *m2g_map;
         }
-        cpairmap[caller_id][callee_id] = rec;
+        mycpairmap[caller_id][callee_id] = rec;
     }
     return count;
 }
@@ -367,8 +367,19 @@ void debug_GC_history( deque< GCRecord_t > &GC_history )
     }
 }
 
-// ----------------------------------------------------------------------
 
+// ----------------------------------------------------------------------
+void debug_method_map( CPair2GRec_map_t &mymap )
+{
+    for ( auto it1 = mymap.begin();
+          it1 != mymap.end();
+          it1++ ) {
+        Method2GRec_map_t &m2gmap = it1->second;
+    }
+}
+
+// ----------------------------------------------------------------------
+// 
 int main(int argc, char* argv[])
 {
     if (argc != 4) {
@@ -381,12 +392,14 @@ int main(int argc, char* argv[])
     cout << "Read names file..." << endl;
     ClassInfo::read_names_file_no_mainfunc( argv[1] );
     string source_csv(argv[2]);
-    Method2GRec_map_t mymap;
-    unsigned int result_count = populate_method_map( source_csv,
-                                                     mymap );
-
-    cout << "populate count: " << result_count << endl;
     string basename(argv[3]);
+    //
+    // Read in the method map
+    unsigned int result_count = populate_method_map( source_csv,
+                                                     cpairmap );
+    debug_method_map( cpairmap );
+    cout << "populate count: " << result_count << endl;
+
 
     cout << "Start running PAGC simulator on trace..." << endl;
     FILE *f = fdopen(0, "r");
