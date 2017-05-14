@@ -28,6 +28,24 @@ using namespace std;
 class Object;
 class CCNode;
 
+// ----------------------------------------------------------------------
+// Garbage pair
+//    first is actual
+//    second is estimate
+typedef std::pair< unsigned int, unsigned int > GPair_t;
+
+inline unsigned int get_actual( GPair_t gp )
+{
+    return gp.first;
+}
+
+inline unsigned int get_estimate( GPair_t gp )
+{
+    return gp.second;
+}
+
+// ----------------------------------------------------------------------
+// Garbage record
 typedef struct _GarbageRec_t {
     unsigned int minimum;
     unsigned int maximum;
@@ -35,10 +53,16 @@ typedef struct _GarbageRec_t {
     double stdev; 
 } GarbageRec_t;
 
+// Function id to name map
 typedef std::map< MethodId_t, string > FunctionName_map_t;
 
 // The pseudo-heap data structure
 typedef std::map< ObjectId_t, unsigned int > ObjectMap_t;
+
+// Garbage history map from:
+//     time -> garbage pair
+// NOTE: Time can be any valid time unit (alloc, method, garbology)
+typedef std::map< unsigned int, GPair_t > GarbageHistory_t;
 
 typedef std::map< MethodId_t, GarbageRec_t > Method2GRec_map_t;
 typedef std::map< MethodId_t, Method2GRec_map_t > CPair2GRec_map_t;
@@ -204,7 +228,8 @@ unsigned int populate_method_map( string &source_csv,
 }
 
 unsigned int read_trace_file( FILE *f,
-                              ofstream &dataout )
+                              ofstream &dataout,
+                              GarbageHistory_t &ghist )
 // TODO: CHOOSE A DESIGN:
 //  Option 1: We are simply processing the file here for further analysis later.
 //            So we don't need to choose the functions here.
@@ -418,7 +443,10 @@ int main(int argc, char* argv[])
     FILE *f = fdopen(0, "r");
     string out_filename( basename + "-PAGC-MODEL-1.csv" );
     ofstream outfile( out_filename );
-    unsigned int total_garbage = read_trace_file( f, outfile );
+    GarbageHistory_t ghist;
+    unsigned int total_garbage = read_trace_file( f,
+                                                  outfile,
+                                                  ghist );
     unsigned int final_time = Exec.NowUp();
     cout << "Done at time " << Exec.NowUp() << endl;
     return 0;
