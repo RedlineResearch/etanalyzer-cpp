@@ -101,7 +101,8 @@ set<unsigned int> root_set;
 //   Read and process trace events
 
 unsigned int populate_method_map( string &source_csv,
-                                  CPair2GRec_map_t mycpairmap )
+                                  CPair2GRec_map_t &mycpairmap,
+                                  FunctionName_map_t &mynamemap )
 {
     std::ifstream infile( source_csv );
     string line;
@@ -181,13 +182,13 @@ unsigned int populate_method_map( string &source_csv,
         line.erase(0, pos + 1);
         //------------------------------------------------------------
         // Add the names to the map
-        auto niter = namemap.find(caller_id);
-        if (niter == namemap.end()) {
-            namemap[caller_id] = caller;
+        auto niter = mynamemap.find(caller_id);
+        if (niter == mynamemap.end()) {
+            mynamemap[caller_id] = caller;
         }
-        niter = namemap.find(callee_id);
-        if (niter == namemap.end()) {
-            namemap[callee_id] = callee;
+        niter = mynamemap.find(callee_id);
+        if (niter == mynamemap.end()) {
+            mynamemap[callee_id] = callee;
         }
         //------------------------------------------------------------
         // Add to the call pair map
@@ -371,10 +372,21 @@ void debug_GC_history( deque< GCRecord_t > &GC_history )
 // ----------------------------------------------------------------------
 void debug_method_map( CPair2GRec_map_t &mymap )
 {
+    cout << "DEBUG method-map:" << endl;
     for ( auto it1 = mymap.begin();
           it1 != mymap.end();
           it1++ ) {
+        MethodId_t caller_id = it1->first;
         Method2GRec_map_t &m2gmap = it1->second;
+        string caller = namemap[caller_id];
+        cout << "caller[ " << caller << " ]" << endl;
+        for ( auto it2 = m2gmap.begin();
+              it2 != m2gmap.end();
+              it2++ ) {
+            MethodId_t callee_id = it2->first;
+            string callee = namemap[callee_id];
+            cout << "  - callee[ " << callee << " ] -> " << endl;
+        }
     }
 }
 
@@ -396,7 +408,8 @@ int main(int argc, char* argv[])
     //
     // Read in the method map
     unsigned int result_count = populate_method_map( source_csv,
-                                                     cpairmap );
+                                                     cpairmap,
+                                                     namemap );
     debug_method_map( cpairmap );
     cout << "populate count: " << result_count << endl;
 
