@@ -328,7 +328,13 @@ unsigned int read_trace_file( FILE *f,
                     // 0    1
                     unsigned int objId = tokenizer.getInt(1);
                     unsigned int my_size = objmap[objId];
+                    unsigned int curtime = Exec.NowUp();
+                    MethodDeque top2meth = Exec.top_N_methods(2);
                     total_garbage += my_size;
+                    // Save the actual and estimated garbage
+                    // TODO: Where do we save the estimated amount of garbage?
+                    ghist[curtime] = make_pair( total_garbage, 0 ); // TODO: (actual, estimate)
+
                 }
                 break;
 
