@@ -268,6 +268,7 @@ unsigned int read_trace_file( FILE *f,
     // Object *target;
     Method *method;
     unsigned int total_garbage = 0;
+    unsigned int estimate = 0;
 
     // -- Allocation time
     unsigned int AllocationTime = 0;
@@ -328,36 +329,7 @@ unsigned int read_trace_file( FILE *f,
                     // 0    1
                     unsigned int objId = tokenizer.getInt(1);
                     unsigned int my_size = objmap[objId];
-                    unsigned int curtime = Exec.NowUp();
-                    unsigned int threadId = tokenizer.getInt(2);
-                    Thread *thread;
-                    if (threadId > 0) {
-                        thread = Exec.getThread(threadId);
-                        // Update counters in ExecState for map of
-                        //   Object * to simple context pair
-                    } else {
-                        // No thread info. Get from ExecState
-                        thread = Exec.get_last_thread();
-                    }
-                    if (thread) {
-                        MethodDeque top2meth = thread->top_N_methods(2);
-                        // These are Method pointers.
-                        MethodId_t callee_id = top2meth[0]->getId();
-                        MethodId_t caller_id = top2meth[1]->getId();
-                        auto it_caller = cpairmap.find(caller_id);
-                        if (it_caller != cpairmap.end()) {
-                            Method2GRec_map_t m2g = it_caller->second;
-                            auto it_callee = m2g.find(callee_id);
-                            if (it_callee != m2g.end()) {
-                                GarbageRec_t rec = it_callee->second;
-                            }
-                        }
-                    }
                     total_garbage += my_size;
-                    // Save the actual and estimated garbage
-                    // TODO: Where do we save the estimated amount of garbage?
-                    ghist[curtime] = make_pair( total_garbage, 0 ); // TODO: (actual, estimate)
-
                 }
                 break;
 
@@ -379,10 +351,40 @@ unsigned int read_trace_file( FILE *f,
                 {
                     // E <methodid> <receiver> [<exceptionobj>] <threadid>
                     // 0      1         2             3             3/4
+                    unsigned int curtime = Exec.NowUp();
                     method_id = tokenizer.getInt(1);
                     method = ClassInfo::TheMethods[method_id];
                     thread_id = (tokenizer.numTokens() == 4) ? tokenizer.getInt(3)
                                                              : tokenizer.getInt(4);
+
+                    Thread *thread;
+                    if (thread_id > 0) {
+                        thread = Exec.getThread(thread_id);
+                        // Update counters in ExecState for map of
+                        //   Object * to simple context pair
+                    } else {
+                        // No thread info. Get from ExecState
+                        thread = Exec.get_last_thread();
+                    }
+                    if (thread) {
+                        MethodDeque top2meth = thread->top_N_methods(2);
+                        // These are Method pointers.
+                        MethodId_t callee_id = top2meth[0]->getId();
+                        MethodId_t caller_id = top2meth[1]->getId();
+                        auto it_caller = cpairmap.find(caller_id);
+                        if (it_caller != cpairmap.end()) {
+                            Method2GRec_map_t m2g = it_caller->second;
+                            auto it_callee = m2g.find(callee_id);
+                            if (it_callee != m2g.end()) {
+                                GarbageRec_t rec = it_callee->second;
+                                // Save the actual and estimated garbage only if
+                                // we have a new estimate.
+                                estimate += rec.mean;
+                                ghist[curtime] = make_pair( total_garbage, estimate );
+                            }
+                        }
+                    }
+
                     Exec.Return(method, thread_id);
                 }
                 break;
