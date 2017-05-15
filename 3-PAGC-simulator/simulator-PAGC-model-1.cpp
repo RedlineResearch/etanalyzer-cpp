@@ -370,17 +370,19 @@ unsigned int read_trace_file( FILE *f,
                         MethodDeque top2meth = thread->top_N_methods(2);
                         // These are Method pointers.
                         MethodId_t callee_id = top2meth[0]->getId();
-                        MethodId_t caller_id = top2meth[1]->getId();
+                        MethodId_t caller_id = (top2meth[1] ? top2meth[1]->getId() : 0);
                         auto it_caller = cpairmap.find(caller_id);
                         if (it_caller != cpairmap.end()) {
                             Method2GRec_map_t m2g = it_caller->second;
-                            auto it_callee = m2g.find(callee_id);
-                            if (it_callee != m2g.end()) {
-                                GarbageRec_t rec = it_callee->second;
-                                // Save the actual and estimated garbage only if
-                                // we have a new estimate.
-                                estimate += rec.mean;
-                                ghist[curtime] = make_pair( total_garbage, estimate );
+                            if (caller_id > 0) {
+                                auto it_callee = m2g.find(callee_id);
+                                if (it_callee != m2g.end()) {
+                                    GarbageRec_t rec = it_callee->second;
+                                    // Save the actual and estimated garbage only if
+                                    // we have a new estimate.
+                                    estimate += rec.mean;
+                                    ghist[curtime] = make_pair( total_garbage, estimate );
+                                }
                             }
                         }
                     }
