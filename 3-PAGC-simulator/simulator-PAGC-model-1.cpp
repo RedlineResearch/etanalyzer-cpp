@@ -28,24 +28,6 @@ using namespace std;
 class Object;
 class CCNode;
 
-// ----------------------------------------------------------------------
-// Garbage pair
-//    first is actual
-//    second is estimate
-typedef std::pair< unsigned int, unsigned int > GPair_t;
-
-inline unsigned int get_actual( GPair_t gp )
-{
-    return gp.first;
-}
-
-inline unsigned int get_estimate( GPair_t gp )
-{
-    return gp.second;
-}
-
-// ----------------------------------------------------------------------
-// Garbage record
 typedef struct _GarbageRec_t {
     unsigned int minimum;
     unsigned int maximum;
@@ -53,16 +35,10 @@ typedef struct _GarbageRec_t {
     double stdev; 
 } GarbageRec_t;
 
-// Function id to name map
 typedef std::map< MethodId_t, string > FunctionName_map_t;
 
 // The pseudo-heap data structure
 typedef std::map< ObjectId_t, unsigned int > ObjectMap_t;
-
-// Garbage history map from:
-//     time -> garbage pair
-// NOTE: Time can be any valid time unit (alloc, method, garbology)
-typedef std::map< unsigned int, GPair_t > GarbageHistory_t;
 
 typedef std::map< MethodId_t, GarbageRec_t > Method2GRec_map_t;
 typedef std::map< MethodId_t, Method2GRec_map_t > CPair2GRec_map_t;
@@ -228,8 +204,7 @@ unsigned int populate_method_map( string &source_csv,
 }
 
 unsigned int read_trace_file( FILE *f,
-                              ofstream &dataout,
-                              GarbageHistory_t &ghist )
+                              ofstream &dataout )
 // TODO: CHOOSE A DESIGN:
 //  Option 1: We are simply processing the file here for further analysis later.
 //            So we don't need to choose the functions here.
@@ -325,16 +300,34 @@ unsigned int read_trace_file( FILE *f,
             case 'D':
                 {
                     // D <object> <thread-id>
-                    // 0    1
+                    // 0    1         2
                     unsigned int objId = tokenizer.getInt(1);
                     unsigned int my_size = objmap[objId];
-                    unsigned int curtime = Exec.NowUp();
-                    MethodDeque top2meth = Exec.top_N_methods(2);
+                    unsigned int threadId = tokenizer.getInt(2);
+                    Thread *thread;
+                    if (threadId > 0) {
+                        thread = Exec.getThread(threadId);
+                        // Update counters in ExecState for map of
+                        //   Object * to simple context pair
+                    } else {
+                        // No thread info. Get from ExecState
+                        thread = Exec.get_last_thread();
+                    }
+                    if (thread) {
+                        MethodDeque top2meth = thread->top_N_methods(2);
+                        // These are Method pointers.
+                        MethodId_t callee_id = top2meth[0]->getId();
+                        MethodId_t caller_id = top2meth[1]->getId();
+                        auto it_caller = cpairmap.find(caller_id);
+                        if (it_caller != cpairmap.end()) {
+                            Method2GRec_map_t m2g = it_caller->second;
+                            auto it_callee = m2g.find(callee_id);
+                            if (it_callee != m2g.end()) {
+                                GarbageRec_t rec = it_callee->second;
+                            }
+                        }
+                    }
                     total_garbage += my_size;
-                    // Save the actual and estimated garbage
-                    // TODO: Where do we save the estimated amount of garbage?
-                    ghist[curtime] = make_pair( total_garbage, 0 ); // TODO: (actual, estimate)
-
                 }
                 break;
 
@@ -449,10 +442,7 @@ int main(int argc, char* argv[])
     FILE *f = fdopen(0, "r");
     string out_filename( basename + "-PAGC-MODEL-1.csv" );
     ofstream outfile( out_filename );
-    GarbageHistory_t ghist;
-    unsigned int total_garbage = read_trace_file( f,
-                                                  outfile,
-                                                  ghist );
+    unsigned int total_garbage = read_trace_file( f, outfile );
     unsigned int final_time = Exec.NowUp();
     cout << "Done at time " << Exec.NowUp() << endl;
     return 0;
