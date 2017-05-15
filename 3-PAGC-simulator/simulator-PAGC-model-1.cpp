@@ -369,7 +369,7 @@ unsigned int read_trace_file( FILE *f,
                     if (thread) {
                         MethodDeque top2meth = thread->top_N_methods(2);
                         // These are Method pointers.
-                        if ((top2meth[0] && top2math[1]) {
+                        if (top2meth[0] && top2meth[1]) {
                             MethodId_t callee_id = top2meth[0]->getId();
                             MethodId_t caller_id = top2meth[1]->getId();
                             auto it_caller = cpairmap.find(caller_id);
