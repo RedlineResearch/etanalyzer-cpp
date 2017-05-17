@@ -227,9 +227,31 @@ unsigned int populate_method_map( string &source_csv,
     return count;
 }
 
+//-------------------------------------------------------------------------------
+//
+unsigned int output_garbage_history( string &ghist_out_filename,
+                                     GarbageHistory_t &ghist,
+                                     std::vector< VTime_t > &timevec )
+{
+    ofstream ghout( ghist_out_filename );
+    ghout << "'time','actual','estimate'" << endl;
+    for ( auto itvec = timevec.begin();
+          itvec != timevec.end();
+          itvec++ ) {
+        VTime_t curtime = *itvec;
+        ghout << curtime << ","
+              << ghist[curtime].first << ","
+              << ghist[curtime].second << endl;
+    }
+    return 0;
+}
+
+//-------------------------------------------------------------------------------
+//
 unsigned int read_trace_file( FILE *f,
                               ofstream &dataout,
-                              GarbageHistory_t &ghist )
+                              GarbageHistory_t &ghist,
+                              std::vector< VTime_t > &timevec )
 // TODO: CHOOSE A DESIGN:
 //  Option 1: We are simply processing the file here for further analysis later.
 //            So we don't need to choose the functions here.
@@ -383,6 +405,7 @@ unsigned int read_trace_file( FILE *f,
                                         // we have a new estimate.
                                         estimate += rec.mean;
                                         ghist[curtime] = make_pair( total_garbage, estimate );
+                                        timevec.push_back(curtime);
                                     }
                                 }
                             }
@@ -479,9 +502,15 @@ int main(int argc, char* argv[])
     string out_filename( basename + "-PAGC-MODEL-1.csv" );
     ofstream outfile( out_filename );
     GarbageHistory_t ghist;
+    std::vector< VTime_t > timevec;
     unsigned int total_garbage = read_trace_file( f,
                                                   outfile,
-                                                  ghist );
+                                                  ghist,
+                                                  timevec );
+    string ghist_out_filename( basename + "-PAGC-MODEL-1-timeseries.csv" );
+    output_garbage_history( ghist_out_filename,
+                            ghist,
+                            timevec );
     unsigned int final_time = Exec.NowUp();
     cout << "Done at time " << Exec.NowUp() << endl;
     return 0;
