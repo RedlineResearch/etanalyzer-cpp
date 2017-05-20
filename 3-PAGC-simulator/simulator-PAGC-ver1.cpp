@@ -28,6 +28,19 @@ using namespace std;
 class Object;
 class CCNode;
 
+// BRAINSTORM 1:
+// - Each node in the map is the static function.
+// - The value is the garbage for all instances of that function.
+// - In addition to the garbage value, we have a list of all
+//      sub functions called from this function, AND
+//      the garbage of the sub function from that function only
+//      PROBLEM: What of any sub functions called further down the chain?
+//      QUESTION: What does this buy us?
+// - Possible SOLUTION: For every calling context up to a function of interest F,
+//                      Remember the possible call chain.
+//                      OR, for every function, remember the possible calling function.
+//                      as in:
+//                          tgt_func -> [ calling_func list ]
 typedef std::map< string, std::vector< Summary * > > GroupSum_t;
 typedef std::map< string, Summary * > TypeTotalSum_t;
 typedef std::map< unsigned int, Summary * > SizeSum_t;
