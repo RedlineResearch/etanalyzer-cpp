@@ -31,6 +31,9 @@ class CCNode;
 // BRAINSTORM 1:
 // - Each node in the map is the static function.
 // - The value is the garbage for all instances of that function.
+// - NEED: a sense of how often the function actually produces garbage:
+//       + a list of garbage instances including 0
+//       + mean, stddev, etc to indication dispersion
 // - In addition to the garbage value, we have a list of all
 //      sub functions called from this function, AND
 //      the garbage of the sub function from that function only
@@ -41,6 +44,20 @@ class CCNode;
 //                      OR, for every function, remember the possible calling function.
 //                      as in:
 //                          tgt_func -> [ calling_func list ]
+// Design 1:
+//  MAP:
+//      func -> record {
+//         vector of garbage amount at each exit
+//         map:
+//            func -> total amount
+//      }
+typedef struct {
+    std::vector< unsigned int > garbage_vector;
+    std::map< MethodId_t, unsigned int > subfunc_map;
+} FunctionRec_t;
+
+typedef std::map< MethodId_t, FunctionRec_t > FunctionRec_map_t;
+
 typedef std::map< string, std::vector< Summary * > > GroupSum_t;
 typedef std::map< string, Summary * > TypeTotalSum_t;
 typedef std::map< unsigned int, Summary * > SizeSum_t;
@@ -63,6 +80,8 @@ ExecMode cckind = ExecMode::StackOnly; // Stack-only context
 #endif // ENABLE_TYPE1
 
 ExecState Exec(cckind);
+
+FunctionRec_map_t fnrec_map;
 
 // -- Turn on debugging
 bool debug = false;
@@ -205,6 +224,7 @@ unsigned int read_trace_file( FILE *f,
                     thread_id = tokenizer.getInt(3);
                     Exec.Call(method, thread_id);
                     // TODO: dataout << "F," << method_id << endl;
+                    // PROBLEM: How do we assign garbage deaths to methods efficiently?
                 }
                 break;
 
