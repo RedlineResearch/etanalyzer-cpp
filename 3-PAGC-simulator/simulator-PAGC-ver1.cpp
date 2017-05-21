@@ -56,10 +56,16 @@ typedef struct {
         void add_garbage( unsigned int garbage )
         {
             this->garbage_vector.push_back( garbage );
+            this->total += garbage;
             // TODO: Maybe pass a std::vector or std::map of sub functions
             //       and associated garbage from those sub calls.
         };
+        unsigned int get_total_garbage() const
+        {
+            return this->total;
+        }
     private:
+        unsigned int total;
         std::vector< unsigned int > garbage_vector;
         std::map< MethodId_t, unsigned int > subfunc_map;
 } FunctionRec_t;
