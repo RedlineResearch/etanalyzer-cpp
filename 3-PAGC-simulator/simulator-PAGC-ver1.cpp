@@ -52,8 +52,16 @@ class CCNode;
 //            func -> total amount
 //      }
 typedef struct {
-    std::vector< unsigned int > garbage_vector;
-    std::map< MethodId_t, unsigned int > subfunc_map;
+    public:
+        void add_garbage( unsigned int garbage )
+        {
+            this->garbage_vector.push_back( garbage );
+            // TODO: Maybe pass a std::vector or std::map of sub functions
+            //       and associated garbage from those sub calls.
+        };
+    private:
+        std::vector< unsigned int > garbage_vector;
+        std::map< MethodId_t, unsigned int > subfunc_map;
 } FunctionRec_t;
 
 typedef std::map< MethodId_t, FunctionRec_t > FunctionRec_map_t;
@@ -148,6 +156,8 @@ unsigned int read_trace_file( FILE *f,
     Method *method;
     unsigned int total_garbage = 0;
 
+    // A map from thread ID to garbage amount for the current function
+    std::map< unsigned int, std::vector< unsigned int > > tid2gstack;
     // -- Allocation time
     unsigned int AllocationTime = 0;
     while ( !tokenizer.isDone() ) {
@@ -206,9 +216,20 @@ unsigned int read_trace_file( FILE *f,
                 {
                     // D <object> <thread-id>
                     // 0    1
-                    unsigned int objId = tokenizer.getInt(1);
-                    unsigned int my_size = objmap[objId];
+                    object_id = tokenizer.getInt(1);
+                    // 1. Get the thread
+                    thread_id = tokenizer.getInt(2);
+                    unsigned int my_size = objmap[object_id];
                     total_garbage += my_size;
+                    // 2. Save in accumulator. The sum will be saved in 
+                    //    fnrec_map when the function exits.
+                    auto iter = tid2gstack.find(thread_id);
+                    if (iter != tid2gstack.end()) {
+                        tid2gstack[thread_id].back() += my_size;
+                    } else {
+                        std::vector< unsigned int > tmp(1, my_size);
+                        tid2gstack[thread_id] = tmp;
+                    }
                     dataout << "G," << total_garbage << endl;
                 }
                 break;
@@ -223,6 +244,13 @@ unsigned int read_trace_file( FILE *f,
                     method = ClassInfo::TheMethods[method_id];
                     thread_id = tokenizer.getInt(3);
                     Exec.Call(method, thread_id);
+                    // Save in garbage stack
+                    auto iter = tid2gstack.find(thread_id);
+                    if (iter == tid2gstack.end()) {
+                        std::vector< unsigned int > tmp;
+                        tid2gstack[thread_id] = tmp;
+                    }
+                    tid2gstack[thread_id].push_back(0);
                     // TODO: dataout << "F," << method_id << endl;
                     // PROBLEM: How do we assign garbage deaths to methods efficiently?
                 }
@@ -239,6 +267,27 @@ unsigned int read_trace_file( FILE *f,
                                                              : tokenizer.getInt(4);
                     Exec.Return(method, thread_id);
                     dataout << "E," << method_id << endl;
+                    // Pop off the garbage stack and save in map
+                    auto iter = tid2gstack.find(thread_id);
+                    if (iter != tid2gstack.end()) {
+                        unsigned int stack_garbage = tid2gstack[thread_id].back();
+                        tid2gstack[thread_id].pop_back();
+                        auto iter = fnrec_map.find(method_id);
+                        if (iter == fnrec_map.end()) {
+                            FunctionRec_t tmp;
+                            fnrec_map[method_id] = tmp;
+                        }
+                        fnrec_map[method_id].add_garbage( stack_garbage );
+                    } else {
+                        cerr << "Method EXIT: Empty garbage stack for thread id"
+                             << thread_id << "." << endl;
+                        //    the else clause shouldn't be possible, but it's worth
+                        //    investigating if this happens.
+                        //    TODO TODO TODO
+                        //    Add some more debugging code if this happens.
+                    }
+
+                    tid2gstack[thread_id].push_back(0);
                 }
                 break;
 
