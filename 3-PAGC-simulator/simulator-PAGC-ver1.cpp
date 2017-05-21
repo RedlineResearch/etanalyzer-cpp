@@ -51,24 +51,55 @@ class CCNode;
 //         map:
 //            func -> total amount
 //      }
-typedef struct {
+struct FunctionRec_t {
     public:
+        FunctionRec_t()
+            : total(0)
+            , minimum(std::numeric_limits<unsigned int>::max())
+            , maximum(0)
+        {
+        }
+
         void add_garbage( unsigned int garbage )
         {
             this->garbage_vector.push_back( garbage );
             this->total += garbage;
             // TODO: Maybe pass a std::vector or std::map of sub functions
             //       and associated garbage from those sub calls.
+            if (garbage < this->minimum) {
+                this->minimum = garbage;
+            } else if (garbage > this->maximum) {
+                this->maximum = garbage;
+            }
         };
+
         unsigned int get_total_garbage() const
         {
             return this->total;
         }
+
+        unsigned int get_minimum() const
+        {
+            return this->minimum;
+        }
+
+        unsigned int get_maximum() const
+        {
+            return this->maximum;
+        }
+
+        unsigned int get_number_methods() const
+        {
+            return this->garbage_vector.size();
+        }
+
     private:
         unsigned int total;
+        unsigned int minimum;
+        unsigned int maximum;
         std::vector< unsigned int > garbage_vector;
         std::map< MethodId_t, unsigned int > subfunc_map;
-} FunctionRec_t;
+};
 
 typedef std::map< MethodId_t, FunctionRec_t > FunctionRec_map_t;
 
@@ -351,9 +382,36 @@ int main(int argc, char* argv[])
 
     cout << "Start running PAGC simulator on trace..." << endl;
     FILE* f = fdopen(0, "r");
+    //-------------------------------------------------------------------------------
+    // Output trace csv summary
     string newtrace_filename( basename + "-PAGC-TRACE.csv" );
     ofstream newtrace_file( newtrace_filename );
     unsigned int total_garbage = read_trace_file( f, newtrace_file );
+    //-------------------------------------------------------------------------------
+    // Output function record summary
+    string funcrec_filename( basename + "-PAGC-FUNC.csv" );
+    ofstream funcout( funcrec_filename );
+    // Output header for the per function CSV file
+    funcout << "\"methodId\",\"total_garbage\",\"minimum\",\"maximum\",\"number_times\"" << endl;
+    // Output per function record
+    for ( auto iter = fnrec_map.begin();
+          iter != fnrec_map.end();
+          iter++ ) {
+        // TODO TODO TODO
+        // output the record:
+        //    TODO: What is the CSV record format?
+        //   methodId, total_garbage, minimum, maximum, number_times
+        MethodId_t mid = iter->first;
+        FunctionRec_t rec = iter->second;
+        unsigned int total_garbage = rec.get_total_garbage();
+        unsigned int minimum = rec.get_minimum();
+        unsigned int maximum = rec.get_maximum();
+        unsigned int number = rec.get_number_methods();
+        funcout << mid << "," << total_garbage << ","
+                << minimum << "," << maximum << ","
+                << number << endl;
+        
+    }
     unsigned int final_time = Exec.NowUp();
     cout << "Done at time " << Exec.NowUp() << endl;
     return 0;
