@@ -186,7 +186,7 @@ def choose_functions_ver01( counter = {},
     #            functions.
 
 def get_data( sourcefile = None,
-              data = {} ):
+              data = [] ):
     # The CSV file source header looks like this:
     #   "methodId","total_garbage","minimum","maximum","number_times"
     # TODO: HERE TODO
@@ -210,13 +210,14 @@ def get_data( sourcefile = None,
             minimum = int(rec[2])
             maximum = int(rec[3])
             number_times = int(rec[4])
+            data.append( (method_id, total_garbage, number_times, minimum, maximum) )
             # DEBUG ONLY:
             # sys.stdout.write(str(rec) + "\n")
             # count += 1
             # if count >= 10000:
             #     break
             # END DEBUG ONLY.
-    sys.stdout.write("DEBUG-done: TODO")
+    sys.stdout.write("DEBUG-done: TODO\n")
     # DEBUG TODO pp.pprint(funcnames)
 
 def main_process( benchmark = None,
@@ -232,66 +233,20 @@ def main_process( benchmark = None,
     output_dir = "/data/rveroy/src/trace_drop/PAGCFUNC-ANALYSIS-1/" # Expecting the CSV input file in the following format:
     sourcefile = "./%s-PAGC-FUNC.csv" % benchmark
     print "================================================================================"
-    data = defaultdict( list )
+    data = []
     get_data( sourcefile = sourcefile,
               data = data )
-    counter = get_function_stats( data = data,
-                                  funcnames = funcnames )
+    data = sorted( data,
+                   key = itemgetter(1),
+                   reverse = True )
+    pp.pprint(data[:15])
+    # TODO: NOT Needed?
+    # TODO: counter = get_function_stats( data = data,
+    # TODO:                               funcnames = funcnames )
     # pp.pprint( dict(counter) )
     print "================================================================================"
-    functions = choose_functions_ver01( counter = counter,
-                                        data = data,
-                                        funcnames = funcnames )
+    print "Number of data points: %d" % len(data)
     print "================================================================================"
-    print "Number of data points: %d" % len(data.keys())
-    print "================================================================================"
-    print "Functions selected: TODO"
-    single_count = 0
-    single_garbage_total = 0
-    mult_count = 0
-    mult_garbage_total = 0
-    with open( "%s-PAGC-FUNCTIONS.csv" % benchmark, "wb" ) as fptr:
-        csvwriter = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
-        header = [ "callee", "caller", "minimum", "mean", "stdev", "maximum",
-                   "called_id", "caller_id", ]
-        csvwriter.writerow( header )
-        for func, gtuplist in functions.iteritems():
-            if func[1] == None:
-                # Design Decision: Ignore any function pairs that aren't pairs.
-                continue
-            callee = funcnames[func[0]]
-            caller = funcnames[func[1]]
-            row = [ "%s.%s" % (callee[0], callee[1]),
-                    "%s.%s" % (caller[0], caller[1]), ]
-            garblist = []
-            sys.stdout.write( "%s <- %s:" % (callee, caller) )
-            assert(len(gtuplist) > 0)
-            single_flag = False
-            if len(gtuplist) == 1:
-                single_count += 1
-                single_flag = True
-            else:
-                mult_count += 1
-            for gtup in gtuplist:
-                # gtup is:
-                # ( sig tuple, list of garbage sizes )
-                # TODO TODO TODO
-                my_garblist = gtup[1]
-                garblist.extend( my_garblist )
-                if single_flag:
-                    single_garbage_total += sum(my_garblist)
-                else:
-                    mult_garbage_total += sum(my_garblist)
-            minimum = min(garblist)
-            maximum = max(garblist)
-            my_mean = mean(garblist)
-            my_stdev = stdev(garblist) if (len(garblist) > 1) else 0
-            row.extend( [ minimum, my_mean, my_stdev, maximum, func[0], func[1], ] )
-            csvwriter.writerow( row )
-            sys.stdout.write( "      min[ %d ] mean[ %.2f ] stdev[ %.2f ] max[ %d ]\n" %
-                              (minimum, my_mean, my_stdev, maximum) )
-    print "Single  : count[ %d ]  garbage[ %d ]" % (single_count, single_garbage_total)
-    print "Multiple: count[ %d ]  garbage[ %d ]" % (mult_count, mult_garbage_total)
     print "process_PAGCFUNC_data.py - DONE."
     print "================================================================================"
     exit(100)
