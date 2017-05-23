@@ -107,14 +107,6 @@ def read_names_file( names_filename,
             #     pass
             #     # Ignore the rest
 
-def get_function_stats( data = {},
-                        funcnames = {} ):
-    counter = Counter( chain( *(data.keys()) ) )
-    print "==============================================================================="
-    for sig, garblist in data.iteritems():
-        print "%s -> %s" % (str(sig), str(garblist))
-    return counter
-
 def is_javalib_method( methname = None ):
     return ( (methname[0:5] == "java/") or
              (methname[0:4] == "sun/") or
@@ -126,64 +118,6 @@ def is_blacklisted( methname = None ):
     # - Object methods
     # - init
     # - run ? (or maybe allow it?)
-
-def get_context_pair( select, sig ):
-    assert( len(sig) > 0 )
-    index = 0
-    while ( (index < len(sig)) and
-            (select != sig[index]) ):
-        index += 1
-    if index < len(sig):
-        caller = sig[index + 1] if (index < (len(sig) - 1)) \
-                    else None
-        return (sig[index], caller)
-    else:
-        raise RuntimeError( "Lookfing for [%s] --> invalid signature: %s" %
-                            (select, str(sig)) )
-
-def choose_functions_ver01( counter = {},
-                            data = {},
-                            funcnames = {} ):
-    functions = defaultdict( list )
-    count = 0
-    for sig, garbage in data.iteritems():
-        # DESIGN Decision: Use the most often called functions.
-        sig_sorted = sorted( sig,
-                             key = lambda x: counter[x],
-                             reverse = True )
-        select = None
-        for funcId in sig_sorted:
-            myname = funcnames[funcId]
-            if is_javalib_method(myname):
-                continue
-            else:
-                select = funcId
-                break
-        if select == None:
-            print "--------------------------------------------------------------------------------"
-            for tmp in sig_sorted:
-                print funcnames[tmp]
-            print "--------------------------------------------------------------------------------"
-            count += 1
-        else:
-            cpair = get_context_pair( select, sig )
-            functions[cpair].append((sig, garbage))
-    print "No selection total: %d" % count
-    return functions
-    # Design considerations:
-    #    - size of garbage
-    #    - function type (library or application?)
-    #    - number of times function was called.
-    #    - number of garbage clusters the function is in
-    #    - closest to the death event
-    #    - consistency of garbage size
-    #
-    # Option 1:
-    #   Axiom 1: It's better to use a function that gets called more.
-    #   Axiom 2: It's better to use a function that generates a consistent
-    #            amount of garbage. (....maybe?)
-    #   Axiom 3: We'd rather use application functions rather than system library
-    #            functions.
 
 def get_data( sourcefile = None,
               data = [] ):
@@ -240,10 +174,6 @@ def main_process( benchmark = None,
                    key = itemgetter(1),
                    reverse = True )
     pp.pprint(data[:15])
-    # TODO: NOT Needed?
-    # TODO: counter = get_function_stats( data = data,
-    # TODO:                               funcnames = funcnames )
-    # pp.pprint( dict(counter) )
     print "================================================================================"
     print "Number of data points: %d" % len(data)
     print "================================================================================"
