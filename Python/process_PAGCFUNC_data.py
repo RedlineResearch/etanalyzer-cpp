@@ -119,6 +119,163 @@ def is_blacklisted( methname = None ):
     # - init
     # - run ? (or maybe allow it?)
 
+def solve_subset_sum_poly_approx( data = [] ):
+    # data is a list of tuples using this format:
+    #    (method_id, total_garbage, number_times, minimum, maximum)
+    # OVERVIEW of algorithm:
+    #-------------------------------------------------------------
+    # initialize a list S to contain one element 0.
+    # for each i from 1 to N do
+    #     let T <- a list consisting of xi + y, for all y in S
+    #     let U <- the union of T and S
+    #     sort U
+    #     make S empty 
+    #     let y be the smallest element of U 
+    #     add y to S 
+    #     for each element z of U in increasing order do
+    #         // trim the list by eliminating numbers close to one another
+    #         // and throw out elements greater than s
+    #         if y + cs/N < z <= s:
+    #             set y = z
+    #             add z to S 
+    # if S contains a number between (1 - c)s and s:
+    #     output yes,
+    # else:
+    #     output no
+    #-------------------------------------------------------------
+    # initialize a list S to contain one element 0.
+    S = [ 0, ]
+    # for each i from 1 to N do
+    glist = [ x[1] for x in data ]
+    for i in xrange(len(glist)):
+        # let T <- a list consisting of x_i + y, for all y in S
+        T = [ glist[i] for y in S ]  
+        # let U <- the union of T and S
+        U = list(T)
+        U.extend(S)
+        # sort U
+        U = sorted(U)
+        # make S empty 
+        # let y be the smallest element of U 
+        y = U[0]
+        # add y to S 
+        S = [ y ]
+        # for each element z of U in increasing order do
+        #     // trim the list by eliminating numbers close to one another
+        #     // and throw out elements greater than s
+        #     if y + cs/N < z <= s:
+        #         set y = z
+        #         add z to S 
+
+def solve_subset_sum_naive_ver2( data = [],
+                                 target = None,
+                                 epsilon = 0 ):
+    # Indices for accessing the tuple
+    GARBAGE = 1
+    # Print out problem state:
+    print "Target: %d" % target
+    print "Epsilon: %d" % epsilon
+    # Assume data is sorted, increasing.
+    # data can also have duplicates.
+    solutions = []
+    soln = []
+    copy = list(data)
+    within_target = lambda x: ( (x >= target - epsilon) and (x <= target + epsilon) )
+    total = 0
+    done = False
+    while not done:
+        assert( len(soln) == 0 )
+        assert( len(copy) > 0 )
+        soln.append( copy.pop(0) )
+        total = soln[0][GARBAGE]
+        # print "DEBUG: %s" % str(soln)
+        others = list(copy)
+        while len(others) > 0:
+            cand = others.pop(0)
+            total += cand[GARBAGE]
+            soln.append( cand )
+            if within_target(total):
+                break
+            elif total > (target + epsilon):
+                # We can shortcircuit this branch now since data is sorted
+                # Remove the 2 most recently added elements.
+                # - last added:
+                total -= cand[GARBAGE]
+                soln.pop()
+                # - next to last, if not empty
+                # Since the soln list may be empty:
+                if len(soln) > 0:
+                    cand = soln.pop()
+                    total -= cand[GARBAGE]
+            # else we can go on and add more
+        if not within_target(total):
+            soln = []
+            total = 0
+            done = (len(copy) > 0)
+        else:
+            done = True
+    if not within_target(total):
+        return []
+    else:
+        return soln
+
+def solve_subset_sum_naive( data = [],
+                            target = None,
+                            epsilon = 0 ):
+    # Indices for accessing the tuple
+    GARBAGE = 1
+    # Print out problem state:
+    print "Target: %d" % target
+    print "Epsilon: %d" % epsilon
+    # Assume data is sorted, increasing.
+    # data can also have duplicates.
+    solutions = []
+    soln = []
+    copy = list(data)
+    within_target = lambda x: ( (x >= target - epsilon) and (x <= target + epsilon) )
+    total = 0
+    done = False
+    while not done:
+        assert( len(soln) == 0 )
+        assert( len(copy) > 0 )
+        cand = copy.pop(0)
+        if cand < epsilon:
+            break
+        soln.append( cand )
+        total = cand[GARBAGE]
+        # print "DEBUG: %s" % str(soln)
+        others = list(copy)
+        while len(others) > 0:
+            cand = others.pop(0)
+            total += cand[GARBAGE]
+            soln.append( cand )
+            if within_target(total):
+                break
+            elif total > (target + epsilon):
+                # We CAN'T shortcircuit this branch since data is sorted in increasing order.
+                # Remove the 2 most recently added elements.
+                # - last added:
+                total -= cand[GARBAGE]
+                soln.pop()
+                # Put this back into others
+                others.insert( 0, cand )
+                # - next to last, if not empty
+                # Since the soln list may be empty:
+                if len(soln) > 0:
+                    cand = soln.pop()
+                    total -= cand[GARBAGE]
+            # else we can go on and add more
+        if not within_target(total):
+            soln = []
+            total = 0
+            done = (len(copy) > 0)
+        else:
+            done = True
+    if not within_target(total):
+        return []
+    else:
+        return soln
+
 def get_data( sourcefile = None,
               data = [] ):
     # The CSV file source header looks like this:
@@ -156,6 +313,8 @@ def get_data( sourcefile = None,
 
 def main_process( benchmark = None,
                   names_filename = None,
+                  target = None,
+                  epsilon = None,
                   debugflag = False,
                   logger = None ):
     global pp
@@ -174,8 +333,23 @@ def main_process( benchmark = None,
                    key = itemgetter(1),
                    reverse = True )
     pp.pprint(data[:15])
+    soln = solve_subset_sum_naive( data = data,
+                                   target = target,
+                                   epsilon = epsilon )
     print "================================================================================"
-    print "Number of data points: %d" % len(data)
+    # Indices for accessing the tuple
+    METHID = 0
+    GARBAGE = 1
+    if len(soln) > 0:
+        print "Solution EXISTS:"
+        total = 0
+        for tup in soln:
+            total += tup[GARBAGE]
+            print "m[ %d ] = %d" % (tup[METHID], tup[GARBAGE])
+        print "Solution total = %d" % total
+        print "Target         = %d" % target
+    else:
+        print "NO SOLUTION."
     print "================================================================================"
     print "process_PAGCFUNC_data.py - DONE."
     print "================================================================================"
@@ -256,6 +430,14 @@ def create_parser():
     parser.add_argument( "--namesfile",
                          help = "Names file which is output from Elephant Tracks.",
                          action = "store" )
+    parser.add_argument( "--target",
+                         type = int,
+                         help = "Target garbage total.",
+                         action = "store" )
+    parser.add_argument( "--epsilon",
+                         type = int,
+                         help = "Target garbage total.",
+                         action = "store" )
     parser.add_argument( "--debug",
                          dest = "debugflag",
                          help = "Enable debug output.",
@@ -269,7 +451,9 @@ def create_parser():
                          action = "store" )
     parser.set_defaults( logfile = "process_PAGCFUNC_data.log",
                          debugflag = False,
-                         benchmark = None )
+                         benchmark = None,
+                         target = None,
+                         epsilon = 0 )
     return parser
 
 def main():
@@ -283,6 +467,8 @@ def main():
     #
     return main_process( benchmark = args.benchmark,
                          names_filename = args.namesfile,
+                         target = args.target,
+                         epsilon = args.epsilon,
                          debugflag = args.debugflag,
                          logger = logger )
 
