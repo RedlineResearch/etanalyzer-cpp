@@ -229,18 +229,24 @@ def solve_subset_sum_naive( data = [],
     print "Epsilon: %d" % epsilon
     # Assume data is sorted, increasing.
     # data can also have duplicates.
-    solutions = []
     soln = []
+    soln_total = 0
+    over_soln = []
+    closest_under_soln = None
+    total_under_soln = 0
     copy = list(data)
     within_target = lambda x: ( (x >= target - epsilon) and (x <= target + epsilon) )
     total = 0
     done = False
     while not done:
-        assert( len(soln) == 0 )
+        # Clear solution
+        soln = []
+        total = 0
         assert( len(copy) > 0 )
+        saved_under = False
         cand = copy.pop(0)
-        if cand < epsilon:
-            break
+        # TODO: if cand < epsilon:
+        # TODO:     break
         soln.append( cand )
         total = cand[GARBAGE]
         # print "DEBUG: %s" % str(soln)
@@ -250,8 +256,12 @@ def solve_subset_sum_naive( data = [],
             total += cand[GARBAGE]
             soln.append( cand )
             if within_target(total):
+                done = True
+                soln_total = total
                 break
             elif total > (target + epsilon):
+                # Save this solution anyway:
+                over_soln.append( list(soln) )
                 # We CAN'T shortcircuit this branch since data is sorted in increasing order.
                 # Remove the 2 most recently added elements.
                 # - last added:
@@ -262,19 +272,22 @@ def solve_subset_sum_naive( data = [],
                 # - next to last, if not empty
                 # Since the soln list may be empty:
                 if len(soln) > 0:
+                    if total < (target - epsilon):
+                        # Save it if it is closer to target than current approximation
+                        if (target - total) < (target - total_under_soln):
+                            closest_under_soln = soln
+                            total_under_soln = total
                     cand = soln.pop()
                     total -= cand[GARBAGE]
-            # else we can go on and add more
-        if not within_target(total):
-            soln = []
-            total = 0
+        if not done:
             done = (len(copy) > 0)
-        else:
-            done = True
+
     if not within_target(total):
-        return []
+        return { "solution" : [],
+                 "over_solution" : over_soln, }
     else:
-        return soln
+        return { "solution" : soln,
+                 "over_solution" : over_soln, }
 
 def get_data( sourcefile = None,
               data = [] ):
@@ -332,14 +345,17 @@ def main_process( benchmark = None,
     data = sorted( data,
                    key = itemgetter(1),
                    reverse = True )
-    pp.pprint(data[:15])
-    soln = solve_subset_sum_naive( data = data,
-                                   target = target,
-                                   epsilon = epsilon )
+    # DEBUG: pp.pprint(data[:15])
+    result = solve_subset_sum_naive( data = data,
+                                     target = target,
+                                     epsilon = epsilon )
+    soln = result["solution"]
+    over_soln = result["over_solution"]
     print "================================================================================"
     # Indices for accessing the tuple
     METHID = 0
     GARBAGE = 1
+    print "STRICT Solution:"
     if len(soln) > 0:
         print "Solution EXISTS:"
         total = 0
@@ -350,6 +366,27 @@ def main_process( benchmark = None,
         print "Target         = %d" % target
     else:
         print "NO SOLUTION."
+        pp.pprint(soln)
+    print "================================================================================"
+    # Indices for accessing the tuple
+    METHID = 0
+    GARBAGE = 1
+    print "OVER Solution:"
+    if len(over_soln) > 0:
+        best = over_soln.pop(0)
+        minimum = sum( [ x[GARBAGE] for x in best ] )
+        for cand in over_soln[1:]:
+            newmin = sum( [ x[GARBAGE] for x in cand ] )
+            if newmin < minimum:
+                minimum = newmin
+                best = cand
+        for tup in best:
+            print "m[ %d ] = %d" % (tup[METHID], tup[GARBAGE])
+        print "Solution total = %d" % minimum
+        print "Target         = %d" % target
+    else:
+        print "NO OVER SOLUTION."
+        pp.pprint(over_soln)
     print "================================================================================"
     print "process_PAGCFUNC_data.py - DONE."
     print "================================================================================"
