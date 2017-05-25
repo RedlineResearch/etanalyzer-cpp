@@ -324,6 +324,22 @@ def get_data( sourcefile = None,
     sys.stdout.write("DEBUG-done: TODO\n")
     # DEBUG TODO pp.pprint(funcnames)
 
+def output_to_csv( soln = [],
+                   selectfp = None ):
+    # Need:
+    # - csv file pointer
+    #   => assume called with 'with open as'
+    # - solution list
+    csvwriter = csv.writer( selectfp, csv.QUOTE_NONNUMERIC )
+    header = [ "method_id", "number", "garbage", ]
+    csvwriter.writerow( header )
+    METHID = 0
+    GARBAGE = 1
+    NUMBER = 2
+    for rec in soln:
+        row = [  rec[METHID], rec[NUMBER], rec[GARBAGE], ]
+        csvwriter.writerow( row )
+
 def main_process( benchmark = None,
                   names_filename = None,
                   target = None,
@@ -364,6 +380,10 @@ def main_process( benchmark = None,
             print "m[ %d ] = %d" % (tup[METHID], tup[GARBAGE])
         print "Solution total = %d" % total
         print "Target         = %d" % target
+        selectfile = "./%s-PAGC-FUNC-select-1.csv" % benchmark
+        with open( selectfile, "wb" ) as selectfp:
+            output_to_csv( soln = soln,
+                           selectfp = selectfp )
     else:
         print "NO SOLUTION."
         pp.pprint(soln)
