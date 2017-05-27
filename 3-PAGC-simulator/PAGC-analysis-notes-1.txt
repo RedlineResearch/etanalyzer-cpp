@@ -1,0 +1,9 @@
+1. simulator-PAGC-ver1.cpp
+    * This outputs the F,G,A records that are used in ?____________???
+2. simulator-PAGC-model-1.cpp
+    * what is source_csv?
+        + can look into populate_method_map for clues
+    * processing happens in read_trace_file
+    * output in output_garbage_history
+        + uses ghist, timevec
+        + output file: bmark-PAGC-MODEL-1-timeseries.csv
