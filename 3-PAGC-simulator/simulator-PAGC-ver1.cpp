@@ -103,6 +103,11 @@ struct FunctionRec_t {
 
 typedef std::map< MethodId_t, FunctionRec_t > FunctionRec_map_t;
 
+// Simple method counts independent of whether we have thread information
+// or not
+typedef std::map< MethodId_t, unsigned int > Method2Count_map_t;
+
+
 typedef std::map< string, std::vector< Summary * > > GroupSum_t;
 typedef std::map< string, Summary * > TypeTotalSum_t;
 typedef std::map< unsigned int, Summary * > SizeSum_t;
@@ -114,6 +119,8 @@ typedef std::map< unsigned int, unsigned int > ObjectMap_t;
 
 // -- The pseudo-heap
 ObjectMap_t objmap;
+// The simple method id to count map
+Method2Count_map_t methcount_map;
 
 // TODO: DELETE HeapState Heap( whereis, keyset );
 
@@ -299,6 +306,13 @@ unsigned int read_trace_file( FILE *f,
                     // E <methodid> <receiver> [<exceptionobj>] <threadid>
                     // 0      1         2             3             3/4
                     method_id = tokenizer.getInt(1);
+                    // Save in simple count map
+                    auto simpit = methcount_map.find(method_id);
+                    if (simpit != methcount_map.end()) {
+                        methcount_map[method_id]++;
+                    } else {
+                        methcount_map[method_id] = 1;
+                    }
                     method = ClassInfo::TheMethods[method_id];
                     thread_id = (tokenizer.numTokens() == 4) ? tokenizer.getInt(3)
                                                              : tokenizer.getInt(4);
@@ -407,9 +421,21 @@ int main(int argc, char* argv[])
         unsigned int minimum = rec.get_minimum();
         unsigned int maximum = rec.get_maximum();
         unsigned int number = rec.get_number_methods();
+        // Check in simple count map
+        unsigned int simple_number;
+        auto simpit = methcount_map.find(mid);
+        if (simpit != methcount_map.end()) {
+            simple_number = methcount_map[mid];
+        }
+        if ( (simpit != methcount_map.end()) ||
+             (simple_number != number) ) {
+            cerr << "Mismatch: simple[ " << simple_number << " ] != "
+                 << " grec[ " << number << " ] -- using simple number." << endl;
+        }
+
         funcout << mid << "," << total_garbage << ","
                 << minimum << "," << maximum << ","
-                << number << endl;
+                << simple_number << endl;
         
     }
     unsigned int final_time = Exec.NowUp();

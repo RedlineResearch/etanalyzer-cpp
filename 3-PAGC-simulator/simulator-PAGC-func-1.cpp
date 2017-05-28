@@ -59,6 +59,11 @@ typedef std::map< MethodId_t, string > FunctionName_map_t;
 // The pseudo-heap data structure
 typedef std::map< ObjectId_t, unsigned int > ObjectMap_t;
 
+// Simple method counts independent of whether we have thread information
+// or not
+typedef std::map< MethodId_t, unsigned int > Method2Count_map_t;
+
+typedef std::map< MethodId_t, GarbageRec_t > Method2GRec_map_t;
 // Garbage history map from:
 //     time -> garbage pair
 // NOTE: Time can be any valid time unit (alloc, method, garbology)
@@ -86,6 +91,8 @@ typedef std::map< MethodId_t, Method2GRec_map_t > CPair2GRec_map_t;
 ObjectMap_t objmap;
 // The call pair data structure illustrated above
 CPair2GRec_map_t cpairmap;
+// The simple method id to count map
+Method2Count_map_t methcount_map;
 // The names map
 FunctionName_map_t namemap;
 
@@ -252,20 +259,7 @@ unsigned int read_trace_file( FILE *f,
                               ofstream &dataout,
                               GarbageHistory_t &ghist,
                               std::vector< VTime_t > &timevec )
-// TODO: CHOOSE A DESIGN:
-//  Option 1: We are simply processing the file here for further analysis later.
-//            So we don't need to choose the functions here.
-//            + This will most likely save time in processing as we don't
-//              repeatedly need all object allocations.
-//            - Adds to development time because we need to do the post-processing
-//              analysis.
-//  Option 2: We do the processing here and we have the functions that we are
-//            interested in.
-//            + No need for post analysis.
-//            - Needs a run script to go through the functions
-//            - A lot of repeated work in reading in events we don't need.
-//              => This repeated work may be well worth the possible additional dev time.
-//
+// TODO:????
 //  Save the following events as processed from the original ET trace:
 //
 //  F <func name ID> cumulative total exits so far
@@ -321,14 +315,6 @@ unsigned int read_trace_file( FILE *f,
                     unsigned int my_id = tokenizer.getInt(1);
                     unsigned int my_size = tokenizer.getInt(2);
                     objmap[my_id] = my_size;
-                    // obj = Heap.allocate( tokenizer.getInt(1),
-                    //                      tokenizer.getInt(2),
-                    //                      tokenizer.getChar(0),
-                    //                      tokenizer.getString(3),
-                    //                      as,
-                    //                      els,
-                    //                      thread,
-                    //                      Exec.NowUp() );
                     unsigned int old_alloc_time = AllocationTime;
                     AllocationTime += my_size;
                 }
@@ -375,6 +361,13 @@ unsigned int read_trace_file( FILE *f,
                     // 0      1         2             3             3/4
                     unsigned int curtime = Exec.NowUp();
                     method_id = tokenizer.getInt(1);
+                    // Save in simple count map
+                    auto simpit = methcount_map.find(method_id);
+                    if (simpit != methcount_map.end()) {
+                        methcount_map[method_id]++;
+                    } else {
+                        methcount_map[method_id] = 1;
+                    }
                     method = ClassInfo::TheMethods[method_id];
                     thread_id = (tokenizer.numTokens() == 4) ? tokenizer.getInt(3)
                                                              : tokenizer.getInt(4);
@@ -386,6 +379,7 @@ unsigned int read_trace_file( FILE *f,
                         //   Object * to simple context pair
                     } else {
                         // No thread info. Get from ExecState
+                        // TODO: Should we just punt here?
                         thread = Exec.get_last_thread();
                     }
                     if (thread) {
