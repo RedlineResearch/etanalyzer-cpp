@@ -98,7 +98,7 @@ struct FunctionRec_t {
         unsigned int minimum;
         unsigned int maximum;
         std::vector< unsigned int > garbage_vector;
-        std::map< MethodId_t, unsigned int > subfunc_map;
+        std::map< MethodId_t, unsigned int > subfunc_map; // Currently NOT USED.
 };
 
 typedef std::map< MethodId_t, FunctionRec_t > FunctionRec_map_t;
