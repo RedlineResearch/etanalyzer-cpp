@@ -28,69 +28,66 @@ using namespace std;
 class Object;
 class CCNode;
 
-struct FunctionRec_t {
-    public:
-        FunctionRec_t()
-            : total(0)
-            , minimum(std::numeric_limits<unsigned int>::max())
-            , maximum(0)
-        {
-        }
+// ----------------------------------------------------------------------
+// Garbage pair
+//    first is actual
+//    second is estimate
+typedef std::pair< unsigned int, unsigned int > GPair_t;
 
-        void add_garbage( unsigned int garbage )
-        {
-            this->garbage_vector.push_back( garbage );
-            this->total += garbage;
-            // TODO: Maybe pass a std::vector or std::map of sub functions
-            //       and associated garbage from those sub calls.
-            if (garbage < this->minimum) {
-                this->minimum = garbage;
-            } else if (garbage > this->maximum) {
-                this->maximum = garbage;
-            }
-        };
+inline unsigned int get_actual( GPair_t gp )
+{
+    return gp.first;
+}
 
-        unsigned int get_total_garbage() const
-        {
-            return this->total;
-        }
+inline unsigned int get_estimate( GPair_t gp )
+{
+    return gp.second;
+}
 
-        unsigned int get_minimum() const
-        {
-            return this->minimum;
-        }
+// ----------------------------------------------------------------------
+// Garbage record
+typedef struct _GarbageRec_t {
+    unsigned int minimum;
+    unsigned int maximum;
+    double mean;
+    double stdev; 
+} GarbageRec_t;
 
-        unsigned int get_maximum() const
-        {
-            return this->maximum;
-        }
+// Function id to name map
+typedef std::map< MethodId_t, string > FunctionName_map_t;
 
-        unsigned int get_number_methods() const
-        {
-            return this->garbage_vector.size();
-        }
+// The pseudo-heap data structure
+typedef std::map< ObjectId_t, unsigned int > ObjectMap_t;
 
-    private:
-        unsigned int total;
-        unsigned int minimum;
-        unsigned int maximum;
-        std::vector< unsigned int > garbage_vector;
-        std::map< MethodId_t, unsigned int > subfunc_map;
-};
+// Garbage history map from:
+//     time -> garbage pair
+// NOTE: Time can be any valid time unit (alloc, method, garbology)
+typedef std::map< unsigned int, GPair_t > GarbageHistory_t;
 
-typedef std::map< MethodId_t, FunctionRec_t > FunctionRec_map_t;
+typedef std::map< MethodId_t, GarbageRec_t > Method2GRec_map_t;
+typedef std::map< MethodId_t, Method2GRec_map_t > CPair2GRec_map_t;
+// This is the layout of this data structure:
+//
+// +------------+       +-------------+     +------------------+
+// |            |       |             |     |                  |
+// |  caller    |       |  callee     |     |  garbage record: |
+// |  method Id +-----> |  method Id  +---> |  - minimum       |
+// |            |       |             |     |  - maximum       |
+// +------------+       +-------------+     |  - mean          |
+//                                          |  - std dev       |
+//                                          |                  |
+//                                          +------------------+
+//
 
-typedef std::map< string, std::vector< Summary * > > GroupSum_t;
-typedef std::map< string, Summary * > TypeTotalSum_t;
-typedef std::map< unsigned int, Summary * > SizeSum_t;
-
-typedef std::map< unsigned int, unsigned int > ObjectMap_t;
-// Map from object ID to object size
 // ----------------------------------------------------------------------
 //   Globals
 
-// -- The pseudo-heap
+// The pseudo-heap
 ObjectMap_t objmap;
+// The call pair data structure illustrated above
+CPair2GRec_map_t cpairmap;
+// The names map
+FunctionName_map_t namemap;
 
 // TODO: DELETE HeapState Heap( whereis, keyset );
 
@@ -102,8 +99,6 @@ ExecMode cckind = ExecMode::StackOnly; // Stack-only context
 #endif // ENABLE_TYPE1
 
 ExecState Exec(cckind);
-
-FunctionRec_map_t fnrec_map;
 
 // -- Turn on debugging
 bool debug = false;
@@ -129,8 +124,134 @@ set<unsigned int> root_set;
 // ----------------------------------------------------------------------
 //   Read and process trace events
 
+unsigned int populate_method_map( string &source_csv,
+                                  CPair2GRec_map_t &mycpairmap,
+                                  FunctionName_map_t &mynamemap )
+{
+    std::ifstream infile( source_csv );
+    string line;
+    // First line is a header:
+    std::getline(infile, line);
+    // TODO: Maybe make sure we have the right file?
+    //       Check the header which should be exactly like this:
+    //     header = [ "callee", "caller", "minimum", "mean", "stdev", "maximum",
+    //                "called_id", "caller_id", ]
+    //     Note: this is Python code.
+    int count = 0;
+    while (std::getline(infile, line)) {
+        GarbageRec_t rec;
+        size_t pos = 0;
+        string token;
+        string s;
+        unsigned long int num;
+        ++count;
+        //------------------------------------------------------------
+        // Get the callee
+        pos = line.find(",");
+        assert( pos != string::npos );
+        string callee = line.substr(0, pos);
+        // DEBUG: cout << "CALLEE: " << s << endl;
+        line.erase(0, pos + 1);
+        //------------------------------------------------------------
+        // Get the caller
+        pos = line.find(",");
+        assert( pos != string::npos );
+        string caller = line.substr(0, pos);
+        // DEBUG: cout << "CALLER: " << s << endl;
+        line.erase(0, pos + 1);
+        //------------------------------------------------------------
+        // Get the minimum
+        pos = line.find(",");
+        assert( pos != string::npos );
+        s = line.substr(0, pos);
+        // DEBUG: cout << "MIN: " << s << endl;
+        rec.minimum = std::stoi(s);
+        line.erase(0, pos + 1);
+        //------------------------------------------------------------
+        // Get the mean
+        pos = line.find(",");
+        assert( pos != string::npos );
+        s = line.substr(0, pos);
+        // DEBUG: cout << "MIN: " << s << endl;
+        rec.mean = std::stoi(s);
+        line.erase(0, pos + 1);
+        //------------------------------------------------------------
+        // Get the stdev
+        pos = line.find(",");
+        assert( pos != string::npos );
+        s = line.substr(0, pos);
+        // DEBUG: cout << "STDEV: " << s << endl;
+        rec.stdev = std::stoi(s);
+        line.erase(0, pos + 1);
+        //------------------------------------------------------------
+        // Get the maximum
+        pos = line.find(",");
+        assert( pos != string::npos );
+        s = line.substr(0, pos);
+        // DEBUG: cout << "MAX: " << s << endl;
+        rec.maximum = std::stoi(s);
+        line.erase(0, pos + 1);
+        //------------------------------------------------------------
+        // Get the callee_id
+        pos = line.find(",");
+        assert( pos != string::npos );
+        s = line.substr(0, pos);
+        // DEBUG: cout << "MAX: " << s << endl;
+        int callee_id = std::stoi(s);
+        line.erase(0, pos + 1);
+        //------------------------------------------------------------
+        // Get the caller_id
+        // DEBUG: cout << "MAX: " << line << endl;
+        int caller_id = std::stoi(line);
+        line.erase(0, pos + 1);
+        //------------------------------------------------------------
+        // Add the names to the map
+        auto niter = mynamemap.find(caller_id);
+        if (niter == mynamemap.end()) {
+            mynamemap[caller_id] = caller;
+        }
+        niter = mynamemap.find(callee_id);
+        if (niter == mynamemap.end()) {
+            mynamemap[callee_id] = callee;
+        }
+        //------------------------------------------------------------
+        // Add to the call pair map
+        // First find if caller is in the
+        auto iter = mycpairmap.find(caller_id);
+        if (iter == mycpairmap.end()) {
+            Method2GRec_map_t *m2g_map = new Method2GRec_map_t();
+            mycpairmap[caller_id] = *m2g_map;
+        }
+        mycpairmap[caller_id][callee_id] = rec;
+    }
+    return count;
+}
+
+//-------------------------------------------------------------------------------
+//
+unsigned int output_garbage_history( string &ghist_out_filename,
+                                     GarbageHistory_t &ghist,
+                                     std::vector< VTime_t > &timevec )
+{
+    ofstream ghout( ghist_out_filename );
+    ghout << "'time','actual','estimate'" << endl;
+    for ( auto itvec = timevec.begin();
+          itvec != timevec.end();
+          itvec++ ) {
+        VTime_t curtime = *itvec;
+        ghout << curtime << ","
+              << ghist[curtime].first << ","
+              << ghist[curtime].second << endl;
+    }
+    return 0;
+}
+
+//-------------------------------------------------------------------------------
+//
 unsigned int read_trace_file( FILE *f,
-                              ofstream &dataout )
+                              ofstream &dataout,
+                              GarbageHistory_t &ghist,
+                              std::vector< VTime_t > &timevec )
 // TODO: CHOOSE A DESIGN:
 //  Option 1: We are simply processing the file here for further analysis later.
 //            So we don't need to choose the functions here.
@@ -169,9 +290,8 @@ unsigned int read_trace_file( FILE *f,
     // Object *target;
     Method *method;
     unsigned int total_garbage = 0;
+    unsigned int estimate = 0;
 
-    // A map from thread ID to garbage amount for the current function
-    std::map< unsigned int, std::vector< unsigned int > > tid2gstack;
     // -- Allocation time
     unsigned int AllocationTime = 0;
     while ( !tokenizer.isDone() ) {
@@ -211,7 +331,6 @@ unsigned int read_trace_file( FILE *f,
                     //                      Exec.NowUp() );
                     unsigned int old_alloc_time = AllocationTime;
                     AllocationTime += my_size;
-                    dataout << "A," << AllocationTime << endl;
                 }
                 break;
 
@@ -230,21 +349,9 @@ unsigned int read_trace_file( FILE *f,
                 {
                     // D <object> <thread-id>
                     // 0    1
-                    object_id = tokenizer.getInt(1);
-                    // 1. Get the thread
-                    thread_id = tokenizer.getInt(2);
-                    unsigned int my_size = objmap[object_id];
+                    unsigned int objId = tokenizer.getInt(1);
+                    unsigned int my_size = objmap[objId];
                     total_garbage += my_size;
-                    // 2. Save in accumulator. The sum will be saved in 
-                    //    fnrec_map when the function exits.
-                    auto iter = tid2gstack.find(thread_id);
-                    if (iter != tid2gstack.end()) {
-                        tid2gstack[thread_id].back() += my_size;
-                    } else {
-                        std::vector< unsigned int > tmp(1, my_size);
-                        tid2gstack[thread_id] = tmp;
-                    }
-                    dataout << "G," << total_garbage << endl;
                 }
                 break;
 
@@ -258,15 +365,6 @@ unsigned int read_trace_file( FILE *f,
                     method = ClassInfo::TheMethods[method_id];
                     thread_id = tokenizer.getInt(3);
                     Exec.Call(method, thread_id);
-                    // Save in garbage stack
-                    auto iter = tid2gstack.find(thread_id);
-                    if (iter == tid2gstack.end()) {
-                        std::vector< unsigned int > tmp;
-                        tid2gstack[thread_id] = tmp;
-                    }
-                    tid2gstack[thread_id].push_back(0);
-                    // TODO: dataout << "F," << method_id << endl;
-                    // PROBLEM: How do we assign garbage deaths to methods efficiently?
                 }
                 break;
 
@@ -275,33 +373,46 @@ unsigned int read_trace_file( FILE *f,
                 {
                     // E <methodid> <receiver> [<exceptionobj>] <threadid>
                     // 0      1         2             3             3/4
+                    unsigned int curtime = Exec.NowUp();
                     method_id = tokenizer.getInt(1);
                     method = ClassInfo::TheMethods[method_id];
                     thread_id = (tokenizer.numTokens() == 4) ? tokenizer.getInt(3)
                                                              : tokenizer.getInt(4);
-                    Exec.Return(method, thread_id);
-                    dataout << "E," << method_id << endl;
-                    // Pop off the garbage stack and save in map
-                    auto iter = tid2gstack.find(thread_id);
-                    if (iter != tid2gstack.end()) {
-                        unsigned int stack_garbage = tid2gstack[thread_id].back();
-                        tid2gstack[thread_id].pop_back();
-                        auto iter = fnrec_map.find(method_id);
-                        if (iter == fnrec_map.end()) {
-                            FunctionRec_t tmp;
-                            fnrec_map[method_id] = tmp;
-                        }
-                        fnrec_map[method_id].add_garbage( stack_garbage );
+
+                    Thread *thread;
+                    if (thread_id > 0) {
+                        thread = Exec.getThread(thread_id);
+                        // Update counters in ExecState for map of
+                        //   Object * to simple context pair
                     } else {
-                        cerr << "Method EXIT: Empty garbage stack for thread id"
-                             << thread_id << "." << endl;
-                        //    the else clause shouldn't be possible, but it's worth
-                        //    investigating if this happens.
-                        //    TODO TODO TODO
-                        //    Add some more debugging code if this happens.
+                        // No thread info. Get from ExecState
+                        thread = Exec.get_last_thread();
+                    }
+                    if (thread) {
+                        MethodDeque top2meth = thread->top_N_methods(2);
+                        // These are Method pointers.
+                        if (top2meth[0] && top2meth[1]) {
+                            MethodId_t callee_id = top2meth[0]->getId();
+                            MethodId_t caller_id = top2meth[1]->getId();
+                            auto it_caller = cpairmap.find(caller_id);
+                            if (it_caller != cpairmap.end()) {
+                                Method2GRec_map_t m2g = it_caller->second;
+                                if (caller_id > 0) {
+                                    auto it_callee = m2g.find(callee_id);
+                                    if (it_callee != m2g.end()) {
+                                        GarbageRec_t rec = it_callee->second;
+                                        // Save the actual and estimated garbage only if
+                                        // we have a new estimate.
+                                        estimate += rec.mean;
+                                        ghist[curtime] = make_pair( total_garbage, estimate );
+                                        timevec.push_back(curtime);
+                                    }
+                                }
+                            }
+                        }
                     }
 
-                    tid2gstack[thread_id].push_back(0);
+                    Exec.Return(method, thread_id);
                 }
                 break;
 
@@ -340,55 +451,66 @@ void debug_GC_history( deque< GCRecord_t > &GC_history )
     }
 }
 
-// ----------------------------------------------------------------------
 
+// ----------------------------------------------------------------------
+void debug_method_map( CPair2GRec_map_t &mymap )
+{
+    cout << "DEBUG method-map:" << endl;
+    for ( auto it1 = mymap.begin();
+          it1 != mymap.end();
+          it1++ ) {
+        MethodId_t caller_id = it1->first;
+        Method2GRec_map_t &m2gmap = it1->second;
+        string caller = namemap[caller_id];
+        cout << "caller[ " << caller << " ]" << endl;
+        for ( auto it2 = m2gmap.begin();
+              it2 != m2gmap.end();
+              it2++ ) {
+            MethodId_t callee_id = it2->first;
+            string callee = namemap[callee_id];
+            cout << "  - callee[ " << callee << " ] -> " << endl;
+        }
+    }
+}
+
+// ----------------------------------------------------------------------
+// 
 int main(int argc, char* argv[])
 {
-    if (argc != 3) {
-        cout << "simulator-PAGC-ver1" << endl
-             << "Usage: " << argv[0] << " <namesfile>  <output base name>" << endl
+    if (argc != 4) {
+        cout << "simulator-PAGC-model-1" << endl
+             << "Usage: " << argv[0] << " <names filename>  <PAGC csv filename>  <output base name>" << endl
              << "      git version: " <<  build_git_sha << endl
              << "      build date : " <<  build_git_time << endl;
         exit(1);
     }
     cout << "Read names file..." << endl;
     ClassInfo::read_names_file_no_mainfunc( argv[1] );
+    string source_csv(argv[2]);
+    string basename(argv[3]);
+    //
+    // Read in the method map
+    unsigned int result_count = populate_method_map( source_csv,
+                                                     cpairmap,
+                                                     namemap );
+    debug_method_map( cpairmap );
+    cout << "populate count: " << result_count << endl;
 
-    // TODO string dgroups_csvfile(argv[2]);
-    string basename(argv[2]);
 
     cout << "Start running PAGC simulator on trace..." << endl;
-    FILE* f = fdopen(0, "r");
-    //-------------------------------------------------------------------------------
-    // Output trace csv summary
-    string newtrace_filename( basename + "-PAGC-TRACE.csv" );
-    ofstream newtrace_file( newtrace_filename );
-    unsigned int total_garbage = read_trace_file( f, newtrace_file );
-    //-------------------------------------------------------------------------------
-    // Output function record summary
-    string funcrec_filename( basename + "-PAGC-FUNC.csv" );
-    ofstream funcout( funcrec_filename );
-    // Output header for the per function CSV file
-    funcout << "\"methodId\",\"total_garbage\",\"minimum\",\"maximum\",\"number_times\"" << endl;
-    // Output per function record
-    for ( auto iter = fnrec_map.begin();
-          iter != fnrec_map.end();
-          iter++ ) {
-        // TODO TODO TODO
-        // output the record:
-        //    TODO: What is the CSV record format?
-        //   methodId, total_garbage, minimum, maximum, number_times
-        MethodId_t mid = iter->first;
-        FunctionRec_t rec = iter->second;
-        unsigned int total_garbage = rec.get_total_garbage();
-        unsigned int minimum = rec.get_minimum();
-        unsigned int maximum = rec.get_maximum();
-        unsigned int number = rec.get_number_methods();
-        funcout << mid << "," << total_garbage << ","
-                << minimum << "," << maximum << ","
-                << number << endl;
-        
-    }
+    FILE *f = fdopen(0, "r");
+    string out_filename( basename + "-PAGC-MODEL-1.csv" );
+    ofstream outfile( out_filename );
+    GarbageHistory_t ghist;
+    std::vector< VTime_t > timevec;
+    unsigned int total_garbage = read_trace_file( f,
+                                                  outfile,
+                                                  ghist,
+                                                  timevec );
+    string ghist_out_filename( basename + "-PAGC-MODEL-1-timeseries.csv" );
+    output_garbage_history( ghist_out_filename,
+                            ghist,
+                            timevec );
     unsigned int final_time = Exec.NowUp();
     cout << "Done at time " << Exec.NowUp() << endl;
     return 0;
