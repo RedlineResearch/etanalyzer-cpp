@@ -430,7 +430,7 @@ int main(int argc, char* argv[])
         if ( (simpit != methcount_map.end()) ||
              (simple_number != number) ) {
             cerr << "Mismatch: simple[ " << simple_number << " ] != "
-                 << " grec[ " << number << " ] -- using simple number." << endl;
+                 << " grec[ " << number << " ]." << endl;
         }
 
         funcout << mid << "," << total_garbage << ","
