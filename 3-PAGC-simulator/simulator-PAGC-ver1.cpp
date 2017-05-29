@@ -93,6 +93,17 @@ struct FunctionRec_t {
             return this->garbage_vector.size();
         }
 
+        string gvec2string() const
+        {
+            string result;
+            for ( auto iter = this->garbage_vector.begin();
+                  iter != this->garbage_vector.end();
+                  iter++ ) {
+                result.append( std::to_string(*iter) + ";" );
+            }
+            return result;
+        }
+
     private:
         unsigned int total;
         unsigned int minimum;
@@ -427,15 +438,17 @@ int main(int argc, char* argv[])
         if (simpit != methcount_map.end()) {
             simple_number = methcount_map[mid];
         }
-        if ( (simpit != methcount_map.end()) ||
+        if ( (simpit != methcount_map.end()) &&
              (simple_number != number) ) {
             cerr << "Mismatch: simple[ " << simple_number << " ] != "
                  << " grec[ " << number << " ]." << endl;
         }
 
+        string glist_str = rec.gvec2string();
         funcout << mid << "," << total_garbage << ","
                 << minimum << "," << maximum << ","
-                << simple_number << endl;
+                << simple_number << ","
+                << glist_str << endl;
         
     }
     unsigned int final_time = Exec.NowUp();
