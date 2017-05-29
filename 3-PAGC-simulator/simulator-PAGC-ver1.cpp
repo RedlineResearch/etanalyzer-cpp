@@ -96,10 +96,23 @@ struct FunctionRec_t {
         string gvec2string() const
         {
             string result;
+            std::map< unsigned int, unsigned int > counter;
             for ( auto iter = this->garbage_vector.begin();
                   iter != this->garbage_vector.end();
                   iter++ ) {
-                result.append( std::to_string(*iter) + ";" );
+                auto itmp = counter.find(*iter);
+                if (itmp != counter.end()) {
+                    counter[*iter]++;
+                } else {
+                    counter[*iter] = 1;
+                }
+            }
+            for ( auto iter = counter.begin();
+                  iter != counter.end();
+                  iter++ ) {
+                unsigned int key = iter->first;
+                unsigned int val = iter->second;
+                result.append( std::to_string(key) + ":" + std::to_string(val) + ";" );
             }
             return result;
         }
@@ -417,7 +430,7 @@ int main(int argc, char* argv[])
     string funcrec_filename( basename + "-PAGC-FUNC.csv" );
     ofstream funcout( funcrec_filename );
     // Output header for the per function CSV file
-    funcout << "\"methodId\",\"total_garbage\",\"minimum\",\"maximum\",\"number_times\"" << endl;
+    funcout << "\"methodId\",\"total_garbage\",\"minimum\",\"maximum\",\"number_times\",\"garbage_list\"" << endl;
     // Output per function record
     for ( auto iter = fnrec_map.begin();
           iter != fnrec_map.end();
