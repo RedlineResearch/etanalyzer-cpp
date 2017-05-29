@@ -314,7 +314,8 @@ def get_data( sourcefile = None,
             minimum = int(rec[2])
             maximum = int(rec[3])
             number_times = int(rec[4])
-            data.append( (method_id, total_garbage, number_times, minimum, maximum) )
+            glist = rec[5]
+            data.append( (method_id, total_garbage, number_times, minimum, maximum, glist) )
             # DEBUG ONLY:
             # sys.stdout.write(str(rec) + "\n")
             # count += 1
@@ -331,13 +332,19 @@ def output_to_csv( soln = [],
     #   => assume called with 'with open as'
     # - solution list
     csvwriter = csv.writer( selectfp, csv.QUOTE_NONNUMERIC )
-    header = [ "method_id", "number", "garbage", ]
+    header = [ "method_id", "number", "garbage", "garbage_list", ]
     csvwriter.writerow( header )
+    # Ok, while I admit this is ugly...well, fine it's ugly.
+    # I should fix it. And future me probably will. TODO
     METHID = 0
     GARBAGE = 1
-    NUMBER = 2
+    # MINIMUM = 2
+    # MAXIMUM = 3
+    NUMBER = 4
+    GLIST = 5
+    # TODO: Add GARBAGE LIST at index 3
     for rec in soln:
-        row = [  rec[METHID], rec[NUMBER], rec[GARBAGE], ]
+        row = [  rec[METHID], rec[NUMBER], rec[GARBAGE], rec[GLIST] ]
         csvwriter.writerow( row )
 
 def main_process( benchmark = None,
@@ -371,13 +378,17 @@ def main_process( benchmark = None,
     # Indices for accessing the tuple
     METHID = 0
     GARBAGE = 1
+    # MINIMUM = 2
+    # MAXIMUM = 3
+    NUMBER = 4
+    GLIST = 5
     print "STRICT Solution:"
     if len(soln) > 0:
         print "Solution EXISTS:"
         total = 0
         for tup in soln:
             total += tup[GARBAGE]
-            print "m[ %d ] = %d" % (tup[METHID], tup[GARBAGE])
+            print "m[ %d ] = %d : %s" % (tup[METHID], tup[GARBAGE], tup[GLIST])
         print "Solution total = %d" % total
         print "Target         = %d" % target
         selectfile = "./%s-PAGC-FUNC-select-1.csv" % benchmark
