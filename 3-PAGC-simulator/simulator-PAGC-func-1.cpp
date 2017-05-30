@@ -70,18 +70,18 @@ typedef std::map< MethodId_t, GarbageRec_t > Method2GRec_map_t;
 typedef std::map< unsigned int, GPair_t > GarbageHistory_t;
 
 typedef std::map< MethodId_t, GarbageRec_t > Method2GRec_map_t;
-typedef std::map< MethodId_t, Method2GRec_map_t > CPair2GRec_map_t;
+// TODO: typedef std::map< MethodId_t, Method2GRec_map_t > CPair2GRec_map_t;
 // This is the layout of this data structure:
 //
-// +------------+       +-------------+     +------------------+
-// |            |       |             |     |                  |
-// |  caller    |       |  callee     |     |  garbage record: |
-// |  method Id +-----> |  method Id  +---> |  - minimum       |
-// |            |       |             |     |  - maximum       |
-// +------------+       +-------------+     |  - mean          |
-//                                          |  - std dev       |
-//                                          |                  |
-//                                          +------------------+
+// +------------+      +------------------+
+// |            |      |                  |
+// |            |      |  garbage record: |
+// |  method Id +----->|  - minimum       |
+// |            |      |  - maximum       |
+// +------------+      |  - mean          |
+//                     |  - std dev       |
+//                     |                  |
+//                     +------------------+
 //
 
 // ----------------------------------------------------------------------
@@ -89,8 +89,11 @@ typedef std::map< MethodId_t, Method2GRec_map_t > CPair2GRec_map_t;
 
 // The pseudo-heap
 ObjectMap_t objmap;
+
+// The method to garbage record map
+Method2GRec_map_t methmap;
 // The call pair data structure illustrated above
-CPair2GRec_map_t cpairmap;
+// TODO CPair2GRec_map_t cpairmap;
 // The simple method id to count map
 Method2Count_map_t methcount_map;
 // The names map
@@ -132,7 +135,7 @@ set<unsigned int> root_set;
 //   Read and process trace events
 
 unsigned int populate_method_map( string &source_csv,
-                                  CPair2GRec_map_t &mycpairmap,
+                                  Method2GRec_map_t &mymethmap,
                                   FunctionName_map_t &mynamemap )
 {
     std::ifstream infile( source_csv );
@@ -141,8 +144,7 @@ unsigned int populate_method_map( string &source_csv,
     std::getline(infile, line);
     // TODO: Maybe make sure we have the right file?
     //       Check the header which should be exactly like this:
-    //     header = [ "callee", "caller", "minimum", "mean", "stdev", "maximum",
-    //                "called_id", "caller_id", ]
+    //     header = [ "method_id", "number", "garbage", "garbage_list", ]
     //     Note: this is Python code.
     int count = 0;
     while (std::getline(infile, line)) {
@@ -152,84 +154,52 @@ unsigned int populate_method_map( string &source_csv,
         string s;
         unsigned long int num;
         ++count;
+        cout << "-------------------------------------------------------------------------------" << endl;
         //------------------------------------------------------------
-        // Get the callee
+        // Get the method_id
         pos = line.find(",");
         assert( pos != string::npos );
-        string callee = line.substr(0, pos);
-        // DEBUG: cout << "CALLEE: " << s << endl;
+        string method_id = line.substr(0, pos);
+        cout << "METHOD_ID: " << method_id << endl;
         line.erase(0, pos + 1);
         //------------------------------------------------------------
-        // Get the caller
+        // Get the number
         pos = line.find(",");
         assert( pos != string::npos );
-        string caller = line.substr(0, pos);
-        // DEBUG: cout << "CALLER: " << s << endl;
+        string number = line.substr(0, pos);
+        cout << "NUMBER: " << number << endl;
         line.erase(0, pos + 1);
-        //------------------------------------------------------------
-        // Get the minimum
-        pos = line.find(",");
-        assert( pos != string::npos );
-        s = line.substr(0, pos);
-        // DEBUG: cout << "MIN: " << s << endl;
-        rec.minimum = std::stoi(s);
-        line.erase(0, pos + 1);
-        //------------------------------------------------------------
-        // Get the mean
-        pos = line.find(",");
-        assert( pos != string::npos );
-        s = line.substr(0, pos);
-        // DEBUG: cout << "MIN: " << s << endl;
-        rec.mean = std::stoi(s);
-        line.erase(0, pos + 1);
-        //------------------------------------------------------------
-        // Get the stdev
-        pos = line.find(",");
-        assert( pos != string::npos );
-        s = line.substr(0, pos);
-        // DEBUG: cout << "STDEV: " << s << endl;
-        rec.stdev = std::stoi(s);
-        line.erase(0, pos + 1);
-        //------------------------------------------------------------
-        // Get the maximum
-        pos = line.find(",");
-        assert( pos != string::npos );
-        s = line.substr(0, pos);
-        // DEBUG: cout << "MAX: " << s << endl;
-        rec.maximum = std::stoi(s);
-        line.erase(0, pos + 1);
-        //------------------------------------------------------------
-        // Get the callee_id
-        pos = line.find(",");
-        assert( pos != string::npos );
-        s = line.substr(0, pos);
-        // DEBUG: cout << "MAX: " << s << endl;
-        int callee_id = std::stoi(s);
-        line.erase(0, pos + 1);
-        //------------------------------------------------------------
-        // Get the caller_id
-        // DEBUG: cout << "MAX: " << line << endl;
-        int caller_id = std::stoi(line);
-        line.erase(0, pos + 1);
-        //------------------------------------------------------------
-        // Add the names to the map
-        auto niter = mynamemap.find(caller_id);
-        if (niter == mynamemap.end()) {
-            mynamemap[caller_id] = caller;
-        }
-        niter = mynamemap.find(callee_id);
-        if (niter == mynamemap.end()) {
-            mynamemap[callee_id] = callee;
-        }
-        //------------------------------------------------------------
-        // Add to the call pair map
-        // First find if caller is in the
-        auto iter = mycpairmap.find(caller_id);
-        if (iter == mycpairmap.end()) {
-            Method2GRec_map_t *m2g_map = new Method2GRec_map_t();
-            mycpairmap[caller_id] = *m2g_map;
-        }
-        mycpairmap[caller_id][callee_id] = rec;
+         //------------------------------------------------------------
+         // Get the garbage
+         pos = line.find(",");
+         assert( pos != string::npos );
+         string garbage = line.substr(0, pos);
+         cout << "GARBAGE : " << garbage << endl;
+         line.erase(0, pos + 1);
+         //------------------------------------------------------------
+         // Get the garbage list
+         assert( pos != string::npos );
+         string garbage_list = s;
+         cout << "GARBAGE_LIST : " << garbage_list << endl;
+        // TODO: //------------------------------------------------------------
+        // TODO: // Add the names to the map
+        // TODO: auto niter = mynamemap.find(caller_id);
+        // TODO: if (niter == mynamemap.end()) {
+        // TODO:     mynamemap[caller_id] = caller;
+        // TODO: }
+        // TODO: niter = mynamemap.find(callee_id);
+        // TODO: if (niter == mynamemap.end()) {
+        // TODO:     mynamemap[callee_id] = callee;
+        // TODO: }
+        // TODO: //------------------------------------------------------------
+        // TODO: // Add to the call pair map
+        // TODO: // First find if caller is in the
+        // TODO: auto iter = mycpairmap.find(caller_id);
+        // TODO: if (iter == mycpairmap.end()) {
+        // TODO:     Method2GRec_map_t *m2g_map = new Method2GRec_map_t();
+        // TODO:     mycpairmap[caller_id] = *m2g_map;
+        // TODO: }
+        // TODO: mycpairmap[caller_id][callee_id] = rec;
     }
     return count;
 }
@@ -383,25 +353,20 @@ unsigned int read_trace_file( FILE *f,
                         thread = Exec.get_last_thread();
                     }
                     if (thread) {
-                        MethodDeque top2meth = thread->top_N_methods(2);
+                        // MethodDeque top2meth = thread->top_N_methods(2);
+                        Method *topmeth = thread->TopMethod();
                         // These are Method pointers.
-                        if (top2meth[0] && top2meth[1]) {
-                            MethodId_t callee_id = top2meth[0]->getId();
-                            MethodId_t caller_id = top2meth[1]->getId();
-                            auto it_caller = cpairmap.find(caller_id);
-                            if (it_caller != cpairmap.end()) {
-                                Method2GRec_map_t m2g = it_caller->second;
-                                if (caller_id > 0) {
-                                    auto it_callee = m2g.find(callee_id);
-                                    if (it_callee != m2g.end()) {
-                                        GarbageRec_t rec = it_callee->second;
-                                        // Save the actual and estimated garbage only if
-                                        // we have a new estimate.
-                                        estimate += rec.mean;
-                                        ghist[curtime] = make_pair( total_garbage, estimate );
-                                        timevec.push_back(curtime);
-                                    }
-                                }
+                        // TODO if (top2meth[0] && top2meth[1]) {
+                        if (topmeth) {
+                            MethodId_t methid = topmeth->getId();
+                            auto itmp = methmap.find(methid);
+                            if (itmp != methmap.end()) {
+                                GarbageRec_t rec = itmp->second;
+                                // Save the actual and estimated garbage only if
+                                // we have a new estimate.
+                                estimate += rec.mean;
+                                ghist[curtime] = make_pair( total_garbage, estimate );
+                                timevec.push_back(curtime);
                             }
                         }
                     }
@@ -447,23 +412,15 @@ void debug_GC_history( deque< GCRecord_t > &GC_history )
 
 
 // ----------------------------------------------------------------------
-void debug_method_map( CPair2GRec_map_t &mymap )
+void debug_method_map( Method2GRec_map_t methmap )
 {
     cout << "DEBUG method-map:" << endl;
-    for ( auto it1 = mymap.begin();
-          it1 != mymap.end();
-          it1++ ) {
-        MethodId_t caller_id = it1->first;
-        Method2GRec_map_t &m2gmap = it1->second;
-        string caller = namemap[caller_id];
-        cout << "caller[ " << caller << " ]" << endl;
-        for ( auto it2 = m2gmap.begin();
-              it2 != m2gmap.end();
-              it2++ ) {
-            MethodId_t callee_id = it2->first;
-            string callee = namemap[callee_id];
-            cout << "  - callee[ " << callee << " ] -> " << endl;
-        }
+    for ( auto it = methmap.begin();
+          it != methmap.end();
+          it++ ) {
+        MethodId_t method_id = it->first;
+        string method = namemap[method_id];
+        cout << "  - method[ " << method << " ] -> " << endl;
     }
 }
 
@@ -485,9 +442,9 @@ int main(int argc, char* argv[])
     //
     // Read in the method map
     unsigned int result_count = populate_method_map( source_csv,
-                                                     cpairmap,
+                                                     methmap,
                                                      namemap );
-    debug_method_map( cpairmap );
+    debug_method_map( methmap );
     cout << "populate count: " << result_count << endl;
 
 
