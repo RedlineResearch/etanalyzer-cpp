@@ -219,16 +219,16 @@ class Thread
         unsigned int getId() const { return m_id; }
 
         // -- Call method m
-        void Call(Method* m);
+        void Call(Method *m);
         // -- Return from method m
         void Return(Method* m);
         // -- Get current CC
-        CCNode * TopCC();
+        CCNode *TopCC();
         // -- Get current method
-        Method * TopMethod();
+        Method *TopMethod();
         // -- Get method N from the top (0 based).
         //    This means the TopMethod() is equivalent to TopMethod(0)
-        Method * TopMethod( unsigned int num );
+        Method *TopMethod( unsigned int num );
         // -- Get top N methods
         MethodDeque top_N_methods(unsigned int N);
         // -- Get top N Java-library methods + first non-Java library method
@@ -242,7 +242,7 @@ class Thread
         // -- Get a stack trace with method ids
         DequeId_t stacktrace_using_id();
         // -- Root event
-        void objectRoot(Object * object);
+        void objectRoot(Object *object);
         // -- Check dead object
         bool isLocalVariable(Object *object);
         // Root CCNode
