@@ -35,3 +35,12 @@ SET(SOURCES_SIM_PAGC_FUNC_1 simulator-PAGC-func-1.cpp execution.cpp heap.cpp cla
 # Main non-static Program Aware GC simulator
 ADD_EXECUTABLE(simulator-PAGC-func-1 ${SOURCES_SIM_PAGC_FUNC_1})
 
+#-------------------------------------------------------------------------------
+# Version 2 of simulator-GC
+SET(SOURCES_SIM_PAGC_VER2 simulator-PAGC-ver2.cpp execution.cpp heap.cpp classinfo.cpp tokenizer.cpp
+    version.cpp memorymgr.cpp)
+
+# Main non-static Program Aware GC simulator version 2
+ADD_EXECUTABLE(simulator-PAGC-ver2 ${SOURCES_SIM_PAGC_VER2})
+
+#-------------------------------------------------------------------------------

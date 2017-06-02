@@ -372,6 +372,8 @@ def main_process( benchmark = None,
     result = solve_subset_sum_naive( data = data,
                                      target = target,
                                      epsilon = epsilon )
+    # Choose the appropriate mean here? Or in the previous
+    # simulator?
     soln = result["solution"]
     over_soln = result["over_solution"]
     print "================================================================================"

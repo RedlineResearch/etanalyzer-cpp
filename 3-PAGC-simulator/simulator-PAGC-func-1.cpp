@@ -159,47 +159,49 @@ unsigned int populate_method_map( string &source_csv,
         // Get the method_id
         pos = line.find(",");
         assert( pos != string::npos );
-        string method_id = line.substr(0, pos);
+        string method_id_str = line.substr(0, pos);
+        unsigned int method_id = std::stoi(method_id_str);
         cout << "METHOD_ID: " << method_id << endl;
         line.erase(0, pos + 1);
         //------------------------------------------------------------
         // Get the number
         pos = line.find(",");
         assert( pos != string::npos );
-        string number = line.substr(0, pos);
+        string number_str = line.substr(0, pos);
+        unsigned int number = std::stoi(number_str);
         cout << "NUMBER: " << number << endl;
         line.erase(0, pos + 1);
-         //------------------------------------------------------------
-         // Get the garbage
-         pos = line.find(",");
-         assert( pos != string::npos );
-         string garbage = line.substr(0, pos);
-         cout << "GARBAGE : " << garbage << endl;
-         line.erase(0, pos + 1);
-         //------------------------------------------------------------
-         // Get the garbage list
-         assert( pos != string::npos );
-         string garbage_list = s;
-         cout << "GARBAGE_LIST : " << garbage_list << endl;
-        // TODO: //------------------------------------------------------------
-        // TODO: // Add the names to the map
-        // TODO: auto niter = mynamemap.find(caller_id);
-        // TODO: if (niter == mynamemap.end()) {
-        // TODO:     mynamemap[caller_id] = caller;
-        // TODO: }
-        // TODO: niter = mynamemap.find(callee_id);
-        // TODO: if (niter == mynamemap.end()) {
-        // TODO:     mynamemap[callee_id] = callee;
-        // TODO: }
-        // TODO: //------------------------------------------------------------
-        // TODO: // Add to the call pair map
-        // TODO: // First find if caller is in the
-        // TODO: auto iter = mycpairmap.find(caller_id);
-        // TODO: if (iter == mycpairmap.end()) {
-        // TODO:     Method2GRec_map_t *m2g_map = new Method2GRec_map_t();
-        // TODO:     mycpairmap[caller_id] = *m2g_map;
-        // TODO: }
-        // TODO: mycpairmap[caller_id][callee_id] = rec;
+        //------------------------------------------------------------
+        // Get the garbage
+        pos = line.find(",");
+        assert( pos != string::npos );
+        string garbage_str = line.substr(0, pos);
+        unsigned int garbage = std::stoi(garbage_str);
+        cout << "GARBAGE : " << garbage << endl;
+        line.erase(0, pos + 1);
+        //------------------------------------------------------------
+        // Get the garbage list
+        assert( pos != string::npos );
+        string garbage_list = s;
+        cout << "GARBAGE_LIST : " << garbage_list << endl;
+        // TODO HERE TODO 2 June 2017 TODO
+        //------------------------------------------------------------
+        // Add the names to the map
+        auto methiter = ClassInfo::TheMethods.find(method_id);
+        assert( methiter != ClassInfo::TheMethods.end() );
+        Method *mptr = ClassInfo::TheMethods[method_id];
+        assert( mptr != NULL );
+        string methname = mptr->getName();
+        auto niter = mynamemap.find(method_id);
+        if (niter == mynamemap.end()) {
+            mynamemap[method_id] = methname;
+        }
+        //------------------------------------------------------------
+        // Add to the call pair map
+        // First find if caller is in the
+        auto iter = mymethmap.find(method_id);
+        GarbageRec_t tmp;
+        mymethmap[method_id] = tmp;
     }
     return count;
 }
