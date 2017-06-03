@@ -129,6 +129,9 @@ typedef std::map< ContextPair, FunctionRec_t > FunctionRec_map_t;
 // Simple method counts independent of whether we have thread information
 // or not
 typedef std::map< MethodId_t, unsigned int > Method2Count_map_t;
+// This one uses a context pair of Method pointers:
+//     (callee, caller)
+typedef std::map< ContextPair, unsigned int > CPair2Count_map_t;
 
 
 typedef std::map< string, std::vector< Summary * > > GroupSum_t;
@@ -143,7 +146,9 @@ typedef std::map< unsigned int, unsigned int > ObjectMap_t;
 // -- The pseudo-heap
 ObjectMap_t objmap;
 // The simple method id to count map
-Method2Count_map_t methcount_map;
+// TODO TMethod2Count_map_t methcount_map;
+// The context pair to count map
+CPair2Count_map_t methcount_map;
 
 // TODO: DELETE HeapState Heap( whereis, keyset );
 
@@ -156,6 +161,10 @@ ExecMode cckind = ExecMode::StackOnly; // Stack-only context
 
 ExecState Exec(cckind);
 
+// Maps from ContextPair -> FunctionRec_t
+//  cpair[0] = top/callee
+//  cpair[1] = top-1/caller
+// NOTE: top-1/caller can be NULL
 FunctionRec_map_t fnrec_map;
 
 // -- Turn on debugging
@@ -329,24 +338,44 @@ unsigned int read_trace_file( FILE *f,
                     // E <methodid> <receiver> [<exceptionobj>] <threadid>
                     // 0      1         2             3             3/4
                     method_id = tokenizer.getInt(1);
-                    // Save in simple count map
-                    auto simpit = methcount_map.find(method_id);
-                    if (simpit != methcount_map.end()) {
-                        methcount_map[method_id]++;
-                    } else {
-                        methcount_map[method_id] = 1;
-                    }
                     method = ClassInfo::TheMethods[method_id];
                     thread_id = (tokenizer.numTokens() == 4) ? tokenizer.getInt(3)
                                                              : tokenizer.getInt(4);
-                    // Get context pair
                     ContextPair cpair;
-                    // Get thread TODO
-                    // If thread available:
-                    //     // Get top 2 methods
-                    //     MethodDeque top2 = top_N_methods(2);
-                    // else:
-                    //     Use NULL->current method it only
+                    Thread *thread;
+                    // Get thread
+                    if (thread_id > 0) {
+                        thread = Exec.getThread(thread_id);
+                    } else {
+                        // No thread info. Get from ExecState
+                        // TODO: Should we just punt here?
+                        thread = Exec.get_last_thread();
+                    }
+                    if (thread) {
+                        // Get top 2 methods
+                        MethodDeque top2 = thread->top_N_methods(2);
+                        cpair = std::make_pair( top2[0], top2[1] );
+                    } else {
+                        // Use NULL->current method it only
+                        cpair = std::make_pair( method, (Method *) NULL );
+                    }
+                    // Check to see that the top_N_methods(2) result matches
+                    // what we expect from the ET event record:
+                    MethodId_t callee_id = cpair.first->getId();
+                    MethodId_t caller_id = cpair.second->getId();
+                    if (callee_id != method_id) {
+                        cerr << "Mismatch ET methId[ " << method_id << " ]  != "
+                             << " topId[ " << callee_id << "]" << endl;
+                        // If mismatch, then simply ????
+                        assert(false);
+                    }
+                    // Save in simple count map
+                    auto simpit = methcount_map.find(cpair);
+                    if (simpit != methcount_map.end()) {
+                        methcount_map[cpair]++;
+                    } else {
+                        methcount_map[cpair] = 1;
+                    }
                     Exec.Return(method, thread_id);
                     dataout << "E," << cpair.first << "," << cpair.second << endl;
                     // Pop off the garbage stack and save in map
@@ -368,7 +397,6 @@ unsigned int read_trace_file( FILE *f,
                         //    TODO TODO TODO
                         //    Add some more debugging code if this happens.
                     }
-
                     tid2gstack[thread_id].push_back(0);
                 }
                 break;
@@ -437,19 +465,21 @@ int main(int argc, char* argv[])
     string funcrec_filename( basename + "-PAGC-FUNC.csv" );
     ofstream funcout( funcrec_filename );
     // Output header for the per function CSV file
-    funcout << "\"methodId\",\"total_garbage\",\"minimum\",\"maximum\",\"number_times\",\"garbage_list\"" << endl;
+    //    : Change to method pair.
+    //     - First make sure that the method deque has stack discipline. That
+    //       is, the lowest method is at the top of the deque at [0]
+    funcout << "\"callee_id\",\"caller_id\",\"total_garbage\",\"minimum\",\"maximum\",\"number_times\",\"garbage_list\"" << endl;
     // Output per function record
     for ( auto iter = fnrec_map.begin();
           iter != fnrec_map.end();
           iter++ ) {
-        // TODO TODO TODO
         // output the record:
-        //    TODO: What is the CSV record format?
-        //    TODO TODO TODO
-        //   methodId, total_garbage, minimum, maximum, number_times
+        //   callee_id, caller_id, total_garbage, minimum, maximum, number_times
         ContextPair cpair = iter->first;
         Method *mptr_callee = cpair.first;
-        MethodId_t mid = mptr_callee->getId();
+        MethodId_t callee_id = mptr_callee->getId();
+        Method *mptr_caller = cpair.second;
+        MethodId_t caller_id = mptr_caller->getId();
         FunctionRec_t rec = iter->second;
         unsigned int total_garbage = rec.get_total_garbage();
         unsigned int minimum = rec.get_minimum();
@@ -457,9 +487,9 @@ int main(int argc, char* argv[])
         unsigned int number = rec.get_number_methods();
         // Check in simple count map
         unsigned int simple_number;
-        auto simpit = methcount_map.find(mid);
+        auto simpit = methcount_map.find(cpair);
         if (simpit != methcount_map.end()) {
-            simple_number = methcount_map[mid];
+            simple_number = methcount_map[cpair];
         }
         if ( (simpit != methcount_map.end()) &&
              (simple_number != number) ) {
@@ -468,11 +498,10 @@ int main(int argc, char* argv[])
         }
 
         string glist_str = rec.gvec2string();
-        funcout << mid << "," << total_garbage << ","
-                << minimum << "," << maximum << ","
-                << simple_number << ","
-                << glist_str << endl;
-        
+        funcout << callee_id << ", " << caller_id << ","
+                << total_garbage << "," << minimum << "," << maximum << ","
+                << simple_number << "," << glist_str
+                << endl;
     }
     unsigned int final_time = Exec.NowUp();
     cout << "Done at time " << Exec.NowUp() << endl;
