@@ -361,23 +361,35 @@ unsigned int read_trace_file( FILE *f,
                     }
                     // Check to see that the top_N_methods(2) result matches
                     // what we expect from the ET event record:
-                    MethodId_t callee_id = cpair.first->getId();
-                    MethodId_t caller_id = cpair.second->getId();
-                    if (callee_id != method_id) {
-                        cerr << "Mismatch ET methId[ " << method_id << " ]  != "
-                             << " topId[ " << callee_id << "]" << endl;
-                        // If mismatch, then simply ????
-                        assert(false);
-                    }
-                    // Save in simple count map
-                    auto simpit = methcount_map.find(cpair);
-                    if (simpit != methcount_map.end()) {
-                        methcount_map[cpair]++;
+                    Method *callee_ptr = cpair.first;
+                    Method *caller_ptr = cpair.second;
+                    MethodId_t callee_id = 0;
+                    MethodId_t caller_id = 0;
+                    if (callee_ptr || caller_ptr ) {
+                        if (callee_ptr) {
+                            callee_id = callee_ptr->getId();
+                        }
+                        if (caller_ptr) {
+                            caller_id = caller_ptr->getId();
+                        }
+                        if (callee_id != method_id) {
+                            cerr << "Mismatch ET methId[ " << method_id << " ]  != "
+                                 << " topId[ " << callee_id << "]" << endl;
+                            // If mismatch, then simply ????
+                            assert(false);
+                        }
+                        // Save in simple count map
+                        auto simpit = methcount_map.find(cpair);
+                        if (simpit != methcount_map.end()) {
+                            methcount_map[cpair]++;
+                        } else {
+                            methcount_map[cpair] = 1;
+                        }
+                        dataout << "E," << cpair.first << "," << cpair.second << endl;
                     } else {
-                        methcount_map[cpair] = 1;
+                        // TODO TODO: Log an ERROR/WARNING TODO
                     }
                     Exec.Return(method, thread_id);
-                    dataout << "E," << cpair.first << "," << cpair.second << endl;
                     // Pop off the garbage stack and save in map
                     auto iter = tid2gstack.find(thread_id);
                     if (iter != tid2gstack.end()) {
@@ -476,10 +488,21 @@ int main(int argc, char* argv[])
         // output the record:
         //   callee_id, caller_id, total_garbage, minimum, maximum, number_times
         ContextPair cpair = iter->first;
+        // Deconstruct the pair
         Method *mptr_callee = cpair.first;
-        MethodId_t callee_id = mptr_callee->getId();
         Method *mptr_caller = cpair.second;
-        MethodId_t caller_id = mptr_caller->getId();
+        if (!mptr_callee && !mptr_caller) {
+            continue;
+        }
+        // Else one of these is non-null.
+        MethodId_t callee_id = 0;
+        if (mptr_callee) {
+            callee_id = mptr_callee->getId();
+        }
+        MethodId_t caller_id = 0;
+        if (mptr_caller) {
+            caller_id = mptr_caller->getId();
+        }
         FunctionRec_t rec = iter->second;
         unsigned int total_garbage = rec.get_total_garbage();
         unsigned int minimum = rec.get_minimum();
