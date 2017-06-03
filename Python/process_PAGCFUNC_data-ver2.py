@@ -1,5 +1,5 @@
 from __future__ import division
-# process_PAGCFUNC_data.py 
+# process_PAGCFUNC_data-ver2.py 
 #
 import argparse
 import os
@@ -27,8 +27,8 @@ import time
 pp = pprint.PrettyPrinter( indent = 4 )
 
 def setup_logger( targetdir = ".",
-                  filename = "process_PAGCFUNC_data.log",
-                  logger_name = 'process_PAGCFUNC_data',
+                  filename = "process_PAGCFUNC_data-ver2.log",
+                  logger_name = 'process_PAGCFUNC_data-ver2',
                   debugflag = 0 ):
     # Set up main logger
     logger = logging.getLogger( logger_name )
@@ -222,6 +222,7 @@ def solve_subset_sum_naive_ver2( data = [],
 def solve_subset_sum_naive( data = [],
                             target = None,
                             epsilon = 0 ):
+    # TODO: Instead of a single method Id, we now have a context pair (callee, caller)
     # Indices for accessing the tuple
     GARBAGE = 1
     # Print out problem state:
@@ -292,11 +293,8 @@ def solve_subset_sum_naive( data = [],
 def get_data( sourcefile = None,
               data = [] ):
     # The CSV file source header looks like this:
-    #   "methodId","total_garbage","minimum","maximum","number_times"
-    # TODO: HERE TODO
-    # I have NO design possibilities yet. THat's why it's a
+    #   "callee_id","caller_id","total_garbage","minimum","maximum","number_times","garbage_list"
     # TODO. :)
-    # OPTION 1:
     with open(sourcefile, "rb") as fptr:
         count = 0
         zero_garbage_set = set()
@@ -306,24 +304,24 @@ def get_data( sourcefile = None,
                 continue
             line = line.rstrip()
             rec = line.split(",")
-            total_garbage = int(rec[1])
-            method_id = int(rec[0])
+            callee_id = int(rec[0])
+            caller_id = int(rec[1])
+            total_garbage = int(rec[2])
             if total_garbage == 0:
                 zero_garbage_set.add( method_id )
                 continue
-            minimum = int(rec[2])
-            maximum = int(rec[3])
-            number_times = int(rec[4])
-            glist = rec[5]
-            data.append( (method_id, total_garbage, number_times, minimum, maximum, glist) )
+            minimum = int(rec[3])
+            maximum = int(rec[4])
+            number_times = int(rec[6])
+            glist = rec[7]
+            data.append( (callee_id, caller_id, total_garbage, number_times, minimum, maximum, glist) )
             # DEBUG ONLY:
             # sys.stdout.write(str(rec) + "\n")
             # count += 1
             # if count >= 10000:
             #     break
             # END DEBUG ONLY.
-    sys.stdout.write("DEBUG-done: TODO\n")
-    # DEBUG TODO pp.pprint(funcnames)
+        # sys.stdout.write("DEBUG-done: TODO\n")
 
 def output_to_csv( soln = [],
                    selectfp = None ):
@@ -359,16 +357,17 @@ def main_process( benchmark = None,
     funcnames = {}
     read_names_file( names_filename = names_filename,
                      funcnames = funcnames )
-    output_dir = "/data/rveroy/src/trace_drop/PAGCFUNC-ANALYSIS-1/" # Expecting the CSV input file in the following format:
+    output_dir = "/data/rveroy/src/trace_drop/PAGCFUNC-ANALYSIS-2/" # Expecting the CSV input file in the following format:
     sourcefile = "./%s-PAGC-FUNC.csv" % benchmark
     print "================================================================================"
     data = []
     get_data( sourcefile = sourcefile,
               data = data )
     data = sorted( data,
-                   key = itemgetter(1),
+                   key = itemgetter(2), # Sort on garbage total
                    reverse = True )
     # DEBUG: pp.pprint(data[:15])
+    # TODO HERE 3 June 2017 TODO TODO
     result = solve_subset_sum_naive( data = data,
                                      target = target,
                                      epsilon = epsilon )
@@ -421,7 +420,7 @@ def main_process( benchmark = None,
         print "NO OVER SOLUTION."
         pp.pprint(over_soln)
     print "================================================================================"
-    print "process_PAGCFUNC_data.py - DONE."
+    print "process_PAGCFUNC_data-ver2.py - DONE."
     print "================================================================================"
     exit(100)
 
@@ -519,7 +518,7 @@ def create_parser():
     parser.add_argument( "--logfile",
                          help = "Specify logfile name.",
                          action = "store" )
-    parser.set_defaults( logfile = "process_PAGCFUNC_data.log",
+    parser.set_defaults( logfile = "process_PAGCFUNC_data-ver2.log",
                          debugflag = False,
                          benchmark = None,
                          target = None,
