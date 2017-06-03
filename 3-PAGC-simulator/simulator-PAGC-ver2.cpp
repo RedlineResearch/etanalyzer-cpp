@@ -385,7 +385,7 @@ unsigned int read_trace_file( FILE *f,
                         } else {
                             methcount_map[cpair] = 1;
                         }
-                        dataout << "E," << cpair.first << "," << cpair.second << endl;
+                        dataout << "E," << callee_id << "," << caller_id << endl;
                     } else {
                         // TODO TODO: Log an ERROR/WARNING TODO
                     }
