@@ -335,11 +335,11 @@ def output_to_csv( soln = [],
     #   => assume called with 'with open as'
     # - solution list
     csvwriter = csv.writer( selectfp, csv.QUOTE_NONNUMERIC )
-    header = [ "method_id", "number", "garbage", "garbage_list", ]
+    header = [ "callee_id", "caller_id", "number", "garbage", "garbage_list", ]
     csvwriter.writerow( header )
     # TODO: Add GARBAGE LIST at index 3
     for rec in soln:
-        row = [  rec[METHID], rec[NUMBER], rec[GARBAGE], rec[GLIST] ]
+        row = [  rec[CALLEE_ID], rec[CALLER_ID], rec[NUMBER], rec[GARBAGE], rec[GLIST] ]
         csvwriter.writerow( row )
 
 def main_process( benchmark = None,
@@ -379,7 +379,7 @@ def main_process( benchmark = None,
         total = 0
         for tup in soln:
             total += tup[GARBAGE]
-            print "m[ %d ] = %d : %s" % (tup[METHID], tup[GARBAGE], tup[GLIST])
+            print "m[ %d, %d ] = %d : %s" % (tup[CALLEE_ID], tup[CALLER_ID], tup[GARBAGE], tup[GLIST])
         print "Solution total = %d" % total
         print "Target         = %d" % target
         selectfile = "./%s-PAGC-FUNC-select-1.csv" % benchmark
@@ -390,9 +390,6 @@ def main_process( benchmark = None,
         print "NO SOLUTION."
         pp.pprint(soln)
     print "================================================================================"
-    # Indices for accessing the tuple
-    METHID = 0
-    GARBAGE = 1
     print "OVER Solution:"
     if len(over_soln) > 0:
         best = over_soln.pop(0)
@@ -403,7 +400,7 @@ def main_process( benchmark = None,
                 minimum = newmin
                 best = cand
         for tup in best:
-            print "m[ %d ] = %d" % (tup[METHID], tup[GARBAGE])
+            print "m[ %d ] = %d" % (tup[CALLEE_ID], tup[CALLER_ID], tup[GARBAGE])
         print "Solution total = %d" % minimum
         print "Target         = %d" % target
     else:
