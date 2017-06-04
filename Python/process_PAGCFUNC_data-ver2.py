@@ -26,6 +26,15 @@ import time
 
 pp = pprint.PrettyPrinter( indent = 4 )
 
+# GLOBALS
+CALLEE_ID = 0
+CALLER_ID = 1
+GARBAGE = 2
+MINIMUM = 3
+MAXIMUM = 4
+NUMBER = 5
+GLIST = 6
+
 def setup_logger( targetdir = ".",
                   filename = "process_PAGCFUNC_data-ver2.log",
                   logger_name = 'process_PAGCFUNC_data-ver2',
@@ -170,8 +179,6 @@ def solve_subset_sum_poly_approx( data = [] ):
 def solve_subset_sum_naive_ver2( data = [],
                                  target = None,
                                  epsilon = 0 ):
-    # Indices for accessing the tuple
-    GARBAGE = 1
     # Print out problem state:
     print "Target: %d" % target
     print "Epsilon: %d" % epsilon
@@ -223,8 +230,6 @@ def solve_subset_sum_naive( data = [],
                             target = None,
                             epsilon = 0 ):
     # TODO: Instead of a single method Id, we now have a context pair (callee, caller)
-    # Indices for accessing the tuple
-    GARBAGE = 1
     # Print out problem state:
     print "Target: %d" % target
     print "Epsilon: %d" % epsilon
@@ -332,14 +337,6 @@ def output_to_csv( soln = [],
     csvwriter = csv.writer( selectfp, csv.QUOTE_NONNUMERIC )
     header = [ "method_id", "number", "garbage", "garbage_list", ]
     csvwriter.writerow( header )
-    # Ok, while I admit this is ugly...well, fine it's ugly.
-    # I should fix it. And future me probably will. TODO
-    METHID = 0
-    GARBAGE = 1
-    # MINIMUM = 2
-    # MAXIMUM = 3
-    NUMBER = 4
-    GLIST = 5
     # TODO: Add GARBAGE LIST at index 3
     for rec in soln:
         row = [  rec[METHID], rec[NUMBER], rec[GARBAGE], rec[GLIST] ]
@@ -376,13 +373,6 @@ def main_process( benchmark = None,
     soln = result["solution"]
     over_soln = result["over_solution"]
     print "================================================================================"
-    # Indices for accessing the tuple
-    METHID = 0
-    GARBAGE = 1
-    # MINIMUM = 2
-    # MAXIMUM = 3
-    NUMBER = 4
-    GLIST = 5
     print "STRICT Solution:"
     if len(soln) > 0:
         print "Solution EXISTS:"
