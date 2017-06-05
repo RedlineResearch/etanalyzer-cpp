@@ -392,15 +392,15 @@ unsigned int read_trace_file( FILE *f,
                     Exec.Return(method, thread_id);
                     // Pop off the garbage stack and save in map
                     auto iter = tid2gstack.find(thread_id);
+                    unsigned int stack_garbage = 0;
                     if (iter != tid2gstack.end()) {
-                        unsigned int stack_garbage = tid2gstack[thread_id].back();
+                        stack_garbage = tid2gstack[thread_id].back();
                         tid2gstack[thread_id].pop_back();
-                        auto iter = fnrec_map.find(cpair);
-                        if (iter == fnrec_map.end()) {
+                        auto iter2 = fnrec_map.find(cpair);
+                        if (iter2 == fnrec_map.end()) {
                             FunctionRec_t tmp;
                             fnrec_map[cpair] = tmp;
                         }
-                        fnrec_map[cpair].add_garbage( stack_garbage );
                     } else {
                         cerr << "Method EXIT: Empty garbage stack for thread id"
                              << thread_id << "." << endl;
@@ -409,7 +409,10 @@ unsigned int read_trace_file( FILE *f,
                         //    TODO TODO TODO
                         //    Add some more debugging code if this happens.
                     }
-                    tid2gstack[thread_id].push_back(0);
+                    // TODO TODO TODO:
+                    // This seems wrong: TODO
+                    // tid2gstack[thread_id].push_back(0);
+                    fnrec_map[cpair].add_garbage( stack_garbage );
                 }
                 break;
 
@@ -508,6 +511,8 @@ int main(int argc, char* argv[])
         unsigned int minimum = rec.get_minimum();
         unsigned int maximum = rec.get_maximum();
         unsigned int number = rec.get_number_methods();
+        // TODO: So there's something wrong with the methcount_map maybe? TODO
+        // TODO TODO TODO TODO TODO TODO
         // Check in simple count map
         unsigned int simple_number;
         auto simpit = methcount_map.find(cpair);
