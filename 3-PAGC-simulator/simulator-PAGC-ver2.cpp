@@ -301,10 +301,14 @@ unsigned int read_trace_file( FILE *f,
                     //    fnrec_map when the function exits.
                     auto iter = tid2gstack.find(thread_id);
                     if (iter != tid2gstack.end()) {
-                        unsigned int cur = tid2gstack[thread_id].back();
-                        tid2gstack[thread_id].pop_back();
-                        cur += my_size;
-                        tid2gstack[thread_id].push_back( cur );
+                        if (tid2gstack[thread_id].size() > 0) {
+                            unsigned int cur = tid2gstack[thread_id].back();
+                            tid2gstack[thread_id].pop_back();
+                            cur += my_size;
+                            tid2gstack[thread_id].push_back( cur );
+                        } else {
+                            tid2gstack[thread_id].push_back( my_size );
+                        }
                     } else {
                         std::vector< unsigned int > tmp(1, my_size);
                         tid2gstack[thread_id] = tmp;
