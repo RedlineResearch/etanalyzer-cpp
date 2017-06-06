@@ -309,16 +309,16 @@ def get_data( sourcefile = None,
                 continue
             line = line.rstrip()
             rec = line.split(",")
-            callee_id = int(rec[0])
-            caller_id = int(rec[1])
-            total_garbage = int(rec[2])
+            callee_id = int(rec[CALLEE_ID])
+            caller_id = int(rec[CALLER_ID])
+            total_garbage = int(rec[GARBAGE])
             if total_garbage == 0:
-                zero_garbage_set.add( method_id )
+                zero_garbage_set.add( (callee_id, caller_id) )
                 continue
-            minimum = int(rec[3])
-            maximum = int(rec[4])
-            number_times = int(rec[6])
-            glist = rec[7]
+            minimum = int(rec[MINIMUM])
+            maximum = int(rec[MAXIMUM])
+            number_times = int(rec[NUMBER])
+            glist = rec[GLIST]
             data.append( (callee_id, caller_id, total_garbage, number_times, minimum, maximum, glist) )
             # DEBUG ONLY:
             # sys.stdout.write(str(rec) + "\n")
