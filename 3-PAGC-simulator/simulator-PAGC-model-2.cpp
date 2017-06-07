@@ -522,6 +522,8 @@ int main(int argc, char* argv[])
                                                   outfile,
                                                   ghist,
                                                   timevec );
+    // TODO: This call should go BEFORE read_trace_file, but what should we do
+    // for the records? Populate instead of assuming they exist. TODO
     process_garbage_lists( cpairmap );
 
     debug_method_map( cpairmap );
