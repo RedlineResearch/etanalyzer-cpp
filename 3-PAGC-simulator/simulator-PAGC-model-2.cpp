@@ -29,6 +29,34 @@ class Object;
 class CCNode;
 
 // ----------------------------------------------------------------------
+// Utility functions
+
+inline double mean( std::vector< unsigned int > data )
+{
+    return ( std::accumulate( data.begin(),
+                              data.end(),
+                              0.0 )
+             / data.size() );
+}
+
+inline double stdev( std::vector< unsigned int > data,
+                     double mymean )
+{
+    double sqsum = std::inner_product( data.begin(),
+                                       data.end(),
+                                       data.begin(),
+                                       0.0 );
+    return std::sqrt( (sqsum / data.size())
+                      - (mymean * mymean) );
+}
+
+inline double stdev( std::vector< unsigned int > data )
+{
+    double mymean = mean( data );
+    return stdev( data, mymean );
+}
+
+// ----------------------------------------------------------------------
 // Garbage pair
 //    first is actual
 //    second is estimate
@@ -156,7 +184,6 @@ unsigned int process_garbage_lists( CPair2GRec_map_t &mycpairmap )
                 size_t cpos = glist.find(":");
                 unsigned int garbage = std::stoi(glist.substr(0, cpos));
                 unsigned int number = std::stoi(glist.substr(cpos + 1, pos));
-                assert( garbage > 0 );
                 assert( number > 0 );
                 // Insert into vector
                 gveclist.insert( gveclist.end(), number, garbage );
@@ -166,6 +193,10 @@ unsigned int process_garbage_lists( CPair2GRec_map_t &mycpairmap )
             // TODO: Find mean and std deviation.
             // rec.mean = 0.0;
             // rec.stdev = 0.0;
+            double curmean = mean( gveclist );
+            double curstdev = stdev( gveclist, curmean );
+            rec.mean = curmean;
+            rec.stdev = curstdev;
         }
     }
     return count;
@@ -479,7 +510,6 @@ int main(int argc, char* argv[])
     // Read in the method map
     unsigned int result_count = populate_method_map( source_csv,
                                                      cpairmap );
-    debug_method_map( cpairmap );
     cout << "populate count: " << result_count << endl;
 
     cout << "Start running PAGC simulator on trace..." << endl;
@@ -492,6 +522,9 @@ int main(int argc, char* argv[])
                                                   outfile,
                                                   ghist,
                                                   timevec );
+    process_garbage_lists( cpairmap );
+
+    debug_method_map( cpairmap );
     string ghist_out_filename( basename + "-PAGC-MODEL-1-timeseries.csv" );
     output_garbage_history( ghist_out_filename,
                             ghist,
