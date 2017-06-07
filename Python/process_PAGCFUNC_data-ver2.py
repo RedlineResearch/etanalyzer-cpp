@@ -384,6 +384,10 @@ def main_process( benchmark = None,
         print "Target         = %d" % target
         selectfile = "./%s-PAGC-FUNC-select-1.csv" % benchmark
         with open( selectfile, "wb" ) as selectfp:
+            # TODO: Calculate standard mean
+            #   - TODO: Are there any other means that we need to do? Or want to do?
+            # Create new solution data structure? Or can we just modify in place?
+            # Or does it not even matter if we can modify in place?
             output_to_csv( soln = soln,
                            selectfp = selectfp )
     else:
