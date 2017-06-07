@@ -53,6 +53,7 @@ typedef struct _GarbageRec_t {
     double mean;
     double stdev; 
     unsigned int total_garbage;
+    string garbage_list;
 } GarbageRec_t;
 
 // Function id to name map
@@ -126,6 +127,52 @@ set<unsigned int> root_set;
 // ----------------------------------------------------------------------
 //   Read and process trace events
 
+//-------------------------------------------------------------------------------
+//
+unsigned int process_garbage_lists( CPair2GRec_map_t &mycpairmap )
+{
+    int count = 0;
+    for ( auto iter = mycpairmap.begin();
+          iter != mycpairmap.end();
+          iter++ ) {
+        MethodId_t caller_id = iter->first;
+        Method2GRec_map_t &m2g = iter->second;
+        for ( auto it2 = m2g.begin();
+              it2 != m2g.end();
+              it2++ ) {
+            std::vector< unsigned int > gveclist;
+            MethodId_t callee_id = it2->first;
+            GarbageRec_t &rec = it2->second;
+            string glist = rec.garbage_list;
+            size_t pos = 0;
+            string token;
+            string s;
+            // The first level separator is a semicolon
+            pos = glist.find(";");
+            // Assert that the garbage list isn't empty.
+            assert( pos != string::npos );
+            while (pos != string::npos) {
+                // Then split on a colon
+                size_t cpos = glist.find(":");
+                unsigned int garbage = std::stoi(glist.substr(0, cpos));
+                unsigned int number = std::stoi(glist.substr(cpos + 1, pos));
+                assert( garbage > 0 );
+                assert( number > 0 );
+                // Insert into vector
+                gveclist.insert( gveclist.end(), number, garbage );
+                glist.erase(0, pos + 1);
+                pos = glist.find(";");
+            }
+            // TODO: Find mean and std deviation.
+            // rec.mean = 0.0;
+            // rec.stdev = 0.0;
+        }
+    }
+    return count;
+}
+
+//-------------------------------------------------------------------------------
+//
 unsigned int populate_method_map( string &source_csv,
                                   CPair2GRec_map_t &mycpairmap )
 {
@@ -176,7 +223,7 @@ unsigned int populate_method_map( string &source_csv,
         line.erase(0, pos + 1);
         //------------------------------------------------------------
         // Get the garbage list
-        string garbage_list = line;
+        rec.garbage_list = line;
         //------------------------------------------------------------
         // Add to the call pair map
         // First find if caller is in the
@@ -215,31 +262,6 @@ unsigned int read_trace_file( FILE *f,
                               ofstream &dataout,
                               GarbageHistory_t &ghist,
                               std::vector< VTime_t > &timevec )
-// TODO: CHOOSE A DESIGN:
-//  Option 1: We are simply processing the file here for further analysis later.
-//            So we don't need to choose the functions here.
-//            + This will most likely save time in processing as we don't
-//              repeatedly need all object allocations.
-//            - Adds to development time because we need to do the post-processing
-//              analysis.
-//  Option 2: We do the processing here and we have the functions that we are
-//            interested in.
-//            + No need for post analysis.
-//            - Needs a run script to go through the functions
-//            - A lot of repeated work in reading in events we don't need.
-//              => This repeated work may be well worth the possible additional dev time.
-//
-//  Save the following events as processed from the original ET trace:
-//
-//  F <func name ID> cumulative total exits so far
-//  G <garbage cumulative size>
-//  A <allocation time == allocation cumulative size>
-//
-//  On the analysis, we only take a relatively small subset to try to do a regression analysis
-//  (or some other predictive analysis).
-//  EXPERIMENT 1: We choose the functions a priori.
-//  EXPERIMENT 2: We search for the best functions. We limit the number of functions.
-//     Sub EXPermient 2b: We could selectively go determine how many functions might help.
 {
     Tokenizer tokenizer(f);
 
@@ -359,10 +381,12 @@ unsigned int read_trace_file( FILE *f,
                             MethodId_t caller_id = top2meth[1]->getId();
                             auto it_caller = cpairmap.find(caller_id);
                             if (it_caller != cpairmap.end()) {
+                                // Found the caller. Look for callee:
                                 Method2GRec_map_t m2g = it_caller->second;
                                 if (caller_id > 0) {
                                     auto it_callee = m2g.find(callee_id);
                                     if (it_callee != m2g.end()) {
+                                        // Found the callee too.
                                         GarbageRec_t rec = it_callee->second;
                                         // Save the actual and estimated garbage only if
                                         // we have a new estimate.
@@ -457,7 +481,6 @@ int main(int argc, char* argv[])
                                                      cpairmap );
     debug_method_map( cpairmap );
     cout << "populate count: " << result_count << endl;
-
 
     cout << "Start running PAGC simulator on trace..." << endl;
     FILE *f = fdopen(0, "r");
