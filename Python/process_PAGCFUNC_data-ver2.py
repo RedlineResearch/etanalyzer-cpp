@@ -34,6 +34,9 @@ MINIMUM = 3
 MAXIMUM = 4
 NUMBER = 5
 GLIST = 6
+MEAN_STD = 7
+STDEV_STD = 8
+
 
 def setup_logger( targetdir = ".",
                   filename = "process_PAGCFUNC_data-ver2.log",
@@ -175,6 +178,26 @@ def solve_subset_sum_poly_approx( data = [] ):
         #     if y + cs/N < z <= s:
         #         set y = z
         #         add z to S 
+
+def update_mean_std( soln = [] ):
+    # Returns an updated copy of the soln list
+    result = []
+    for rec in soln:
+        mylist = []
+        glist = rec[GLIST].split(";")
+        print "X: %s -> %s" % (str(rec[GLIST]), str(glist))
+        for x in glist:
+            tmp = x.split(":")
+            try:
+                garbage = float(int(tmp[0]))
+                mylist.append( garbage )
+            except:
+                pass
+        mymean = mean( mylist )
+        mystdev = stdev( mylist ) if len( mylist ) > 1 \
+            else 0.0
+        result.append( rec + (mymean, mystdev) )
+    return result
 
 def solve_subset_sum_naive_ver2( data = [],
                                  target = None,
@@ -335,11 +358,12 @@ def output_to_csv( soln = [],
     #   => assume called with 'with open as'
     # - solution list
     csvwriter = csv.writer( selectfp, csv.QUOTE_NONNUMERIC )
-    header = [ "callee_id", "caller_id", "number", "garbage", "garbage_list", ]
+    header = [ "callee_id", "caller_id", "number", "garbage", "garbage_list", "mean_std", "stdev_std", ]
     csvwriter.writerow( header )
     # TODO: Add GARBAGE LIST at index 3
     for rec in soln:
-        row = [  rec[CALLEE_ID], rec[CALLER_ID], rec[NUMBER], rec[GARBAGE], rec[GLIST] ]
+        row = [ rec[CALLEE_ID], rec[CALLER_ID], rec[NUMBER], rec[GARBAGE], rec[GLIST],
+                rec[MEAN_STD], rec[STDEV_STD], ]
         csvwriter.writerow( row )
 
 def main_process( benchmark = None,
@@ -364,16 +388,15 @@ def main_process( benchmark = None,
                    key = itemgetter(2), # Sort on garbage total
                    reverse = True )
     # DEBUG: pp.pprint(data[:15])
-    # TODO HERE 3 June 2017 TODO TODO
     result = solve_subset_sum_naive( data = data,
                                      target = target,
                                      epsilon = epsilon )
-    # Choose the appropriate mean here? Or in the previous
-    # simulator?
     soln = result["solution"]
     over_soln = result["over_solution"]
     print "================================================================================"
     print "STRICT Solution:"
+    # Update with standard mean
+    soln = update_mean_std( soln )
     if len(soln) > 0:
         print "Solution EXISTS:"
         total = 0
