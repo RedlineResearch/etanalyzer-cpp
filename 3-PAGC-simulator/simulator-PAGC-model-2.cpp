@@ -254,7 +254,19 @@ unsigned int populate_method_map( string &source_csv,
         line.erase(0, pos + 1);
         //------------------------------------------------------------
         // Get the garbage list
-        rec.garbage_list = line;
+        pos = line.find(",");
+        assert( pos != string::npos );
+        rec.garbage_list = line.substr(0, pos);
+        line.erase(0, pos + 1);
+        //------------------------------------------------------------
+        // Get the mean
+        pos = line.find(",");
+        assert( pos != string::npos );
+        rec.mean = std::stof(line.substr(0, pos));
+        line.erase(0, pos + 1);
+        //------------------------------------------------------------
+        // Get the standard deviation
+        rec.mean = std::stof(line);
         //------------------------------------------------------------
         // Add to the call pair map
         // First find if caller is in the
