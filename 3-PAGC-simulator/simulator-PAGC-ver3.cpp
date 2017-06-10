@@ -124,6 +124,31 @@ struct FunctionRec_t {
         std::vector< unsigned int > garbage_vector;
 };
 
+struct CNodeTree_t {
+    public:
+        CNodeTree_t( CNodeTree_t )
+            : subtree()
+            , parent( myparent )
+        {
+            // How to initialize a reference?
+        };
+
+    private:
+        CNodeTree_t subtree; //  TODO: Maybe a reconst pointer too?
+        CNodeTree_t * const parent;
+        // How to specify that the pointer is const?
+        // My guess is either before or after the *
+
+struct CNode_t {
+    public:
+        CNode_t()
+            : subtree()
+        {
+        };
+
+    private:
+};
+
 typedef std::map< ContextPair, FunctionRec_t > FunctionRec_map_t;
 
 // Simple method counts independent of whether we have thread information
