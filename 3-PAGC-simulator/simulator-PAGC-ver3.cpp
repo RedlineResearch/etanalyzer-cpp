@@ -124,29 +124,31 @@ struct FunctionRec_t {
         std::vector< unsigned int > garbage_vector;
 };
 
-struct CNodeTree_t {
+struct CNode_t {
     public:
-        CNodeTree_t( CNodeTree_t *myparent  )
-            : subtree()
+        CNode_t( MethodId_t mymethid,
+                 CNode_t *myparent  )
+            : method_id( mymethid )
             , parent( myparent )
         {
             // How to initialize a reference?
         };
 
-    private:
-        CNodeTree_t *subtree; //  TODO: Maybe a reconst pointer too?
-        CNodeTree_t * const parent;
-        // How to specify that the pointer is const?
-        // My guess is either before or after the *
-};
-
-struct CNode_t {
-    public:
-        CNode_t()
+        void add( MethodId_t new_id, CNode_t * new_node )
         {
+            // Check to see if in subtree
+            auto iter = subtree.find( new_id );
+            if (iter != subtree.end()) {
+                // In there already
+            } else {
+                // Not found. Add it.
+            }
         };
 
     private:
+        MethodId_t method_id;
+        std::map< MethodId_t, CNode_t * > subtree;
+        CNode_t * const parent; // a const pointer to a CNode_t
 };
 
 typedef std::map< ContextPair, FunctionRec_t > FunctionRec_map_t;
