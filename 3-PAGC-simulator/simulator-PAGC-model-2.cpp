@@ -156,7 +156,7 @@ set<unsigned int> root_set;
 //   Read and process trace events
 
 //-------------------------------------------------------------------------------
-//
+// TODO: Not needed? TODO
 unsigned int process_garbage_lists( CPair2GRec_map_t &mycpairmap )
 {
     int count = 0;
@@ -190,13 +190,11 @@ unsigned int process_garbage_lists( CPair2GRec_map_t &mycpairmap )
                 glist.erase(0, pos + 1);
                 pos = glist.find(";");
             }
-            // TODO: Find mean and std deviation.
-            // rec.mean = 0.0;
-            // rec.stdev = 0.0;
-            double curmean = mean( gveclist );
-            double curstdev = stdev( gveclist, curmean );
-            rec.mean = curmean;
-            rec.stdev = curstdev;
+            // TODO -- NOT NEEDED?
+            // TODO: double curmean = mean( gveclist );
+            // TODO: double curstdev = stdev( gveclist, curmean );
+            // TODO: rec.mean = curmean;
+            // TODO: rec.stdev = curstdev;
         }
     }
     return count;
@@ -536,7 +534,7 @@ int main(int argc, char* argv[])
                                                   timevec );
     // TODO: This call should go BEFORE read_trace_file, but what should we do
     // for the records? Populate instead of assuming they exist. TODO
-    process_garbage_lists( cpairmap );
+    // TODO: process_garbage_lists( cpairmap );
 
     debug_method_map( cpairmap );
     string ghist_out_filename( basename + "-PAGC-MODEL-1-timeseries.csv" );

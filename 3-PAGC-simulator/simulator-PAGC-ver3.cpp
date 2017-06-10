@@ -126,7 +126,7 @@ struct FunctionRec_t {
 
 struct CNodeTree_t {
     public:
-        CNodeTree_t( CNodeTree_t )
+        CNodeTree_t( CNodeTree_t *myparent  )
             : subtree()
             , parent( myparent )
         {
@@ -134,15 +134,15 @@ struct CNodeTree_t {
         };
 
     private:
-        CNodeTree_t subtree; //  TODO: Maybe a reconst pointer too?
+        CNodeTree_t *subtree; //  TODO: Maybe a reconst pointer too?
         CNodeTree_t * const parent;
         // How to specify that the pointer is const?
         // My guess is either before or after the *
+};
 
 struct CNode_t {
     public:
         CNode_t()
-            : subtree()
         {
         };
 
