@@ -144,7 +144,12 @@ struct CNode_t {
             // How to initialize a reference?
         };
 
-        void add( MethodId_t new_id, CNode_t * new_node )
+        inline bool is_root() const
+        {
+            return (&(this->parent) == this);
+        }
+
+        void add( MethodId_t new_id )
         {
             // Check to see if in subtree
             auto iter = subtree.find( new_id );
@@ -153,7 +158,9 @@ struct CNode_t {
                 // TODO: Is there anything here that needs to be done?
                 //       If not, remove this branch. TODO
             } else {
-                // Not found. Add it.
+                // Not found. Add it:
+                // Allocate new CNode_t
+                CNode_t *new_node = new CNode_t( new_id, *this );
                 this->subtree[new_id] = new_node;
             }
         };
