@@ -127,9 +127,19 @@ struct FunctionRec_t {
 struct CNode_t {
     public:
         CNode_t( MethodId_t mymethid,
-                 CNode_t *myparent  )
+                 CNode_t myparent  )
             : method_id( mymethid )
             , parent( myparent )
+            , frec()
+        {
+            // How to initialize a reference?
+        };
+
+        // Use this constructor only for the root node
+        CNode_t( MethodId_t mymethid )
+            : method_id( mymethid )
+            , parent( *this )
+            , frec()
         {
             // How to initialize a reference?
         };
@@ -140,18 +150,28 @@ struct CNode_t {
             auto iter = subtree.find( new_id );
             if (iter != subtree.end()) {
                 // In there already
+                // TODO: Is there anything here that needs to be done?
+                //       If not, remove this branch. TODO
             } else {
                 // Not found. Add it.
+                this->subtree[new_id] = new_node;
             }
         };
 
+        CNode_t * find_path( MethodDeque &path )
+        {
+            return this; // TODO TODO - this is just so that it compiles
+        };
+
     private:
+        FunctionRec_t frec;
+        CNode_t &parent;
         MethodId_t method_id;
         std::map< MethodId_t, CNode_t * > subtree;
-        CNode_t * const parent; // a const pointer to a CNode_t
 };
 
-typedef std::map< ContextPair, FunctionRec_t > FunctionRec_map_t;
+// A node id is simply an unsigned int
+typedef unsigned int NodeId_t;
 
 // Simple method counts independent of whether we have thread information
 // or not
@@ -192,7 +212,7 @@ ExecState Exec(cckind);
 //  cpair[0] = top/callee
 //  cpair[1] = top-1/caller
 // NOTE: top-1/caller can be NULL
-FunctionRec_map_t fnrec_map;
+CNode_t cnode_root( 0 );
 
 // -- Turn on debugging
 bool debug = false;
@@ -201,6 +221,12 @@ bool debug = false;
 //   Analysis
 set<unsigned int> root_set;
 
+
+CNode_t * find_cnode( MethodDeque cpath )
+{
+
+    return &cnode_root;
+}
 
 // TODO:
 // 1. Keep track of lifetime garbage.
@@ -312,7 +338,7 @@ unsigned int read_trace_file( FILE *f,
                     unsigned int my_size = objmap[object_id];
                     total_garbage += my_size;
                     // 2. Save in accumulator. The sum will be saved in 
-                    //    fnrec_map when the function exits.
+                    //    CNode_t tree (in cnode_root) when the function exits.
                     auto iter = tid2gstack.find(thread_id);
                     if (iter != tid2gstack.end()) {
                         if (tid2gstack[thread_id].size() > 0) {
@@ -417,11 +443,11 @@ unsigned int read_trace_file( FILE *f,
                     if (iter != tid2gstack.end()) {
                         stack_garbage = tid2gstack[thread_id].back();
                         tid2gstack[thread_id].pop_back();
-                        auto iter2 = fnrec_map.find(cpair);
-                        if (iter2 == fnrec_map.end()) {
-                            FunctionRec_t tmp;
-                            fnrec_map[cpair] = tmp;
-                        }
+                        // TODO auto iter2 = fnrec_map.find(cpair);
+                        // TODO if (iter2 == fnrec_map.end()) {
+                        // TODO     FunctionRec_t tmp;
+                        // TODO     fnrec_map[cpair] = tmp;
+                        // TODO }
                     } else {
                         cerr << "Method EXIT: Empty garbage stack for thread id"
                              << thread_id << "." << endl;
@@ -433,7 +459,7 @@ unsigned int read_trace_file( FILE *f,
                     // TODO TODO TODO:
                     // This seems wrong: TODO
                     // tid2gstack[thread_id].push_back(0);
-                    fnrec_map[cpair].add_garbage( stack_garbage );
+                    // TODO fnrec_map[cpair].add_garbage( stack_garbage );
                 }
                 break;
 
@@ -506,6 +532,7 @@ int main(int argc, char* argv[])
     //       is, the lowest method is at the top of the deque at [0]
     funcout << "\"callee_id\",\"caller_id\",\"total_garbage\",\"minimum\",\"maximum\",\"number_times\",\"garbage_list\"" << endl;
     // Output per function record
+    /*
     for ( auto iter = fnrec_map.begin();
           iter != fnrec_map.end();
           iter++ ) {
@@ -552,6 +579,7 @@ int main(int argc, char* argv[])
                 << simple_number << "," << glist_str
                 << endl;
     }
+    */
     unsigned int final_time = Exec.NowUp();
     cout << "Done at time " << Exec.NowUp() << endl;
     return 0;
