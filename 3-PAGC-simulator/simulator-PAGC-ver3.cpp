@@ -478,25 +478,6 @@ unsigned int read_trace_file( FILE *f,
                         // TODO: Should we just punt here?
                         thread = Exec.get_last_thread();
                     }
-                    if (thread) {
-                        MethodDeque path = thread->full_method_stack();
-                        if ((path.size()) > 0) {
-                            CNode_t *cnode = cnode_root.find_path( path );
-                            if (cnode) {
-                                auto simpit = methcount_map.find( cnode );
-                                if (simpit != methcount_map.end()) {
-                                    methcount_map[cnode]++;
-                                } else {
-                                    methcount_map[cnode] = 1;
-                                }
-                                // TODO:
-                                // Do we output the full path?
-                                // dataout << "E," << callee_id << "," << caller_id << endl;
-                                // TODO: Probably I should.
-                            }
-                        }
-                    }
-                    Exec.Return(method, thread_id);
                     // Pop off the garbage stack and save in map
                     auto iter = tid2gstack.find(thread_id);
                     unsigned int stack_garbage = 0;
@@ -516,6 +497,29 @@ unsigned int read_trace_file( FILE *f,
                         //    TODO TODO TODO
                         //    Add some more debugging code if this happens.
                     }
+                    if (thread) {
+                        MethodDeque path = thread->full_method_stack();
+                        if ((path.size()) > 0) {
+                            CNode_t *cnode = cnode_root.find_path( path );
+                            if (cnode) {
+                                auto simpit = methcount_map.find( cnode );
+                                if (simpit != methcount_map.end()) {
+                                    methcount_map[cnode]++;
+                                } else {
+                                    methcount_map[cnode] = 1;
+                                }
+                                // TODO:
+                                // Do we output the full path?
+                                // dataout << "E," << callee_id << "," << caller_id << endl;
+                                // TODO: Probably I should.
+                                //------------------------------------------------------------
+                                // Save the garbage in the function record
+                                // Use stack_garbage
+                                // cnode->add_garbage maybe? TODO TODO
+                            }
+                        }
+                    }
+                    Exec.Return(method, thread_id);
                     // TODO TODO TODO:
                     // This seems wrong: TODO
                     // tid2gstack[thread_id].push_back(0);
