@@ -126,6 +126,7 @@ struct FunctionRec_t {
 
 struct CNode_t {
     public:
+        // Constructors
         CNode_t( MethodId_t mymethid,
                  CNode_t myparent  )
             : method_id( mymethid )
@@ -300,14 +301,6 @@ bool debug = false;
 //   Analysis
 set<unsigned int> root_set;
 
-
-// NOT NEEDED? TODO TODO
-// This functionality is in the CNode_t class now.
-// CNode_t * find_cnode( MethodDeque cpath )
-// {
-// 
-//     return &cnode_root;
-// }
 
 // TODO:
 // 1. Keep track of lifetime garbage.
@@ -490,10 +483,11 @@ unsigned int read_trace_file( FILE *f,
                         // TODO     fnrec_map[cpair] = tmp;
                         // TODO }
                     } else {
+                        // Stack garbage has been set to 0. Leave it at 0.
+                        //    The else clause shouldn't be possible, but it's worth
+                        //    investigating if this happens.
                         cerr << "Method EXIT: Empty garbage stack for thread id"
                              << thread_id << "." << endl;
-                        //    the else clause shouldn't be possible, but it's worth
-                        //    investigating if this happens.
                         //    TODO TODO TODO
                         //    Add some more debugging code if this happens.
                     }
@@ -517,6 +511,18 @@ unsigned int read_trace_file( FILE *f,
                                 // Use stack_garbage
                                 // cnode->add_garbage maybe? TODO TODO
                             }
+                        } else {
+                            // TODO; What to do here? For now, debug the lack
+                            // of path by bailing.
+                            // E <methodid> <receiver> [<exceptionobj>] <threadid>
+                            // 0      1         2             3             3/4
+                            method_id = tokenizer.getInt(1);
+                            unsigned int receiver = tokenizer.getInt(2);
+                            unsigned int exobj = tokenizer.getInt(3);
+                            cerr << "receiver[ " << receiver << " ]  "
+                                 << "exception obj[ " << exobj << " ]  "
+                                 << "thread id[ " << thread_id << " ]" << endl;
+                            assert(false);
                         }
                     }
                     Exec.Return(method, thread_id);
