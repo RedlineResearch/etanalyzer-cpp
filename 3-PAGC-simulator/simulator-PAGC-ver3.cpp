@@ -141,7 +141,9 @@ struct CNode_t {
             , parent( *this )
             , frec()
         {
-            // How to initialize a reference?
+            assert( mymethid == 0 );
+            // Because only the root node should have no parent. And this way,
+            // we assume that all root nodes have method ids of 0.
         };
 
         inline bool is_root() const
@@ -167,7 +169,37 @@ struct CNode_t {
 
         CNode_t * find_path( MethodDeque &path )
         {
-            return this; // TODO TODO - this is just so that it compiles
+            // Design decision: Do we assume that
+            //     path[0] == this->method_id?
+            //     Then, if so, look for path[1] in subtree.
+            //     This seems reasonable. - 6 june 2017 RLV
+            if ( (path.size() == 0) ||
+                 (this->method_id != path[0]->getId()) ) {
+                return NULL;
+            } else if (path.size() == 1) {
+                // So path[0]->getId() == this->method_id,
+                // but there's nothing more to the path
+                return this;
+            } else {
+                // So path[0]->getId() == this->method_id,
+                // AND there's more to the path.
+                // We know there's at least 2 elements in path:
+                MethodId_t new_id = path[1]->getId();;
+                auto iter = subtree.find( new_id );
+                if (iter != subtree.end()) {
+                    // Found it:
+                    auto path_iter = path.begin();
+                    path_iter++; // Go to path[1]
+                    MethodDeque subpath( path_iter, path.end() );
+                    return iter->second->find_path( subpath );
+                } else {
+                    // Not found.
+                    return NULL;
+                }
+            }
+            // Should't reach here:
+            assert(false);
+            return NULL;
         };
 
     private:
