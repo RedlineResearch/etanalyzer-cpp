@@ -202,6 +202,41 @@ struct CNode_t {
             return NULL;
         };
 
+        bool add_path( MethodDeque &path )
+        {
+            // TODO: The top of the path should be at the end, not the
+            // beginning.
+            // We are adding 'path' to the current CNode:
+            if (path.size() == 0) {
+                // Trivial task of add no path:
+                return true;
+            } else {
+                Method method = *(path.back());
+                MethodId_t new_id = method.getId();;
+                auto iter = subtree.find( new_id );
+                if (iter == subtree.end()) {
+                    // Not found.
+                    this->add( new_id );
+                    iter = subtree.find( new_id );
+                }
+                // else {
+                //     Found it. Simply go down and add the rest of the path:
+                // }
+                MethodDeque subpath( path.begin(), path.end() );
+                subpath.pop_back();
+                if (subpath.size() == 0) {
+                    // Added everything so:
+                    return true;
+                } else {
+                    // More to go:
+                    return iter->second->add_path( subpath );
+                }
+            }
+            // Should't reach here:
+            assert(false);
+            return NULL;
+        };
+
     private:
         FunctionRec_t frec;
         CNode_t &parent;
@@ -212,12 +247,15 @@ struct CNode_t {
 // A node id is simply an unsigned int
 typedef unsigned int NodeId_t;
 
-// Simple method counts independent of whether we have thread information
-// or not
-typedef std::map< MethodId_t, unsigned int > Method2Count_map_t;
-// This one uses a context pair of Method pointers:
-//     (callee, caller)
-typedef std::map< ContextPair, unsigned int > CPair2Count_map_t;
+// TODO: Unused typedefs (probably need to delete) TODO
+// TODO: // Simple method counts independent of whether we have thread information
+// TODO: // or not
+// TODO: typedef std::map< MethodId_t, unsigned int > Method2Count_map_t;
+// TODO: // This one uses a context pair of Method pointers:
+// TODO: //     (callee, caller)
+// TODO: typedef std::map< ContextPair, unsigned int > CPair2Count_map_t;
+
+typedef std::map< CNode_t *, unsigned int > Context2Count_map_t;
 
 
 typedef std::map< string, std::vector< Summary * > > GroupSum_t;
@@ -234,7 +272,9 @@ ObjectMap_t objmap;
 // The simple method id to count map
 // TODO TMethod2Count_map_t methcount_map;
 // The context pair to count map
-CPair2Count_map_t methcount_map;
+// CPair2Count_map_t methcount_map;
+Context2Count_map_t methcount_map;
+
 
 // TODO: DELETE HeapState Heap( whereis, keyset );
 
@@ -261,11 +301,13 @@ bool debug = false;
 set<unsigned int> root_set;
 
 
-CNode_t * find_cnode( MethodDeque cpath )
-{
-
-    return &cnode_root;
-}
+// NOT NEEDED? TODO TODO
+// This functionality is in the CNode_t class now.
+// CNode_t * find_cnode( MethodDeque cpath )
+// {
+// 
+//     return &cnode_root;
+// }
 
 // TODO:
 // 1. Keep track of lifetime garbage.
@@ -427,7 +469,6 @@ unsigned int read_trace_file( FILE *f,
                     method = ClassInfo::TheMethods[method_id];
                     thread_id = (tokenizer.numTokens() == 4) ? tokenizer.getInt(3)
                                                              : tokenizer.getInt(4);
-                    ContextPair cpair;
                     Thread *thread;
                     // Get thread
                     if (thread_id > 0) {
@@ -438,42 +479,22 @@ unsigned int read_trace_file( FILE *f,
                         thread = Exec.get_last_thread();
                     }
                     if (thread) {
-                        // Get top 2 methods
-                        MethodDeque top2 = thread->top_N_methods(2);
-                        cpair = std::make_pair( top2[0], top2[1] );
-                    } else {
-                        // Use NULL->current method it only
-                        cpair = std::make_pair( method, (Method *) NULL );
-                    }
-                    // Check to see that the top_N_methods(2) result matches
-                    // what we expect from the ET event record:
-                    Method *callee_ptr = cpair.first;
-                    Method *caller_ptr = cpair.second;
-                    MethodId_t callee_id = 0;
-                    MethodId_t caller_id = 0;
-                    if (callee_ptr || caller_ptr ) {
-                        if (callee_ptr) {
-                            callee_id = callee_ptr->getId();
+                        MethodDeque path = thread->full_method_stack();
+                        if ((path.size()) > 0) {
+                            CNode_t *cnode = cnode_root.find_path( path );
+                            if (cnode) {
+                                auto simpit = methcount_map.find( cnode );
+                                if (simpit != methcount_map.end()) {
+                                    methcount_map[cnode]++;
+                                } else {
+                                    methcount_map[cnode] = 1;
+                                }
+                                // TODO:
+                                // Do we output the full path?
+                                // dataout << "E," << callee_id << "," << caller_id << endl;
+                                // TODO: Probably I should.
+                            }
                         }
-                        if (caller_ptr) {
-                            caller_id = caller_ptr->getId();
-                        }
-                        if (callee_id != method_id) {
-                            cerr << "Mismatch ET methId[ " << method_id << " ]  != "
-                                 << " topId[ " << callee_id << "]" << endl;
-                            // If mismatch, then simply ????
-                            assert(false);
-                        }
-                        // Save in simple count map
-                        auto simpit = methcount_map.find(cpair);
-                        if (simpit != methcount_map.end()) {
-                            methcount_map[cpair]++;
-                        } else {
-                            methcount_map[cpair] = 1;
-                        }
-                        dataout << "E," << callee_id << "," << caller_id << endl;
-                    } else {
-                        // TODO TODO: Log an ERROR/WARNING TODO
                     }
                     Exec.Return(method, thread_id);
                     // Pop off the garbage stack and save in map
