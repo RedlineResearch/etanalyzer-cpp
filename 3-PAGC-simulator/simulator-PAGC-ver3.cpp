@@ -203,14 +203,14 @@ struct CNode_t {
             return NULL;
         };
 
-        bool add_path( MethodDeque &path )
+        CNode_t * add_path( MethodDeque &path )
         {
             // TODO: The top of the path should be at the end, not the
             // beginning.
             // We are adding 'path' to the current CNode:
             if (path.size() == 0) {
                 // Trivial task of add no path:
-                return true;
+                return this;
             } else {
                 Method method = *(path.back());
                 MethodId_t new_id = method.getId();;
@@ -227,7 +227,7 @@ struct CNode_t {
                 subpath.pop_back();
                 if (subpath.size() == 0) {
                     // Added everything so:
-                    return true;
+                    return this;
                 } else {
                     // More to go:
                     return iter->second->add_path( subpath );
@@ -236,6 +236,11 @@ struct CNode_t {
             // Should't reach here:
             assert(false);
             return NULL;
+        };
+
+        void add_garbage( unsigned int garbage )
+        {
+            this->frec.add_garbage( garbage );
         };
 
     private:
@@ -301,6 +306,18 @@ bool debug = false;
 //   Analysis
 set<unsigned int> root_set;
 
+
+void debug_path( MethodDeque &path)
+{
+    cerr << "DEBUG[ can't find_path ]: " << endl << "     ";
+    for ( auto tmp =  path.begin();
+          tmp != path.end();
+          tmp++ ) {
+        MethodId_t myid = (*tmp)->getId();
+        cerr << myid << " -> ";
+    }
+    cerr << endl;
+}
 
 // TODO:
 // 1. Keep track of lifetime garbage.
@@ -495,22 +512,25 @@ unsigned int read_trace_file( FILE *f,
                         MethodDeque path = thread->full_method_stack();
                         if ((path.size()) > 0) {
                             CNode_t *cnode = cnode_root.find_path( path );
-                            if (cnode) {
-                                auto simpit = methcount_map.find( cnode );
-                                if (simpit != methcount_map.end()) {
-                                    methcount_map[cnode]++;
-                                } else {
-                                    methcount_map[cnode] = 1;
-                                }
-                                // TODO:
-                                // Do we output the full path?
-                                // dataout << "E," << callee_id << "," << caller_id << endl;
-                                // TODO: Probably I should.
-                                //------------------------------------------------------------
-                                // Save the garbage in the function record
-                                // Use stack_garbage
-                                // cnode->add_garbage maybe? TODO TODO
+                            if (cnode == NULL) {
+                                // Add the path
+                                cnode = cnode_root.add_path( path );
                             }
+                            assert( cnode );
+                            auto simpit = methcount_map.find( cnode );
+                            if (simpit != methcount_map.end()) {
+                                methcount_map[cnode]++;
+                            } else {
+                                methcount_map[cnode] = 1;
+                            }
+                            // TODO:
+                            // Do we output the full path?
+                            // dataout << "E," << callee_id << "," << caller_id << endl;
+                            // TODO: Probably I should.
+                            //------------------------------------------------------------
+                            // Save the garbage in the function record
+                            // Use stack_garbage
+                            cnode->add_garbage( stack_garbage );
                         } else {
                             // TODO; What to do here? For now, debug the lack
                             // of path by bailing.
