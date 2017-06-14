@@ -293,6 +293,8 @@ ExecMode cckind = ExecMode::StackOnly; // Stack-only context
 
 ExecState Exec(cckind);
 
+unsigned int next_path_id = 1;
+
 // Maps from ContextPair -> FunctionRec_t
 //  cpair[0] = top/callee
 //  cpair[1] = top-1/caller
@@ -542,7 +544,7 @@ unsigned int read_trace_file( FILE *f,
                             cerr << "receiver[ " << receiver << " ]  "
                                  << "exception obj[ " << exobj << " ]  "
                                  << "thread id[ " << thread_id << " ]" << endl;
-                            assert(false);
+                            // assert(false);
                         }
                     }
                     Exec.Return(method, thread_id);
@@ -589,45 +591,16 @@ void debug_GC_history( deque< GCRecord_t > &GC_history )
 }
 
 // ----------------------------------------------------------------------
-
-int main(int argc, char* argv[])
+void output_cnode_tree( CNode_t &croot )
 {
-    if (argc != 3) {
-        cout << "simulator-PAGC-ver1" << endl
-             << "Usage: " << argv[0] << " <namesfile>  <output base name>" << endl
-             << "      git version: " <<  build_git_sha << endl
-             << "      build date : " <<  build_git_time << endl;
-        exit(1);
-    }
-    cout << "Read names file..." << endl;
-    ClassInfo::read_names_file_no_mainfunc( argv[1] );
-
-    // TODO string dgroups_csvfile(argv[2]);
-    string basename(argv[2]);
-
-    cout << "Start running PAGC simulator verion 3 on trace..." << endl;
-    FILE* f = fdopen(0, "r");
-    //-------------------------------------------------------------------------------
-    // Output trace csv summary
-    string newtrace_filename( basename + "-PAGC-TRACE.csv" );
-    ofstream newtrace_file( newtrace_filename );
-    unsigned int total_garbage = read_trace_file( f, newtrace_file );
-    //-------------------------------------------------------------------------------
-    // Output function record summary
-    string funcrec_filename( basename + "-PAGC-FUNC.csv" );
-    ofstream funcout( funcrec_filename );
-    // Output header for the per function CSV file
-    //    : Change to method pair.
-    //     - First make sure that the method deque has stack discipline. That
-    //       is, the lowest method is at the top of the deque at [0]
-    funcout << "\"callee_id\",\"caller_id\",\"total_garbage\",\"minimum\",\"maximum\",\"number_times\",\"garbage_list\"" << endl;
-    // Output per function record
+    // Output per CNode_t
+    // Do a breadth first traversal of the tree
     /*
     for ( auto iter = fnrec_map.begin();
           iter != fnrec_map.end();
           iter++ ) {
         // output the record:
-        //   callee_id, caller_id, total_garbage, minimum, maximum, number_times
+        //   path_id, total_garbage, minimum, maximum, number_times
         ContextPair cpair = iter->first;
         // Deconstruct the pair
         Method *mptr_callee = cpair.first;
@@ -668,8 +641,43 @@ int main(int argc, char* argv[])
                 << total_garbage << "," << minimum << "," << maximum << ","
                 << simple_number << "," << glist_str
                 << endl;
+    } */
+}
+
+// ----------------------------------------------------------------------
+
+int main(int argc, char* argv[])
+{
+    if (argc != 3) {
+        cout << "simulator-PAGC-ver1" << endl
+             << "Usage: " << argv[0] << " <namesfile>  <output base name>" << endl
+             << "      git version: " <<  build_git_sha << endl
+             << "      build date : " <<  build_git_time << endl;
+        exit(1);
     }
-    */
+    cout << "Read names file..." << endl;
+    ClassInfo::read_names_file_no_mainfunc( argv[1] );
+
+    // TODO string dgroups_csvfile(argv[2]);
+    string basename(argv[2]);
+
+    cout << "Start running PAGC simulator verion 3 on trace..." << endl;
+    FILE* f = fdopen(0, "r");
+    //-------------------------------------------------------------------------------
+    // Output trace csv summary
+    string newtrace_filename( basename + "-PAGC-TRACE.csv" );
+    ofstream newtrace_file( newtrace_filename );
+    unsigned int total_garbage = read_trace_file( f, newtrace_file );
+    //-------------------------------------------------------------------------------
+    // Output function record summary
+    string funcrec_filename( basename + "-PAGC-FUNC.csv" );
+    ofstream funcout( funcrec_filename );
+    // Output header for the per function CSV file
+    //    : Change to method pair.
+    //     - First make sure that the method deque has stack discipline. That
+    //       is, the lowest method is at the top of the deque at [0]
+    funcout << "\"callee_id\",\"caller_id\",\"total_garbage\",\"minimum\",\"maximum\",\"number_times\",\"garbage_list\"" << endl;
+    // Output the fnrec_map
     unsigned int final_time = Exec.NowUp();
     cout << "Done at time " << Exec.NowUp() << endl;
     return 0;
