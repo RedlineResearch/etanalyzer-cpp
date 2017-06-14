@@ -27,6 +27,33 @@ using namespace std;
 // Types
 class Object;
 class CCNode;
+class CNode_t;
+
+// A node id is simply an unsigned int
+typedef unsigned int NodeId_t;
+
+// TODO: Unused typedefs (probably need to delete) TODO
+// TODO: // Simple method counts independent of whether we have thread information
+// TODO: // or not
+// TODO: typedef std::map< MethodId_t, unsigned int > Method2Count_map_t;
+// TODO: // This one uses a context pair of Method pointers:
+// TODO: //     (callee, caller)
+// TODO: typedef std::map< ContextPair, unsigned int > CPair2Count_map_t;
+
+typedef std::map< CNode_t *, unsigned int > Context2Count_map_t;
+
+
+typedef std::map< string, std::vector< Summary * > > GroupSum_t;
+typedef std::map< string, Summary * > TypeTotalSum_t;
+typedef std::map< unsigned int, Summary * > SizeSum_t;
+
+// Map from object ID to object size
+typedef std::map< unsigned int, unsigned int > ObjectMap_t;
+
+// Map from method id to CNode pointer
+typedef std::map< MethodId_t, CNode_t * > meth2cnode_map_t;
+
+
 
 // BRAINSTORM 1:
 // - Each node in the map is the static function.
@@ -265,35 +292,25 @@ struct CNode_t {
             this->frec.add_garbage( garbage );
         };
 
+        meth2cnode_map_t::iterator begin_adjacent()
+        {
+            return this->subtree.begin();
+        }
+
+        meth2cnode_map_t::iterator end_adjacent()
+        {
+            return this->subtree.end();
+        }
+
     private:
         FunctionRec_t frec;
         CNode_t &parent;
         Method *method_ptr;
         MethodId_t method_id;
-        std::map< MethodId_t, CNode_t * > subtree;
+        meth2cnode_map_t subtree;
         MethodDeque path_to_this;
 };
 
-// A node id is simply an unsigned int
-typedef unsigned int NodeId_t;
-
-// TODO: Unused typedefs (probably need to delete) TODO
-// TODO: // Simple method counts independent of whether we have thread information
-// TODO: // or not
-// TODO: typedef std::map< MethodId_t, unsigned int > Method2Count_map_t;
-// TODO: // This one uses a context pair of Method pointers:
-// TODO: //     (callee, caller)
-// TODO: typedef std::map< ContextPair, unsigned int > CPair2Count_map_t;
-
-typedef std::map< CNode_t *, unsigned int > Context2Count_map_t;
-
-
-typedef std::map< string, std::vector< Summary * > > GroupSum_t;
-typedef std::map< string, Summary * > TypeTotalSum_t;
-typedef std::map< unsigned int, Summary * > SizeSum_t;
-
-typedef std::map< unsigned int, unsigned int > ObjectMap_t;
-// Map from object ID to object size
 // ----------------------------------------------------------------------
 //   Globals
 
@@ -454,7 +471,7 @@ unsigned int read_trace_file( FILE *f,
                     thread_id = tokenizer.getInt(2);
                     unsigned int my_size = objmap[object_id];
                     total_garbage += my_size;
-                    // 2. Save in accumulator. The sum will be saved in 
+                    // 2. Save in accumulator. The sum will be saved in
                     //    CNode_t tree (in cnode_root) when the function exits.
                     auto iter = tid2gstack.find(thread_id);
                     if (iter != tid2gstack.end()) {
@@ -619,40 +636,36 @@ void output_cnode_tree( CNode_t &croot )
 {
     // Output per CNode_t
     // Do a breadth first traversal of the tree
+    std::deque< CNode_t * > queue;
+    std::set< CNode_t * > visited;
+    queue.push_back( &croot );
+    visited.insert( &croot );
+    while (queue.size() > 0) {
+        CNode_t *current = queue.front();
+        queue.pop_front();
+        for ( auto iter = current->begin_adjacent();
+              iter != current->end_adjacent();
+              iter++ ) {
+            CNode_t *cptr = iter->second;
+            auto vend = visited.end(); // save visited.end() since we don't change it for now
+            auto fit = std::find( visited.begin(),
+                                  vend,
+                                  cptr );
+            if (fit == vend) {
+                // Not found
+
+            }
+        }
+    }
     /*
-    for ( auto iter = fnrec_map.begin();
-          iter != fnrec_map.end();
-          iter++ ) {
-        // output the record:
-        //   path_id, total_garbage, minimum, maximum, number_times
-        ContextPair cpair = iter->first;
-        // Deconstruct the pair
-        Method *mptr_callee = cpair.first;
-        Method *mptr_caller = cpair.second;
-        if (!mptr_callee && !mptr_caller) {
-            continue;
-        }
-        // Else one of these is non-null.
-        MethodId_t callee_id = 0;
-        if (mptr_callee) {
-            callee_id = mptr_callee->getId();
-        }
-        MethodId_t caller_id = 0;
-        if (mptr_caller) {
-            caller_id = mptr_caller->getId();
-        }
         FunctionRec_t rec = iter->second;
         unsigned int total_garbage = rec.get_total_garbage();
         unsigned int minimum = rec.get_minimum();
         unsigned int maximum = rec.get_maximum();
         unsigned int number = rec.get_number_methods();
-        // TODO: So there's something wrong with the methcount_map maybe? TODO
-        // TODO TODO TODO TODO TODO TODO
-        // Check in simple count map
-        unsigned int simple_number;
-        auto simpit = methcount_map.find(cpair);
+        auto simpit = methcount_map.find( TODO CNode_t );
         if (simpit != methcount_map.end()) {
-            simple_number = methcount_map[cpair];
+            simple_number = methcount_map[ TODO CNode_t ];
         }
         if ( (simpit != methcount_map.end()) &&
              (simple_number != number) ) {
