@@ -128,10 +128,12 @@ struct CNode_t {
     public:
         // Constructors
         CNode_t( MethodId_t mymethid,
-                 CNode_t myparent  )
+                 CNode_t myparent,
+                 MethodDeque &my_path_to_this )
             : method_id( mymethid )
             , parent( myparent )
             , frec()
+            , path_to_this( my_path_to_this )
         {
             // How to initialize a reference?
         };
@@ -141,6 +143,7 @@ struct CNode_t {
             : method_id( mymethid )
             , parent( *this )
             , frec()
+            , path_to_this()
         {
             assert( mymethid == 0 );
             // Because only the root node should have no parent. And this way,
@@ -152,7 +155,8 @@ struct CNode_t {
             return (&(this->parent) == this);
         }
 
-        void add( MethodId_t new_id )
+        CNode_t * add( MethodId_t new_id,
+                       MethodDeque &new_path_to_node )
         {
             // Check to see if in subtree
             auto iter = subtree.find( new_id );
@@ -160,12 +164,17 @@ struct CNode_t {
                 // In there already
                 // TODO: Is there anything here that needs to be done?
                 //       If not, remove this branch. TODO
+                return iter->second;
             } else {
                 // Not found. Add it:
                 // Allocate new CNode_t
-                CNode_t *new_node = new CNode_t( new_id, *this );
+                CNode_t *new_node = new CNode_t( new_id, // method Id
+                                                 *this, // parent
+                                                 new_path_to_node ); // path to new_node
                 this->subtree[new_id] = new_node;
+                return new_node;
             }
+            assert(false);
         };
 
         CNode_t * find_path( MethodDeque &path )
@@ -205,25 +214,38 @@ struct CNode_t {
 
         CNode_t * add_path( MethodDeque &path )
         {
-            // TODO: The top of the path should be at the end, not the
-            // beginning.
+            // Preconditions:
+            // - The top of the path should be at the end, not the
+            //   beginning.
+            // - Current node's 'path_to_this' is INCLUSIVE of current node.
+            // - The current node will be at:
+            //       path_to_this[0]
             // We are adding 'path' to the current CNode:
             if (path.size() == 0) {
                 // Trivial task of add no path:
                 return this;
             } else {
-                Method method = *(path.back());
-                MethodId_t new_id = method.getId();;
+                Method *method = path.back();
+                MethodId_t new_id = method->getId();;
                 auto iter = subtree.find( new_id );
                 if (iter == subtree.end()) {
                     // Not found.
-                    this->add( new_id );
+                    // Create new path to new node
+                    MethodDeque new_path_to_node( this->path_to_this.begin(),
+                                                  this->path_to_this.end() );
+                    // push_front is probably correct. TODO :) TODO :)
+                    new_path_to_node.push_front( method );
+                    this->add( new_id,
+                               new_path_to_node );
                     iter = subtree.find( new_id );
                 }
                 // else {
                 //     Found it. Simply go down and add the rest of the path:
                 // }
+
+                // Make a copy
                 MethodDeque subpath( path.begin(), path.end() );
+                // Remove the node we just added from the path.
                 subpath.pop_back();
                 if (subpath.size() == 0) {
                     // Added everything so:
@@ -246,8 +268,10 @@ struct CNode_t {
     private:
         FunctionRec_t frec;
         CNode_t &parent;
+        Method *method_ptr;
         MethodId_t method_id;
         std::map< MethodId_t, CNode_t * > subtree;
+        MethodDeque path_to_this;
 };
 
 // A node id is simply an unsigned int
