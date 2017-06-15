@@ -538,7 +538,7 @@ unsigned int read_trace_file( FILE *f,
                     // Save in garbage stack
                     auto iter = tid2gstack.find(thread_id);
                     if (iter == tid2gstack.end()) {
-                        std::vector< unsigned int > tmp;
+                        std::vector< unsigned int > tmp( 1, 0 ); // All threads start with a 0 on the stack
                         tid2gstack[thread_id] = tmp;
                     }
                     tid2gstack[thread_id].push_back(0);
@@ -571,11 +571,12 @@ unsigned int read_trace_file( FILE *f,
                     if (iter != tid2gstack.end()) {
                         stack_garbage = tid2gstack[thread_id].back();
                         tid2gstack[thread_id].pop_back();
-                        // TODO auto iter2 = fnrec_map.find(cpair);
-                        // TODO if (iter2 == fnrec_map.end()) {
-                        // TODO     FunctionRec_t tmp;
-                        // TODO     fnrec_map[cpair] = tmp;
-                        // TODO }
+                        assert( tid2gstack[thread_id].size() > 0 );
+                        // TODO: Not sure this is necessary.
+                        //    unsigned int next_garbage = tid2gstack[thread_id].back();
+                        tid2gstack[thread_id].back() += stack_garbage;
+                        // NOTE: the stack_garbage is used again later to save
+                        // in the function record.
                     } else {
                         // Stack garbage has been set to 0. Leave it at 0.
                         //    The else clause shouldn't be possible, but it's worth
