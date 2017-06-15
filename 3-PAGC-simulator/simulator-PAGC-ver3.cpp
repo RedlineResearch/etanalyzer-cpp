@@ -696,6 +696,9 @@ void output_cnode_tree( CNode_t &croot,
                 FunctionRec_t rec = cptr->get_func_rec();
                 unsigned int total_garbage = rec.get_total_garbage();
                 unsigned int minimum = rec.get_minimum();
+                minimum = ( minimum != std::numeric_limits<unsigned int>::max()
+                            ? minimum
+                            : 0 );
                 unsigned int maximum = rec.get_maximum();
                 unsigned int number = rec.get_number_methods();
                 unsigned int path_id = cptr->get_path_id();
