@@ -571,9 +571,9 @@ unsigned int read_trace_file( FILE *f,
                     if (iter != tid2gstack.end()) {
                         stack_garbage = tid2gstack[thread_id].back();
                         tid2gstack[thread_id].pop_back();
-                        assert( tid2gstack[thread_id].size() > 0 );
-                        // TODO: Not sure this is necessary.
-                        //    unsigned int next_garbage = tid2gstack[thread_id].back();
+                        if (tid2gstack[thread_id].size() > 0) {
+                            tid2gstack[thread_id].push_back(0);
+                        }
                         tid2gstack[thread_id].back() += stack_garbage;
                         // NOTE: the stack_garbage is used again later to save
                         // in the function record.
