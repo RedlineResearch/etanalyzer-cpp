@@ -54,6 +54,27 @@ typedef std::map< unsigned int, unsigned int > ObjectMap_t;
 typedef std::map< MethodId_t, CNode_t * > meth2cnode_map_t;
 
 
+// Path dictionary related globals and functions
+unsigned int next_path_id = 1;
+std::map< unsigned int, MethodDeque * > path_dict;
+
+unsigned int add_to_path_dict( MethodDeque &newpath )
+{
+    // Globals:
+    // path_dict, next_path_id
+    path_dict[next_path_id] = new MethodDeque( newpath.begin(),
+                                               newpath.end() );
+    // TODO: How to check that we haven't added yet. This seems too expensive
+    //       to do.
+    unsigned int new_id = next_path_id;
+    next_path_id++;
+    return new_id;
+}
+
+inline bool is_root_path( MethodDeque &path )
+{
+    return (path.size() == 0);
+}
 
 // BRAINSTORM 1:
 // - Each node in the map is the static function.
@@ -156,11 +177,13 @@ struct CNode_t {
         // Constructors
         CNode_t( MethodId_t mymethid,
                  CNode_t myparent,
-                 MethodDeque &my_path_to_this )
+                 MethodDeque &my_path_to_this,
+                 unsigned int new_path_id )
             : method_id( mymethid )
             , parent( myparent )
             , frec()
             , path_to_this( my_path_to_this )
+            , path_id( new_path_id )
         {
             // How to initialize a reference?
         };
@@ -171,6 +194,7 @@ struct CNode_t {
             , parent( *this )
             , frec()
             , path_to_this()
+            , path_id(0)
         {
             assert( mymethid == 0 );
             // Because only the root node should have no parent. And this way,
@@ -194,10 +218,13 @@ struct CNode_t {
                 return iter->second;
             } else {
                 // Not found. Add it:
+                // Add to global path dictionary
+                unsigned int new_path_id = add_to_path_dict( new_path_to_node );
                 // Allocate new CNode_t
                 CNode_t *new_node = new CNode_t( new_id, // method Id
                                                  *this, // parent
-                                                 new_path_to_node ); // path to new_node
+                                                 new_path_to_node, // path to new_node
+                                                 new_path_id );
                 this->subtree[new_id] = new_node;
                 return new_node;
             }
@@ -302,6 +329,15 @@ struct CNode_t {
             return this->subtree.end();
         }
 
+        FunctionRec_t get_func_rec() const
+        {
+            return this->frec;
+        }
+
+        unsigned int get_path_id() const
+        {
+            return this->path_id;
+        }
     private:
         FunctionRec_t frec;
         CNode_t &parent;
@@ -309,6 +345,7 @@ struct CNode_t {
         MethodId_t method_id;
         meth2cnode_map_t subtree;
         MethodDeque path_to_this;
+        unsigned int path_id;
 };
 
 // ----------------------------------------------------------------------
@@ -334,8 +371,6 @@ ExecMode cckind = ExecMode::StackOnly; // Stack-only context
 
 ExecState Exec(cckind);
 
-unsigned int next_path_id = 1;
-
 // Maps from ContextPair -> FunctionRec_t
 //  cpair[0] = top/callee
 //  cpair[1] = top-1/caller
@@ -348,7 +383,6 @@ bool debug = false;
 // ----------------------------------------------------------------------
 //   Analysis
 set<unsigned int> root_set;
-
 
 void debug_path( MethodDeque &path)
 {
@@ -632,12 +666,14 @@ void debug_GC_history( deque< GCRecord_t > &GC_history )
 }
 
 // ----------------------------------------------------------------------
-void output_cnode_tree( CNode_t &croot )
+void output_cnode_tree( CNode_t &croot,
+                        ofstream &funcout )
 {
     // Output per CNode_t
     // Do a breadth first traversal of the tree
     std::deque< CNode_t * > queue;
     std::set< CNode_t * > visited;
+
     queue.push_back( &croot );
     visited.insert( &croot );
     while (queue.size() > 0) {
@@ -652,8 +688,34 @@ void output_cnode_tree( CNode_t &croot )
                                   vend,
                                   cptr );
             if (fit == vend) {
-                // Not found
+                // Not found in visited set
+                visited.insert( cptr );
+                queue.push_back( cptr );
+                // Print out here. Output the record:
+                //   path_id, total_garbage, minimum, maximum, number_times
+                FunctionRec_t rec = cptr->get_func_rec();
+                unsigned int total_garbage = rec.get_total_garbage();
+                unsigned int minimum = rec.get_minimum();
+                unsigned int maximum = rec.get_maximum();
+                unsigned int number = rec.get_number_methods();
+                unsigned int path_id = cptr->get_path_id();
+                // TODO // Check in simple count map
+                // TODO unsigned int simple_number;
+                // TODO auto simpit = methcount_map.find( TODO );
+                // TODO if (simpit != methcount_map.end()) {
+                // TODO     simple_number = methcount_map[cpair];
+                // TODO }
+                // TODO if ( (simpit != methcount_map.end()) &&
+                // TODO      (simple_number != number) ) {
+                // TODO     cerr << "Mismatch: simple[ " << simple_number << " ] != "
+                // TODO          << " grec[ " << number << " ]." << endl;
+                // TODO }
 
+                string glist_str = rec.gvec2string();
+                funcout << path_id << ", "
+                        << total_garbage << "," << minimum << "," << maximum << ","
+                        << number << "," << glist_str
+                        << endl;
             }
         }
     }
@@ -715,6 +777,7 @@ int main(int argc, char* argv[])
     //       is, the lowest method is at the top of the deque at [0]
     funcout << "\"callee_id\",\"caller_id\",\"total_garbage\",\"minimum\",\"maximum\",\"number_times\",\"garbage_list\"" << endl;
     // Output the fnrec_map
+    output_cnode_tree( cnode_root, funcout );
     unsigned int final_time = Exec.NowUp();
     cout << "Done at time " << Exec.NowUp() << endl;
     return 0;
