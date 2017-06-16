@@ -27,15 +27,14 @@ import time
 pp = pprint.PrettyPrinter( indent = 4 )
 
 # GLOBALS
-CALLEE_ID = 0
-CALLER_ID = 1
-GARBAGE = 2
-MINIMUM = 3
-MAXIMUM = 4
-NUMBER = 5
-GLIST = 6
-MEAN_STD = 7
-STDEV_STD = 8
+PATH_ID = 0
+GARBAGE = 1
+MINIMUM = 2
+MAXIMUM = 3
+NUMBER = 4
+GLIST = 5
+# TODO MEAN_STD = 6
+# TODO STDEV_STD = 7
 
 
 def setup_logger( targetdir = ".",
@@ -321,7 +320,7 @@ def solve_subset_sum_naive( data = [],
 def get_data( sourcefile = None,
               data = [] ):
     # The CSV file source header looks like this:
-    #   "callee_id","caller_id","total_garbage","minimum","maximum","number_times","garbage_list"
+    #   "path_id","total_garbage","minimum","maximum","number_times","garbage_list"
     # TODO. :)
     with open(sourcefile, "rb") as fptr:
         count = 0
@@ -332,19 +331,20 @@ def get_data( sourcefile = None,
                 continue
             line = line.rstrip()
             rec = line.split(",")
-            callee_id = int(rec[CALLEE_ID])
-            caller_id = int(rec[CALLER_ID])
+            path_id = int(rec[PATH_ID])
             total_garbage = int(rec[GARBAGE])
             if total_garbage == 0:
-                zero_garbage_set.add( (callee_id, caller_id) )
+                zero_garbage_set.add( path_id )
                 continue
             minimum = int(rec[MINIMUM])
             maximum = int(rec[MAXIMUM])
             number_times = int(rec[NUMBER])
             glist = rec[GLIST]
-            data.append( (callee_id, caller_id, total_garbage, number_times, minimum, maximum, glist) )
+            data.append( (path_id, total_garbage, number_times, minimum, maximum, glist) )
             # DEBUG ONLY:
-            # sys.stdout.write(str(rec) + "\n")
+            # parsed = "[%d, %d, %d, %d, %d -- %s]" % ( path_id, total_garbage,
+            #                                           minimum, maximum, number_times, glist )
+            # sys.stdout.write(str(rec) + " = " + parsed + "\n")
             # count += 1
             # if count >= 10000:
             #     break
@@ -358,13 +358,19 @@ def output_to_csv( soln = [],
     #   => assume called with 'with open as'
     # - solution list
     csvwriter = csv.writer( selectfp, csv.QUOTE_NONNUMERIC )
-    header = [ "callee_id", "caller_id", "number", "garbage", "garbage_list", "mean_std", "stdev_std", ]
+    header = [ "path_id", "number", "garbage", "garbage_list", "mean_std", "stdev_std", ]
     csvwriter.writerow( header )
     # TODO: Add GARBAGE LIST at index 3
     for rec in soln:
-        row = [ rec[CALLEE_ID], rec[CALLER_ID], rec[NUMBER], rec[GARBAGE], rec[GLIST],
+        row = [ rec[PATH_ID], rec[NUMBER], rec[GARBAGE], rec[GLIST],
                 rec[MEAN_STD], rec[STDEV_STD], ]
         csvwriter.writerow( row )
+
+def is_candidate_ver1( rec = None ):
+    return False
+
+def filter_list( data = [] ):
+    return [ x for x in data if is_candidate_ver1(x) ]
 
 def main_process( benchmark = None,
                   names_filename = None,
@@ -385,9 +391,11 @@ def main_process( benchmark = None,
     get_data( sourcefile = sourcefile,
               data = data )
     data = sorted( data,
-                   key = itemgetter(2), # Sort on garbage total
+                   key = itemgetter(GARBAGE), # Sort on garbage total
                    reverse = True )
-    # DEBUG: pp.pprint(data[:15])
+    pp.pprint(data[:45])
+    candidates = filter_list( data )
+    exit(11111) # TODO DEBUG
     result = solve_subset_sum_naive( data = data,
                                      target = target,
                                      epsilon = epsilon )
@@ -402,7 +410,7 @@ def main_process( benchmark = None,
         total = 0
         for tup in soln:
             total += tup[GARBAGE]
-            print "m[ %d, %d ] = %d : %s" % (tup[CALLEE_ID], tup[CALLER_ID], tup[GARBAGE], tup[GLIST])
+            print "m[ %d, %d ] = %d : %s" % (tup[PATH_ID], tup[GARBAGE], tup[GLIST])
         print "Solution total = %d" % total
         print "Target         = %d" % target
         selectfile = "./%s-PAGC-FUNC-select-1.csv" % benchmark
@@ -427,7 +435,7 @@ def main_process( benchmark = None,
                 minimum = newmin
                 best = cand
         for tup in best:
-            print "m[ %d ] = %d" % (tup[CALLEE_ID], tup[CALLER_ID], tup[GARBAGE])
+            print "m[ %d ] = %d" % (tup[PATH_ID], tup[GARBAGE])
         print "Solution total = %d" % minimum
         print "Target         = %d" % target
     else:
@@ -489,20 +497,6 @@ def process_config( args ):
              # "contextcount" : contextcount_config,
              # "host" : host_config,
              }
-
-def process_host_config( host_config = {} ):
-    for bmark in list(host_config.keys()):
-        hostlist = host_config[bmark].split(",")
-        host_config[bmark] = hostlist
-        host_config[bmark].append(bmark)
-    return defaultdict( list, host_config )
-
-def process_worklist_config( worklist_config = {} ):
-    mydict = defaultdict( lambda: "NONE" )
-    for bmark in list(worklist_config.keys()):
-        hostlist = worklist_config[bmark].split(",")
-        mydict[bmark] = hostlist
-    return mydict
 
 def create_parser():
     # set up arg parser
