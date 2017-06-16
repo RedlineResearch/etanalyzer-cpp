@@ -712,7 +712,7 @@ void output_cnode_tree( CNode_t &croot,
                 // TODO }
 
                 string glist_str = rec.gvec2string();
-                funcout << path_id << ", "
+                funcout << path_id << ","
                         << total_garbage << "," << minimum << "," << maximum << ","
                         << number << "," << glist_str
                         << endl;
@@ -775,7 +775,7 @@ int main(int argc, char* argv[])
     //    : Change to method pair.
     //     - First make sure that the method deque has stack discipline. That
     //       is, the lowest method is at the top of the deque at [0]
-    funcout << "\"callee_id\",\"caller_id\",\"total_garbage\",\"minimum\",\"maximum\",\"number_times\",\"garbage_list\"" << endl;
+    funcout << "\"path_id\",\"total_garbage\",\"minimum\",\"maximum\",\"number_times\",\"garbage_list\"" << endl;
     // Output the fnrec_map
     output_cnode_tree( cnode_root, funcout );
     unsigned int final_time = Exec.NowUp();
