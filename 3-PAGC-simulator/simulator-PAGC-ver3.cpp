@@ -560,74 +560,70 @@ unsigned int read_trace_file( FILE *f,
                     // Get thread
                     if (thread_id > 0) {
                         thread = Exec.getThread(thread_id);
+                        // Pop off the garbage stack and save in map
+                        auto iter = tid2gstack.find(thread_id);
+                        unsigned int stack_garbage = 0;
+                        if (iter != tid2gstack.end()) {
+                            stack_garbage = tid2gstack[thread_id].back();
+                            tid2gstack[thread_id].pop_back();
+                            if (tid2gstack[thread_id].size() > 0) {
+                                tid2gstack[thread_id].push_back(0);
+                            }
+                            tid2gstack[thread_id].back() += stack_garbage;
+                            // NOTE: the stack_garbage is used again later to save
+                            // in the function record.
+                        } else {
+                            // Stack garbage has been set to 0. Leave it at 0.
+                            //    The else clause shouldn't be possible, but it's worth
+                            //    investigating if this happens.
+                            cerr << "Method EXIT: Empty garbage stack for thread id"
+                                << thread_id << "." << endl;
+                            //    TODO TODO TODO
+                            //    Add some more debugging code if this happens.
+                        }
+                        if (thread) {
+                            MethodDeque path = thread->full_method_stack();
+                            if ((path.size()) > 0) {
+                                CNode_t *cnode = cnode_root.find_path( path );
+                                if (cnode == NULL) {
+                                    // Add the path
+                                    cnode = cnode_root.add_path( path );
+                                }
+                                assert( cnode );
+                                auto simpit = methcount_map.find( cnode );
+                                if (simpit != methcount_map.end()) {
+                                    methcount_map[cnode]++;
+                                } else {
+                                    methcount_map[cnode] = 1;
+                                }
+                                // TODO:
+                                // Do we output the full path?
+                                // dataout << "E," << callee_id << "," << caller_id << endl;
+                                // TODO: Probably I should.
+                                //------------------------------------------------------------
+                                // Save the garbage in the function record
+                                // Use stack_garbage
+                                cnode->add_garbage( stack_garbage );
+                            } else {
+                                // TODO; What to do here? For now, debug the lack
+                                // of path by bailing.
+                                // E <methodid> <receiver> [<exceptionobj>] <threadid>
+                                // 0      1         2             3             3/4
+                                method_id = tokenizer.getInt(1);
+                                unsigned int receiver = tokenizer.getInt(2);
+                                unsigned int exobj = tokenizer.getInt(3);
+                                cerr << "receiver[ " << receiver << " ]  "
+                                    << "exception obj[ " << exobj << " ]  "
+                                    << "thread id[ " << thread_id << " ]" << endl;
+                                // assert(false);
+                            }
+                        }
                     } else {
                         // No thread info. Get from ExecState
                         // TODO: Should we just punt here?
-                        thread = Exec.get_last_thread();
-                    }
-                    // Pop off the garbage stack and save in map
-                    auto iter = tid2gstack.find(thread_id);
-                    unsigned int stack_garbage = 0;
-                    if (iter != tid2gstack.end()) {
-                        stack_garbage = tid2gstack[thread_id].back();
-                        tid2gstack[thread_id].pop_back();
-                        if (tid2gstack[thread_id].size() > 0) {
-                            tid2gstack[thread_id].push_back(0);
-                        }
-                        tid2gstack[thread_id].back() += stack_garbage;
-                        // NOTE: the stack_garbage is used again later to save
-                        // in the function record.
-                    } else {
-                        // Stack garbage has been set to 0. Leave it at 0.
-                        //    The else clause shouldn't be possible, but it's worth
-                        //    investigating if this happens.
-                        cerr << "Method EXIT: Empty garbage stack for thread id"
-                             << thread_id << "." << endl;
-                        //    TODO TODO TODO
-                        //    Add some more debugging code if this happens.
-                    }
-                    if (thread) {
-                        MethodDeque path = thread->full_method_stack();
-                        if ((path.size()) > 0) {
-                            CNode_t *cnode = cnode_root.find_path( path );
-                            if (cnode == NULL) {
-                                // Add the path
-                                cnode = cnode_root.add_path( path );
-                            }
-                            assert( cnode );
-                            auto simpit = methcount_map.find( cnode );
-                            if (simpit != methcount_map.end()) {
-                                methcount_map[cnode]++;
-                            } else {
-                                methcount_map[cnode] = 1;
-                            }
-                            // TODO:
-                            // Do we output the full path?
-                            // dataout << "E," << callee_id << "," << caller_id << endl;
-                            // TODO: Probably I should.
-                            //------------------------------------------------------------
-                            // Save the garbage in the function record
-                            // Use stack_garbage
-                            cnode->add_garbage( stack_garbage );
-                        } else {
-                            // TODO; What to do here? For now, debug the lack
-                            // of path by bailing.
-                            // E <methodid> <receiver> [<exceptionobj>] <threadid>
-                            // 0      1         2             3             3/4
-                            method_id = tokenizer.getInt(1);
-                            unsigned int receiver = tokenizer.getInt(2);
-                            unsigned int exobj = tokenizer.getInt(3);
-                            cerr << "receiver[ " << receiver << " ]  "
-                                 << "exception obj[ " << exobj << " ]  "
-                                 << "thread id[ " << thread_id << " ]" << endl;
-                            // assert(false);
-                        }
+                        // TODO: thread = Exec.get_last_thread();
                     }
                     Exec.Return(method, thread_id);
-                    // TODO TODO TODO:
-                    // This seems wrong: TODO
-                    // tid2gstack[thread_id].push_back(0);
-                    // TODO fnrec_map[cpair].add_garbage( stack_garbage );
                 }
                 break;
 
