@@ -342,7 +342,7 @@ def get_data( sourcefile = None,
             maximum = int(rec[MAXIMUM])
             number_times = int(rec[NUMBER])
             glist = rec[GLIST]
-            data.append( (callee_id, caller_id, total_garbage, number_times, minimum, maximum, glist) )
+            data.append( (callee_id, caller_id, total_garbage, minimum, maximum, number_times, glist) )
             # DEBUG ONLY:
             # sys.stdout.write(str(rec) + "\n")
             # count += 1
@@ -388,6 +388,12 @@ def main_process( benchmark = None,
                    key = itemgetter(2), # Sort on garbage total
                    reverse = True )
     # DEBUG: pp.pprint(data[:15])
+    # Average number of times full method path are run
+    #    Note: Using the word method for 'full method path'
+    # Look at top N methods where number of methods >= 50
+    #     50 is an abitrary number
+    # Per method garbage total
+    # Per method garbage instance
     result = solve_subset_sum_naive( data = data,
                                      target = target,
                                      epsilon = epsilon )

@@ -340,7 +340,7 @@ def get_data( sourcefile = None,
             maximum = int(rec[MAXIMUM])
             number_times = int(rec[NUMBER])
             glist = rec[GLIST]
-            data.append( (path_id, total_garbage, number_times, minimum, maximum, glist) )
+            data.append( (path_id, total_garbage, minimum, maximum, number_times, glist) )
             # DEBUG ONLY:
             # parsed = "[%d, %d, %d, %d, %d -- %s]" % ( path_id, total_garbage,
             #                                           minimum, maximum, number_times, glist )
@@ -367,6 +367,7 @@ def output_to_csv( soln = [],
         csvwriter.writerow( row )
 
 def is_candidate_ver1( rec = None ):
+
     return False
 
 def filter_list( data = [] ):
