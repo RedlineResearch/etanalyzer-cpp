@@ -568,10 +568,11 @@ void do_cycles( string &dgroups_filename,
                 string &stability_summary_filename,
                 string &cycle_filename,
                 ofstream &edge_info_file,
-                unsigned int final_time 
-                )
+                unsigned int final_time )
 {
-    std::deque< pair<int,int> > edgelist; // TODO Do we need the edgelist?
+    // NOTE: keyset of type KeySet_t is a GLOBAL.
+    //
+    std::deque< pair<int,int> > edgelist;
     // per_group_summary: type -> vector of group summary
     GroupSum_t per_group_summary;
     // type_total_summary: summarize the stats per type
@@ -585,9 +586,16 @@ void do_cycles( string &dgroups_filename,
     // Reference stability summary
     EdgeSrc2Type_t stability_summary;
     // Lambdas for utility
-    auto lfn = [](Object *ptr) -> unsigned int { return ((ptr) ? ptr->getId() : 0); };
-    auto ifNull = [](Object *ptr) -> bool { return (ptr == NULL); };
+    auto lfn = [](Object *ptr) -> unsigned int
+    {
+        return ((ptr) ? ptr->getId() : 0);
+    };
+    auto ifNull = [](Object *ptr) -> bool {
+        return (ptr == NULL);
+    };
 
+    // NOTE: keyset is a GLOBAL.
+    // If that bothers you, then pass it in as a parameter. It's all good.
     for ( KeySet_t::iterator kiter = keyset.begin();
           kiter != keyset.end();
           kiter++ ) {
@@ -1722,6 +1730,16 @@ int main(int argc, char* argv[])
     Heap.end_of_program( final_time, edge_info_file );
 
     // TODO: Call cycle detection function
+    // NOTE: Should do_cycles return anything? TODO
+    do_cycles( dgroups_filename,
+               dgroups_by_type_filename,
+               objectinfo_filename,
+               reference_summary_filename,
+               ref_reverse_summary_filename,
+               stability_summary_filename,
+               cycle_filename,
+               edge_info_file,
+               final_time );
 
     ofstream summary_file(summary_filename);
     summary_file << "---------------[ SUMMARY INFO ]----------------------------------------------------" << endl;
