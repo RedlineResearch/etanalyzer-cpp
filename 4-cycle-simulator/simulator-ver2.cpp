@@ -362,6 +362,338 @@ void apply_merlin( std::deque< Object * > &new_garbage )
 }
 
 // ----------------------------------------------------------------------
+//   TODO: Document summarize_reference_stability
+void summarize_reference_stability( EdgeSrc2Type_t &stability,
+                                    EdgeSummary_t &my_refsum,
+                                    Object2EdgeSrcMap_t &my_obj2ref )
+{
+    // Check each object to see if it's stable...(see ObjectRefType)
+    for ( auto it = my_obj2ref.begin();
+          it != my_obj2ref.end();
+          ++it ) {
+        // my_obj2ref : Object2EdgeSrcMap_t is a reverse map of sorts.
+        //      For each object in the map, it maps to a vector of references
+        //          that point/refer to that object
+        // This Object is the target
+        Object *obj = it->first;
+        // This is the vector of references
+        std::vector< EdgeSrc_t > reflist = it->second;
+        // Convert to a set in order to remove possible duplicates
+        std::set< EdgeSrc_t > refset( reflist.begin(), reflist.end() );
+        if (!obj) {
+            continue;
+        }
+        // obj is not NULL.
+        // if ( (refset.size() <= 1) && (obj->wasLastUpdateNull() != true) ) {
+        if (refset.size() <= 1) {
+            obj->setRefTargetType( ObjectRefType::SINGLY_OWNED );
+        } else {
+            obj->setRefTargetType( ObjectRefType::MULTI_OWNED );
+        }
+    }
+    // Check each edge source to see if its stable...(see EdgeSrcType)
+    for ( auto it = my_refsum.begin();
+          it != my_refsum.end();
+          ++it ) {
+        // my_refsum : EdgeSummary_t is a map from reference to a vector of
+        //      objects that the reference pointed to. A reference is a pair
+        //      of (Object pointer, fieldId).
+        // Get the reference and deconstruct into parts.
+        EdgeSrc_t ref = it->first;
+        Object *obj = std::get<0>(ref); 
+        FieldId_t fieldId = std::get<1>(ref); 
+        // Get the vector/list of object pointers
+        std::vector< Object * > objlist = it->second;
+        // We need to make sure that all elements are not duplicates.
+        std::set< Object * > objset( objlist.begin(), objlist.end() );
+        // Is NULL in there?
+        auto findit = objset.find(NULL);
+        bool nullflag = (findit != objset.end());
+        if (nullflag) {
+            // If NULL is in the list, remove NULL.
+            objset.erase(findit);
+        }
+        unsigned int size = objset.size();
+        if (size == 1) {
+            // The reference only points to one object!
+            // Convert object set back into a vector.
+            std::vector< Object * > tmplist( objset.begin(), objset.end() );
+            assert( tmplist.size() == 1 );
+            Object *tgt = tmplist[0];
+            // Check for source and target death times
+            // The checks for NULL are probably NOT necessary.
+            assert(obj != NULL);
+            VTime_t src_dtime = obj->getDeathTime();
+            assert(tgt != NULL);
+            VTime_t tgt_dtime = tgt->getDeathTime();
+            if (tgt_dtime != src_dtime) {
+                // UNSTABLE if target and source deathtimes are different
+                // NOTE: This used to be UNSTABLE if target died before source.
+                //       We are using a more conservative definition of stability here.
+                stability[ref] = EdgeSrcType::UNSTABLE;
+            } else {
+                stability[ref] = (tgt->wasLastUpdateNull() ? EdgeSrcType::UNSTABLE : EdgeSrcType::STABLE);
+            }
+        } else {
+            // objlist is of length > 1
+            // This may still be stable if all objects in
+            // the list are STABLE. Assume they're all stable unless
+            // otherwise proven.
+            stability[ref] = EdgeSrcType::SERIAL_STABLE; // aka serial monogamist
+            for ( auto objit = objset.begin();
+                  objit != objset.end();
+                  ++objit ) {
+                ObjectRefType objtype = (*objit)->getRefTargetType();
+                if (objtype == ObjectRefType::MULTI_OWNED) {
+                    stability[ref] = EdgeSrcType::UNSTABLE;
+                    break;
+                } else if (objtype == ObjectRefType::UNKNOWN) {
+                    // Not sure if this is even possible.
+                    // TODO: Make this an assertion?
+                    // Let's assume that UNKNOWNs make it UNSTABLE.
+                    stability[ref] = EdgeSrcType::UNSTABLE;
+                    break;
+                } // else continue
+            }
+        }
+    }
+}
+
+// ----------------------------------------------------------------------
+//   TODO: Document sumSize
+unsigned int sumSize( std::set< Object * >& s )
+{
+    unsigned int total = 0;
+    for ( auto it = s.begin();
+          it != s.end();
+          ++it ) {
+        total += (*it)->getSize();
+    }
+    return total;
+}
+
+// ----------------------------------------------------------------------
+//   TODO: Document update_summaries
+void update_summaries( Object *key,
+                       std::set< Object * >& tgtSet,
+                       GroupSum_t& pgs,
+                       TypeTotalSum_t& tts,
+                       SizeSum_t& ssum )
+{
+    string mytype = key->getType();
+    unsigned gsize = tgtSet.size();
+    // per group summary
+    auto git = pgs.find(mytype);
+    if (git == pgs.end()) {
+        pgs[mytype] = std::move(std::vector< Summary * >());
+    }
+    unsigned int total_size = sumSize( tgtSet );
+    Summary *s = new Summary( gsize, total_size, 1 );
+    // -- third parameter is number of groups which is simply 1 here.
+    pgs[mytype].push_back(s);
+    // type total summary
+    auto titer = tts.find(mytype);
+    if (titer == tts.end()) {
+        Summary *t = new Summary( gsize, total_size, 1 );
+        tts[mytype] = t;
+    } else {
+        tts[mytype]->size += total_size;
+        tts[mytype]->num_objects += tgtSet.size();
+        tts[mytype]->num_groups++;
+    }
+    // size summary
+    auto sit = ssum.find(gsize);
+    if (sit == ssum.end()) {
+        Summary *u = new Summary( gsize, total_size, 1 );
+        ssum[gsize] = u;
+    } else {
+        ssum[gsize]->size += total_size;
+        ssum[gsize]->num_groups++;
+        // Doesn't make sense to make use of the num_objects field.
+    }
+}
+
+// ----------------------------------------------------------------------
+//   TODO: Document update_summary_from_keyset
+void update_summary_from_keyset( KeySet_t &keyset,
+                                 GroupSum_t &per_group_summary,
+                                 TypeTotalSum_t &type_total_summary,
+                                 SizeSum_t &size_summary )
+{
+    for ( auto it = keyset.begin();
+          it != keyset.end();
+          ++it ) {
+        Object *key = it->first;
+        std::set< Object * > *tgtSet = it->second;
+        // TODO TODO 7 March 2016 - Put into CSV file.
+        cout << "[ " << key->getType() << " ]: " << tgtSet->size() << endl;
+        update_summaries( key,
+                          *tgtSet,
+                          per_group_summary,
+                          type_total_summary,
+                          size_summary );
+    }
+}
+
+// Forward declarations of output functions
+void output_size_summary( string &dgroups_filename,
+                          SizeSum_t &size_summary );
+void output_type_summary( string &dgroups_by_type_filename,
+                          TypeTotalSum_t &type_total_summary );
+void output_all_objects2( string &objectinfo_filename,
+                          HeapState &myheap,
+                          std::set<ObjectId_t> dag_keys,
+                          std::set<ObjectId_t> dag_all_set,
+                          std::set<ObjectId_t> all_keys,
+                          unsigned int final_time );
+void output_reference_summary( string &reference_summary_filename,
+                               string &ref_reverse_summary_filename,
+                               string &stability_summary_filename,
+                               EdgeSummary_t &my_refsum,
+                               Object2EdgeSrcMap_t &my_obj2ref,
+                               EdgeSrc2Type_t &stability );
+void output_cycles( KeySet_t &keyset,
+                    string &cycle_filename,
+                    std::set<int> &node_set );
+unsigned int output_edges( HeapState &myheap,
+                           ofstream &edge_info_file );
+
+// ----------------------------------------------------------------------
+//   Do cycles. TODO: What else?
+void do_cycles( string &dgroups_filename,
+                string &dgroups_by_type_filename,
+                string &objectinfo_filename,
+                string &reference_summary_filename,
+                string &ref_reverse_summary_filename,
+                string &stability_summary_filename,
+                string &cycle_filename,
+                ofstream &edge_info_file,
+                unsigned int final_time 
+                )
+{
+    std::deque< pair<int,int> > edgelist; // TODO Do we need the edgelist?
+    // per_group_summary: type -> vector of group summary
+    GroupSum_t per_group_summary;
+    // type_total_summary: summarize the stats per type
+    TypeTotalSum_t type_total_summary;
+    // size_summary: per group size summary. That is, for each group of size X,
+    //               add up the sizes.
+    SizeSum_t size_summary;
+    // Remember the key objects for non-cyclic death groups.
+    set<ObjectId_t> dag_keys;
+    deque<ObjectId_t> dag_all;
+    // Reference stability summary
+    EdgeSrc2Type_t stability_summary;
+    // Lambdas for utility
+    auto lfn = [](Object *ptr) -> unsigned int { return ((ptr) ? ptr->getId() : 0); };
+    auto ifNull = [](Object *ptr) -> bool { return (ptr == NULL); };
+
+    for ( KeySet_t::iterator kiter = keyset.begin();
+          kiter != keyset.end();
+          kiter++ ) {
+        Object *optr = kiter->first;
+        ObjectId_t objId = (optr ? optr->getId() : 0); 
+        dag_keys.insert(objId);
+        dag_all.push_back(objId);
+        set< Object * > *sptr = kiter->second;
+        if (!sptr) {
+            continue; // TODO
+        }
+        deque< Object * > deqtmp;
+        // std::copy( sptr->begin(), sptr->end(), deqtmp.begin() );
+        // std::remove_if( deqtmp.begin(), deqtmp.end(), ifNull );
+        for ( set< Object * >::iterator setit = sptr->begin();
+              setit != sptr->end();
+              setit++ ) {
+            if (*setit) {
+                deqtmp.push_back( *setit );
+            }
+        }
+        if (deqtmp.size() > 0) {
+            // TODO Not sure why this transform isn't working like the for loop.
+            // Not too important, but kind of curious as to how I'm not using
+            // std::transform properly.
+            // TODO
+            // std::transform( deqtmp.cbegin(),
+            //                 deqtmp.cend(),
+            //                 dag_all.begin(),
+            //                 lfn );
+            for ( deque< Object * >::iterator dqit = deqtmp.begin();
+                  dqit != deqtmp.end();
+                  dqit++ ) {
+                if (*dqit) {
+                    dag_all.push_back( (*dqit)->getId() );
+                }
+            }
+        }
+    }
+    // Copy all dag_all object Ids into dag_all_set to get rid of duplicates.
+    set<ObjectId_t> dag_all_set( dag_all.cbegin(), dag_all.cend() );
+
+    // scan_queue2 determines all the death groups that are cyclic
+    // The '2' is a historical version of the function that won't be
+    // removed.
+    Heap.scan_queue2( edgelist,
+                      not_candidate_map );
+    update_summary_from_keyset( keyset,
+                                per_group_summary,
+                                type_total_summary,
+                                size_summary );
+    // Save key object IDs for _all_ death groups.
+    set<ObjectId_t> all_keys;
+    for ( KeySet_t::iterator kiter = keyset.begin();
+          kiter != keyset.end();
+          kiter++ ) {
+        Object *optr = kiter->first;
+        ObjectId_t objId = (optr ? optr->getId() : 0); 
+        all_keys.insert(objId);
+        // NOTE: We don't really need to add ALL objects here since
+        // we can simply test against dag_all_set to see if it's a DAG
+        // object. If not in dag_all_set, then it's a CYC object.
+    }
+
+    // Analyze the edge summaries
+    summarize_reference_stability( stability_summary,
+                                   edge_summary,
+                                   obj2ref_map );
+    // ----------------------------------------------------------------------
+    // OUTPUT THE SUMMARIES
+    // By size summary of death groups
+    output_size_summary( dgroups_filename,
+                         size_summary );
+    // Type total summary output
+    output_type_summary( dgroups_by_type_filename,
+                         type_total_summary );
+    // Output all objects info
+    output_all_objects2( objectinfo_filename,
+                         Heap,
+                         dag_keys,
+                         dag_all_set,
+                         all_keys,
+                         final_time );
+    // TODO 2017-0220 output_context_summary( context_death_count_filename,
+    // TODO 2017-0220                         Exec );
+    output_reference_summary( reference_summary_filename,
+                              ref_reverse_summary_filename,
+                              stability_summary_filename,
+                              edge_summary,
+                              obj2ref_map,
+                              stability_summary );
+    // TODO: What next? 
+    // Output cycles
+    set<int> node_set;
+    output_cycles( keyset,
+                   cycle_filename,
+                   node_set );
+    // TODO: Moved the edge output to as needed instead of all at the end.
+    // TODO // Output all edges
+    unsigned int added_edges = output_edges( Heap,
+                                             edge_info_file );
+    edge_info_file << "---------------[ EDGE INFO END ]------------------------------------------------" << endl;
+    edge_info_file.close();
+}
+
+// ----------------------------------------------------------------------
 //   Read and process trace events
 unsigned int read_trace_file( FILE *f,
                               ofstream &eifile )
@@ -844,173 +1176,6 @@ void filter_edgelist( deque< pair<int,int> >& edgelist, deque< deque<int> >& cyc
     edgelist = newlist;
 }
 
-unsigned int sumSize( std::set< Object * >& s )
-{
-    unsigned int total = 0;
-    for ( auto it = s.begin();
-          it != s.end();
-          ++it ) {
-        total += (*it)->getSize();
-    }
-    return total;
-}
-
-void update_summaries( Object *key,
-                       std::set< Object * >& tgtSet,
-                       GroupSum_t& pgs,
-                       TypeTotalSum_t& tts,
-                       SizeSum_t& ssum )
-{
-    string mytype = key->getType();
-    unsigned gsize = tgtSet.size();
-    // per group summary
-    auto git = pgs.find(mytype);
-    if (git == pgs.end()) {
-        pgs[mytype] = std::move(std::vector< Summary * >());
-    }
-    unsigned int total_size = sumSize( tgtSet );
-    Summary *s = new Summary( gsize, total_size, 1 );
-    // -- third parameter is number of groups which is simply 1 here.
-    pgs[mytype].push_back(s);
-    // type total summary
-    auto titer = tts.find(mytype);
-    if (titer == tts.end()) {
-        Summary *t = new Summary( gsize, total_size, 1 );
-        tts[mytype] = t;
-    } else {
-        tts[mytype]->size += total_size;
-        tts[mytype]->num_objects += tgtSet.size();
-        tts[mytype]->num_groups++;
-    }
-    // size summary
-    auto sit = ssum.find(gsize);
-    if (sit == ssum.end()) {
-        Summary *u = new Summary( gsize, total_size, 1 );
-        ssum[gsize] = u;
-    } else {
-        ssum[gsize]->size += total_size;
-        ssum[gsize]->num_groups++;
-        // Doesn't make sense to make use of the num_objects field.
-    }
-}
-
-void update_summary_from_keyset( KeySet_t &keyset,
-                                 GroupSum_t &per_group_summary,
-                                 TypeTotalSum_t &type_total_summary,
-                                 SizeSum_t &size_summary )
-{
-    for ( auto it = keyset.begin();
-          it != keyset.end();
-          ++it ) {
-        Object *key = it->first;
-        std::set< Object * > *tgtSet = it->second;
-        // TODO TODO 7 March 2016 - Put into CSV file.
-        cout << "[ " << key->getType() << " ]: " << tgtSet->size() << endl;
-        update_summaries( key,
-                          *tgtSet,
-                          per_group_summary,
-                          type_total_summary,
-                          size_summary );
-    }
-}
-
-
-void summarize_reference_stability( EdgeSrc2Type_t &stability,
-                                    EdgeSummary_t &my_refsum,
-                                    Object2EdgeSrcMap_t &my_obj2ref )
-{
-    // Check each object to see if it's stable...(see ObjectRefType)
-    for ( auto it = my_obj2ref.begin();
-          it != my_obj2ref.end();
-          ++it ) {
-        // my_obj2ref : Object2EdgeSrcMap_t is a reverse map of sorts.
-        //      For each object in the map, it maps to a vector of references
-        //          that point/refer to that object
-        // This Object is the target
-        Object *obj = it->first;
-        // This is the vector of references
-        std::vector< EdgeSrc_t > reflist = it->second;
-        // Convert to a set in order to remove possible duplicates
-        std::set< EdgeSrc_t > refset( reflist.begin(), reflist.end() );
-        if (!obj) {
-            continue;
-        }
-        // obj is not NULL.
-        // if ( (refset.size() <= 1) && (obj->wasLastUpdateNull() != true) ) {
-        if (refset.size() <= 1) {
-            obj->setRefTargetType( ObjectRefType::SINGLY_OWNED );
-        } else {
-            obj->setRefTargetType( ObjectRefType::MULTI_OWNED );
-        }
-    }
-    // Check each edge source to see if its stable...(see EdgeSrcType)
-    for ( auto it = my_refsum.begin();
-          it != my_refsum.end();
-          ++it ) {
-        // my_refsum : EdgeSummary_t is a map from reference to a vector of
-        //      objects that the reference pointed to. A reference is a pair
-        //      of (Object pointer, fieldId).
-        // Get the reference and deconstruct into parts.
-        EdgeSrc_t ref = it->first;
-        Object *obj = std::get<0>(ref); 
-        FieldId_t fieldId = std::get<1>(ref); 
-        // Get the vector/list of object pointers
-        std::vector< Object * > objlist = it->second;
-        // We need to make sure that all elements are not duplicates.
-        std::set< Object * > objset( objlist.begin(), objlist.end() );
-        // Is NULL in there?
-        auto findit = objset.find(NULL);
-        bool nullflag = (findit != objset.end());
-        if (nullflag) {
-            // If NULL is in the list, remove NULL.
-            objset.erase(findit);
-        }
-        unsigned int size = objset.size();
-        if (size == 1) {
-            // The reference only points to one object!
-            // Convert object set back into a vector.
-            std::vector< Object * > tmplist( objset.begin(), objset.end() );
-            assert( tmplist.size() == 1 );
-            Object *tgt = tmplist[0];
-            // Check for source and target death times
-            // The checks for NULL are probably NOT necessary.
-            assert(obj != NULL);
-            VTime_t src_dtime = obj->getDeathTime();
-            assert(tgt != NULL);
-            VTime_t tgt_dtime = tgt->getDeathTime();
-            if (tgt_dtime != src_dtime) {
-                // UNSTABLE if target and source deathtimes are different
-                // NOTE: This used to be UNSTABLE if target died before source.
-                //       We are using a more conservative definition of stability here.
-                stability[ref] = EdgeSrcType::UNSTABLE;
-            } else {
-                stability[ref] = (tgt->wasLastUpdateNull() ? EdgeSrcType::UNSTABLE : EdgeSrcType::STABLE);
-            }
-        } else {
-            // objlist is of length > 1
-            // This may still be stable if all objects in
-            // the list are STABLE. Assume they're all stable unless
-            // otherwise proven.
-            stability[ref] = EdgeSrcType::SERIAL_STABLE; // aka serial monogamist
-            for ( auto objit = objset.begin();
-                  objit != objset.end();
-                  ++objit ) {
-                ObjectRefType objtype = (*objit)->getRefTargetType();
-                if (objtype == ObjectRefType::MULTI_OWNED) {
-                    stability[ref] = EdgeSrcType::UNSTABLE;
-                    break;
-                } else if (objtype == ObjectRefType::UNKNOWN) {
-                    // Not sure if this is even possible.
-                    // TODO: Make this an assertion?
-                    // Let's assume that UNKNOWNs make it UNSTABLE.
-                    stability[ref] = EdgeSrcType::UNSTABLE;
-                    break;
-                } // else continue
-            }
-        }
-    }
-}
-
 // ---------------------------------------------------------------------------
 // ------[ OUTPUT FUNCTIONS ]-------------------------------------------------
 // ---------------------------------------------------------------------------
@@ -1485,7 +1650,7 @@ void output_reference_summary( string &reference_summary_filename,
 int main(int argc, char* argv[])
 {
     if (argc != 7) {
-        cout << "Usage: " << argv[0] << " <namesfile> <output base name> <CYCLE/NOCYCLE> <OBJDEBUG/NOOBJDEBUG> <main.class> <main.function>" << endl;
+        cout << "Usage: " << argv[0] << " <namesfile> <output base name> <OBJDEBUG/NOOBJDEBUG> <main.class> <main.function>" << endl;
         cout << "      git version: " << build_git_sha << endl;
         cout << "      build date : " << build_git_time << endl;
         cout << "      CC kind    : " << Exec.get_kind() << endl;
@@ -1494,9 +1659,11 @@ int main(int argc, char* argv[])
     cout << "#     git version: " <<  build_git_sha << endl;
     cout << "#     build date : " <<  build_git_time << endl;
     cout << "---------------[ START ]-----------------------------------------------------------" << endl;
+
+    //------------------------------------------------------------------
+    // FILENAME related data
     string basename(argv[2]);
     string cycle_filename( basename + "-CYCLES.csv" );
-    // string edge_filename( basename + "-EDGES.txt" );
     string objectinfo_filename( basename + "-OBJECTINFO.txt" );
     string edgeinfo_filename( basename + "-EDGEINFO.txt" );
     string typeinfo_filename( basename + "-TYPEINFO.txt" );
@@ -1516,16 +1683,20 @@ int main(int argc, char* argv[])
     string nodemap_filename( basename + "-NODEMAP.csv" );
     ofstream nodemap_file(nodemap_filename);
     Exec.set_nodefile( &nodemap_file );
+    // END FILENAME data
+    //------------------------------------------------------------------
 
-    string main_class(argv[5]);
-    string main_function(argv[6]);
+    // Main class/function parameters
+    string main_class(argv[4]);
+    string main_function(argv[5]);
     cout << "Main class: " << main_class << endl;
     cout << "Main function: " << main_function << endl;
 
-    string cycle_switch(argv[3]);
-    bool cycle_flag = ((cycle_switch == "NOCYCLE") ? false : true);
+    // TODO: cycle command line option. Remove this option
+    // string cycle_switch(argv[3]);
+    // bool cycle_flag = ((cycle_switch == "NOCYCLE") ? false : true);
     
-    string obj_debug_switch(argv[4]);
+    string obj_debug_switch(argv[3]);
     bool obj_debug_flag = ((obj_debug_switch == "OBJDEBUG") ? true : false);
     if (obj_debug_flag) {
         cout << "Enable OBJECT DEBUG." << endl;
@@ -1550,130 +1721,7 @@ int main(int argc, char* argv[])
     // assert( total_objects == Heap.size() );
     Heap.end_of_program( final_time, edge_info_file );
 
-    if (cycle_flag) {
-        std::deque< pair<int,int> > edgelist; // TODO Do we need the edgelist?
-        // per_group_summary: type -> vector of group summary
-        GroupSum_t per_group_summary;
-        // type_total_summary: summarize the stats per type
-        TypeTotalSum_t type_total_summary;
-        // size_summary: per group size summary. That is, for each group of size X,
-        //               add up the sizes.
-        SizeSum_t size_summary;
-        // Remember the key objects for non-cyclic death groups.
-        set<ObjectId_t> dag_keys;
-        deque<ObjectId_t> dag_all;
-        // Reference stability summary
-        EdgeSrc2Type_t stability_summary;
-        // Lambdas for utility
-        auto lfn = [](Object *ptr) -> unsigned int { return ((ptr) ? ptr->getId() : 0); };
-        auto ifNull = [](Object *ptr) -> bool { return (ptr == NULL); };
-
-        for ( KeySet_t::iterator kiter = keyset.begin();
-              kiter != keyset.end();
-              kiter++ ) {
-            Object *optr = kiter->first;
-            ObjectId_t objId = (optr ? optr->getId() : 0); 
-            dag_keys.insert(objId);
-            dag_all.push_back(objId);
-            set< Object * > *sptr = kiter->second;
-            if (!sptr) {
-                continue; // TODO
-            }
-            deque< Object * > deqtmp;
-            // std::copy( sptr->begin(), sptr->end(), deqtmp.begin() );
-            // std::remove_if( deqtmp.begin(), deqtmp.end(), ifNull );
-            for ( set< Object * >::iterator setit = sptr->begin();
-                  setit != sptr->end();
-                  setit++ ) {
-                if (*setit) {
-                    deqtmp.push_back( *setit );
-                }
-            }
-            if (deqtmp.size() > 0) {
-                // TODO Not sure why this transform isn't working like the for loop.
-                // Not too important, but kind of curious as to how I'm not using
-                // std::transform properly.
-                // TODO
-                // std::transform( deqtmp.cbegin(),
-                //                 deqtmp.cend(),
-                //                 dag_all.begin(),
-                //                 lfn );
-                for ( deque< Object * >::iterator dqit = deqtmp.begin();
-                      dqit != deqtmp.end();
-                      dqit++ ) {
-                    if (*dqit) {
-                        dag_all.push_back( (*dqit)->getId() );
-                    }
-                }
-            }
-        }
-        // Copy all dag_all object Ids into dag_all_set to get rid of duplicates.
-        set<ObjectId_t> dag_all_set( dag_all.cbegin(), dag_all.cend() );
-
-        // scan_queue2 determines all the death groups that are cyclic
-        // The '2' is a historical version of the function that won't be
-        // removed.
-        Heap.scan_queue2( edgelist,
-                          not_candidate_map );
-        update_summary_from_keyset( keyset,
-                                    per_group_summary,
-                                    type_total_summary,
-                                    size_summary );
-        // Save key object IDs for _all_ death groups.
-        set<ObjectId_t> all_keys;
-        for ( KeySet_t::iterator kiter = keyset.begin();
-              kiter != keyset.end();
-              kiter++ ) {
-            Object *optr = kiter->first;
-            ObjectId_t objId = (optr ? optr->getId() : 0); 
-            all_keys.insert(objId);
-            // NOTE: We don't really need to add ALL objects here since
-            // we can simply test against dag_all_set to see if it's a DAG
-            // object. If not in dag_all_set, then it's a CYC object.
-        }
-
-        // Analyze the edge summaries
-        summarize_reference_stability( stability_summary,
-                                       edge_summary,
-                                       obj2ref_map );
-        // ----------------------------------------------------------------------
-        // OUTPUT THE SUMMARIES
-        // By size summary of death groups
-        output_size_summary( dgroups_filename,
-                             size_summary );
-        // Type total summary output
-        output_type_summary( dgroups_by_type_filename,
-                             type_total_summary );
-        // Output all objects info
-        output_all_objects2( objectinfo_filename,
-                             Heap,
-                             dag_keys,
-                             dag_all_set,
-                             all_keys,
-                             final_time );
-        // TODO 2017-0220 output_context_summary( context_death_count_filename,
-        // TODO 2017-0220                         Exec );
-        output_reference_summary( reference_summary_filename,
-                                  ref_reverse_summary_filename,
-                                  stability_summary_filename,
-                                  edge_summary,
-                                  obj2ref_map,
-                                  stability_summary );
-        // TODO: What next? 
-        // Output cycles
-        set<int> node_set;
-        output_cycles( keyset,
-                       cycle_filename,
-                       node_set );
-        // TODO: Moved the edge output to as needed instead of all at the end.
-        // TODO // Output all edges
-        unsigned int added_edges = output_edges( Heap,
-                                                 edge_info_file );
-        edge_info_file << "---------------[ EDGE INFO END ]------------------------------------------------" << endl;
-        edge_info_file.close();
-    } else {
-        cout << "NOCYCLE chosen. Skipping cycle detection." << endl;
-    }
+    // TODO: Call cycle detection function
 
     ofstream summary_file(summary_filename);
     summary_file << "---------------[ SUMMARY INFO ]----------------------------------------------------" << endl;
