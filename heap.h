@@ -18,7 +18,7 @@
 #include <EASTL/algorithm.h>
 
 #include "classinfo.h"
-#include "refstate.h"
+// TODO #include "refstate.h"
 
 class Object;
 class Thread;
@@ -429,7 +429,6 @@ class Object {
 
         unsigned int m_refCount;
         Color m_color;
-        ObjectRefState m_refState;
         unsigned int m_maxRefCount;
 
         EdgeMap m_fields;
