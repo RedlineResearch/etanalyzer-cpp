@@ -22,7 +22,7 @@ SET( SOURCES_SIM simulator-ver2.cpp execution.cpp heap.cpp classinfo.cpp tokeniz
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -std=c++11 -g -Werror")
 
 # Main simulator
-ADD_EXECUTABLE( simulator ${SOURCES_SIM} )
+ADD_EXECUTABLE( simulator-ver2 ${SOURCES_SIM} )
 # TARGET_COMPILE_DEFINITIONS(simulator
 #                            PRIVATE _SIZE_DEBUG)
 

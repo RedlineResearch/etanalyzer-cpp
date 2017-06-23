@@ -779,8 +779,12 @@ class Object {
         void setDeathRoot( Object *newroot ) { this->m_death_root = newroot; }
         Object * getDeathRoot() const { return this->m_death_root; }
         // Set and get key type 
-        void setKeyType( KeyType newtype ) { this->m_key_type = newtype; }
-        void setKeyTypeIfNotKnown( KeyType newtype ) {
+        void setKeyType( KeyType newtype )
+        {
+            this->m_key_type = newtype;
+        }
+        void setKeyTypeIfNotKnown( KeyType newtype )
+        {
             if (this->m_key_type == KeyType::UNKNOWN_KEYTYPE) {
                 this->m_key_type = newtype;
             }

@@ -565,25 +565,30 @@ NodeId_t HeapState::getNodeId( ObjectId_t objId, bimap< ObjectId_t, NodeId_t >& 
 }
 
 // TODO Documentation :)
-void HeapState::scan_queue2( EdgeList& edgelist,
-                             std::map<unsigned int, bool>& not_candidate_map )
+void HeapState::scan_queue2( EdgeList &edgelist,
+                             std::map<unsigned int, bool> &not_candidate_map )
 {
+    // Types
     typedef std::set< std::pair< ObjectId_t, unsigned int >, compclass > CandidateSet_t;
+    //      TODO: what is the unsigned int part of the pair?
     typedef std::map< ObjectId_t, unsigned int > Object2Utime_t;
+    //      TODO: what is the unsigned int value part of the map?
+    //                  Utime == update time?
+
     CandidateSet_t candSet;
     Object2Utime_t utimeMap;
 
     unsigned int hit_total;
     unsigned int miss_total;
-    ObjectPtrMap_t& whereis = this->m_whereis;
-    KeySet_t& keyset = this->m_keyset;
+    ObjectPtrMap_t &whereis = this->m_whereis;
+    KeySet_t &keyset = this->m_keyset;
     // keyset contains:
-    //   key object objects as keys
-    //   sets of objects that depend on key objects
+    //   key-object objects as keys
+    //      ->   sets of objects that depend on key objects
     cout << "Queue size: " << this->m_candidate_map.size() << endl;
     // TODO
     // 1. Convert m_candidate_map to a Boost Graph Library
-    // 2. Run SCC algorithm
+    // 2. Run SCC algorithm (or Weakly connected?)
     // 3. Run reachability from the SCCs to the rest
     // 4. ??? That's it?
     //
@@ -600,22 +605,22 @@ void HeapState::scan_queue2( EdgeList& edgelist,
             // Is a candidate
             Object *obj = this->getObject(objId);
             if ( obj && (obj->getRefCount() > 0) ) {
-                // Object exists
+                // Object exists and refcount is greater than 0.
                 unsigned int uptime = obj->getLastActionTime();
                 // DEBUG: Compare to getDeathTime
                 // Insert (objId, update time) pair into candidate set
                 candSet.insert( std::make_pair( objId, uptime ) );
                 utimeMap[objId] = uptime;
                 // Copy all edges from source 'obj'
-                for ( EdgeMap::iterator p = obj->getEdgeMapBegin();
+                for ( auto p = obj->getEdgeMapBegin();
                       p != obj->getEdgeMapEnd();
                       ++p ) {
-                    Edge* target_edge = p->second;
+                    auto target_edge = p->second; // Edge pointer
                     if (target_edge) {
-                        unsigned int fieldId = target_edge->getSourceField();
-                        Object *tgtObj = target_edge->getTarget();
+                        auto fieldId = target_edge->getSourceField(); // Field id type (unsigned int)
+                        auto tgtObj = target_edge->getTarget(); // Object pointer
                         if (tgtObj) {
-                            ObjectId_t tgtId = tgtObj->getId();
+                            auto tgtId = tgtObj->getId(); // Object id
                             GEdge_t e(objId, tgtId);
                             edgelist.push_back(e);
                         }
@@ -631,10 +636,10 @@ void HeapState::scan_queue2( EdgeList& edgelist,
     // Anything seen in this loop has a reference count (RefCount) greater than zero.
     // The 'whereis' maps an object to its key object (both Object pointers)
     while (!(candSet.empty())) {
-        CandidateSet_t::iterator it = candSet.begin();
+        auto it = candSet.begin();
         if (it != candSet.end()) {
-            ObjectId_t rootId = it->first;
-            unsigned int uptime = it->second;
+            auto rootId = it->first; // Object id
+            auto uptime = it->second; // Unsigned int
             Object *root;
             Object *object = this->getObject(rootId);
             // DFS work stack - can't use 'stack' as a variable name
@@ -647,7 +652,7 @@ void HeapState::scan_queue2( EdgeList& edgelist,
             auto itmap = whereis.find(object);
             if ( (itmap == whereis.end()) || 
                  (object == whereis[object]) ) {
-                // It's a root...for now.
+                // NOT FOUND so...it's a root...for now.
                 root = object;
                 if (itmap == whereis.end()) {
                     // Haven't saved object in whereis yet.
@@ -655,25 +660,31 @@ void HeapState::scan_queue2( EdgeList& edgelist,
                 }
                 auto keysetit = keyset.find(root);
                 if (keysetit == keyset.end()) {
+                    // Not found:
                     keyset[root] = new std::set< Object * >();
                 }
                 root->setKeyTypeIfNotKnown( KeyType::CYCLEKEY ); // Note: root == object
             } else {
                 // So-called root isn't one because we have an entry in 'whereis'
                 // and root != whereis[object]
-                object->setKeyTypeIfNotKnown( KeyType::CYCLE ); // object is a CYCLE object
-                root = whereis[object]; // My real root.
+                object->setKeyType( KeyType::CYCLE ); // object is a CYCLE object
+                root = whereis[object]; // My real root so far
                 auto obj_it = keyset.find(object);
                 if (obj_it != keyset.end()) {
                     // So we found that object is not a root but has an entry
                     // in keyset. We need to:
                     //    1. Remove from keyset
-                    std::set< Object * > *sptr = obj_it->second;
+                    auto *sptr = obj_it->second; // set of Object pointers
                     keyset.erase(obj_it);
                     //    2. Add root if root is not there.
-                    keyset[root] = new std::set< Object * >(*sptr);
-                    delete sptr;
+                    keyset[root] = sptr;
+                    // TODO Delete these?
+                    // TODO: keyset[root] = new std::set< Object * >(*sptr);
+                    // TODO: delete sptr;
                 } else {
+                    // Well, this shouldn't be possible? TODO
+                    // TODO: Should we assert(false)?
+                    assert(false);
                     // Create an empty set for root in keyset
                     keyset[root] = new std::set< Object * >();
                 }
@@ -683,8 +694,8 @@ void HeapState::scan_queue2( EdgeList& edgelist,
             assert( root != NULL );
             // Depth First Search
             while (!work.empty()) {
-                Object *cur = work.back();
-                ObjectId_t curId = cur->getId();
+                auto cur = work.back(); // Object pointer
+                auto curId = cur->getId(); // Object id
                 work.pop_back();
                 // Look in whereis
                 auto itwhere = whereis.find(cur);
@@ -701,15 +712,15 @@ void HeapState::scan_queue2( EdgeList& edgelist,
                 if (itdisc == discovered.end()) {
                     // Not yet seen by DFS.
                     discovered.insert(cur);
-                    Object *other_root = whereis[cur];
+                    auto other_root = whereis[cur]; // Object pointer
                     if (!other_root) {
                         // 'cur' not found in 'whereis'
                         keyset[root]->insert(cur);
                         whereis[cur] = root;
                     } else {
-                        unsigned int other_time = other_root->getDeathTime();
-                        unsigned int root_time =  root->getDeathTime();
-                        unsigned int curtime = cur->getDeathTime();
+                        auto other_time = other_root->getDeathTime();
+                        auto root_time =  root->getDeathTime();
+                        auto curtime = cur->getDeathTime();
                         if (itwhere != whereis.end()) {
                             // So we visit 'cur' but it has been put into whereis.
                             // We will be using the root that died LATER.
@@ -718,7 +729,9 @@ void HeapState::scan_queue2( EdgeList& edgelist,
                                 //            << " - " << root->getType() << " ]" << endl;
                                 Object *older_ptr, *newer_ptr;
                                 unsigned int older_time, newer_time;
-                                if (root_time < other_time) {
+                                // TODO TODO TODO 
+                                //    if (root_time < other_time) {
+                                if (root_time > other_time) {
                                     older_ptr = root;
                                     older_time = root_time;
                                     newer_ptr = other_root;
@@ -729,17 +742,16 @@ void HeapState::scan_queue2( EdgeList& edgelist,
                                     newer_ptr = root;
                                     newer_time = root_time;
                                 }
-                                // Current object belongs to older if died earlier
-                                if (curtime <= older_time) {
+                                if (curtime <= newer_time) {
                                     if (cur) {
-                                        keyset[older_ptr]->insert(cur);
+                                        keyset[newer_ptr]->insert(cur);
                                         whereis[cur] = older_ptr;
                                     }
                                 } else {
                                     // Else it belongs to the root that died later.
                                     if (cur) {
-                                        keyset[newer_ptr]->insert(cur);
-                                        whereis[cur] = newer_ptr;
+                                        keyset[older_ptr]->insert(cur);
+                                        whereis[cur] = older_ptr;
                                     }
                                 }
                             } // else {

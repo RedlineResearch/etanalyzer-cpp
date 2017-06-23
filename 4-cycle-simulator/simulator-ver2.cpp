@@ -596,21 +596,28 @@ void do_cycles( string &dgroups_filename,
 
     // NOTE: keyset is a GLOBAL.
     // If that bothers you, then pass it in as a parameter. It's all good.
-    for ( KeySet_t::iterator kiter = keyset.begin();
+    // KeySet_t is a map:
+    //       Object * ->  pointer to set< Object * >
+    for ( auto kiter = keyset.begin();
           kiter != keyset.end();
           kiter++ ) {
-        Object *optr = kiter->first;
+        auto optr = kiter->first; // Object pointer
         ObjectId_t objId = (optr ? optr->getId() : 0); 
+        // All keys in a KeySet_t will be key object Ids
         dag_keys.insert(objId);
         dag_all.push_back(objId);
-        set< Object * > *sptr = kiter->second;
+        // TODO: set< Object * > *sptr = kiter->second;
+        auto sptr = kiter->second; // pointer to set< Object * >
         if (!sptr) {
-            continue; // TODO
+            // TODO: Null set pointer? Should DEBUG. TODO
+            continue;
         }
         deque< Object * > deqtmp;
+        // Not sure why this doesn't work: TODO COPY CODE
         // std::copy( sptr->begin(), sptr->end(), deqtmp.begin() );
         // std::remove_if( deqtmp.begin(), deqtmp.end(), ifNull );
-        for ( set< Object * >::iterator setit = sptr->begin();
+        // END TODO COPY CODE
+        for ( auto setit = sptr->begin();
               setit != sptr->end();
               setit++ ) {
             if (*setit) {
@@ -626,7 +633,7 @@ void do_cycles( string &dgroups_filename,
             //                 deqtmp.cend(),
             //                 dag_all.begin(),
             //                 lfn );
-            for ( deque< Object * >::iterator dqit = deqtmp.begin();
+            for ( auto dqit = deqtmp.begin();
                   dqit != deqtmp.end();
                   dqit++ ) {
                 if (*dqit) {
@@ -636,11 +643,16 @@ void do_cycles( string &dgroups_filename,
         }
     }
     // Copy all dag_all object Ids into dag_all_set to get rid of duplicates.
-    set<ObjectId_t> dag_all_set( dag_all.cbegin(), dag_all.cend() );
+    set< ObjectId_t > dag_all_set( dag_all.cbegin(), dag_all.cend() );
 
     // scan_queue2 determines all the death groups that are cyclic
     // The '2' is a historical version of the function that won't be
     // removed.
+    //    - not_candidate_map is GLOBAL: map from unsigned int to bool 
+    //                                   TODO: Is unsigned int ObjectId_t?
+    //    - edgelist is GLOBAL: map from int to int
+    //                                   TODO: Are the ints also ObjectId_t?
+    // TODO TODO ^^^^^^^^^^^^^^^^^^^^
     Heap.scan_queue2( edgelist,
                       not_candidate_map );
     update_summary_from_keyset( keyset,
@@ -1657,7 +1669,7 @@ void output_reference_summary( string &reference_summary_filename,
 
 int main(int argc, char* argv[])
 {
-    if (argc != 7) {
+    if (argc != 6) {
         cout << "Usage: " << argv[0] << " <namesfile> <output base name> <OBJDEBUG/NOOBJDEBUG> <main.class> <main.function>" << endl;
         cout << "      git version: " << build_git_sha << endl;
         cout << "      build date : " << build_git_time << endl;
