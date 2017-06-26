@@ -485,15 +485,15 @@ void HeapState::__end_of_program( unsigned int cur_time,
 }
 
 // TODO Documentation :)
-void HeapState::set_candidate(unsigned int objId)
+inline void HeapState::set_candidate(unsigned int objId)
 {
-    m_candidate_map[objId] = true;
+    this->m_candidate_map[objId] = true;
 }
 
 // TODO Documentation :)
-void HeapState::unset_candidate(unsigned int objId)
+inline void HeapState::unset_candidate(unsigned int objId)
 {
-    m_candidate_map[objId] = false;
+    this->m_candidate_map[objId] = false;
 }
 
 // TODO Documentation :)
@@ -906,10 +906,10 @@ void Object::__updateField( Edge *edge,
     if (edge) {
         edge->setEdgeState( EdgeState::LIVE );
     }
-    EdgeMap::iterator p = this->m_fields.find(fieldId);
+    auto p = this->m_fields.find(fieldId);
     if (p != this->m_fields.end()) {
         // -- Old edge
-        Edge *old_edge = p->second;
+        auto old_edge = p->second;
         if (old_edge) {
             if (old_edge->getEdgeState() == EdgeState::LIVE) {
                 // We only do the following if the edge is still alive.
@@ -925,7 +925,7 @@ void Object::__updateField( Edge *edge,
                 }
             }
             // -- Now we know the end time
-            Object *old_target = old_edge->getTarget();
+            auto old_target = old_edge->getTarget(); // pointer to old target object
             if (old_target) {
                 if (reason == Reason::HEAP) {
                     old_target->setHeapReason( cur_time );
@@ -1172,15 +1172,16 @@ void Object::decrementRefCountReal( unsigned int cur_time,
                                     Method *method,
                                     Reason reason,
                                     Object *death_root,
-                                    LastEvent lastevent )
+                                    LastEvent lastevent,
+                                    ofstream *eifile_ptr )
 {
     this->decrementRefCount();
     this->m_lastMethodDecRC = method;
     // NOW: Our reason is clearly because of the DECRC.
     this->setLastEvent( lastevent );
     if (this->m_refCount == 0) {
-        ObjectPtrMap_t& whereis = this->m_heapptr->get_whereis();
-        KeySet_t& keyset = this->m_heapptr->get_keyset();
+        // TODO A: ObjectPtrMap_t& whereis = this->m_heapptr->get_whereis();
+        // TODO A: KeySet_t &keyset = this->m_heapptr->get_keyset();
         // TODO Should we even bother with this check?
         //      Maybe just set it to true.
         if (!m_decToZero) {
@@ -1193,31 +1194,26 @@ void Object::decrementRefCountReal( unsigned int cur_time,
         } else {
             this->setDiedByHeapFlag();
         }
-        // -- Visit all edges
-        this->recolor(Color::GREEN);
+        // TODO B: // -- Visit all edges
+        // TODO B: this->recolor(Color::GREEN);
 
         // -- Who's my key object?
-        // DEBUG
-        unsigned int this_objId = this->getId();
-        // END DEBUG
         if (death_root != NULL) {
             this->setDeathRoot( death_root );
         } else {
             this->setDeathRoot( this );
         }
-        Object *my_death_root = this->getDeathRoot();
-        // DEBUG
-        unsigned int drootId = my_death_root->getId();
-        // END DEBUG
-        assert(my_death_root);
-        whereis[this] = my_death_root;
+        // TODO A: Object *my_death_root = this->getDeathRoot();
+        // TODO A: unsigned int drootId = my_death_root->getId();
+        // TODO A: assert(my_death_root);
+        // TODO A: whereis[this] = my_death_root;
 
-        KeySet_t::iterator itset = keyset.find(my_death_root);
-        if (itset == keyset.end()) {
-            keyset[my_death_root] = new std::set< Object * >();
-            keyset[my_death_root]->insert( my_death_root );
-        }
-        keyset[my_death_root]->insert( this );
+        // TODO A: auto itset = keyset.find(my_death_root);
+        // TODO A: if (itset == keyset.end()) {
+        // TODO A:     keyset[my_death_root] = new std::set< Object * >();
+        // TODO A:     keyset[my_death_root]->insert( my_death_root );
+        // TODO A: }
+        // TODO A: keyset[my_death_root]->insert( this );
 
         LastEvent newevent;
         // Set key type based on last event
@@ -1243,19 +1239,20 @@ void Object::decrementRefCountReal( unsigned int cur_time,
             newevent = lastevent;
         }
         // Edges are now dead.
-        for ( EdgeMap::iterator p = this->m_fields.begin();
+        for ( auto p = this->m_fields.begin();
               p != this->m_fields.end();
               ++p ) {
-            Edge *target_edge = p->second;
+            auto target_edge = (Edge *) p->second;
             if (target_edge) {
                 // TODO unsigned int fieldId = target_edge->getSourceField();
-                Object *target_obj = target_edge->getTarget();
+                auto target_obj = target_edge->getTarget();
                 if (target_obj) {
                     target_obj->decrementRefCountReal( cur_time,
                                                        method,
                                                        reason,
                                                        death_root,
-                                                       lastevent );
+                                                       lastevent,
+                                                       eifile_ptr );
                 }
             }
         }
@@ -1263,14 +1260,14 @@ void Object::decrementRefCountReal( unsigned int cur_time,
         // if (Object::g_counter % 1000 == 1) {
         // cout << ".";
         // }
-    } else {
-        Color color = this->getColor();
-        if (color != Color::BLACK) {
-            unsigned int objId = this->getId();
-            this->recolor( Color::BLACK );
-            this->m_heapptr->set_candidate(objId);
-        }
-    }
+    } // TODO B: else {
+    // TODO B: auto color = this->getColor();
+    // TODO B: if (color != Color::BLACK) {
+    // TODO B:     auto objId = this->getId();
+    // TODO B:     this->recolor( Color::BLACK );
+    // TODO B:     this->m_heapptr->set_candidate(objId);
+    // TODO B: }
+    // TODO B: }
 }
 
 void Object::incrementRefCountReal()
@@ -1281,9 +1278,9 @@ void Object::incrementRefCountReal()
     }
     this->incrementRefCount();
     this->m_maxRefCount = std::max( m_refCount, m_maxRefCount );
+    // Take out of candidate set
+    this->m_heapptr->unset_candidate( this->m_id );
     // TODO
-    // Can we take it out of the candidate set? If so, what should
-    // the new color be?
     // {
     //     Color color = this->getColor();
     //     if (color != Color::BLACK) {

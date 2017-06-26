@@ -431,6 +431,9 @@ class Object {
         Color m_color;
         unsigned int m_maxRefCount;
 
+        // How many times reference count would have gone negative for this object
+        unsigned int m_underflow;
+
         EdgeMap m_fields;
 
         HeapState *m_heapptr;
@@ -544,6 +547,7 @@ class Object {
             , m_deathTime_alloc(UINT_MAX)
             , m_refCount(0)
             , m_maxRefCount(0)
+            , m_underflow(0)
             , m_color(Color::GREEN)
             , m_heapptr(heap)
             , m_pointed_by_heap(false)
@@ -587,10 +591,22 @@ class Object {
         }
 
         // -- Getters
-        unsigned int getId() const { return m_id; }
-        unsigned int getSize() const { return m_size; }
-        const string& getType() const { return m_type; }
-        char getKind() const { return m_kind; }
+        inline unsigned int getId() const
+        {
+            return this->m_id;
+        }
+        inline unsigned int getSize() const
+        {
+            return this->m_size;
+        }
+        inline const string& getType() const
+        {
+            return this->m_type;
+        }
+        inline char getKind() const
+        {
+            return this->m_kind;
+        }
         // Allocation sites
         AllocSite * getAllocSite() const {
             return m_site;
@@ -896,16 +912,40 @@ class Object {
 
 
         // -- Ref counting
-        unsigned int getRefCount() const { return m_refCount; }
-        unsigned int getMaxRefCount() const { return m_maxRefCount; }
-        void incrementRefCount() { m_refCount++; }
-        void decrementRefCount() { m_refCount--; }
+        inline unsigned int getRefCount() const
+        {
+            return this->m_refCount;
+        }
+        inline unsigned int getMaxRefCount() const
+        {
+            return this->m_maxRefCount;
+        }
+        inline void incrementRefCount()
+        {
+            this->m_refCount++;
+        }
+        inline void decrementRefCount()
+        {
+            // Sanity check
+            if (this->m_refCount > 0) {
+                this->m_refCount--;
+            } else {
+                // Underflow!
+                this->m_underflow++;
+            }
+        }
+        inline unsigned int get_underflow_count()
+        {
+            return this->m_underflow;
+        }
+
         void incrementRefCountReal();
         void decrementRefCountReal( unsigned int cur_time,
                                     Method *method,
                                     Reason r,
                                     Object *death_root,
-                                    LastEvent last_event );
+                                    LastEvent last_event,
+                                    ofstream *eifile_ptr );
         // -- Access the fields
         const EdgeMap& getFields() const { return m_fields; }
         // -- Get a string representation
