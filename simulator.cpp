@@ -1244,14 +1244,14 @@ unsigned int output_edges( HeapState &myheap,
     for ( auto it = myheap.begin_edgestate_map();
           it != myheap.end_edgestate_map();
           ++it ) {
-        std::pair< Edge *, VTime_t > key = it->first;
-        EdgeState estate = it->second;
-        Edge *edge = std::get<0>(key);
-        VTime_t ctime = std::get<1>(key);
+        auto key = (std::pair< Edge *, VTime_t >) it->first;
+        auto estate = (EdgeState) it->second;
+        auto edge = (Edge *) std::get<0>(key);
+        auto ctime = (VTime_t) std::get<1>(key);
         assert(edge);
-        Object *src = edge->getSource();
+        auto src = edge->getSource();
         assert(src);
-        VTime_t endtime = src->getDeathTime();
+        auto endtime = src->getDeathTime();
         if ( (estate == EdgeState::DEAD_BY_OBJECT_DEATH) ||
              (estate == EdgeState::DEAD_BY_UPDATE) ||
              (estate == EdgeState::DEAD_BY_PROGRAM_END) ) {
