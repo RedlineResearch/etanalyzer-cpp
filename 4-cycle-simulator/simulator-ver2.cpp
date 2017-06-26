@@ -652,9 +652,9 @@ void do_cycles( string &dgroups_filename,
     //                                   TODO: Is unsigned int ObjectId_t?
     //    - edgelist is GLOBAL: map from int to int
     //                                   TODO: Are the ints also ObjectId_t?
+    // TODO: Heap.scan_queue2( edgelist,
+    // TODO:                   not_candidate_map );
     // TODO TODO ^^^^^^^^^^^^^^^^^^^^
-    Heap.scan_queue2( edgelist,
-                      not_candidate_map );
     update_summary_from_keyset( keyset,
                                 per_group_summary,
                                 type_total_summary,
