@@ -499,7 +499,6 @@ def read_dgroups_from_pickle( result = [],
     total_alloc = 0
     total_died_at_end_size = 0
     rawpath = os.path.join( workdir, bmark + "-" + RAW_KEY_OBJECT_FILENAME )
-    print "DEBUG: A"
     with open( rawpath, "wb" ) as fpraw:
         raw_writer = csv.writer( fpraw,
                                  quoting = csv.QUOTE_NONNUMERIC )
@@ -551,7 +550,6 @@ def read_dgroups_from_pickle( result = [],
                     #     fpraw.flush()
             # TODO DEBUG print "--------------------------------------------------------------------------------"
     # Save the CSV file the key object summary
-    print "DEBUG: Z"
     total_objects = summary_reader.get_number_of_objects()
     num_key_objects = len(key_objects["GROUPLIST"])
     size_died_at_end = summary_reader.get_size_died_at_end()
@@ -713,12 +711,12 @@ def filter_edges( edgelist = [],
     newedgelist = []
     for edge in edgelist:
             src = ei.get_source_id_from_rec(edge)
-            tgt = ei.get_target_id_from_rec(edge)
+            # TODO: tgt = ei.get_target_id_from_rec(edge)
             if (src in group):
                 newedgelist.append(edge)
-            else:
-                # DEBUG edges
-                pass
+            # else:
+            #     # DEBUG edges
+            #     pass
     return newedgelist
 
 def get_cycle_nodes( edgelist = [] ):
@@ -743,36 +741,22 @@ def update_cycle_summary( cycle_summary = {},
 
 # This should return a dictionary where:
 #     key -> group (list INCLUDES key)
-def get_key_objects( group = {},
-                     seen_objects = set(),
-                     edgeinfo = None,
-                     objectinfo = None,
-                     cycle_summary = {},
-                     # TODO bystack_summary = {},
-                     logger = None ):
+def get_cycles( group = {},
+                seen_objects = set(),
+                edgeinfo = None,
+                objectinfo = None,
+                cycle_summary = {},
+                logger = None ):
     latest = 0 # Time of most recent
     tgt = 0
     assert( len(group) > 0 )
-    # NOTE:
-    # If the group died by stack, then there are no last edges
-    #
-    # from the heap to speak of. We look for objects without last edges.
-    # Get the group death time. This works because by definition, all objects
-    # in this group have the same death time.
     dtime = objectinfo.get_death_time( group[0] )
     # Rename:
     ei = edgeinfo
     # Results placed here:
-    result = {}
-    #     key = Key object ID
-    #     value = list of group including key object
-    cycledict = {}
-    #     key = object ID
-    #     value = boolean flag whether the key object is a cycle or not
-    #             I think this only keeps track of key object IDS TODO
-    cyclenode_summary = {}
-    #     key = Key object ID
-    #     value = Cycle group list. It SHOULD include the key object ID.
+    cyclelist = []
+    cycledict = {} # node -> True/False if cycle
+    # List of cycles
     total_size = 0 # Total size of group
     died_at_end_size = 0
     # Check DIED BY STACK and single
@@ -782,110 +766,81 @@ def get_key_objects( group = {},
             ( cause == "HEAP" or
               cause == "STACK" or
               cause == "END" ) )
-    if (cause == "STACK") and (len(group) == 1):
-        # sys.stdout.write( "DBS 1: %d --" % len(group) )
-        # Then this is a key object for a death group by itself
-        result = { group[0] : [ group[0] ] }
-        edgelist = []
-        for obj in group:
-            if obj in seen_objects:
-                # Dupe. TODO: Log a warning/error
-                continue
-            # Sum up the size in bytes
-            total_size += objectinfo.get_size(obj)
-            # Need a get all edges that target 'obj'
-            # * Incoming edges
-            srcreclist = ei.get_sources_records(obj)
-            # We only want the ones that died with the object
-            # TODO: ei.get_source_id_from_rec(x)
-            obj_edgelist = [ x for x in srcreclist if
-                             (ei.get_death_time_from_rec(x) == dtime) ]
-            edgelist.extend( obj_edgelist )
+    if ( (len(group) == 1) and
+         (cause != "END") ):
+        # sys.stdout.write( "SIZE 1: %d --" % len(group) )
+        obj = group[0]
+        if obj in seen_objects:
+            # Dupe. TODO: Log a warning/error
+            continue
+        # Sum up the size in bytes
+        total_size += objectinfo.get_size(obj)
+        # Get all edges that target 'obj':
+        # * Incoming edges
+        srcreclist = ei.get_sources_records(obj)
+        # We only want the ones that died with the object
+        # TODO what is this for? TODO: ei.get_source_id_from_rec(x)
+        edgelist = [ x for x in srcreclist if
+                     (ei.get_death_time_from_rec(x) == dtime) ]
         if len(edgelist) > 0:
             edgelist = filter_edges( edgelist = edgelist,
                                      group = group,
                                      edgeinforeader = ei )
-        graph_result = make_adjacency_list( nodes = group,
-                                            edgelist = edgelist,
-                                            edgeinfo = ei )
-        adjlist = graph_result["adjlist"]
-        nxgraph = graph_result["nxgraph"]
-        for srcnode in result.keys():
-            cycledict[srcnode] = False
-        for nxnode in nxgraph.nodes():
-            # Determine if it has cycles
-            if nxnode in result:
-                try:
-                    cycle_elist = nx.find_cycle(nxgraph, nxnode)
-                    cycledict[nxnode] = True
-                    cycle_nodes = get_cycle_nodes( cycle_elist )
-                except nx.exception.NetworkXNoCycle as e:
-                    cycle_elist = []
-                    cycledict[nxnode] = False
-                    cycle_nodes = set()
-                cyclenode_summary[nxnode] = cycle_nodes
-                # sys.stdout.write( "   node[%d] -> (%d, %d) cycle %s.\n" %
-                #                   ( (nxnode), len(cycle_nodes),
-                #                     nxgraph.number_of_edges(),
-                #                     ("YES" if cycledict[nxnode] else "NO") ) )
-        # TODO: Do we care about cycles of size 1?
-    elif (cause == "STACK"):
+            if len(edgelist) > 0:
+                # This means there's a self-cycle of 1 node:
+                return ( [ [ obj, ], ], # list of one cycle
+                         total_size, # size of group in bytes
+                         0, # died at end size (known to be 0)
+                         cause ) # death cause
+        update_cycle_summary( cycle_summary = cycle_summary,
+                              cycledict = cycledict,
+                              cyclenode_summary = cyclenode_summary,
+                              objectinfo = objectinfo )
+        return ( [], # No cycles
+                 total_size, # size of group in bytes
+                 0, # died at end size (known to be 0)
+                 cause ) # death cause
+    else cause != "END":
         assert( len(group) > 1 )
-        # sys.stdout.write( "DBS 2: %d" % len(group) )
-        # DIED BY STACK
-        # We look for all objects that do not have any incoming edge with
-        # the same death time as itself. These are the ROOTS.
-        none_count = 0
         edgelist = []
         for obj in group:
             # Sum up the size in bytes
             total_size += objectinfo.get_size(obj)
-            # TODO: Need a get all edges that target 'obj'
             # * Incoming edges
             srcreclist = ei.get_sources_records(obj)
             # We only want the ones that died with the object
-            # TODO: ei.get_source_id_from_rec(x)
+            # TODO what is this for? TODO: ei.get_source_id_from_rec(x)
             obj_edgelist = [ x for x in srcreclist if
                              (ei.get_death_time_from_rec(x) == dtime) ]
-            if len(obj_edgelist) == 0:
-                # Must be a key object
-                assert( obj not in result )
-                result[obj] = []
-            else:
+            if len(obj_edgelist) > 0:
                 edgelist.extend( obj_edgelist )
         edgelist = filter_edges( edgelist = edgelist,
                                  group = group,
                                  edgeinforeader = ei )
-        # Now use DFS to find subgroups. TODO TODO TODO
         graph_result = make_adjacency_list( nodes = group,
                                             edgelist = edgelist,
                                             edgeinfo = ei )
         adjlist = graph_result["adjlist"]
         nxgraph = graph_result["nxgraph"]
-        allobjs = result.keys()
-        allobjs.extend( list(chain.from_iterable( adjlist.values() )) )
-        allobjs.extend( adjlist.keys() )
-        allobjs = remove_dupes(allobjs)
-        discovered = { x : False for x in allobjs }
-        # Clearly we need to use key objects as the starting points
-        if len(result) == 0:
-            get_key_using_last_heap_update( group = group,
-                                            graph = nxgraph,
-                                            objectinfo = objectinfo,
-                                            result = result,
-                                            logger = logger )
-            # TODO result[key] = newgroup
-        for srcnode in result.keys():
-            if not discovered[srcnode]:
-                mygroup = dfs_iter( G = adjlist,
-                                    discovered = discovered,
-                                    node = srcnode )
-                result[srcnode] = mygroup
+        # HERE TODO HERE TODO HERE
+        # TODO: Don't need allobjs as this is simply group?
+        # allobjs = list(chain.from_iterable( adjlist.values() )) )
+        # There's no need for this:
+        #      allobjs.extend( adjlist.keys() )
+        #      allobjs = remove_dupes(allobjs)
+        # TODO discovered = { x : False for x in allobjs }
+        # TODO for srcnode in allobjs:
+        # TODO     if not discovered[srcnode]:
+        # TODO         mygroup = dfs_iter( G = adjlist,
+        # TODO                             discovered = discovered,
+        # TODO                             node = srcnode )
+        # TODO         result[srcnode] = mygroup
         # TODO: At this point all nodes should be discovered. We need to verify. TODO
-        for srcnode in result.keys():
-            cycledict[srcnode] = False
+        # TODO for srcnode in result.keys():
+        # TODO     cycledict[srcnode] = False
+        cycledict = { n : False for n in nxgraph.nodes() }
         for nxnode in nxgraph.nodes():
-            # TODO: Determine if it has cycles
+            # Determine if it has cycles:
             if nxnode in result:
                 try:
                     cycle_elist = nx.find_cycle(nxgraph, nxnode)
@@ -900,95 +855,21 @@ def get_key_objects( group = {},
                 #                     len(cycle_elist),
                 #                     ("YES" if cycledict[nxnode] else "NO") ) )
                 # TODO: Don't need this: sys.stdout.write( "        nodes: %s\n" % str(nxgraph.nodes()) )
-    elif cause == "HEAP":
-        # DIED BY HEAP and GLOBAL
-        # We look for all objects that do not have any incoming edge with
-        # the same death time as itself. These are the KEY OBJECTS.
-        # In this case there _SHOULD_ only be one KEY OBJECT.
-        edgelist = []
-        for obj in group:
-            # Sum up the size in bytes
-            total_size += objectinfo.get_size(obj)
-            # TODO: Need a get all edges that target 'obj'
-            # * Incoming edges
-            srcreclist = ei.get_sources_records(obj)
-            # We only want the ones that died with the object
-            # TODO: ei.get_source_id_from_rec(x)
-            obj_edgelist = [ x for x in srcreclist if
-                             (ei.get_death_time_from_rec(x) == dtime) ]
-            if len(obj_edgelist) == 0:
-                # Must be a key object
-                assert( obj not in result )
-                result[obj] = []
-            else:
-                edgelist.extend( obj_edgelist )
-        if len(edgelist) > 0:
-            edgelist = filter_edges( edgelist = edgelist,
-                                     group = group,
-                                     edgeinforeader = ei )
-        graph_result = make_adjacency_list( nodes = group,
-                                            edgelist = edgelist,
-                                            edgeinfo = ei )
-        adjlist = graph_result["adjlist"]
-        nxgraph = graph_result["nxgraph"]
-        if len(result) == 1:
-            # The result we expected.
-            newgroup = list(group)
-            for key in result.keys():
-                # TODO newgroup.remove(key)
-                result[key] = newgroup
-        else:
-            get_key_using_last_heap_update( group = group,
-                                            graph = nxgraph,
-                                            objectinfo = objectinfo,
-                                            result = result,
-                                            logger = logger )
-            # TODO result[key] = newgroup
-        for srcnode in result.keys():
-            cycledict[srcnode] = False
-        flag = False
-        for nxnode in nxgraph.nodes():
-            # TODO: Determine if it has cycles
-            if nxnode in result:
-                flag = True
-                try:
-                    cycle_elist = nx.find_cycle(nxgraph, nxnode)
-                    cycledict[nxnode] = True
-                except nx.exception.NetworkXNoCycle as e:
-                    cycle_elist = []
-                    cycledict[nxnode] = False
-                # sys.stdout.write( "   node[%d] -> (%d, %d) cycle %s.\n" %
-                #                   ( (nxnode), nxgraph.number_of_nodes(),
-                #                     nxgraph.number_of_edges(),
-                #                     ("YES" if cycledict[nxnode] else "NO") ) )
-                # sys.stdout.write( "        nodes: %s\n" % str(nxgraph.nodes()) )
-        # TODO DEBUG if not flag:
-        # TODO DEBUG     print "--------------------------------------------------------------------------------"
-        # TODO DEBUG     print "DEBUG: result"
-        # TODO DEBUG     pp.pprint( result )
-        # TODO DEBUG     print "     : nodes"
-        # TODO DEBUG     pp.pprint(nxgraph.nodes())
-        # TODO DEBUG     print "--------------------------------------------------------------------------------"
-    else:
-        if cause == "END":
-            # Ignore anything at program end
-            for obj in group:
-                if obj in seen_objects:
-                    # Dupe. TODO: Log a warning/error
-                    continue
-                # Sum up the size in bytes
-                died_at_end_size += objectinfo.get_size(obj)
-        else:
-            print "***** ERROR: can't classify object - cause[ %s ]*****" % str(cause)
-            objectinfo.debug_object(group[0])
-        # Either way nothing in the result
-    if cause != "END":
         update_cycle_summary( cycle_summary = cycle_summary,
                               cycledict = cycledict,
                               cyclenode_summary = cyclenode_summary,
                               objectinfo = objectinfo )
-    # There might be a better way to do this. - RLV
-    return (result, total_size, died_at_end_size, cause)
+        return (result, total_size, died_at_end_size, cause)
+    else:
+        assert( cause == "END" )
+        # Ignore anything at program end
+        for obj in group:
+            if obj in seen_objects:
+                # Dupe. TODO: Log a warning/error
+                continue
+            # Sum up the size in bytes
+            died_at_end_size += objectinfo.get_size(obj)
+        return (result, total_size, died_at_end_size, cause)
 
 def main_process( global_config = {},
                   main_config = {},
