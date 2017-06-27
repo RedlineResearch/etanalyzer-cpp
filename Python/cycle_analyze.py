@@ -730,10 +730,11 @@ def get_cycle_nodes( edgelist = [] ):
 
 def update_cycle_summary( cycle_summary = {},
                           cycledict = {},
-                          cyclenode_summary = {},
+                          cyclelist = [],
                           objectinfo = {} ):   
+    # cycledict seems unused anyway? TODO
     oi = objectinfo
-    for key, nlist in cyclenode_summary.iteritems():
+    for nlist in cyclelist:
         typelist = list( set( [ oi.get_type(x) for x in nlist ] ) )
         if len(typelist) > 0:
             tup = tuple( sorted( typelist ) )
@@ -788,15 +789,13 @@ def get_cycles( group = {},
                                      edgeinforeader = ei )
             if len(edgelist) > 0:
                 # This means there's a self-cycle of 1 node:
-                return ( [ [ obj, ], ], # list of one cycle
-                         total_size, # size of group in bytes
-                         0, # died at end size (known to be 0)
-                         cause ) # death cause
+                cyclelist = [ [ obj, ] ]
+                cycledict[obj] True
         update_cycle_summary( cycle_summary = cycle_summary,
                               cycledict = cycledict,
-                              cyclenode_summary = cyclenode_summary,
+                              cyclelist = cyclelist,
                               objectinfo = objectinfo )
-        return ( [], # No cycles
+        return ( cyclelist,
                  total_size, # size of group in bytes
                  0, # died at end size (known to be 0)
                  cause ) # death cause
@@ -822,44 +821,32 @@ def get_cycles( group = {},
                                             edgeinfo = ei )
         adjlist = graph_result["adjlist"]
         nxgraph = graph_result["nxgraph"]
-        # HERE TODO HERE TODO HERE
-        # TODO: Don't need allobjs as this is simply group?
-        # allobjs = list(chain.from_iterable( adjlist.values() )) )
-        # There's no need for this:
-        #      allobjs.extend( adjlist.keys() )
-        #      allobjs = remove_dupes(allobjs)
-        # TODO discovered = { x : False for x in allobjs }
-        # TODO for srcnode in allobjs:
-        # TODO     if not discovered[srcnode]:
-        # TODO         mygroup = dfs_iter( G = adjlist,
-        # TODO                             discovered = discovered,
-        # TODO                             node = srcnode )
-        # TODO         result[srcnode] = mygroup
-        # TODO: At this point all nodes should be discovered. We need to verify. TODO
-        # TODO for srcnode in result.keys():
-        # TODO     cycledict[srcnode] = False
         cycledict = { n : False for n in nxgraph.nodes() }
         for nxnode in nxgraph.nodes():
             # Determine if it has cycles:
-            if nxnode in result:
-                try:
-                    cycle_elist = nx.find_cycle(nxgraph, nxnode)
-                    cycledict[nxnode] = True
-                    cycle_nodes = get_cycle_nodes( cycle_elist )
-                except nx.exception.NetworkXNoCycle as e:
-                    cycle_elist = []
-                    cycledict[nxnode] = False
-                    cycle_nodes = set()
-                # sys.stdout.write( "   node[%d] -> (%d, %d) cycle %s.\n" %
-                #                   ( (nxnode), len(cycle_nodes),
-                #                     len(cycle_elist),
-                #                     ("YES" if cycledict[nxnode] else "NO") ) )
-                # TODO: Don't need this: sys.stdout.write( "        nodes: %s\n" % str(nxgraph.nodes()) )
+            try:
+                cycle_elist = nx.find_cycle(nxgraph, nxnode)
+                cycledict[nxnode] = True
+                cycle_nodes = get_cycle_nodes( cycle_elist )
+                # TODO HERE HERE TODO:
+                # cyclelist
+            except nx.exception.NetworkXNoCycle as e:
+                cycle_elist = []
+                cycledict[nxnode] = False
+                cycle_nodes = set()
+            # sys.stdout.write( "   node[%d] -> (%d, %d) cycle %s.\n" %
+            #                   ( (nxnode), len(cycle_nodes),
+            #                     len(cycle_elist),
+            #                     ("YES" if cycledict[nxnode] else "NO") ) )
+            # TODO: Don't need this: sys.stdout.write( "        nodes: %s\n" % str(nxgraph.nodes()) )
         update_cycle_summary( cycle_summary = cycle_summary,
                               cycledict = cycledict,
-                              cyclenode_summary = cyclenode_summary,
+                              cyclelist = cyclelist,
                               objectinfo = objectinfo )
-        return (result, total_size, died_at_end_size, cause)
+        return ( cyclelist,
+                 total_size,
+                 died_at_end_size,
+                 cause )
     else:
         assert( cause == "END" )
         # Ignore anything at program end
