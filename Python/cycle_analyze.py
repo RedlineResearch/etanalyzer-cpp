@@ -517,7 +517,6 @@ def read_dgroups_from_pickle( result = [],
                                                                          cycle_summary = cycle_summary,
                                                                          logger = logger )
             if cause == "END":
-                assert(len(key_result) == 0)
                 assert( died_at_end_size > 0 )
                 total_died_at_end_size += died_at_end_size
             elif len(key_result) > 0:
