@@ -755,21 +755,21 @@ def get_cycles( group = {},
     # Rename:
     ei = edgeinfo
     # Results placed here:
-    cyclelist = []
+    cyclelist = [] # List of cycles
     cycledict = {} # node -> True/False if cycle
-    # List of cycles
     total_size = 0 # Total size of group
     died_at_end_size = 0
-    # Check DIED BY STACK and single
+    # Get the death cause
     cause = get_group_died_by_attribute( group = set(group),
                                          objectinfo = objectinfo )
     assert( cause != None and
             ( cause == "HEAP" or
               cause == "STACK" or
-              cause == "END" ) )
+              cause == "END" ) ) # These are the only valid final states.
     if ( (len(group) == 1) and
          (cause != "END") ):
         # sys.stdout.write( "SIZE 1: %d --" % len(group) )
+        # Group of 1 and it didn't die at the end.
         obj = group[0]
         if obj in seen_objects:
             # Dupe. TODO: Log a warning/error
