@@ -510,12 +510,12 @@ def read_dgroups_from_pickle( result = [],
         for gnum, glist in dgroups_data["group2list"].iteritems():
             # - for every death group dg:
             #       get the last edge for every object
-            key_result, total_size, died_at_end_size, cause = get_key_objects( group = glist,
-                                                                               seen_objects = seen_objects,
-                                                                               edgeinfo = edgeinfo,
-                                                                               objectinfo = objectinfo,
-                                                                               cycle_summary = cycle_summary,
-                                                                               logger = logger )
+            key_result, total_size, died_at_end_size, cause = get_cycles( group = glist,
+                                                                          seen_objects = seen_objects,
+                                                                          edgeinfo = edgeinfo,
+                                                                          objectinfo = objectinfo,
+                                                                          cycle_summary = cycle_summary,
+                                                                          logger = logger )
             if cause == "END":
                 assert(len(key_result) == 0)
                 assert( died_at_end_size > 0 )
@@ -771,35 +771,33 @@ def get_cycles( group = {},
         # sys.stdout.write( "SIZE 1: %d --" % len(group) )
         # Group of 1 and it didn't die at the end.
         obj = group[0]
-        if obj in seen_objects:
-            # Dupe. TODO: Log a warning/error
-            continue
-        # Sum up the size in bytes
-        total_size += objectinfo.get_size(obj)
-        # Get all edges that target 'obj':
-        # * Incoming edges
-        srcreclist = ei.get_sources_records(obj)
-        # We only want the ones that died with the object
-        # TODO what is this for? TODO: ei.get_source_id_from_rec(x)
-        edgelist = [ x for x in srcreclist if
-                     (ei.get_death_time_from_rec(x) == dtime) ]
-        if len(edgelist) > 0:
-            edgelist = filter_edges( edgelist = edgelist,
-                                     group = group,
-                                     edgeinforeader = ei )
+        if obj not in seen_objects:
+            # Sum up the size in bytes
+            total_size += objectinfo.get_size(obj)
+            # Get all edges that target 'obj':
+            # * Incoming edges
+            srcreclist = ei.get_sources_records(obj)
+            # We only want the ones that died with the object
+            # TODO what is this for? TODO: ei.get_source_id_from_rec(x)
+            edgelist = [ x for x in srcreclist if
+                         (ei.get_death_time_from_rec(x) == dtime) ]
             if len(edgelist) > 0:
-                # This means there's a self-cycle of 1 node:
-                cyclelist = [ [ obj, ] ]
-                cycledict[obj] True
-        update_cycle_summary( cycle_summary = cycle_summary,
-                              cycledict = cycledict,
-                              cyclelist = cyclelist,
-                              objectinfo = objectinfo )
+                edgelist = filter_edges( edgelist = edgelist,
+                                         group = group,
+                                         edgeinforeader = ei )
+                if len(edgelist) > 0:
+                    # This means there's a self-cycle of 1 node:
+                    cyclelist = [ [ obj, ] ]
+                    cycledict[obj] = True
+            update_cycle_summary( cycle_summary = cycle_summary,
+                                  cycledict = cycledict,
+                                  cyclelist = cyclelist,
+                                  objectinfo = objectinfo )
         return ( cyclelist,
                  total_size, # size of group in bytes
                  0, # died at end size (known to be 0)
                  cause ) # death cause
-    else cause != "END":
+    elif cause != "END":
         assert( len(group) > 1 )
         edgelist = []
         for obj in group:
@@ -821,24 +819,14 @@ def get_cycles( group = {},
                                             edgeinfo = ei )
         adjlist = graph_result["adjlist"]
         nxgraph = graph_result["nxgraph"]
+        cycle_nodes = set()
         cycledict = { n : False for n in nxgraph.nodes() }
-        for nxnode in nxgraph.nodes():
-            # Determine if it has cycles:
-            try:
-                cycle_elist = nx.find_cycle(nxgraph, nxnode)
+        cycles_gen = nx.simple_cycles(nxgraph)
+        for elem in cycles_gen:
+            for nxnode in elem:
+                cycle_nodes.add(nxnode)
+                assert(nxnode in cycledict)
                 cycledict[nxnode] = True
-                cycle_nodes = get_cycle_nodes( cycle_elist )
-                # TODO HERE HERE TODO:
-                # cyclelist
-            except nx.exception.NetworkXNoCycle as e:
-                cycle_elist = []
-                cycledict[nxnode] = False
-                cycle_nodes = set()
-            # sys.stdout.write( "   node[%d] -> (%d, %d) cycle %s.\n" %
-            #                   ( (nxnode), len(cycle_nodes),
-            #                     len(cycle_elist),
-            #                     ("YES" if cycledict[nxnode] else "NO") ) )
-            # TODO: Don't need this: sys.stdout.write( "        nodes: %s\n" % str(nxgraph.nodes()) )
         update_cycle_summary( cycle_summary = cycle_summary,
                               cycledict = cycledict,
                               cyclelist = cyclelist,
