@@ -510,12 +510,12 @@ def read_dgroups_from_pickle( result = [],
         for gnum, glist in dgroups_data["group2list"].iteritems():
             # - for every death group dg:
             #       get the last edge for every object
-            key_result, total_size, died_at_end_size, cause = get_cycles( group = glist,
-                                                                          seen_objects = seen_objects,
-                                                                          edgeinfo = edgeinfo,
-                                                                          objectinfo = objectinfo,
-                                                                          cycle_summary = cycle_summary,
-                                                                          logger = logger )
+            cyclelist, total_size, died_at_end_size, cause = get_cycles( group = glist,
+                                                                         seen_objects = seen_objects,
+                                                                         edgeinfo = edgeinfo,
+                                                                         objectinfo = objectinfo,
+                                                                         cycle_summary = cycle_summary,
+                                                                         logger = logger )
             if cause == "END":
                 assert(len(key_result) == 0)
                 assert( died_at_end_size > 0 )
@@ -523,38 +523,35 @@ def read_dgroups_from_pickle( result = [],
             elif len(key_result) > 0:
                 assert( (cause == "HEAP") or (cause == "STACK") )
                 total_alloc += total_size
-                update_key_object_summary( newgroup = key_result,
-                                           summary = key_objects,
-                                           objectinfo = objectinfo,
-                                           total_size = total_size,
-                                           logger = logger )
-                # TODO DEBUG print "%d: %s" % (count, key_result)
-                ktc = keytype_counter # Short alias
-                for key, subgroup in key_result.iteritems():
-                    count += 1
-                    # Summary of key types
-                    keytype = objectinfo.get_type(key)
-                    ktc[keytype] += 1
-                    groupsize = len(subgroup)
-                    # Summary of death locations
-                    deathsite = objectinfo.get_death_context(key)
-                    dss[keytype][deathsite] += 1
-                    raw_output_to_csv( key = key,
-                                       subgroup = subgroup,
-                                       raw_writer = raw_writer,
-                                       objectinfo = objectinfo,
-                                       total_size = total_size,
-                                       logger = logger )
-                    # # TEMP DEBUG
-                    # if count % 100 == 99:
-                    #     fpraw.flush()
-            # TODO DEBUG print "--------------------------------------------------------------------------------"
+                # TODO update_key_object_summary( newgroup = key_result,
+                # TODO                            summary = key_objects,
+                # TODO                            objectinfo = objectinfo,
+                # TODO                            total_size = total_size,
+                # TODO                            logger = logger )
+                # TODO # TODO DEBUG print "%d: %s" % (count, key_result)
+                # TODO ktc = keytype_counter # Short alias
+                # TODO for key, subgroup in key_result.iteritems():
+                # TODO     count += 1
+                # TODO     # Summary of key types
+                # TODO     keytype = objectinfo.get_type(key)
+                # TODO     ktc[keytype] += 1
+                # TODO     groupsize = len(subgroup)
+                # TODO     # Summary of death locations
+                # TODO     deathsite = objectinfo.get_death_context(key)
+                # TODO     dss[keytype][deathsite] += 1
+                # TODO     raw_output_to_csv( key = key,
+                # TODO                        subgroup = subgroup,
+                # TODO                        raw_writer = raw_writer,
+                # TODO                        objectinfo = objectinfo,
+                # TODO                        total_size = total_size,
+                # TODO                        logger = logger )
+    exit(1000)
     # Save the CSV file the key object summary
     total_objects = summary_reader.get_number_of_objects()
-    num_key_objects = len(key_objects["GROUPLIST"])
+    # TODO num_key_objects = len(key_objects["GROUPLIST"])
     size_died_at_end = summary_reader.get_size_died_at_end()
     size_total_allocation = summary_reader.get_final_garbology_alloc_time()
-    dsites_gcount = key_objects["DSITES_GROUP_COUNT"]
+    # TODO dsites_gcount = key_objects["DSITES_GROUP_COUNT"]
     #-------------------------------------------------------------------------------
     # Alloc age computation TODO TODO TODO
     # Max and min have been maintained for each death site so nothing needed here.
@@ -844,7 +841,7 @@ def get_cycles( group = {},
                 continue
             # Sum up the size in bytes
             died_at_end_size += objectinfo.get_size(obj)
-        return (result, total_size, died_at_end_size, cause)
+        return (cyclelist, total_size, died_at_end_size, cause)
 
 def main_process( global_config = {},
                   main_config = {},
