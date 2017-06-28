@@ -519,7 +519,7 @@ def read_dgroups_from_pickle( result = [],
             if cause == "END":
                 assert( died_at_end_size > 0 )
                 total_died_at_end_size += died_at_end_size
-            elif len(key_result) > 0:
+            elif len(cyclelist) > 0:
                 assert( (cause == "HEAP") or (cause == "STACK") )
                 total_alloc += total_size
                 # TODO update_key_object_summary( newgroup = key_result,
