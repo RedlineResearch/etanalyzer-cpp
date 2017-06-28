@@ -730,7 +730,7 @@ def get_cycle_nodes( edgelist = [] ):
     return nodeset
 
 def update_cycle_summary( cycle_summary = {},
-                          cycledict = {},
+                          # cycledict = {},
                           cyclelist = [],
                           objectinfo = {} ):   
     # cycledict seems unused anyway? TODO
@@ -740,6 +740,16 @@ def update_cycle_summary( cycle_summary = {},
         if len(typelist) > 0:
             tup = tuple( sorted( typelist ) )
             cycle_summary[tup] += 1
+
+def get_cycle_age_stats( cycle = [],
+                         objectinfo = {} ):   
+    age_list = [ oi.get_age_ALLOC(objId) for objId in glist ]
+    age_list = filter( lambda x: x != 0,
+                       age_list )
+    if len(age_list) == 0:
+        return
+    new_min = min(age_list)
+    new_max = max(age_list)
 
 # This should return a dictionary where:
 #     key -> group (list INCLUDES key)
@@ -791,7 +801,7 @@ def get_cycles( group = {},
                     cyclelist = [ [ obj, ] ]
                     cycledict[obj] = True
             update_cycle_summary( cycle_summary = cycle_summary,
-                                  cycledict = cycledict,
+                                  # cycledict = cycledict,
                                   cyclelist = cyclelist,
                                   objectinfo = objectinfo )
         return ( cyclelist,
@@ -829,7 +839,7 @@ def get_cycles( group = {},
                 assert(nxnode in cycledict)
                 cycledict[nxnode] = True
         update_cycle_summary( cycle_summary = cycle_summary,
-                              cycledict = cycledict,
+                              # cycledict = cycledict,
                               cyclelist = cyclelist,
                               objectinfo = objectinfo )
         return ( cyclelist,
