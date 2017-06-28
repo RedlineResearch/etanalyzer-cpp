@@ -44,6 +44,7 @@ pp = pprint.PrettyPrinter( indent = 4 )
 
 KEY_OBJECT_SUMMARY = "key-object-summary.csv"
 RAW_KEY_OBJECT_FILENAME = "raw-key-object-summary.csv"
+CYCLE_FILENAME = "cycle-summary.csv"
 
 def setup_logger( targetdir = ".",
                   filename = "cycle_analyze.py.log",
@@ -499,14 +500,18 @@ def read_dgroups_from_pickle( result = [],
     total_alloc = 0
     total_died_at_end_size = 0
     rawpath = os.path.join( workdir, bmark + "-" + RAW_KEY_OBJECT_FILENAME )
-    with open( rawpath, "wb" ) as fpraw:
+    cyclepath = os.path.join( workdir, bmark + "-" + CYCLE_FILENAME )
+    with open( rawpath, "wb" ) as fpraw, \
+        open( cyclepath, "wb" ) as cycfp:
         raw_writer = csv.writer( fpraw,
                                  quoting = csv.QUOTE_NONNUMERIC )
-        header = [ "objectId", "number-objects", "size-group",
-                   "key-type", "key-alloc-age", "key-alloc-site", "alloc-non-Java-lib-context", "oldest-member-age",
-                   "death-cause", "death-context-1", "death-context-2", "non-Java-lib-context",
-                   "pointed-at-by-heap", ]
-        raw_writer.writerow( header )
+        key_header = [ "objectId", "number-objects", "size-group",
+                       "key-type", "key-alloc-age", "key-alloc-site", "alloc-non-Java-lib-context", "oldest-member-age",
+                       "death-cause", "death-context-1", "death-context-2", "non-Java-lib-context",
+                       "pointed-at-by-heap", ]
+        raw_writer.writerow( key_header )
+        cycle_header = [ "type-tuple", ]
+        # TODO 
         for gnum, glist in dgroups_data["group2list"].iteritems():
             # - for every death group dg:
             #       get the last edge for every object
