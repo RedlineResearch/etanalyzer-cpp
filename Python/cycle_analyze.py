@@ -381,6 +381,19 @@ def raw_output_to_csv( key = None,
         pp.pprint(newrow)
         exit(100)
 
+def new_cycle_age_record( new_min = None,
+                          new_max = None,
+                          age_range = None,
+                          count = None ):
+    assert( new_min != None )
+    assert( new_max != None )
+    assert( age_range != None )
+    assert( count != None )
+    return { "min" : new_min,
+             "max" : new_max,
+             "range" : age_range,
+             "count" : count, }
+
 def read_dgroups_from_pickle( result = [],
                               bmark = "",
                               workdir = "",
@@ -470,6 +483,7 @@ def read_dgroups_from_pickle( result = [],
     deathsite_summary = defaultdict( Counter )
     dss = deathsite_summary # alias
     cycle_summary = Counter() # Keys are type tuples
+    cycle_age_summary = defaultdict( lambda: [] )
     count = 0
     key_objects = { "GROUPLIST" : {},
                     "CAUSE" : Counter(),
@@ -729,27 +743,39 @@ def get_cycle_nodes( edgelist = [] ):
         nodeset.add(edge[1])
     return nodeset
 
-def update_cycle_summary( cycle_summary = {},
-                          # cycledict = {},
-                          cyclelist = [],
-                          objectinfo = {} ):   
-    # cycledict seems unused anyway? TODO
-    oi = objectinfo
-    for nlist in cyclelist:
-        typelist = list( set( [ oi.get_type(x) for x in nlist ] ) )
-        if len(typelist) > 0:
-            tup = tuple( sorted( typelist ) )
-            cycle_summary[tup] += 1
-
 def get_cycle_age_stats( cycle = [],
                          objectinfo = {} ):   
     age_list = [ oi.get_age_ALLOC(objId) for objId in glist ]
     age_list = filter( lambda x: x != 0,
                        age_list )
     if len(age_list) == 0:
-        return
+        return # TODO TODO TODO
     new_min = min(age_list)
     new_max = max(age_list)
+    age_range = new_max - new_min
+    return new_cycle_age_record( new_min = new_min,
+                                 new_max = new_max,
+                                 age_range = age_range,
+                                 count = len(cycle) )
+
+def update_cycle_summary( cycle_summary = {},
+                          cycledict = {},
+                          cyclelist = [],
+                          objectinfo = {},
+                          cycle_age_summary = {} ):   
+    oi = objectinfo
+    cas = cycle_age_summary
+    for nlist in cyclelist:
+        typelist = []
+        for node in nlist:
+            cycledict[node] = True
+            typelist.extend( oi.get_type(node) )
+        typelist = list( set(typelist) )
+        if len(typelist) > 0:
+            tup = tuple( sorted( typelist ) )
+            cycle_summary[tup] += 1
+            cas[tup].append( get_cycle_age_stats( cycle = nlist,
+                                                  objectinfo = oi ) )
 
 # This should return a dictionary where:
 #     key -> group (list INCLUDES key)
@@ -758,6 +784,7 @@ def get_cycles( group = {},
                 edgeinfo = None,
                 objectinfo = None,
                 cycle_summary = {},
+                cycle_age_summary = {},
                 logger = None ):
     latest = 0 # Time of most recent
     tgt = 0
@@ -799,11 +826,11 @@ def get_cycles( group = {},
                 if len(edgelist) > 0:
                     # This means there's a self-cycle of 1 node:
                     cyclelist = [ [ obj, ] ]
-                    cycledict[obj] = True
-            update_cycle_summary( cycle_summary = cycle_summary,
-                                  # cycledict = cycledict,
-                                  cyclelist = cyclelist,
-                                  objectinfo = objectinfo )
+                    update_cycle_summary( cycle_summary = cycle_summary,
+                                          cycledict = cycledict,
+                                          cyclelist = cyclelist,
+                                          objectinfo = objectinfo,
+                                          cycle_age_summary = cycle_age_summary )
         return ( cyclelist,
                  total_size, # size of group in bytes
                  0, # died at end size (known to be 0)
@@ -839,7 +866,7 @@ def get_cycles( group = {},
                 assert(nxnode in cycledict)
                 cycledict[nxnode] = True
         update_cycle_summary( cycle_summary = cycle_summary,
-                              # cycledict = cycledict,
+                              cycledict = cycledict,
                               cyclelist = cyclelist,
                               objectinfo = objectinfo )
         return ( cyclelist,
