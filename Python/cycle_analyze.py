@@ -868,7 +868,8 @@ def get_cycles( group = {},
         update_cycle_summary( cycle_summary = cycle_summary,
                               cycledict = cycledict,
                               cyclelist = cyclelist,
-                              objectinfo = objectinfo )
+                              objectinfo = objectinfo,
+                              cycle_age_summary = cycle_age_summary )
         return ( cyclelist,
                  total_size,
                  died_at_end_size,
