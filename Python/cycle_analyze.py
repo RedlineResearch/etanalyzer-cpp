@@ -534,6 +534,7 @@ def read_dgroups_from_pickle( result = [],
                                                                          edgeinfo = edgeinfo,
                                                                          objectinfo = objectinfo,
                                                                          cycle_summary = cycle_summary,
+                                                                         cycle_age_summary = cycle_age_summary,
                                                                          logger = logger )
             if cause == "END":
                 assert( died_at_end_size > 0 )
@@ -745,7 +746,8 @@ def get_cycle_nodes( edgelist = [] ):
 
 def get_cycle_age_stats( cycle = [],
                          objectinfo = {} ):   
-    age_list = [ oi.get_age_ALLOC(objId) for objId in glist ]
+    oi = objectinfo
+    age_list = [ oi.get_age_ALLOC(objId) for objId in cycle ]
     age_list = filter( lambda x: x != 0,
                        age_list )
     if len(age_list) == 0:
@@ -769,7 +771,8 @@ def update_cycle_summary( cycle_summary = {},
         typelist = []
         for node in nlist:
             cycledict[node] = True
-            typelist.extend( oi.get_type(node) )
+            mytype = oi.get_type(node)
+            typelist.append( mytype )
         typelist = list( set(typelist) )
         if len(typelist) > 0:
             tup = tuple( sorted( typelist ) )
