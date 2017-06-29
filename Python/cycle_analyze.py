@@ -381,6 +381,25 @@ def raw_output_to_csv( key = None,
         pp.pprint(newrow)
         exit(100)
 
+def output_cycle_summary_to_csv( typetup = {},
+                                 cpair_rec = {},
+                                 cycle_writer = None,
+                                 logger = None ):
+    assert( len(typetup) > 0 )
+    assert( type(typetup) = tuple )
+    assert( len(age_rec) > 0 )
+    # Check for keys maybe? TODO
+    assert( cycle_writer != None )
+    row [ "TODO", ] # TODO
+    newrow = encode_row(row)
+    try:
+        cycle_writer.writerow(newrow)
+    except:
+        print "%d : %s = %s" % (str(typetup), type(key_nonjlib_alloc_site))
+        print "Encoded row:"
+        pp.pprint(newrow)
+        exit(100)
+
 def new_cycle_age_record( new_min = None,
                           new_max = None,
                           age_range = None,
@@ -484,6 +503,7 @@ def read_dgroups_from_pickle( result = [],
     dss = deathsite_summary # alias
     cycle_summary = Counter() # Keys are type tuples
     cycle_age_summary = defaultdict( lambda: [] )
+    cycle_cpair_summary = defaultdict( lambda: [] )
     count = 0
     key_objects = { "GROUPLIST" : {},
                     "CAUSE" : Counter(),
@@ -525,7 +545,7 @@ def read_dgroups_from_pickle( result = [],
                        "pointed-at-by-heap", ]
         raw_writer.writerow( key_header )
         cycle_header = [ "type-tuple", ]
-        # TODO 
+        # TODO
         for gnum, glist in dgroups_data["group2list"].iteritems():
             # - for every death group dg:
             #       get the last edge for every object
@@ -535,6 +555,7 @@ def read_dgroups_from_pickle( result = [],
                                                                          objectinfo = objectinfo,
                                                                          cycle_summary = cycle_summary,
                                                                          cycle_age_summary = cycle_age_summary,
+                                                                         cycle_cpair_summary = cycle_cpair_summary,
                                                                          logger = logger )
             if cause == "END":
                 assert( died_at_end_size > 0 )
@@ -542,6 +563,16 @@ def read_dgroups_from_pickle( result = [],
             elif len(cyclelist) > 0:
                 assert( (cause == "HEAP") or (cause == "STACK") )
                 total_alloc += total_size
+                # TODO: HERE 30 June 2017
+                for key, agerec in cycle_age_summary.iteritems():
+                    # Summary of key types
+                    raw_output_to_csv( key = key,
+                                       subgroup = subgroup,
+                                       raw_writer = raw_writer,
+                                       objectinfo = objectinfo,
+                                       total_size = total_size,
+                                       logger = logger )
+                # END TODO: HERE 30 June 2017
                 # TODO update_key_object_summary( newgroup = key_result,
                 # TODO                            summary = key_objects,
                 # TODO                            objectinfo = objectinfo,
@@ -735,6 +766,13 @@ def filter_edges( edgelist = [],
             #     pass
     return newedgelist
 
+def get_cycle_deathsite( cycle = [],
+                         objectinfo = {} ):
+    dsites = Counter()
+    oi = objectinfo
+    # dsite = oi.get_death_context(key)
+    pass
+
 def get_cycle_nodes( edgelist = [] ):
     # Takes an edgelist and returns all the nodes (object IDs)
     # in the edgelist. Uses a set to remove ruplicates.
@@ -745,7 +783,7 @@ def get_cycle_nodes( edgelist = [] ):
     return nodeset
 
 def get_cycle_age_stats( cycle = [],
-                         objectinfo = {} ):   
+                         objectinfo = {} ):
     oi = objectinfo
     age_list = [ oi.get_age_ALLOC(objId) for objId in cycle ]
     age_list = filter( lambda x: x != 0,
@@ -764,9 +802,9 @@ def update_cycle_summary( cycle_summary = {},
                           cycledict = {},
                           cyclelist = [],
                           objectinfo = {},
-                          cycle_age_summary = {} ):   
-    oi = objectinfo
-    cas = cycle_age_summary
+                          cycle_age_summary = {},
+                          cycle_cpair_summary = {} ):
+    oi = objectinfo # Just a rename
     for nlist in cyclelist:
         typelist = []
         for node in nlist:
@@ -777,8 +815,8 @@ def update_cycle_summary( cycle_summary = {},
         if len(typelist) > 0:
             tup = tuple( sorted( typelist ) )
             cycle_summary[tup] += 1
-            cas[tup].append( get_cycle_age_stats( cycle = nlist,
-                                                  objectinfo = oi ) )
+            cycle_age_summary[tup].append( get_cycle_age_stats( cycle = nlist,
+                                                                objectinfo = oi ) )
 
 # This should return a dictionary where:
 #     key -> group (list INCLUDES key)
@@ -788,6 +826,7 @@ def get_cycles( group = {},
                 objectinfo = None,
                 cycle_summary = {},
                 cycle_age_summary = {},
+                cycle_cpair_summary = {},
                 logger = None ):
     latest = 0 # Time of most recent
     tgt = 0
@@ -833,7 +872,8 @@ def get_cycles( group = {},
                                           cycledict = cycledict,
                                           cyclelist = cyclelist,
                                           objectinfo = objectinfo,
-                                          cycle_age_summary = cycle_age_summary )
+                                          cycle_age_summary = cycle_age_summary,
+                                          cycle_cpair_summary = cycle_cpair_summary )
         return ( cyclelist,
                  total_size, # size of group in bytes
                  0, # died at end size (known to be 0)
@@ -872,7 +912,8 @@ def get_cycles( group = {},
                               cycledict = cycledict,
                               cyclelist = cyclelist,
                               objectinfo = objectinfo,
-                              cycle_age_summary = cycle_age_summary )
+                              cycle_age_summary = cycle_age_summary,
+                              cycle_cpair_summary = cycle_cpair_summary )
         return ( cyclelist,
                  total_size,
                  died_at_end_size,
