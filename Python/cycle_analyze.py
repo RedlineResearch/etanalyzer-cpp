@@ -382,15 +382,16 @@ def raw_output_to_csv( key = None,
         exit(100)
 
 def output_cycle_summary_to_csv( typetup = {},
+                                 age_rec = {},
                                  cpair_rec = {},
                                  cycle_writer = None,
                                  logger = None ):
     assert( len(typetup) > 0 )
-    assert( type(typetup) = tuple )
+    assert( type(typetup) == tuple )
     assert( len(age_rec) > 0 )
     # Check for keys maybe? TODO
     assert( cycle_writer != None )
-    row [ "TODO", ] # TODO
+    row = [ "TODO", ] # TODO
     newrow = encode_row(row)
     try:
         cycle_writer.writerow(newrow)
@@ -537,15 +538,19 @@ def read_dgroups_from_pickle( result = [],
     cyclepath = os.path.join( workdir, bmark + "-" + CYCLE_FILENAME )
     with open( rawpath, "wb" ) as fpraw, \
         open( cyclepath, "wb" ) as cycfp:
-        raw_writer = csv.writer( fpraw,
-                                 quoting = csv.QUOTE_NONNUMERIC )
-        key_header = [ "objectId", "number-objects", "size-group",
-                       "key-type", "key-alloc-age", "key-alloc-site", "alloc-non-Java-lib-context", "oldest-member-age",
-                       "death-cause", "death-context-1", "death-context-2", "non-Java-lib-context",
-                       "pointed-at-by-heap", ]
-        raw_writer.writerow( key_header )
+        # TODO: Not needed in this script. This is in analyze_dgroup.py
+        # TODO # Raw groups
+        # TODO raw_writer = csv.writer( fpraw,
+        # TODO                          quoting = csv.QUOTE_NONNUMERIC )
+        # TODO key_header = [ "objectId", "number-objects", "size-group",
+        # TODO                "key-type", "key-alloc-age", "key-alloc-site", "alloc-non-Java-lib-context", "oldest-member-age",
+        # TODO                "death-cause", "death-context-1", "death-context-2", "non-Java-lib-context",
+        # TODO                "pointed-at-by-heap", ]
+        # TODO raw_writer.writerow( key_header )
         cycle_header = [ "type-tuple", ]
-        # TODO
+        cycle_writer = csv.writer( fpraw,
+                                   quoting = csv.QUOTE_NONNUMERIC )
+        cycle_writer.writerow( cycle_header )
         for gnum, glist in dgroups_data["group2list"].iteritems():
             # - for every death group dg:
             #       get the last edge for every object
@@ -564,14 +569,13 @@ def read_dgroups_from_pickle( result = [],
                 assert( (cause == "HEAP") or (cause == "STACK") )
                 total_alloc += total_size
                 # TODO: HERE 30 June 2017
-                for key, agerec in cycle_age_summary.iteritems():
+                for typetup, age_rec in cycle_age_summary.iteritems():
                     # Summary of key types
-                    raw_output_to_csv( key = key,
-                                       subgroup = subgroup,
-                                       raw_writer = raw_writer,
-                                       objectinfo = objectinfo,
-                                       total_size = total_size,
-                                       logger = logger )
+                    output_cycle_summary_to_csv( typetup = typetup,
+                                                 age_rec = age_rec,
+                                                 cpair_rec = {}, # TODO TODO TODO HERE
+                                                 cycle_writer = cycle_writer,
+                                                 logger = logger )
                 # END TODO: HERE 30 June 2017
                 # TODO update_key_object_summary( newgroup = key_result,
                 # TODO                            summary = key_objects,
