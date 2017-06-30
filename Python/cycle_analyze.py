@@ -680,14 +680,14 @@ def read_dgroups_from_pickle( result = [],
     # Write out the row
     # TODO: REMOVE: key_summary_writer.writerow( newrow )
     # TODO: REMOVE: key_summary_writer.writerow( newrow_nonjlib )
-    if not mprflag:
-        result.append( newrow )
-        result.append( newrow_nonjlib )
-        cycle_result.append( cycle_summary )
-    else:
-        result.put( newrow )
-        result.put( newrow_nonjlib )
-        cycle_result.put( cycle_summary )
+    # TODO: if not mprflag:
+    # TODO:     result.append( newrow )
+    # TODO:     result.append( newrow_nonjlib )
+    # TODO:     cycle_result.append( cycle_summary )
+    # TODO: else:
+    # TODO:     result.put( newrow )
+    # TODO:     result.put( newrow_nonjlib )
+    # TODO:     cycle_result.put( cycle_summary )
     #
     #       * size stats for groups that died by stack
     #            + first should be number of key objects
