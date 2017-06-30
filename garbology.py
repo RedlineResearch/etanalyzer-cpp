@@ -850,7 +850,7 @@ def get_src_rows( src = None,
 
 def get_tgt_rows( tgt = None,
                   cursor = None ):
-    """Get all rows from edgeinfo table with source = tgt.
+    """Get all rows from edgeinfo table with target = tgt.
        Caller must send a cursor into the SQLite DB.
        Returns a list."""
     global EdgeInfoTable
@@ -1200,7 +1200,7 @@ class EdgeInfoReader:
             #  - save all the records in LRU
             if tgt not in self.edge_tgtlru:
                 self.edge_tgtlru[tgt] = reclist
-            #  - get all targets from the rows
+            #  - get all sources from the rows
             srclist = [ x[2] for x in reclist ]
             self.tgtdict[tgt] = srclist
             return list(reclist)

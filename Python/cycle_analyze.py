@@ -390,8 +390,8 @@ def output_cycle_summary_to_csv( typetup = {},
     assert( type(typetup) == tuple )
     assert( len(age_rec) > 0 )
     assert( cycle_writer != None )
-    # DEBUG: print "TUP:", typetup
-    # DEBUG: print "   : %s" % str(age_rec)
+    print "TUP:", typetup
+    print "   : %s" % str(age_rec)
     row = [ "TODO", ] # TODO
     newrow = encode_row(row)
     try:
@@ -570,6 +570,7 @@ def read_dgroups_from_pickle( result = [],
                 assert( (cause == "HEAP") or (cause == "STACK") )
                 total_alloc += total_size
                 # TODO: HERE 30 June 2017
+        print "Cycles total = ", len(cycle_age_summary)
         for typetup, age_rec in cycle_age_summary.iteritems():
             # Summary of key types
             output_cycle_summary_to_csv( typetup = typetup,
@@ -732,6 +733,7 @@ def make_adjacency_list( nodes = [],
             adjlist[tgt] = []
         # Add to networkx graph
         nxG.add_edge(src, tgt)
+        # NOTE: If the node were not in nodes for some reason, this will add it anyway.
     return { "adjlist" : adjlist,
              "nxgraph" : nxG }
 
@@ -762,13 +764,13 @@ def filter_edges( edgelist = [],
     ei = edgeinforeader
     newedgelist = []
     for edge in edgelist:
-            src = ei.get_source_id_from_rec(edge)
-            # TODO: tgt = ei.get_target_id_from_rec(edge)
-            if (src in group):
-                newedgelist.append(edge)
-            # else:
-            #     # DEBUG edges
-            #     pass
+        src = ei.get_source_id_from_rec(edge)
+        # TODO: tgt = ei.get_target_id_from_rec(edge)
+        if (src in group):
+            newedgelist.append(edge)
+        # else:
+        #     # DEBUG edges
+        #     pass
     return newedgelist
 
 def get_cycle_deathsite( cycle = [],
@@ -776,8 +778,13 @@ def get_cycle_deathsite( cycle = [],
     dsites = Counter()
     oi = objectinfo
     for node in cycle:
-        dsite = oi.get_death_context(node)
-    return None # TODO TODO TODO
+        ds = oi.get_death_context(node)
+        dsites[ds] += 1
+    mylist = dsites.most_common(1)
+    if len(mylist) == 1:
+        return mylist[0][0]
+    else:
+        assert(False)
 
 def get_cycle_nodes( edgelist = [] ):
     # Takes an edgelist and returns all the nodes (object IDs)
@@ -872,19 +879,23 @@ def get_cycles( group = {},
             # TODO what is this for? TODO: ei.get_source_id_from_rec(x)
             edgelist = [ x for x in srcreclist if
                          (ei.get_death_time_from_rec(x) == dtime) ]
+            # if len(edgelist) > 0:
+            #     edgelist = filter_edges( edgelist = edgelist,
+            #                              group = group,
+            #                              edgeinforeader = ei )
             if len(edgelist) > 0:
-                edgelist = filter_edges( edgelist = edgelist,
-                                         group = group,
-                                         edgeinforeader = ei )
-                if len(edgelist) > 0:
-                    # This means there's a self-cycle of 1 node:
-                    cyclelist = [ [ obj, ] ]
-                    update_cycle_summary( cycle_summary = cycle_summary,
-                                          cycledict = cycledict,
-                                          cyclelist = cyclelist,
-                                          objectinfo = objectinfo,
-                                          cycle_age_summary = cycle_age_summary,
-                                          cycle_cpair_summary = cycle_cpair_summary )
+                for edge in edgelist:
+                    src = ei.get_source_id_from_rec(edge)
+                    if src == obj:
+                        # This means there's a self-cycle of 1 node:
+                        cyclelist = [ [ obj, ] ]
+                        update_cycle_summary( cycle_summary = cycle_summary,
+                                              cycledict = cycledict,
+                                              cyclelist = cyclelist,
+                                              objectinfo = objectinfo,
+                                              cycle_age_summary = cycle_age_summary,
+                                              cycle_cpair_summary = cycle_cpair_summary )
+                        break
         return ( cyclelist,
                  total_size, # size of group in bytes
                  0, # died at end size (known to be 0)
@@ -903,9 +914,9 @@ def get_cycles( group = {},
                              (ei.get_death_time_from_rec(x) == dtime) ]
             if len(obj_edgelist) > 0:
                 edgelist.extend( obj_edgelist )
-        edgelist = filter_edges( edgelist = edgelist,
-                                 group = group,
-                                 edgeinforeader = ei )
+        # edgelist = filter_edges( edgelist = edgelist,
+        #                          group = group,
+        #                          edgeinforeader = ei )
         graph_result = make_adjacency_list( nodes = group,
                                             edgelist = edgelist,
                                             edgeinfo = ei )
@@ -915,16 +926,22 @@ def get_cycles( group = {},
         cycledict = { n : False for n in nxgraph.nodes() }
         cycles_gen = nx.simple_cycles(nxgraph)
         for elem in cycles_gen:
+            new_cycle = []
             for nxnode in elem:
                 cycle_nodes.add(nxnode)
                 assert(nxnode in cycledict)
                 cycledict[nxnode] = True
-        update_cycle_summary( cycle_summary = cycle_summary,
-                              cycledict = cycledict,
-                              cyclelist = cyclelist,
-                              objectinfo = objectinfo,
-                              cycle_age_summary = cycle_age_summary,
-                              cycle_cpair_summary = cycle_cpair_summary )
+                new_cycle.append( nxnode )
+            if len(new_cycle) > 0:
+                cyclelist.append( new_cycle )
+            # else do a DEBUG? Shouldn't have an empty cycle here. TODO
+        if len(cyclelist) > 0:
+            update_cycle_summary( cycle_summary = cycle_summary,
+                                  cycledict = cycledict,
+                                  cyclelist = cyclelist,
+                                  objectinfo = objectinfo,
+                                  cycle_age_summary = cycle_age_summary,
+                                  cycle_cpair_summary = cycle_cpair_summary )
         return ( cyclelist,
                  total_size,
                  died_at_end_size,
