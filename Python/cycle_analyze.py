@@ -45,6 +45,7 @@ pp = pprint.PrettyPrinter( indent = 4 )
 KEY_OBJECT_SUMMARY = "key-object-summary.csv"
 RAW_KEY_OBJECT_FILENAME = "raw-key-object-summary.csv"
 CYCLE_FILENAME = "cycle-summary.csv"
+RAW_CYCLE_FILENAME = "raw-cycle-summary.csv"
 
 def setup_logger( targetdir = ".",
                   filename = "cycle_analyze.py.log",
@@ -307,8 +308,10 @@ def encode_row( row = [] ):
     for item in row:
         if type(item) == int:
             newrow.append(item)
-        else:
+        elif type(item) == str:
             newrow.append( item.encode('utf-8') )
+        else:
+            newrow.append(str(item))
     return newrow
 
 def raw_output_to_csv( key = None,
@@ -407,14 +410,13 @@ def output_cycle_summary_to_csv( typetup = {},
 def new_cycle_age_record( new_min = None,
                           new_max = None,
                           age_range = None,
+                          age_mean = None,
                           count = None ):
-    assert( new_min != None )
-    assert( new_max != None )
-    assert( age_range != None )
-    assert( count != None )
+    assert( age_mean != None ) # TODO DEBUG ONLY
     return { "min" : new_min,
              "max" : new_max,
              "range" : age_range,
+             "mean" : age_mean,
              "count" : count, }
 
 def read_dgroups_from_pickle( result = [],
@@ -539,8 +541,13 @@ def read_dgroups_from_pickle( result = [],
     total_died_at_end_size = 0
     rawpath = os.path.join( workdir, bmark + "-" + RAW_KEY_OBJECT_FILENAME )
     cyclepath = os.path.join( workdir, bmark + "-" + CYCLE_FILENAME )
-    with open( rawpath, "wb" ) as fpraw, \
-        open( cyclepath, "wb" ) as cycfp:
+    raw_cyclepath = os.path.join( workdir, bmark + "-" + RAW_CYCLE_FILENAME )
+    # TODO: Raw death groups: keep in original cycle_analyze.py? or also do here?
+    #       Leaning towards keeping it separate in cycle_analyze.py.
+    # with open( rawpath, "wb" ) as fpraw, \
+    with open( cyclepath, "wb" ) as cycfp, \
+        open( raw_cyclepath, "wb" ) as raw_cycfp:
+        #----------------------------------------------------------------------
         # TODO: Not needed in this script. This is in analyze_dgroup.py
         # TODO # Raw groups
         # TODO raw_writer = csv.writer( fpraw,
@@ -550,8 +557,17 @@ def read_dgroups_from_pickle( result = [],
         # TODO                "death-cause", "death-context-1", "death-context-2", "non-Java-lib-context",
         # TODO                "pointed-at-by-heap", ]
         # TODO raw_writer.writerow( key_header )
-        cycle_header = [ "type-tuple", ]
-        cycle_writer = csv.writer( fpraw,
+        #----------------------------------------------------------------------
+
+        # RAW cycle file
+        raw_cycle_header = [ "type-tuple", ] # TODO TODO TODO TODO
+        raw_cycle_writer = csv.writer( raw_cycfp,
+                                       quoting = csv.QUOTE_NONNUMERIC )
+        raw_cycle_writer.writerow( raw_cycle_header )
+        # Cycle summary file
+        cycle_header = [ "type-tuple", "cycles-size",
+                         "mean-age", "range-age", ] # TODO TODO TODO TODO
+        cycle_writer = csv.writer( cycfp,
                                    quoting = csv.QUOTE_NONNUMERIC )
         cycle_writer.writerow( cycle_header )
         for gnum, glist in dgroups_data["group2list"].iteritems():
@@ -564,6 +580,7 @@ def read_dgroups_from_pickle( result = [],
                                                                          cycle_summary = cycle_summary,
                                                                          cycle_age_summary = cycle_age_summary,
                                                                          cycle_cpair_summary = cycle_cpair_summary,
+                                                                         raw_cycle_writer = raw_cycle_writer,
                                                                          logger = logger )
             if cause == "END":
                 assert( died_at_end_size > 0 )
@@ -805,13 +822,15 @@ def get_cycle_age_stats( cycle = [],
     age_list = filter( lambda x: x != 0,
                        age_list )
     if len(age_list) == 0:
-        return # TODO TODO TODO
+        return None # TODO TODO TODO
     new_min = min(age_list)
     new_max = max(age_list)
     age_range = new_max - new_min
+    age_mean = mean(age_list)
     return new_cycle_age_record( new_min = new_min,
                                  new_max = new_max,
                                  age_range = age_range,
+                                 age_mean = age_mean,
                                  count = len(cycle) )
 
 def update_cycle_summary( cycle_summary = {},
@@ -819,7 +838,10 @@ def update_cycle_summary( cycle_summary = {},
                           cyclelist = [],
                           objectinfo = {},
                           cycle_age_summary = {},
-                          cycle_cpair_summary = {} ):
+                          cycle_cpair_summary = {},
+                          raw_cycle_writer = None,
+                          groupsize = 0,
+                          logger = None ):
     oi = objectinfo # Just a rename
     for nlist in cyclelist:
         typelist = []
@@ -828,16 +850,28 @@ def update_cycle_summary( cycle_summary = {},
             mytype = oi.get_type(node)
             typelist.append( mytype )
         typelist = list( set(typelist) )
-        if len(typelist) > 0:
-            # Use a default order to prevent duplicates in tuples
-            tup = tuple( sorted( typelist ) )
-            # Save count
-            cycle_summary[tup] += 1
-            # Get the death site
-            dsite = get_cycle_deathsite( nlist,
-                                         objectinfo = oi )
-            cycle_age_summary[tup].append( get_cycle_age_stats( cycle = nlist,
-                                                                objectinfo = oi ) )
+        assert( len(typelist) > 0 ) # TODO. Only a debugging assert
+        # Use a default order to prevent duplicates in tuples
+        tup = tuple( sorted( typelist ) )
+        # Save count
+        cycle_summary[tup] += 1
+        # Get the death site
+        dsite = get_cycle_deathsite( nlist,
+                                     objectinfo = oi )
+        # cycle_age_summary:
+        #    key: type tuple
+        #    value: list of cycle age summary records
+        age_rec = get_cycle_age_stats( cycle = nlist,
+                                       objectinfo = oi )
+        if age_rec != None:
+            cycle_age_summary[tup].append( age_rec  )
+            # TODO Death site, allocation site TODO
+            raw_cycle_writer.writerow( encode_row([ tup,
+                                                    groupsize,
+                                                    age_rec["mean"],
+                                                    age_rec["range"], ]) )
+        else:
+            logger.error( "TODO: Unable to save cycle %s" % str(cyclelist) )
 
 # This should return a dictionary where:
 #     key -> group (list INCLUDES key)
@@ -848,6 +882,7 @@ def get_cycles( group = {},
                 cycle_summary = {},
                 cycle_age_summary = {},
                 cycle_cpair_summary = {},
+                raw_cycle_writer = None,
                 logger = None ):
     latest = 0 # Time of most recent
     tgt = 0
@@ -874,7 +909,8 @@ def get_cycles( group = {},
         obj = group[0]
         if obj not in seen_objects:
             # Sum up the size in bytes
-            total_size += objectinfo.get_size(obj)
+            objsize = objectinfo.get_size(obj)
+            total_size += objsize
             # Get all edges that target 'obj':
             # * Incoming edges
             srcreclist = ei.get_sources_records(obj)
@@ -897,7 +933,10 @@ def get_cycles( group = {},
                                               cyclelist = cyclelist,
                                               objectinfo = objectinfo,
                                               cycle_age_summary = cycle_age_summary,
-                                              cycle_cpair_summary = cycle_cpair_summary )
+                                              raw_cycle_writer = raw_cycle_writer,
+                                              cycle_cpair_summary = cycle_cpair_summary,
+                                              groupsize = objsize,
+                                              logger = logger )
                         break
         return ( cyclelist,
                  total_size, # size of group in bytes
@@ -906,9 +945,12 @@ def get_cycles( group = {},
     elif cause != "END":
         assert( len(group) > 1 )
         edgelist = []
+        groupsize = 0
         for obj in group:
             # Sum up the size in bytes
-            total_size += objectinfo.get_size(obj)
+            objsize = objectinfo.get_size(obj)
+            total_size += objsize
+            groupsize += objsize
             # * Incoming edges
             srcreclist = ei.get_sources_records(obj)
             # We only want the ones that died with the object
@@ -944,7 +986,10 @@ def get_cycles( group = {},
                                   cyclelist = cyclelist,
                                   objectinfo = objectinfo,
                                   cycle_age_summary = cycle_age_summary,
-                                  cycle_cpair_summary = cycle_cpair_summary )
+                                  raw_cycle_writer = raw_cycle_writer,
+                                  cycle_cpair_summary = cycle_cpair_summary,
+                                  groupsize = groupsize,
+                                  logger = logger )
         return ( cyclelist,
                  total_size,
                  died_at_end_size,
