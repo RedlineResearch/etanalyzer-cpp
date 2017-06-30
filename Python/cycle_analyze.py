@@ -385,13 +385,15 @@ def output_cycle_summary_to_csv( typetup = {},
                                  age_rec = {},
                                  cpair_rec = {},
                                  cycle_writer = None,
+                                 bmark = None,
                                  logger = None ):
     assert( len(typetup) > 0 )
     assert( type(typetup) == tuple )
     assert( len(age_rec) > 0 )
     assert( cycle_writer != None )
-    print "TUP:", typetup
-    print "   : %s" % str(age_rec)
+    assert( bmark != None )
+    print "[%s TUP] - %s " % (bmark, typetup)
+    print "   - age : %s" % str(age_rec)
     row = [ "TODO", ] # TODO
     newrow = encode_row(row)
     try:
@@ -577,6 +579,7 @@ def read_dgroups_from_pickle( result = [],
                                          age_rec = age_rec,
                                          cpair_rec = {}, # TODO TODO TODO HERE
                                          cycle_writer = cycle_writer,
+                                         bmark = bmark,
                                          logger = logger )
                 # END TODO: HERE 30 June 2017
                 # TODO update_key_object_summary( newgroup = key_result,
@@ -601,77 +604,77 @@ def read_dgroups_from_pickle( result = [],
                 # TODO                        objectinfo = objectinfo,
                 # TODO                        total_size = total_size,
                 # TODO                        logger = logger )
-    exit(1000)
-    # Save the CSV file the key object summary
-    total_objects = summary_reader.get_number_of_objects()
-    # TODO num_key_objects = len(key_objects["GROUPLIST"])
-    size_died_at_end = summary_reader.get_size_died_at_end()
-    size_total_allocation = summary_reader.get_final_garbology_alloc_time()
-    # TODO dsites_gcount = key_objects["DSITES_GROUP_COUNT"]
-    #-------------------------------------------------------------------------------
-    # Alloc age computation TODO TODO TODO
-    # Max and min have been maintained for each death site so nothing needed here.
-    # Update the averages/mean:
-    dsites_age = key_objects["DSITES_AGE"]
-    dsites_gstats = key_objects["DSITES_GROUP_STATS"]
-    for mydsite in dsites_age.keys():
-        count, total = dsites_age[mydsite]["gensum"]
-        dsites_age[mydsite]["ave"] = (total / count) if count > 0 \
-            else 0
-        gcount, gtotal = dsites_gstats[mydsite]["gensum"]
-        dsites_gstats[mydsite]["ave"] = (gtotal / gcount) if gcount > 0 \
-            else 0
-    nonjlib_age = key_objects["NONJLIB_AGE"]
-    nonjlib_gstats = key_objects["NONJLIB_GROUP_STATS"]
-    for mydsite in nonjlib_age.keys():
-        count, total = nonjlib_age[mydsite]["gensum"]
-        assert( count > 0 )
-        nonjlib_age[mydsite]["ave"] = total / count
-        gcount, gtotal = nonjlib_gstats[mydsite]["gensum"]
-        nonjlib_gstats[mydsite]["ave"] = (gtotal / gcount) if gcount > 0 \
-            else 0
-    #-------------------------------------------------------------------------------
-    # First level death sites
-    total_alloc_MB = bytes_to_MB(total_alloc)
-    actual_alloc = total_alloc - total_died_at_end_size
-    actual_alloc_MB = bytes_to_MB(actual_alloc)
-    newrow = [ (bmark, total_alloc_MB, actual_alloc_MB) ]
-    # Get the top 5 death sites
-    #     * Use "DSITES_SIZE" and sort. Get top 5.
-    dsites_distr = key_objects["DSITES_DISTRIBUTION"]
-    dsites_size = sorted( key_objects["DSITES_SIZE"].items(),
-                          key = itemgetter(1),
-                          reverse = True )
-    newrow = newrow + [ ( x[0], bytes_to_MB(x[1]), ((x[1]/actual_alloc) * 100.0),
-                          ((dsites_distr[x[0]]["STACK"]/x[1]) * 100.0),
-                          ((dsites_distr[x[0]]["HEAP"]/x[1]) * 100.0),
-                          dsites_gcount[x[0]],
-                          dsites_gstats[x[0]]["min"], dsites_gstats[x[0]]["max"], dsites_gstats[x[0]]["ave"],
-                          dsites_age[x[0]]["min"], dsites_age[x[0]]["max"],  dsites_age[x[0]]["ave"], )
-                        for x in dsites_size[0:5] ]
-    newrow = [ x for tup in newrow for x in tup ]
-    #-------------------------------------------------------------------------------
-    # First non Java library function
-    # TODO TODO: Add allocation total
-    newrow_nonjlib = [ ((bmark + " NONJ"), total_alloc_MB, actual_alloc_MB), ]
-    # Get the top 5 death sites
-    #     * Use "NONJLIB_SIZE" and sort. Get top 5.
-    nonjlib_distr = key_objects["NONJLIB_DISTRIBUTION"]
-    nonjlib_gcount = key_objects["NONJLIB_GROUP_COUNT"]
-    nonjlib_dsites_size = sorted( key_objects["NONJLIB_SIZE"].items(),
-                                  key = itemgetter(1),
-                                  reverse = True )
-    # TODO TODO Add dsite-total, dsite percentage using MB
-    dsites_age = key_objects["DSITES_AGE"]
-    nonjlib_age = key_objects["NONJLIB_AGE"]
-    newrow_nonjlib = newrow_nonjlib + [ ( x[0], bytes_to_MB(x[1]), ((x[1]/actual_alloc) * 100.0),
-                                          ((nonjlib_distr[x[0]]["STACK"]/x[1]) * 100.0),
-                                          ((nonjlib_distr[x[0]]["HEAP"]/x[1]) * 100.0),
-                                          nonjlib_gcount[x[0]],
-                                          nonjlib_gstats[x[0]]["min"], nonjlib_gstats[x[0]]["max"], nonjlib_gstats[x[0]]["ave"],
-                                          nonjlib_age[x[0]]["min"], nonjlib_age[x[0]]["max"],  nonjlib_age[x[0]]["ave"], )
-                                        for x in nonjlib_dsites_size[0:5] ]
-    newrow_nonjlib = [ x for tup in newrow_nonjlib for x in tup ]
+    # TODO HERE exit(1000)
+    # TODO # Save the CSV file the key object summary
+    # TODO total_objects = summary_reader.get_number_of_objects()
+    # TODO # TODO num_key_objects = len(key_objects["GROUPLIST"])
+    # TODO size_died_at_end = summary_reader.get_size_died_at_end()
+    # TODO size_total_allocation = summary_reader.get_final_garbology_alloc_time()
+    # TODO # TODO dsites_gcount = key_objects["DSITES_GROUP_COUNT"]
+    # TODO #-------------------------------------------------------------------------------
+    # TODO # Alloc age computation TODO TODO TODO
+    # TODO # Max and min have been maintained for each death site so nothing needed here.
+    # TODO # Update the averages/mean:
+    # TODO dsites_age = key_objects["DSITES_AGE"]
+    # TODO dsites_gstats = key_objects["DSITES_GROUP_STATS"]
+    # TODO for mydsite in dsites_age.keys():
+    # TODO     count, total = dsites_age[mydsite]["gensum"]
+    # TODO     dsites_age[mydsite]["ave"] = (total / count) if count > 0 \
+    # TODO         else 0
+    # TODO     gcount, gtotal = dsites_gstats[mydsite]["gensum"]
+    # TODO     dsites_gstats[mydsite]["ave"] = (gtotal / gcount) if gcount > 0 \
+    # TODO         else 0
+    # TODO nonjlib_age = key_objects["NONJLIB_AGE"]
+    # TODO nonjlib_gstats = key_objects["NONJLIB_GROUP_STATS"]
+    # TODO for mydsite in nonjlib_age.keys():
+    # TODO     count, total = nonjlib_age[mydsite]["gensum"]
+    # TODO     assert( count > 0 )
+    # TODO     nonjlib_age[mydsite]["ave"] = total / count
+    # TODO     gcount, gtotal = nonjlib_gstats[mydsite]["gensum"]
+    # TODO     nonjlib_gstats[mydsite]["ave"] = (gtotal / gcount) if gcount > 0 \
+    # TODO         else 0
+    # TODO #-------------------------------------------------------------------------------
+    # TODO # First level death sites
+    # TODO total_alloc_MB = bytes_to_MB(total_alloc)
+    # TODO actual_alloc = total_alloc - total_died_at_end_size
+    # TODO actual_alloc_MB = bytes_to_MB(actual_alloc)
+    # TODO newrow = [ (bmark, total_alloc_MB, actual_alloc_MB) ]
+    # TODO # Get the top 5 death sites
+    # TODO #     * Use "DSITES_SIZE" and sort. Get top 5.
+    # TODO dsites_distr = key_objects["DSITES_DISTRIBUTION"]
+    # TODO dsites_size = sorted( key_objects["DSITES_SIZE"].items(),
+    # TODO                       key = itemgetter(1),
+    # TODO                       reverse = True )
+    # TODO newrow = newrow + [ ( x[0], bytes_to_MB(x[1]), ((x[1]/actual_alloc) * 100.0),
+    # TODO                       ((dsites_distr[x[0]]["STACK"]/x[1]) * 100.0),
+    # TODO                       ((dsites_distr[x[0]]["HEAP"]/x[1]) * 100.0),
+    # TODO                       dsites_gcount[x[0]],
+    # TODO                       dsites_gstats[x[0]]["min"], dsites_gstats[x[0]]["max"], dsites_gstats[x[0]]["ave"],
+    # TODO                       dsites_age[x[0]]["min"], dsites_age[x[0]]["max"],  dsites_age[x[0]]["ave"], )
+    # TODO                     for x in dsites_size[0:5] ]
+    # TODO newrow = [ x for tup in newrow for x in tup ]
+    # TODO #-------------------------------------------------------------------------------
+    # TODO # First non Java library function
+    # TODO # TODO TODO: Add allocation total
+    # TODO newrow_nonjlib = [ ((bmark + " NONJ"), total_alloc_MB, actual_alloc_MB), ]
+    # TODO # Get the top 5 death sites
+    # TODO #     * Use "NONJLIB_SIZE" and sort. Get top 5.
+    # TODO nonjlib_distr = key_objects["NONJLIB_DISTRIBUTION"]
+    # TODO nonjlib_gcount = key_objects["NONJLIB_GROUP_COUNT"]
+    # TODO nonjlib_dsites_size = sorted( key_objects["NONJLIB_SIZE"].items(),
+    # TODO                               key = itemgetter(1),
+    # TODO                               reverse = True )
+    # TODO # TODO TODO Add dsite-total, dsite percentage using MB
+    # TODO dsites_age = key_objects["DSITES_AGE"]
+    # TODO nonjlib_age = key_objects["NONJLIB_AGE"]
+    # TODO newrow_nonjlib = newrow_nonjlib + [ ( x[0], bytes_to_MB(x[1]), ((x[1]/actual_alloc) * 100.0),
+    # TODO                                       ((nonjlib_distr[x[0]]["STACK"]/x[1]) * 100.0),
+    # TODO                                       ((nonjlib_distr[x[0]]["HEAP"]/x[1]) * 100.0),
+    # TODO                                       nonjlib_gcount[x[0]],
+    # TODO                                       nonjlib_gstats[x[0]]["min"], nonjlib_gstats[x[0]]["max"], nonjlib_gstats[x[0]]["ave"],
+    # TODO                                       nonjlib_age[x[0]]["min"], nonjlib_age[x[0]]["max"],  nonjlib_age[x[0]]["ave"], )
+    # TODO                                     for x in nonjlib_dsites_size[0:5] ]
+    # TODO newrow_nonjlib = [ x for tup in newrow_nonjlib for x in tup ]
     #-------------------------------------------------------------------------------
     # TODO DELETE DEBUG print "X:", newrow
     # Write out the row
@@ -1121,22 +1124,21 @@ def main_process( global_config = {},
             print "=====[ END Cycle Summary ]======================================================"
     print "================================================================================"
     print "DONE."
-    exit(0)
-    # Copy all the databases into MAIN directory.
-    dest = main_config["output"]
-    for filename in os.listdir( workdir ):
-        # Check to see first if the destination exists:
-        # print "XXX: %s -> %s" % (filename, filename.split())
-        # Split the absolute filename into a path and file pair:
-        # Use the same filename added to the destination path
-        tgtfile = os.path.join( dest, filename )
-        if os.path.isfile(tgtfile):
-            try:
-                os.remove(tgtfile)
-            except:
-                logger.error( "Weird error: found the file [%s] but can't remove it. The copy might fail." % tgtfile )
-        print "Copying %s -> %s." % (filename, dest)
-        copy( filename, dest )
+    # TODO # Copy all the databases into MAIN directory.
+    # TODO dest = main_config["output"]
+    # TODO for filename in os.listdir( workdir ):
+    # TODO     # Check to see first if the destination exists:
+    # TODO     # print "XXX: %s -> %s" % (filename, filename.split())
+    # TODO     # Split the absolute filename into a path and file pair:
+    # TODO     # Use the same filename added to the destination path
+    # TODO     tgtfile = os.path.join( dest, filename )
+    # TODO     if os.path.isfile(tgtfile):
+    # TODO         try:
+    # TODO             os.remove(tgtfile)
+    # TODO         except:
+    # TODO             logger.error( "Weird error: found the file [%s] but can't remove it. The copy might fail." % tgtfile )
+    # TODO     print "Copying %s -> %s." % (filename, dest)
+    # TODO     copy( filename, dest )
     print "================================================================================"
     print "cycle_analyze.py - DONE."
     os.chdir( olddir )
