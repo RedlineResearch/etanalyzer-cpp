@@ -389,8 +389,9 @@ def output_cycle_summary_to_csv( typetup = {},
     assert( len(typetup) > 0 )
     assert( type(typetup) == tuple )
     assert( len(age_rec) > 0 )
-    # Check for keys maybe? TODO
     assert( cycle_writer != None )
+    # DEBUG: print "TUP:", typetup
+    # DEBUG: print "   : %s" % str(age_rec)
     row = [ "TODO", ] # TODO
     newrow = encode_row(row)
     try:
@@ -569,13 +570,13 @@ def read_dgroups_from_pickle( result = [],
                 assert( (cause == "HEAP") or (cause == "STACK") )
                 total_alloc += total_size
                 # TODO: HERE 30 June 2017
-                for typetup, age_rec in cycle_age_summary.iteritems():
-                    # Summary of key types
-                    output_cycle_summary_to_csv( typetup = typetup,
-                                                 age_rec = age_rec,
-                                                 cpair_rec = {}, # TODO TODO TODO HERE
-                                                 cycle_writer = cycle_writer,
-                                                 logger = logger )
+        for typetup, age_rec in cycle_age_summary.iteritems():
+            # Summary of key types
+            output_cycle_summary_to_csv( typetup = typetup,
+                                         age_rec = age_rec,
+                                         cpair_rec = {}, # TODO TODO TODO HERE
+                                         cycle_writer = cycle_writer,
+                                         logger = logger )
                 # END TODO: HERE 30 June 2017
                 # TODO update_key_object_summary( newgroup = key_result,
                 # TODO                            summary = key_objects,
@@ -774,8 +775,9 @@ def get_cycle_deathsite( cycle = [],
                          objectinfo = {} ):
     dsites = Counter()
     oi = objectinfo
-    # dsite = oi.get_death_context(key)
-    pass
+    for node in cycle:
+        dsite = oi.get_death_context(node)
+    return None # TODO TODO TODO
 
 def get_cycle_nodes( edgelist = [] ):
     # Takes an edgelist and returns all the nodes (object IDs)
@@ -817,8 +819,13 @@ def update_cycle_summary( cycle_summary = {},
             typelist.append( mytype )
         typelist = list( set(typelist) )
         if len(typelist) > 0:
+            # Use a default order to prevent duplicates in tuples
             tup = tuple( sorted( typelist ) )
+            # Save count
             cycle_summary[tup] += 1
+            # Get the death site
+            dsite = get_cycle_deathsite( nlist,
+                                         objectinfo = oi )
             cycle_age_summary[tup].append( get_cycle_age_stats( cycle = nlist,
                                                                 objectinfo = oi ) )
 
