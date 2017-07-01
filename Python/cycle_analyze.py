@@ -397,7 +397,10 @@ def output_cycle_summary_to_csv( typetup = {},
     assert( bmark != None )
     print "[%s TUP] - %s " % (bmark, typetup)
     print "   - age : %s" % str(age_rec)
-    row = [ "TODO", ] # TODO
+    # TODO: row = encode_row([ typetup,
+    # TODO:                    groupsize,
+    # TODO:                    age_rec["mean"],
+    # TODO:                    age_rec["range"], ]) )
     newrow = encode_row(row)
     try:
         cycle_writer.writerow(newrow)
@@ -1152,6 +1155,7 @@ def main_process( global_config = {},
                         done = False
                     else:
                         del procs_dgroup[bmark]
+                        print "DONE: %s" % bmark
                         while not results[bmark].empty():
                             row = results[bmark].get()
                             key_summary_writer.writerow( row )
@@ -1168,7 +1172,6 @@ def main_process( global_config = {},
             pp.pprint( cycle_summary_all )
             print "=====[ END Cycle Summary ]======================================================"
     print "================================================================================"
-    print "DONE: %s" % bmark
     # TODO # Copy all the databases into MAIN directory.
     # TODO dest = main_config["output"]
     # TODO for filename in os.listdir( workdir ):
