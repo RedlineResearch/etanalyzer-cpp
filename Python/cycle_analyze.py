@@ -1168,7 +1168,7 @@ def main_process( global_config = {},
             pp.pprint( cycle_summary_all )
             print "=====[ END Cycle Summary ]======================================================"
     print "================================================================================"
-    print "DONE."
+    print "DONE: %s" % bmark
     # TODO # Copy all the databases into MAIN directory.
     # TODO dest = main_config["output"]
     # TODO for filename in os.listdir( workdir ):
