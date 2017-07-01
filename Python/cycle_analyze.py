@@ -384,23 +384,39 @@ def raw_output_to_csv( key = None,
         pp.pprint(newrow)
         exit(100)
 
+def pair_sum( first = None,
+              second = None ):
+    return (first[0] + second[0], first[1] + second[1])
+
 def output_cycle_summary_to_csv( typetup = {},
-                                 age_rec = {},
+                                 agerec_list = [],
                                  cpair_rec = {},
                                  cycle_writer = None,
                                  bmark = None,
                                  logger = None ):
     assert( len(typetup) > 0 )
     assert( type(typetup) == tuple )
-    assert( len(age_rec) > 0 )
+    assert( len(agerec_list) > 0 )
     assert( cycle_writer != None )
     assert( bmark != None )
     print "[%s TUP] - %s " % (bmark, typetup)
-    print "   - age : %s" % str(age_rec)
+    gsize_list = []
+    range_list = []
+    agepair_list = []
+    for rec in agerec_list:
+        gsize_list.append( rec["groupsize"] )
+        range_list.append( rec["range"] )
+        agepair_list.append( (rec["mean"], rec["groupsize"]) )
+    count, gsize_total = generalised_sum( gsize_list, None )
+    age_count = 0
+    age_total = 0.0
+    age_total, age_count = reduce( pair_sum, agepair_list )
+    age_mean = age_total / age_count
+    age_range_mean = mean( range_list )
     row = encode_row([ typetup,
-                       age_rec["groupsize"],
-                       age_rec["mean"],
-                       age_rec["range"], ] )
+                       gsize_total, # bytes total
+                       age_mean, # average allocation age
+                       age_range_mean, ] ) # average range
     newrow = encode_row(row)
     try:
         cycle_writer.writerow(newrow)
@@ -595,10 +611,10 @@ def read_dgroups_from_pickle( result = [],
                 total_alloc += total_size
                 # TODO: HERE 30 June 2017
         print "Cycles total = ", len(cycle_age_summary)
-        for typetup, age_rec in cycle_age_summary.iteritems():
+        for typetup, agerec_list in cycle_age_summary.iteritems():
             # Summary of key types
             output_cycle_summary_to_csv( typetup = typetup,
-                                         age_rec = age_rec,
+                                         agerec_list = agerec_list,
                                          cpair_rec = {}, # TODO TODO TODO HERE
                                          cycle_writer = cycle_writer,
                                          bmark = bmark,
