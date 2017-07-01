@@ -397,10 +397,10 @@ def output_cycle_summary_to_csv( typetup = {},
     assert( bmark != None )
     print "[%s TUP] - %s " % (bmark, typetup)
     print "   - age : %s" % str(age_rec)
-    # TODO: row = encode_row([ typetup,
-    # TODO:                    groupsize,
-    # TODO:                    age_rec["mean"],
-    # TODO:                    age_rec["range"], ]) )
+    row = encode_row([ typetup,
+                       age_rec["groupsize"],
+                       age_rec["mean"],
+                       age_rec["range"], ] )
     newrow = encode_row(row)
     try:
         cycle_writer.writerow(newrow)
@@ -414,12 +414,14 @@ def new_cycle_age_record( new_min = None,
                           new_max = None,
                           age_range = None,
                           age_mean = None,
-                          count = None ):
+                          groupsize = 0,
+                          count = 0 ):
     assert( age_mean != None ) # TODO DEBUG ONLY
     return { "min" : new_min,
              "max" : new_max,
              "range" : age_range,
              "mean" : age_mean,
+             "groupsize" : groupsize,
              "count" : count, }
 
 def read_dgroups_from_pickle( result = [],
@@ -819,6 +821,7 @@ def get_cycle_nodes( edgelist = [] ):
     return nodeset
 
 def get_cycle_age_stats( cycle = [],
+                         groupsize = 0,
                          objectinfo = {} ):
     oi = objectinfo
     age_list = [ oi.get_age_ALLOC(objId) for objId in cycle ]
@@ -834,6 +837,7 @@ def get_cycle_age_stats( cycle = [],
                                  new_max = new_max,
                                  age_range = age_range,
                                  age_mean = age_mean,
+                                 groupsize = groupsize,
                                  count = len(cycle) )
 
 def update_cycle_summary( cycle_summary = {},
@@ -865,6 +869,7 @@ def update_cycle_summary( cycle_summary = {},
         #    key: type tuple
         #    value: list of cycle age summary records
         age_rec = get_cycle_age_stats( cycle = nlist,
+                                       groupsize = groupsize,
                                        objectinfo = oi )
         if age_rec != None:
             cycle_age_summary[tup].append( age_rec  )
