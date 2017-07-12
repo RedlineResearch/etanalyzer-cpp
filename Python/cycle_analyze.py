@@ -503,27 +503,8 @@ def read_dgroups_from_pickle( result = [],
     with open(picklefile, "rb") as fptr:
         dgroups_data = cPickle.load(fptr)
     #===========================================================================
-    # Process
-    #
-    # TODO: # Idea 1: for each group, check that each object in the group have the same
-    # TODO: # died by
-    # TODO: diedby_results = check_diedby_stats( dgroups_data = dgroups_data,
-    # TODO:                                      objectinfo = objectinfo )
-    # TODO: print "==========================================================================="
-    # TODO: for gnum, datadict in diedby_results.iteritems():
-    # TODO:     assert("diedby" in datadict)
-    # TODO:     assert("deathtime" in datadict)
-    # TODO:     sys.stdout.write( "GROUP %d\n" % gnum )
-    # TODO:     sys.stdout.write( "    * DIEDBY:\n" )
-    # TODO:     for diedbytype, total in datadict["diedby"]["count"].iteritems():
-    # TODO:         sys.stdout.write( "        %s -> %d\n" % (diedbytype, total) )
-    # TODO:         sys.stdout.write( "         - Types: %s\n" % str(list( datadict["diedby"]["types"][diedbytype])) )
-    # TODO:     sys.stdout.write( "    * dtime               : %s\n" % str(list(datadict["deathtime"])) )
-    # TODO:     sys.stdout.write( "===========================================================================\n" )
-    # TODO:     sys.stdout.flush()
-    #===========================================================================
-    # Idea 2: Get the key objects TODO TODO TODO
-    #
+    #    Process
+    #---------------------------------------------------------------------------
     print "--------------------------------------------------------------------------------"
     keytype_counter = Counter()
     deathsite_summary = defaultdict( Counter )
@@ -531,6 +512,10 @@ def read_dgroups_from_pickle( result = [],
     cycle_summary = Counter() # Keys are type tuples
     cycle_age_summary = defaultdict( lambda: [] )
     cycle_cpair_summary = defaultdict( lambda: [] )
+    cycle_count_summary = defaultdict( lambda: { "min" : 0,
+                                                 "max" : 0,
+                                                 "mean" : 0.0,
+                                                 "singles" : set(), } )
     count = 0
     key_objects = { "GROUPLIST" : {},
                     "CAUSE" : Counter(),
@@ -568,25 +553,16 @@ def read_dgroups_from_pickle( result = [],
     # with open( rawpath, "wb" ) as fpraw, \
     with open( cyclepath, "wb" ) as cycfp, \
         open( raw_cyclepath, "wb" ) as raw_cycfp:
-        #----------------------------------------------------------------------
-        # TODO: Not needed in this script. This is in analyze_dgroup.py
-        # TODO # Raw groups
-        # TODO raw_writer = csv.writer( fpraw,
-        # TODO                          quoting = csv.QUOTE_NONNUMERIC )
-        # TODO key_header = [ "objectId", "number-objects", "size-group",
-        # TODO                "key-type", "key-alloc-age", "key-alloc-site", "alloc-non-Java-lib-context", "oldest-member-age",
-        # TODO                "death-cause", "death-context-1", "death-context-2", "non-Java-lib-context",
-        # TODO                "pointed-at-by-heap", ]
-        # TODO raw_writer.writerow( key_header )
-        #----------------------------------------------------------------------
 
         # RAW cycle file
-        raw_cycle_header = [ "type-tuple", ] # TODO TODO TODO TODO
+        raw_cycle_header = [ "type-tuple", "cycles-size",
+                         "mean-age", "range-age", ]
         raw_cycle_writer = csv.writer( raw_cycfp,
                                        quoting = csv.QUOTE_NONNUMERIC )
         raw_cycle_writer.writerow( raw_cycle_header )
         # Cycle summary file
         cycle_header = [ "type-tuple", "cycles-size",
+                         "obj-count-min", "obj-count-max", "obj-count-mean", 
                          "mean-age", "range-age", ] # TODO TODO TODO TODO
         cycle_writer = csv.writer( cycfp,
                                    quoting = csv.QUOTE_NONNUMERIC )
@@ -601,6 +577,7 @@ def read_dgroups_from_pickle( result = [],
                                                                          cycle_summary = cycle_summary,
                                                                          cycle_age_summary = cycle_age_summary,
                                                                          cycle_cpair_summary = cycle_cpair_summary,
+                                                                         cycle_count_summary = cycle_count_summary,
                                                                          raw_cycle_writer = raw_cycle_writer,
                                                                          logger = logger )
             if cause == "END":
@@ -619,117 +596,6 @@ def read_dgroups_from_pickle( result = [],
                                          cycle_writer = cycle_writer,
                                          bmark = bmark,
                                          logger = logger )
-                # END TODO: HERE 30 June 2017
-                # TODO update_key_object_summary( newgroup = key_result,
-                # TODO                            summary = key_objects,
-                # TODO                            objectinfo = objectinfo,
-                # TODO                            total_size = total_size,
-                # TODO                            logger = logger )
-                # TODO # TODO DEBUG print "%d: %s" % (count, key_result)
-                # TODO ktc = keytype_counter # Short alias
-                # TODO for key, subgroup in key_result.iteritems():
-                # TODO     count += 1
-                # TODO     # Summary of key types
-                # TODO     keytype = objectinfo.get_type(key)
-                # TODO     ktc[keytype] += 1
-                # TODO     groupsize = len(subgroup)
-                # TODO     # Summary of death locations
-                # TODO     deathsite = objectinfo.get_death_context(key)
-                # TODO     dss[keytype][deathsite] += 1
-                # TODO     raw_output_to_csv( key = key,
-                # TODO                        subgroup = subgroup,
-                # TODO                        raw_writer = raw_writer,
-                # TODO                        objectinfo = objectinfo,
-                # TODO                        total_size = total_size,
-                # TODO                        logger = logger )
-    # TODO HERE exit(1000)
-    # TODO # Save the CSV file the key object summary
-    # TODO total_objects = summary_reader.get_number_of_objects()
-    # TODO # TODO num_key_objects = len(key_objects["GROUPLIST"])
-    # TODO size_died_at_end = summary_reader.get_size_died_at_end()
-    # TODO size_total_allocation = summary_reader.get_final_garbology_alloc_time()
-    # TODO # TODO dsites_gcount = key_objects["DSITES_GROUP_COUNT"]
-    # TODO #-------------------------------------------------------------------------------
-    # TODO # Alloc age computation TODO TODO TODO
-    # TODO # Max and min have been maintained for each death site so nothing needed here.
-    # TODO # Update the averages/mean:
-    # TODO dsites_age = key_objects["DSITES_AGE"]
-    # TODO dsites_gstats = key_objects["DSITES_GROUP_STATS"]
-    # TODO for mydsite in dsites_age.keys():
-    # TODO     count, total = dsites_age[mydsite]["gensum"]
-    # TODO     dsites_age[mydsite]["ave"] = (total / count) if count > 0 \
-    # TODO         else 0
-    # TODO     gcount, gtotal = dsites_gstats[mydsite]["gensum"]
-    # TODO     dsites_gstats[mydsite]["ave"] = (gtotal / gcount) if gcount > 0 \
-    # TODO         else 0
-    # TODO nonjlib_age = key_objects["NONJLIB_AGE"]
-    # TODO nonjlib_gstats = key_objects["NONJLIB_GROUP_STATS"]
-    # TODO for mydsite in nonjlib_age.keys():
-    # TODO     count, total = nonjlib_age[mydsite]["gensum"]
-    # TODO     assert( count > 0 )
-    # TODO     nonjlib_age[mydsite]["ave"] = total / count
-    # TODO     gcount, gtotal = nonjlib_gstats[mydsite]["gensum"]
-    # TODO     nonjlib_gstats[mydsite]["ave"] = (gtotal / gcount) if gcount > 0 \
-    # TODO         else 0
-    # TODO #-------------------------------------------------------------------------------
-    # TODO # First level death sites
-    # TODO total_alloc_MB = bytes_to_MB(total_alloc)
-    # TODO actual_alloc = total_alloc - total_died_at_end_size
-    # TODO actual_alloc_MB = bytes_to_MB(actual_alloc)
-    # TODO newrow = [ (bmark, total_alloc_MB, actual_alloc_MB) ]
-    # TODO # Get the top 5 death sites
-    # TODO #     * Use "DSITES_SIZE" and sort. Get top 5.
-    # TODO dsites_distr = key_objects["DSITES_DISTRIBUTION"]
-    # TODO dsites_size = sorted( key_objects["DSITES_SIZE"].items(),
-    # TODO                       key = itemgetter(1),
-    # TODO                       reverse = True )
-    # TODO newrow = newrow + [ ( x[0], bytes_to_MB(x[1]), ((x[1]/actual_alloc) * 100.0),
-    # TODO                       ((dsites_distr[x[0]]["STACK"]/x[1]) * 100.0),
-    # TODO                       ((dsites_distr[x[0]]["HEAP"]/x[1]) * 100.0),
-    # TODO                       dsites_gcount[x[0]],
-    # TODO                       dsites_gstats[x[0]]["min"], dsites_gstats[x[0]]["max"], dsites_gstats[x[0]]["ave"],
-    # TODO                       dsites_age[x[0]]["min"], dsites_age[x[0]]["max"],  dsites_age[x[0]]["ave"], )
-    # TODO                     for x in dsites_size[0:5] ]
-    # TODO newrow = [ x for tup in newrow for x in tup ]
-    # TODO #-------------------------------------------------------------------------------
-    # TODO # First non Java library function
-    # TODO # TODO TODO: Add allocation total
-    # TODO newrow_nonjlib = [ ((bmark + " NONJ"), total_alloc_MB, actual_alloc_MB), ]
-    # TODO # Get the top 5 death sites
-    # TODO #     * Use "NONJLIB_SIZE" and sort. Get top 5.
-    # TODO nonjlib_distr = key_objects["NONJLIB_DISTRIBUTION"]
-    # TODO nonjlib_gcount = key_objects["NONJLIB_GROUP_COUNT"]
-    # TODO nonjlib_dsites_size = sorted( key_objects["NONJLIB_SIZE"].items(),
-    # TODO                               key = itemgetter(1),
-    # TODO                               reverse = True )
-    # TODO # TODO TODO Add dsite-total, dsite percentage using MB
-    # TODO dsites_age = key_objects["DSITES_AGE"]
-    # TODO nonjlib_age = key_objects["NONJLIB_AGE"]
-    # TODO newrow_nonjlib = newrow_nonjlib + [ ( x[0], bytes_to_MB(x[1]), ((x[1]/actual_alloc) * 100.0),
-    # TODO                                       ((nonjlib_distr[x[0]]["STACK"]/x[1]) * 100.0),
-    # TODO                                       ((nonjlib_distr[x[0]]["HEAP"]/x[1]) * 100.0),
-    # TODO                                       nonjlib_gcount[x[0]],
-    # TODO                                       nonjlib_gstats[x[0]]["min"], nonjlib_gstats[x[0]]["max"], nonjlib_gstats[x[0]]["ave"],
-    # TODO                                       nonjlib_age[x[0]]["min"], nonjlib_age[x[0]]["max"],  nonjlib_age[x[0]]["ave"], )
-    # TODO                                     for x in nonjlib_dsites_size[0:5] ]
-    # TODO newrow_nonjlib = [ x for tup in newrow_nonjlib for x in tup ]
-    #-------------------------------------------------------------------------------
-    # TODO DELETE DEBUG print "X:", newrow
-    # Write out the row
-    # TODO: REMOVE: key_summary_writer.writerow( newrow )
-    # TODO: REMOVE: key_summary_writer.writerow( newrow_nonjlib )
-    # TODO: if not mprflag:
-    # TODO:     result.append( newrow )
-    # TODO:     result.append( newrow_nonjlib )
-    # TODO:     cycle_result.append( cycle_summary )
-    # TODO: else:
-    # TODO:     result.put( newrow )
-    # TODO:     result.put( newrow_nonjlib )
-    # TODO:     cycle_result.put( cycle_summary )
-    #
-    #       * size stats for groups that died by stack
-    #            + first should be number of key objects
-    #            + then average size of sub death group
     #===========================================================================
     #
     # pickle_filename = os.path.join( workdir, bmark + "-DGROUPS.pickle" )
@@ -862,6 +728,7 @@ def update_cycle_summary( cycle_summary = {},
                           objectinfo = {},
                           cycle_age_summary = {},
                           cycle_cpair_summary = {},
+                          cycle_count_summary = {},
                           raw_cycle_writer = None,
                           groupsize = 0,
                           logger = None ):
@@ -872,6 +739,7 @@ def update_cycle_summary( cycle_summary = {},
             cycledict[node] = True
             mytype = oi.get_type(node)
             typelist.append( mytype )
+        typecount = Counter(typelist)
         typelist = list( set(typelist) )
         assert( len(typelist) > 0 ) # TODO. Only a debugging assert
         # Use a default order to prevent duplicates in tuples
@@ -887,9 +755,19 @@ def update_cycle_summary( cycle_summary = {},
         age_rec = get_cycle_age_stats( cycle = nlist,
                                        groupsize = groupsize,
                                        objectinfo = oi )
+        singletons = set()
+        for mytype, value in typecount.iteritems():
+            if value == 1:
+                singletons.add( mytype )
         if age_rec != None:
             cycle_age_summary[tup].append( age_rec  )
             # TODO Death site, allocation site TODO
+            singfield = "("
+            for mytype in singletons:
+                singfield += mytype
+                singfield += "|"
+            singfield += ")"
+            # TODO DEBUG: print "XXX:", singfield
             raw_cycle_writer.writerow( encode_row([ tup,
                                                     groupsize,
                                                     age_rec["mean"],
@@ -906,6 +784,7 @@ def get_cycles( group = {},
                 cycle_summary = {},
                 cycle_age_summary = {},
                 cycle_cpair_summary = {},
+                cycle_count_summary = {},
                 raw_cycle_writer = None,
                 logger = None ):
     latest = 0 # Time of most recent
@@ -959,6 +838,7 @@ def get_cycles( group = {},
                                               cycle_age_summary = cycle_age_summary,
                                               raw_cycle_writer = raw_cycle_writer,
                                               cycle_cpair_summary = cycle_cpair_summary,
+                                              cycle_count_summary = cycle_count_summary,
                                               groupsize = objsize,
                                               logger = logger )
                         break
@@ -974,7 +854,6 @@ def get_cycles( group = {},
             # Sum up the size in bytes
             objsize = objectinfo.get_size(obj)
             total_size += objsize
-            groupsize += objsize
             # * Incoming edges
             srcreclist = ei.get_sources_records(obj)
             # We only want the ones that died with the object
@@ -997,6 +876,8 @@ def get_cycles( group = {},
         for elem in cycles_gen:
             new_cycle = []
             for nxnode in elem:
+                objsize = objectinfo.get_size(nxnode)
+                groupsize += objsize
                 cycle_nodes.add(nxnode)
                 assert(nxnode in cycledict)
                 cycledict[nxnode] = True
@@ -1012,6 +893,7 @@ def get_cycles( group = {},
                                   cycle_age_summary = cycle_age_summary,
                                   raw_cycle_writer = raw_cycle_writer,
                                   cycle_cpair_summary = cycle_cpair_summary,
+                                  cycle_count_summary = cycle_count_summary,
                                   groupsize = groupsize,
                                   logger = logger )
         return ( cyclelist,
@@ -1070,128 +952,89 @@ def main_process( global_config = {},
     procs_dgroup = {}
     dblist = []
     # Print out
-    with open(KEY_OBJECT_SUMMARY, mode = "wb") as key_summary_fp:
-        # Key object general statistics
-        key_summary_writer = csv.writer(key_summary_fp)
-        header = [ "benchmark", "alloc-total", "actual-alloc-total",
-                   "dsite_1", "dsite_1-total", "dsite_1-%", "dsite_1-by-stack-%",  "dsite_1-by-heap-%", "number-groups",
-                              "dsite_1-group-min", "dsite_1-group-max", "dsite_1-group-ave",
-                              "dsite_1-min-alloc-age", "dsite_1-max-alloc-age", "dsite_1-ave-alloc-age",
-                              # TODO young vs old (total count or percentage?)
-                   "dsite_2", "dsite_2-total", "dsite_2-%", "dsite_2-by-stack-%",  "dsite_2-by-heap-%", "number-groups",
-                              "dsite_2-group-min", "dsite_2-group-max", "dsite_2-group-ave",
-                              "dsite_2-min-alloc-age", "dsite_2-max-alloc-age", "dsite_2-ave-alloc-age",
-                              # TODO young vs old (total count or percentage?)
-                   "dsite_3", "dsite_3-total", "dsite_3-%", "dsite_3-by-stack-%",  "dsite_3-by-heap-%", "number-groups",
-                              "dsite_3-group-min", "dsite_3-group-max", "dsite_3-group-ave",
-                              "dsite_3-min-alloc-age", "dsite_3-max-alloc-age", "dsite_3-ave-alloc-age",
-                              # TODO young vs old (total count or percentage?)
-                   "dsite_4", "dsite_4-total", "dsite_4-%", "dsite_4-by-stack-%",  "dsite_4-by-heap-%", "number-groups",
-                              "dsite_4-group-min", "dsite_4-group-max", "dsite_4-group-ave",
-                              "dsite_4-min-alloc-age", "dsite_4-max-alloc-age", "dsite_4-ave-alloc-age",
-                              # TODO young vs old (total count or percentage?)
-                   "dsite_5", "dsite_5-total", "dsite_5-%", "dsite_5-by-stack-%",  "dsite_5-by-heap-%", "number-groups",
-                              "dsite_5-group-min", "dsite_5-group-max", "dsite_5-group-ave",
-                              "dsite_5-min-alloc-age", "dsite_5-max-alloc-age", "dsite_5-ave-alloc-age",
-                              # TODO young vs old (total count or percentage?)
-                              ]
-        key_summary_writer.writerow(header)
-        for bmark in worklist_config.keys():
-            hostlist = worklist_config[bmark]
-            if not check_host( benchmark = bmark,
-                               hostlist = hostlist,
-                               host_config = host_config ):
-                continue
-            # Else we can run for 'bmark'
-            cachesize = int(cachesize_config[bmark])
-            if mprflag:
-                print "=======[ Spawning %s ]================================================" \
-                    % bmark
-                results[bmark] = Queue()
-                cycle_summary_all[bmark] = Queue()
-                # NOTE: The order of the args tuple is important!
-                # ======================================================================
-                # Read in the death groups from dgroups2db.py
-                p = Process( target = read_dgroups_from_pickle,
-                             args = ( results[bmark],
-                                      bmark,
-                                      workdir,
-                                      True, # mprflag
-                                      dgroups2db_config,
-                                      objectinfo_db_config,
-                                      summary_config,
-                                      cycle_cpp_dir,
-                                      cachesize,
-                                      debugflag,
-                                      cycle_summary_all[bmark],
-                                      logger ) )
-                procs_dgroup[bmark] = p
-                p.start()
-            else:
-                print "=======[ Running %s ]=================================================" \
-                    % bmark
-                print "     Reading in death groups..."
-                results[bmark] = []
-                cycle_summary_all[bmark] = []
-                read_dgroups_from_pickle( result = results[bmark],
-                                          bmark = bmark,
-                                          workdir = workdir,
-                                          mprflag = False,
-                                          dgroups2db_config = dgroups2db_config,
-                                          objectinfo_db_config = objectinfo_db_config,
-                                          summary_config = summary_config,
-                                          cycle_cpp_dir = cycle_cpp_dir,
-                                          obj_cachesize = cachesize,
-                                          debugflag = debugflag,
-                                          cycle_result = cycle_summary_all[bmark],
-                                          logger = logger )
-                for row in results[bmark]:
-                    key_summary_writer.writerow( row )
-                key_summary_fp.flush()
-                os.fsync(key_summary_fp.fileno())
-            # Copy file from workdir
-            srcpath = os.path.join( workdir, KEY_OBJECT_SUMMARY )
-            # Check to see if filename exists in workdir
-            tgtpath = os.path.join( main_config["output"], KEY_OBJECT_SUMMARY )
-            if os.path.isfile(tgtpath):
-                # Moving the older into BAK directory
-                bakfilename = "%s-%s-%s" % (today, timenow, KEY_OBJECT_SUMMARY)
-                TEMPpath = os.path.join( main_config["output"], "BAK" )
-                bakpath = os.path.join( TEMPpath, bakfilename )
-                # And check the bakpath
-                if os.path.isfile( bakpath ):
-                    # Remove if it's there
-                    os.remove( bakpath )
-                move( tgtpath, bakpath )
-            copy( srcpath, tgtpath )
+    # START
+    for bmark in worklist_config.keys():
+        hostlist = worklist_config[bmark]
+        if not check_host( benchmark = bmark,
+                           hostlist = hostlist,
+                           host_config = host_config ):
+            continue
+        # Else we can run for 'bmark'
+        cachesize = int(cachesize_config[bmark])
         if mprflag:
-            # Poll the processes
-            done = False
-            while not done:
-                done = True
-                for bmark in procs_dgroup.keys():
-                    proc = procs_dgroup[bmark]
-                    proc.join(60)
-                    if proc.is_alive():
-                        done = False
-                    else:
-                        del procs_dgroup[bmark]
-                        print "DONE: %s" % bmark
-                        while not results[bmark].empty():
-                            row = results[bmark].get()
-                            key_summary_writer.writerow( row )
-                        key_summary_fp.flush()
-                        os.fsync(key_summary_fp.fileno())
-                        timenow = time.asctime()
-                        logger.debug( "[%s] - done at %s" % (bmark, timenow) )
-            print "======[ Processes DONE ]========================================================"
-            sys.stdout.flush()
-            # TODO: Need to output cycle information
+            print "=======[ Spawning %s ]================================================" \
+                % bmark
+            results[bmark] = Queue()
+            cycle_summary_all[bmark] = Queue()
+            # NOTE: The order of the args tuple is important!
+            # ======================================================================
+            # Read in the death groups from dgroups2db.py
+            p = Process( target = read_dgroups_from_pickle,
+                         args = ( results[bmark],
+                                  bmark,
+                                  workdir,
+                                  True, # mprflag
+                                  dgroups2db_config,
+                                  objectinfo_db_config,
+                                  summary_config,
+                                  cycle_cpp_dir,
+                                  cachesize,
+                                  debugflag,
+                                  cycle_summary_all[bmark],
+                                  logger ) )
+            procs_dgroup[bmark] = p
+            p.start()
         else:
-            # TODO TEMPORARY OUTPUT
-            print "=====[ Cycle Summary ]=========================================================="
-            pp.pprint( cycle_summary_all )
-            print "=====[ END Cycle Summary ]======================================================"
+            print "=======[ Running %s ]=================================================" \
+                % bmark
+            print "     Reading in death groups..."
+            results[bmark] = []
+            cycle_summary_all[bmark] = []
+            read_dgroups_from_pickle( result = results[bmark],
+                                      bmark = bmark,
+                                      workdir = workdir,
+                                      mprflag = False,
+                                      dgroups2db_config = dgroups2db_config,
+                                      objectinfo_db_config = objectinfo_db_config,
+                                      summary_config = summary_config,
+                                      cycle_cpp_dir = cycle_cpp_dir,
+                                      obj_cachesize = cachesize,
+                                      debugflag = debugflag,
+                                      cycle_result = cycle_summary_all[bmark],
+                                      logger = logger )
+            # TODO: while not results[bmark].empty():
+            # TODO:     row = results[bmark].get()
+            # TODO:     key_summary_writer.writerow( row )
+            # TODO: key_summary_fp.flush()
+            # TODO: os.fsync(key_summary_fp.fileno())
+
+    #-----[ Checking if we need to poll ]-------------------------------------------
+    if mprflag:
+        # Poll the processes
+        done = False
+        while not done:
+            done = True
+            for bmark in procs_dgroup.keys():
+                proc = procs_dgroup[bmark]
+                proc.join(60)
+                if proc.is_alive():
+                    done = False
+                else:
+                    del procs_dgroup[bmark]
+                    print "DONE: %s" % bmark
+                    # TODO: while not results[bmark].empty():
+                    # TODO:     row = results[bmark].get()
+                    # TODO:     key_summary_writer.writerow( row )
+                    # TODO: key_summary_fp.flush()
+                    # TODO: os.fsync(key_summary_fp.fileno())
+                    timenow = time.asctime()
+                    logger.debug( "[%s] - done at %s" % (bmark, timenow) )
+        print "======[ Processes DONE ]========================================================"
+        sys.stdout.flush()
+        # TODO: Need to output cycle information
+    print "=====[ Cycle Summary ]=========================================================="
+    pp.pprint( cycle_summary_all )
+    print "=====[ END Cycle Summary ]======================================================"
     print "================================================================================"
     # TODO # Copy all the databases into MAIN directory.
     # TODO dest = main_config["output"]
