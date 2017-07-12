@@ -310,6 +310,8 @@ def encode_row( row = [] ):
             newrow.append(item)
         elif type(item) == str:
             newrow.append( item.encode('utf-8') )
+        elif type(item) == set:
+            newrow.append( singletons_to_str(item) )
         else:
             newrow.append(str(item))
     return newrow
@@ -390,6 +392,7 @@ def pair_sum( first = None,
 
 def output_cycle_summary_to_csv( typetup = {},
                                  agerec_list = [],
+                                 countrec_list = [],
                                  cpair_rec = {},
                                  cycle_writer = None,
                                  bmark = None,
@@ -397,48 +400,68 @@ def output_cycle_summary_to_csv( typetup = {},
     assert( len(typetup) > 0 )
     assert( type(typetup) == tuple )
     assert( len(agerec_list) > 0 )
+    assert( len(countrec_list) > 0 )
     assert( cycle_writer != None )
     assert( bmark != None )
     print "[%s TUP] - %s " % (bmark, typetup)
-    gsize_list = []
+    #--------------------------------------------------------------------------------
+    # AGEREC summary:
     range_list = []
     agepair_list = []
     for rec in agerec_list:
-        gsize_list.append( rec["groupsize"] )
         range_list.append( rec["range"] )
-        agepair_list.append( (rec["mean"], rec["groupsize"]) )
-    count, gsize_total = generalised_sum( gsize_list, None )
+        agepair_list.append( (rec["mean"], rec["groupcount"]) )
     age_count = 0
     age_total = 0.0
     age_total, age_count = reduce( pair_sum, agepair_list )
     age_mean = age_total / age_count
     age_range_mean = mean( range_list )
-    row = encode_row([ typetup,
-                       gsize_total, # bytes total
-                       age_mean, # average allocation age
-                       age_range_mean, ] ) # average range
-    newrow = encode_row(row)
-    try:
-        cycle_writer.writerow(newrow)
-    except:
-        print "%d : %s = %s" % (str(typetup), type(key_nonjlib_alloc_site))
-        print "Encoded row:"
-        pp.pprint(newrow)
-        exit(100)
+    #--------------------------------------------------------------------------------
+    # OBJECT COUNT
+    gsize_list = []
+    objrec_list = []
+    for rec in countrec_list:
+        gsize_list.append( rec["groupsize"] )
+        objrec_list.append( rec )
+    count, gsize_total = generalised_sum( gsize_list, None )
+    #--------------------------------------------------------------------------------
+    if len(objrec_list) > 0:
+        objcount_list = [ x["count"] for x in objrec_list ]
+        newrow = encode_row([ typetup,
+                              gsize_total, # bytes total
+                              min(objcount_list), # object count minimum
+                              max(objcount_list), # object count maximum
+                              mean(objcount_list), # object count mean
+                              set(), ] ) # singleton set
+        try:
+            cycle_writer.writerow(newrow)
+        except:
+            print "%d : %s = %s" % (str(typetup), type(key_nonjlib_alloc_site))
+            print "Encoded row:"
+            pp.pprint(newrow)
+            exit(100)
+    else:
+        print "ERROR: %s has length 0." % str(typetup)
 
 def new_cycle_age_record( new_min = None,
                           new_max = None,
                           age_range = None,
                           age_mean = None,
-                          groupsize = 0,
-                          count = 0 ):
+                          groupcount = None ):
     assert( age_mean != None ) # TODO DEBUG ONLY
     return { "min" : new_min,
              "max" : new_max,
              "range" : age_range,
              "mean" : age_mean,
-             "groupsize" : groupsize,
-             "count" : count, }
+             "groupcount" : groupcount }
+
+def new_count_record( new_groupsize = None,
+                      new_count = None,
+                      new_singles = set() ):
+    return { "groupsize" : new_groupsize,
+             "count" : new_count,
+             "singles" : new_singles, }
+
 
 def read_dgroups_from_pickle( result = [],
                               bmark = "",
@@ -512,10 +535,7 @@ def read_dgroups_from_pickle( result = [],
     cycle_summary = Counter() # Keys are type tuples
     cycle_age_summary = defaultdict( lambda: [] )
     cycle_cpair_summary = defaultdict( lambda: [] )
-    cycle_count_summary = defaultdict( lambda: { "min" : 0,
-                                                 "max" : 0,
-                                                 "mean" : 0.0,
-                                                 "singles" : set(), } )
+    cycle_count_summary = defaultdict( lambda: [] )
     count = 0
     key_objects = { "GROUPLIST" : {},
                     "CAUSE" : Counter(),
@@ -556,14 +576,16 @@ def read_dgroups_from_pickle( result = [],
 
         # RAW cycle file
         raw_cycle_header = [ "type-tuple", "cycles-size",
-                         "mean-age", "range-age", ]
+                             "obj-count",
+                             "mean-age", "range-age",
+                             "singletons", ]
         raw_cycle_writer = csv.writer( raw_cycfp,
                                        quoting = csv.QUOTE_NONNUMERIC )
         raw_cycle_writer.writerow( raw_cycle_header )
         # Cycle summary file
         cycle_header = [ "type-tuple", "cycles-size",
-                         "obj-count-min", "obj-count-max", "obj-count-mean", 
-                         "mean-age", "range-age", ] # TODO TODO TODO TODO
+                         "obj-count-min", "obj-count-max", "obj-count-mean",
+                         "singletons" ]
         cycle_writer = csv.writer( cycfp,
                                    quoting = csv.QUOTE_NONNUMERIC )
         cycle_writer.writerow( cycle_header )
@@ -587,12 +609,25 @@ def read_dgroups_from_pickle( result = [],
                 assert( (cause == "HEAP") or (cause == "STACK") )
                 total_alloc += total_size
                 # TODO: HERE 30 June 2017
-        print "Cycles total = ", len(cycle_age_summary)
-        for typetup, agerec_list in cycle_age_summary.iteritems():
+        print "Age summary total = ", len(cycle_age_summary)
+        print "Count summary total = ", len(cycle_count_summary)
+        for typetup, countrec_list in cycle_count_summary.iteritems():
+            # Get record from cycle_age_summary
+            if typetup in cycle_age_summary:
+                agerec_list = cycle_age_summary[typetup]
+            else:
+                agerec_list = []
+                agerec_list.append( new_cycle_age_record( new_min = 0,
+                                                          new_max = 0,
+                                                          age_range = 0,
+                                                          age_mean = 0.0,
+                                                          groupcount = 0 ) )
+            # TODO TODO
             # Summary of key types
             output_cycle_summary_to_csv( typetup = typetup,
                                          agerec_list = agerec_list,
-                                         cpair_rec = {}, # TODO TODO TODO HERE
+                                         countrec_list = countrec_list,
+                                         # cpair_rec = {}, # TODO TODO TODO HERE
                                          cycle_writer = cycle_writer,
                                          bmark = bmark,
                                          logger = logger )
@@ -703,14 +738,13 @@ def get_cycle_nodes( edgelist = [] ):
     return nodeset
 
 def get_cycle_age_stats( cycle = [],
-                         groupsize = 0,
                          objectinfo = {} ):
     oi = objectinfo
     age_list = [ oi.get_age_ALLOC(objId) for objId in cycle ]
     age_list = filter( lambda x: x != 0,
                        age_list )
     if len(age_list) == 0:
-        return None # TODO TODO TODO
+        age_list = [ 0, ]
     new_min = min(age_list)
     new_max = max(age_list)
     age_range = new_max - new_min
@@ -719,8 +753,15 @@ def get_cycle_age_stats( cycle = [],
                                  new_max = new_max,
                                  age_range = age_range,
                                  age_mean = age_mean,
-                                 groupsize = groupsize,
-                                 count = len(cycle) )
+                                 groupcount = len(age_list) )
+
+def singletons_to_str( singletons = set() ):
+    singfield = "(".encode('utf-8')
+    for mytype in singletons:
+        singfield += mytype.encode('utf-8')
+        singfield += "|".encode('utf-8')
+    singfield += ")".encode('utf-8')
+    return singfield
 
 def update_cycle_summary( cycle_summary = {},
                           cycledict = {},
@@ -749,29 +790,43 @@ def update_cycle_summary( cycle_summary = {},
         # Get the death site
         dsite = get_cycle_deathsite( nlist,
                                      objectinfo = oi )
-        # cycle_age_summary:
-        #    key: type tuple
-        #    value: list of cycle age summary records
+        #--------------------------------------------------------------------------------
         age_rec = get_cycle_age_stats( cycle = nlist,
-                                       groupsize = groupsize,
                                        objectinfo = oi )
+        #--------------------------------------------------------------------------------
         singletons = set()
         for mytype, value in typecount.iteritems():
             if value == 1:
                 singletons.add( mytype )
-        if age_rec != None:
+        count_rec = new_count_record( new_groupsize = groupsize,
+                                      new_count = len(nlist),
+                                      new_singles = singletons )
+        #--------------------------------------------------------------------------------
+        if (count_rec != None):
+            # TODO: How about checking for age_rec too? TODO
+            # cycle_age_summary:
+            #    key: type tuple
+            #    value: list of cycle age summary records
             cycle_age_summary[tup].append( age_rec  )
+            # cycle_count_summary:
+            #    key: type tuple
+            #    value: list of cycle count summary records
+            cycle_count_summary[tup].append( count_rec  )
             # TODO Death site, allocation site TODO
-            singfield = "("
-            for mytype in singletons:
-                singfield += mytype
-                singfield += "|"
-            singfield += ")"
+            singfield = singletons_to_str( singletons )
             # TODO DEBUG: print "XXX:", singfield
+            if age_rec != None:
+                age_mean = age_rec["mean"]
+                age_range = age_rec["range"]
+            else:
+                age_mean = 0.0
+                age_range = 0
             raw_cycle_writer.writerow( encode_row([ tup,
                                                     groupsize,
-                                                    age_rec["mean"],
-                                                    age_rec["range"], ]) )
+                                                    len(nlist),
+                                                    age_mean,
+                                                    age_range,
+                                                    singfield, ]) )
         else:
             logger.error( "TODO: Unable to save cycle %s" % str(cyclelist) )
 
