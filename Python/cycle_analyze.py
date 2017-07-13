@@ -796,7 +796,6 @@ def update_cycle_summary( cycle_summary = {},
                                        objectinfo = oi )
         #--------------------------------------------------------------------------------
         singletons = set()
-        pp.pprint(typecount)
         for mytype, value in typecount.iteritems():
             if value == 1:
                 singletons.add( mytype )
