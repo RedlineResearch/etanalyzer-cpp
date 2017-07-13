@@ -427,12 +427,14 @@ def output_cycle_summary_to_csv( typetup = {},
     #--------------------------------------------------------------------------------
     if len(objrec_list) > 0:
         objcount_list = [ x["count"] for x in objrec_list ]
+        singles = set.intersection( *[ x["singles"] for x in objrec_list ] )
         newrow = encode_row([ typetup,
                               gsize_total, # bytes total
                               min(objcount_list), # object count minimum
                               max(objcount_list), # object count maximum
                               mean(objcount_list), # object count mean
-                              set(), ] ) # singleton set
+                              singles, ] ) # singleton set
+        print "XXX:", newrow
         try:
             cycle_writer.writerow(newrow)
         except:
@@ -795,6 +797,7 @@ def update_cycle_summary( cycle_summary = {},
                                        objectinfo = oi )
         #--------------------------------------------------------------------------------
         singletons = set()
+        pp.pprint(typecount)
         for mytype, value in typecount.iteritems():
             if value == 1:
                 singletons.add( mytype )
@@ -814,7 +817,6 @@ def update_cycle_summary( cycle_summary = {},
             cycle_count_summary[tup].append( count_rec  )
             # TODO Death site, allocation site TODO
             singfield = singletons_to_str( singletons )
-            # TODO DEBUG: print "XXX:", singfield
             if age_rec != None:
                 age_mean = age_rec["mean"]
                 age_range = age_rec["range"]
