@@ -434,7 +434,6 @@ def output_cycle_summary_to_csv( typetup = {},
                               max(objcount_list), # object count maximum
                               mean(objcount_list), # object count mean
                               singles, ] ) # singleton set
-        print "XXX:", newrow
         try:
             cycle_writer.writerow(newrow)
         except:
