@@ -676,6 +676,10 @@ def make_adjacency_list( nodes = [],
         if tgt not in adjlist:
             adjlist[tgt] = []
         # Add to networkx graph
+        if src not in nxG:
+            nxG.add_node(src)
+        if tgt not in nxG:
+            nxG.add_node(tgt)
         nxG.add_edge(src, tgt)
         # NOTE: If the node were not in nodes for some reason, this will add it anyway.
     return { "adjlist" : adjlist,
@@ -928,17 +932,19 @@ def get_cycles( group = {},
             # TODO what is this for? TODO: ei.get_source_id_from_rec(x)
             obj_edgelist = [ x for x in srcreclist if
                              (ei.get_death_time_from_rec(x) == dtime) ]
-            if flag:
-                print "LENGTH srcreclist: %d" % len(srcreclist)
-                print "       obj_edgelist: %d" % len(obj_edgelist)
+            # if flag:
+            #     print "LENGTH srcreclist: %d" % len(srcreclist)
+            #     print "       obj_edgelist: %d" % len(obj_edgelist)
             if len(obj_edgelist) > 0:
                 edgelist.extend( obj_edgelist )
-            if flag:
-                print "LENGTH srcreclist: %d" % len(srcreclist)
-                print "       obj_edgelist: %d" % len(obj_edgelist)
-                print "   NEW edgelist: %d" % len(edgelist)
-        if flag:
-            print "***FINAL LENGTH obj_edgelist: %d" % len(edgelist)
+            # if flag:
+            #     print "LENGTH srcreclist: %d" % len(srcreclist)
+            #     print "       obj_edgelist: %d" % len(obj_edgelist)
+            #     print "   NEW edgelist: %d" % len(edgelist)
+        # TODO: if flag:
+        # TODO:     print "***FINAL LENGTH obj_edgelist: %d" % len(edgelist)
+        # TODO:     for tmp in edgelist:
+        # TODO:         print "XXX:", tmp
         # edgelist = filter_edges( edgelist = edgelist,
         #                          group = group,
         #                          edgeinforeader = ei )
@@ -949,25 +955,55 @@ def get_cycles( group = {},
         nxgraph = graph_result["nxgraph"]
         cycle_nodes = set()
         cycledict = { n : False for n in nxgraph.nodes() }
-        # TODO: THIS is INCOMPLETE.
-        cycles_gen = nx.simple_cycles(nxgraph)
-        cycles_list = list(cycles_gen)
-        if flag:
-            print "DEBUG:"
-            debug = nx.find_cycle( nxgraph )
-            pp.pprint(debug)
-        for elem in cycles_list:
-            new_cycle = []
-            for nxnode in elem:
-                objsize = objectinfo.get_size(nxnode)
-                groupsize += objsize
-                cycle_nodes.add(nxnode)
-                assert(nxnode in cycledict)
-                cycledict[nxnode] = True
-                new_cycle.append( nxnode )
-            if len(new_cycle) > 0:
-                cyclelist.append( new_cycle )
-            # else do a DEBUG? Shouldn't have an empty cycle here. TODO
+        seen_objects = set() # save the seen objects here since we need to do
+        #                      a DFS on every object
+        # # SIMPLE CYCLES FIRST
+        # cycles_gen = nx.simple_cycles(nxgraph)
+        # cycles_list = list(cycles_gen)
+        # #    Add to cycles_list:
+        # for mycycle in cycles_list:
+        #     new_cycle = []
+        #     for nxnode in mycycle:
+        #         objsize = objectinfo.get_size(nxnode)
+        #         groupsize += objsize
+        #         cycle_nodes.add(nxnode)
+        #         assert(nxnode in cycledict)
+        #         cycledict[nxnode] = True
+        #         new_cycle.append( nxnode )
+        #         # seen_objects.add( nxnode ) # Save in seen_objects
+        #     if len(new_cycle) > 0:
+        #         cyclelist.append( new_cycle )
+        #     # else do a DEBUG? Shouldn't have an empty cycle here. TODO
+        # NON-SIMPLE CYCLES NEXT
+        # count = 1
+        # for scclist in nx.strongly_connected_components(nxgraph):
+        #     print "SCC %d: %d" % (count, len(scclist))
+        #     count += 1
+        # print "NODES:", nxgraph.number_of_nodes()
+        # print "EDGES:", nxgraph.number_of_edges()
+        for node in nxgraph.nodes_iter():
+            try:
+                edge_list = nx.find_cycle( nxgraph, node )
+          #     new_cycle = []
+                seen = set()
+                for edge in edge_list:
+                    # print "---:", edge, type(edge)
+                    for nxnode in edge:
+                        if nxnode in seen:
+                            continue
+                        seen.add( nxnode )
+                        objsize = objectinfo.get_size(nxnode)
+                        groupsize += objsize
+                        cycle_nodes.add(nxnode)
+                        assert(nxnode in cycledict)
+                        cycledict[nxnode] = True
+                        new_cycle.append( nxnode )
+                        # seen_objects.add( nxnode ) # Save in seen_objects
+                    if len(new_cycle) > 0:
+                        cyclelist.append( new_cycle )
+            except:
+                # DEBUG only: print "Object[ %d ]: No cycle found." % node
+                pass # NOOP
         if len(cyclelist) > 0:
             update_cycle_summary( cycle_summary = cycle_summary,
                                   cycledict = cycledict,

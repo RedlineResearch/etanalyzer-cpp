@@ -1149,6 +1149,21 @@ class EdgeInfoReader:
                 self.srcdict[src] = tgtlist
                 return list(tgtlist)
 
+    def get_targets_records( self, src = 0 ):
+        if not self.useDB_as_source:
+            raise ValueError("This shouldn't be called if not using an SQlite DB.")
+        else:
+            if src in self.edge_srclru:
+                return  self.edge_srclru[src]
+            # Get all records from SQlite DB
+            reclist = get_src_rows( src, self.dbconn.cursor() )
+            #  - save all the records in LRU
+            self.edge_srclru[src] = reclist
+            #  - get all sources from the rows
+            srclist = [ x[2] for x in reclist ]
+            self.tgtdict[src] = srclist
+            return list(reclist)
+
     def get_edge_targets( self, src = 0 ):
         if not self.useDB_as_source:
             raise RuntimeError("TODO: To be implemented")
@@ -1201,7 +1216,7 @@ class EdgeInfoReader:
             if tgt not in self.edge_tgtlru:
                 self.edge_tgtlru[tgt] = reclist
             #  - get all sources from the rows
-            srclist = [ x[2] for x in reclist ]
+            srclist = [ self.get_source_id_from_rec(x) for x in reclist ]
             self.tgtdict[tgt] = srclist
             return list(reclist)
 
@@ -1406,10 +1421,10 @@ class EdgeInfoReader:
         return rec[4]
 
     def get_stability_from_rec( self, rec ):
-        return rec[4]
+        return rec[5]
 
     def get_edgestate_from_rec( self, rec ):
-        es = rec[5]
+        es = rec[6]
         return EdgeInfoReader.ES2STR[es]
 
 
