@@ -659,7 +659,8 @@ def read_edgeinfo_with_stability_into_db( result = [],
 
 def make_adjacency_list( nodes = [],
                          edgelist = [],
-                         edgeinfo = None ):
+                         edgeinfo = None,
+                         flag = False ):
     adjlist = { x : [] for x in nodes }
     nxG = nx.DiGraph()
     for node in nodes:
@@ -846,6 +847,10 @@ def get_cycles( group = {},
     tgt = 0
     assert( len(group) > 0 )
     dtime = objectinfo.get_death_time( group[0] )
+    flag = False
+    if len(group) == 207:
+        flag = True
+        print "TYPE: %s -> dtime[%d] " % (objectinfo.get_type(group[0]), dtime)
     # Rename:
     ei = edgeinfo
     # Results placed here:
@@ -864,8 +869,12 @@ def get_cycles( group = {},
          (cause != "END") ):
         # sys.stdout.write( "SIZE 1: %d --" % len(group) )
         # Group of 1 and it didn't die at the end.
+        if flag:
+            print "A"
         obj = group[0]
         if obj not in seen_objects:
+            if flag:
+                print "B"
             # Sum up the size in bytes
             objsize = objectinfo.get_size(obj)
             total_size += objsize
@@ -881,6 +890,8 @@ def get_cycles( group = {},
             #                              group = group,
             #                              edgeinforeader = ei )
             if len(edgelist) > 0:
+                if flag:
+                    print "C"
                 for edge in edgelist:
                     src = ei.get_source_id_from_rec(edge)
                     if src == obj:
@@ -903,6 +914,8 @@ def get_cycles( group = {},
                  cause ) # death cause
     elif cause != "END":
         assert( len(group) > 1 )
+        if flag:
+            print "D"
         edgelist = []
         groupsize = 0
         for obj in group:
@@ -915,8 +928,17 @@ def get_cycles( group = {},
             # TODO what is this for? TODO: ei.get_source_id_from_rec(x)
             obj_edgelist = [ x for x in srcreclist if
                              (ei.get_death_time_from_rec(x) == dtime) ]
+            if flag:
+                print "LENGTH srcreclist: %d" % len(srcreclist)
+                print "       obj_edgelist: %d" % len(obj_edgelist)
             if len(obj_edgelist) > 0:
                 edgelist.extend( obj_edgelist )
+            if flag:
+                print "LENGTH srcreclist: %d" % len(srcreclist)
+                print "       obj_edgelist: %d" % len(obj_edgelist)
+                print "   NEW edgelist: %d" % len(edgelist)
+        if flag:
+            print "***FINAL LENGTH obj_edgelist: %d" % len(edgelist)
         # edgelist = filter_edges( edgelist = edgelist,
         #                          group = group,
         #                          edgeinforeader = ei )
@@ -927,8 +949,14 @@ def get_cycles( group = {},
         nxgraph = graph_result["nxgraph"]
         cycle_nodes = set()
         cycledict = { n : False for n in nxgraph.nodes() }
+        # TODO: THIS is INCOMPLETE.
         cycles_gen = nx.simple_cycles(nxgraph)
-        for elem in cycles_gen:
+        cycles_list = list(cycles_gen)
+        if flag:
+            print "DEBUG:"
+            debug = nx.find_cycle( nxgraph )
+            pp.pprint(debug)
+        for elem in cycles_list:
             new_cycle = []
             for nxnode in elem:
                 objsize = objectinfo.get_size(nxnode)
