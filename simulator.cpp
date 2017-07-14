@@ -288,6 +288,7 @@ void update_reference_summaries( Object *src,
 //   Read and process trace events
 void apply_merlin( std::deque< Object * > &new_garbage )
 {
+    assert(false);
     if (new_garbage.size() == 0) { 
         // TODO Log an ERROR or a WARNING
         return;
@@ -382,7 +383,7 @@ unsigned int read_trace_file( FILE *f,
     unsigned int total_objects = 0;
 
     // Remember all the dead objects
-    std::deque< Object * > new_garbage;
+    // std::deque< Object * > new_garbage;
     Method *main_method = ClassInfo::get_main_method();
     unsigned int main_id = main_method->getId();
 
@@ -602,19 +603,20 @@ unsigned int read_trace_file( FILE *f,
                         // TODO: Debug? Well it's a decent sanity check so we may leave it in.
                         assert( latest_death_time <= now_uptime );
                         // Ok, so now we can see if the death time has 
-                        if (now_uptime > latest_death_time) {
-                            // Do the Merlin algorithm
-                            apply_merlin( new_garbage );
-                            // TODO: What are the parameters?
-                            //          - new_garbage for sure
-                            //          - anything else?
-                            // For now this simply updates the object death times
-                        }
+                        // if (now_uptime > latest_death_time) {
+                        //     // Do the Merlin algorithm
+                        //     apply_merlin( new_garbage );
+                        //     // TODO: What are the parameters?
+                        //     //          - new_garbage for sure
+                        //     //          - anything else?
+                        //     // For now this simply updates the object death times
+                        // }
                         // Update latest death time
                         latest_death_time = now_uptime;
 
                         // The rest of the bookkeeping
-                        new_garbage.push_back(obj);
+                        // new_garbage.push_back(obj);
+                        obj->setDeathTime( now_uptime );
                         unsigned int threadId = tokenizer.getInt(2);
                         LastEvent lastevent = obj->getLastEvent();
                         // Set the died by flags

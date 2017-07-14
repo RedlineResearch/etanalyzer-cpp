@@ -83,6 +83,7 @@ def read_dgroups_into_pickle( result = [],
     print " - Using objectinfo DB:"
     db_filename = os.path.join( cycle_cpp_dir,
                                 objectinfo_db_config[bmark] )
+    print "XXX:", db_filename
     objreader = ObjectInfoReader( useDB_as_source = True,
                                   db_filename = db_filename,
                                   cachesize = obj_cachesize,

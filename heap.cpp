@@ -203,6 +203,9 @@ void HeapState::makeDead( Object *obj,
                           unsigned int death_time,
                           ofstream &eifile )
 {
+    this->__makeDead( obj,
+                      death_time,
+                      &eifile );
 }
 
 void HeapState::makeDead_nosave( Object *obj,
