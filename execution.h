@@ -333,7 +333,7 @@ class ExecState
 
         // -- Get the current update time
         unsigned int NowUp() const {
-            return this->m_uptime + this->m_methexit_time;
+            return this->m_uptime + this->m_methexit_time + this->m_meth_time;
         }
 
         // -- Get the current allocation time

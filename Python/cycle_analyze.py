@@ -404,6 +404,9 @@ def output_cycle_summary_to_csv( typetup = {},
     assert( cycle_writer != None )
     assert( bmark != None )
     print "[%s TUP] - %s " % (bmark, typetup)
+    if typetup == (u'Lnet/veroy/minibench/cyclelist/Node;',):
+        for agerec in agerec_list:
+            print "  => %d" % agerec["groupcount"]
     #--------------------------------------------------------------------------------
     # AGEREC summary:
     range_list = []
@@ -805,7 +808,7 @@ def update_cycle_summary( cycle_summary = {},
             if value == 1:
                 singletons.add( mytype )
         count_rec = new_count_record( new_groupsize = groupsize,
-                                      new_count = len(nlist),
+                                      new_count = age_rec["groupcount"],
                                       new_singles = singletons )
         #--------------------------------------------------------------------------------
         if (count_rec != None):
@@ -834,6 +837,60 @@ def update_cycle_summary( cycle_summary = {},
                                                     singfield, ]) )
         else:
             logger.error( "TODO: Unable to save cycle %s" % str(cyclelist) )
+
+def my_find_cycle():
+    # SIMPLE CYCLES FIRST
+    cycles_gen = nx.simple_cycles(nxgraph)
+    cycles_list = list(cycles_gen)
+    #    Add to cycles_list:
+    for mycycle in cycles_list:
+        new_cycle = []
+        for nxnode in mycycle:
+            objsize = objectinfo.get_size(nxnode)
+            groupsize += objsize
+            cycle_nodes.add(nxnode)
+            assert(nxnode in cycledict)
+            cycledict[nxnode] = True
+            new_cycle.append( nxnode )
+            seen.add( nxnode ) # Save in seen set
+        if len(new_cycle) > 0:
+            cyclelist.append( new_cycle )
+        # else do a DEBUG? Shouldn't have an empty cycle here. TODO
+    # NON-SIMPLE CYCLES NEXT
+    # count = 1
+    # for scclist in nx.strongly_connected_components(nxgraph):
+    #     print "SCC %d: %d" % (count, len(scclist))
+    #     count += 1
+    # print "NODES:", nxgraph.number_of_nodes()
+    # print "EDGES:", nxgraph.number_of_edges()
+    for node in nxgraph.nodes_iter():
+        try:
+            print "FIND_CYCLE:",
+            edge_list = nx.find_cycle( nxgraph, node )
+            print " done: %d" % len(edge_list)
+            new_cycle = []
+            for edge in edge_list:
+                # print "---:", edge, type(edge)
+                for nxnode in edge:
+                    if nxnode in seen:
+                        break
+                    objsize = objectinfo.get_size(nxnode)
+                    groupsize += objsize
+                    cycle_nodes.add(nxnode)
+                    assert(nxnode in cycledict)
+                    cycledict[nxnode] = True
+                    new_cycle.append( nxnode )
+                    # seen_objects.add( nxnode ) # Save in seen_objects
+            if len(new_cycle) > 0:
+                new_cycle = list(set(new_cycle))
+                cyclelist.append( new_cycle )
+                set.update( new_cycle )
+                print "  -- cycle len: %d" % len(new_cycle)
+        except:
+            print " exception."
+            # DEBUG only: print "Object[ %d ]: No cycle found." % node
+            pass # NOOP
+
 
 # This should return a dictionary where:
 #     key -> group (list INCLUDES key)
@@ -918,8 +975,6 @@ def get_cycles( group = {},
                  cause ) # death cause
     elif cause != "END":
         assert( len(group) > 1 )
-        if flag:
-            print "D"
         edgelist = []
         groupsize = 0
         for obj in group:
@@ -955,55 +1010,18 @@ def get_cycles( group = {},
         nxgraph = graph_result["nxgraph"]
         cycle_nodes = set()
         cycledict = { n : False for n in nxgraph.nodes() }
-        seen_objects = set() # save the seen objects here since we need to do
-        #                      a DFS on every object
-        # # SIMPLE CYCLES FIRST
-        # cycles_gen = nx.simple_cycles(nxgraph)
-        # cycles_list = list(cycles_gen)
-        # #    Add to cycles_list:
-        # for mycycle in cycles_list:
-        #     new_cycle = []
-        #     for nxnode in mycycle:
-        #         objsize = objectinfo.get_size(nxnode)
-        #         groupsize += objsize
-        #         cycle_nodes.add(nxnode)
-        #         assert(nxnode in cycledict)
-        #         cycledict[nxnode] = True
-        #         new_cycle.append( nxnode )
-        #         # seen_objects.add( nxnode ) # Save in seen_objects
-        #     if len(new_cycle) > 0:
-        #         cyclelist.append( new_cycle )
-        #     # else do a DEBUG? Shouldn't have an empty cycle here. TODO
-        # NON-SIMPLE CYCLES NEXT
-        # count = 1
-        # for scclist in nx.strongly_connected_components(nxgraph):
-        #     print "SCC %d: %d" % (count, len(scclist))
-        #     count += 1
-        # print "NODES:", nxgraph.number_of_nodes()
-        # print "EDGES:", nxgraph.number_of_edges()
-        for node in nxgraph.nodes_iter():
-            try:
-                edge_list = nx.find_cycle( nxgraph, node )
-          #     new_cycle = []
-                seen = set()
-                for edge in edge_list:
-                    # print "---:", edge, type(edge)
-                    for nxnode in edge:
-                        if nxnode in seen:
-                            continue
-                        seen.add( nxnode )
-                        objsize = objectinfo.get_size(nxnode)
-                        groupsize += objsize
-                        cycle_nodes.add(nxnode)
-                        assert(nxnode in cycledict)
-                        cycledict[nxnode] = True
-                        new_cycle.append( nxnode )
-                        # seen_objects.add( nxnode ) # Save in seen_objects
-                    if len(new_cycle) > 0:
-                        cyclelist.append( new_cycle )
-            except:
-                # DEBUG only: print "Object[ %d ]: No cycle found." % node
-                pass # NOOP
+        seen = set() # save the seen objects here since we need to do
+        #              a DFS on every object
+        # TODO
+        cycle = []
+        for node in group:
+            refcount = objectinfo.get_refcount(node)
+            if refcount > 0:
+                cycle.append(node)
+        if len(cycle) > 0:
+            cyclelist.append( cycle )
+            if len(cycle) > 3:
+                print "XXX:", len(cycle)
         if len(cyclelist) > 0:
             update_cycle_summary( cycle_summary = cycle_summary,
                                   cycledict = cycledict,

@@ -209,8 +209,12 @@ void HeapState::makeDead( Object *obj,
 }
 
 void HeapState::makeDead_nosave( Object *obj,
-                                 unsigned int death_time )
+                                 unsigned int death_time,
+                                 ofstream &eifile )
 {
+    this->__makeDead( obj,
+                      death_time,
+                      &eifile );
 }
 
 void HeapState::__makeDead( Object *obj,
@@ -418,7 +422,7 @@ void HeapState::__end_of_program( unsigned int cur_time,
             if (!obj->isDead()) {
                 // A hack: not sure why this check may be needed.
                 // TODO: Debug this.
-                if (save_edge_flag) {
+                if (true) {
                     obj->makeDead( cur_time,
                                    this->m_alloc_time,
                                    EdgeState::DEAD_BY_PROGRAM_END,
@@ -428,6 +432,7 @@ void HeapState::__end_of_program( unsigned int cur_time,
                     obj->makeDead_nosave( cur_time,
                                           this->m_alloc_time,
                                           EdgeState::DEAD_BY_PROGRAM_END,
+                                          *eifile_ptr,
                                           Reason::END_OF_PROGRAM_REASON );
                 }
                 obj->setActualLastTimestamp( cur_time );
@@ -938,12 +943,12 @@ void Object::__updateField( Edge *edge,
                     cerr << "Invalid reason." << endl;
                     assert( false );
                 }
-                // old_target->decrementRefCountReal( cur_time,
-                //                                    method,
-                //                                    reason,
-                //                                    death_root,
-                //                                    last_event,
-                //                                    eifile );
+                old_target->decrementRefCountReal( cur_time,
+                                                   method,
+                                                   reason,
+                                                   death_root,
+                                                   last_event,
+                                                   eifile_ptr );
             }
         }
     }
@@ -953,8 +958,8 @@ void Object::__updateField( Edge *edge,
     Object *target = NULL;
     if (edge) {
         target = edge->getTarget();
-        // -- Increment new ref
         if (target) {
+            // -- Increment new ref
             target->incrementRefCountReal();
             // TODO: An increment of the refcount means this isn't a candidate root
             //       for a garbage cycle.
@@ -1077,6 +1082,7 @@ void Object::makeDead( unsigned int death_time,
 void Object::makeDead_nosave( unsigned int death_time,
                               unsigned int death_time_alloc,
                               EdgeState estate,
+                              ofstream &edge_info_file,
                               Reason newreason )
 {
     this->__makeDead( death_time,
@@ -1097,6 +1103,9 @@ void Object::__makeDead( unsigned int death_time,
     // -- Record the death time
     this->m_deathTime = death_time;
     this->m_deathTime_alloc = death_time_alloc;
+    // -- Record the refcount at death
+    this->m_refCount_at_death = this->getRefCount();
+    // -- Set up reasons
     this->setReason( newreason, death_time );
     if (this->m_deadFlag) {
         cerr << "Object[ " << this->getId() << " ] : double Death event." << endl;
@@ -1280,7 +1289,9 @@ void Object::incrementRefCountReal()
         this->m_methodRCtoZero = NULL;
     }
     this->incrementRefCount();
-    this->m_maxRefCount = std::max( m_refCount, m_maxRefCount );
+    this->m_maxRefCount = std::max( (m_refCount > 0 ? (unsigned int) m_refCount
+                                                    : 0),
+                                    m_maxRefCount );
     // Take out of candidate set
     this->m_heapptr->unset_candidate( this->m_id );
     // TODO

@@ -288,7 +288,6 @@ void update_reference_summaries( Object *src,
 //   Read and process trace events
 void apply_merlin( std::deque< Object * > &new_garbage )
 {
-    assert(false);
     if (new_garbage.size() == 0) { 
         // TODO Log an ERROR or a WARNING
         return;
@@ -383,6 +382,7 @@ unsigned int read_trace_file( FILE *f,
     unsigned int total_objects = 0;
 
     // Remember all the dead objects
+    // MERLIN: 
     // std::deque< Object * > new_garbage;
     Method *main_method = ClassInfo::get_main_method();
     unsigned int main_id = main_method->getId();
@@ -602,7 +602,7 @@ unsigned int read_trace_file( FILE *f,
                         // Keep track of the latest death time
                         // TODO: Debug? Well it's a decent sanity check so we may leave it in.
                         assert( latest_death_time <= now_uptime );
-                        // Ok, so now we can see if the death time has 
+                        // MERLIN: // Ok, so now we can see if the death time has 
                         // if (now_uptime > latest_death_time) {
                         //     // Do the Merlin algorithm
                         //     apply_merlin( new_garbage );
@@ -614,7 +614,8 @@ unsigned int read_trace_file( FILE *f,
                         // Update latest death time
                         latest_death_time = now_uptime;
 
-                        // The rest of the bookkeeping
+                        // // The rest of the bookkeeping
+                        // MERLIN: 
                         // new_garbage.push_back(obj);
                         obj->setDeathTime( now_uptime );
                         unsigned int threadId = tokenizer.getInt(2);
@@ -1186,7 +1187,7 @@ void output_all_objects2( string &objectinfo_filename,
             << "," << "TODO" //  Full death context height
             // TODO << "," << alloc_method1 // Part 1 of simple context pair - alloc site
             //--------------------------------------------------------------------------------
-            << "," << "X" //  padding - used to be alloc_method2
+            << "," << object->getRefCountAtDeath() //  Ref count at death
             // TODO << "," << alloc_method2 // part 2 of simple context pair - alloc site
             //--------------------------------------------------------------------------------
             << "," << "X" //  padding - used to be allocContextType

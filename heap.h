@@ -300,7 +300,8 @@ class HeapState {
                        unsigned int death_time,
                        ofstream &eifile );
         void makeDead_nosave( Object * obj,
-                              unsigned int death_time );
+                              unsigned int death_time,
+                              ofstream &eifile );
         void __makeDead( Object * obj,
                          unsigned int death_time,
                          ofstream *eifile_ptr );
@@ -427,7 +428,8 @@ class Object {
         unsigned int m_createTime_alloc;
         unsigned int m_deathTime_alloc;
 
-        unsigned int m_refCount;
+        int m_refCount;
+        int m_refCount_at_death;
         Color m_color;
         unsigned int m_maxRefCount;
 
@@ -546,6 +548,7 @@ class Object {
             , m_createTime_alloc( heap->getAllocTime() )
             , m_deathTime_alloc(UINT_MAX)
             , m_refCount(0)
+            , m_refCount_at_death(0)
             , m_maxRefCount(0)
             , m_underflow(0)
             , m_color(Color::GREEN)
@@ -912,7 +915,7 @@ class Object {
 
 
         // -- Ref counting
-        inline unsigned int getRefCount() const
+        inline int getRefCount() const
         {
             return this->m_refCount;
         }
@@ -926,10 +929,9 @@ class Object {
         }
         inline void decrementRefCount()
         {
+            this->m_refCount--;
             // Sanity check
-            if (this->m_refCount > 0) {
-                this->m_refCount--;
-            } else {
+            if (this->m_refCount < 0) {
                 // Underflow!
                 this->m_underflow++;
             }
@@ -937,6 +939,10 @@ class Object {
         inline unsigned int get_underflow_count()
         {
             return this->m_underflow;
+        }
+        inline int getRefCountAtDeath() const
+        {
+            return this->m_refCount_at_death;
         }
 
         void incrementRefCountReal();
@@ -995,6 +1001,7 @@ class Object {
         void makeDead_nosave( unsigned int death_time,
                               unsigned int death_time_alloc,
                               EdgeState estate,
+                              ofstream &eifile,
                               Reason newreason );
         void __makeDead( unsigned int death_time,
                          unsigned int death_time_alloc,

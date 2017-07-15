@@ -101,7 +101,7 @@ def get_index( field = None ):
                  "CONTEXT2" : 9,
                  "NONJAVA_LIB_DEATH_CONTEXT" : 10,
                  "DEATH_CONTEXT_HEIGHT" : 11,
-                 "PADDING1" : 12,
+                 "REFCOUNT" : 12,
                  "PADDING2" : 13,
                  "ATIME_ALLOC" : 14,
                  "DTIME_ALLOC" : 15,
@@ -211,7 +211,7 @@ class ObjectInfoReader:
                 rec[ get_raw_index("CONTEXT2") ], #     : this is part of death context.
                 rec[ get_raw_index("NONJAVA_LIB_DEATH_CONTEXT") ], # UNUSED PADDING
                 rec[ get_raw_index("DEATH_CONTEXT_HEIGHT") ],
-                rec[ get_raw_index("PADDING1") ], # UNUSED PADDING
+                rec[ get_raw_index("REFCOUNT") ], # Ref count at death
                 rec[ get_raw_index("PADDING2") ], # UNUSED PADDING
                 int(rec[ get_raw_index("ATIME_ALLOC") ]),
                 int(rec[ get_raw_index("DTIME_ALLOC") ]),
@@ -483,6 +483,15 @@ class ObjectInfoReader:
         assert(len(rec) > 0)
         # TODO: Have a more robust check here
         return rec[ get_index("SIZE") ] if rec != None else None
+
+    def get_refcount( self, objId = 0 ):
+        rec = self.get_record(objId)
+        return self.get_refcount_using_record(rec)
+
+    def get_refcount_using_record( self, rec = [] ):
+        assert(len(rec) > 0)
+        # TODO: Have a more robust check here
+        return rec[ get_index("REFCOUNT") ] if rec != None else None
 
     def get_type_using_typeId( self, typeId = 0 ):
         return self.rev_typedict[typeId] if typeId in self.rev_typedict \
