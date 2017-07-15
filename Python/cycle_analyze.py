@@ -19,7 +19,7 @@ from operator import itemgetter
 from collections import Counter
 from collections import defaultdict
 #   - This one is my own library:
-from mypytools import mean, stdev, variance, generalised_sum
+from mypytools import mean, stdev, variance, generalised_sum, median
 from mypytools import check_host, create_work_directory, process_host_config, \
     process_worklist_config, dfs_iter, remove_dupes, bytes_to_MB
 
@@ -391,7 +391,7 @@ def pair_sum( first = None,
     return (first[0] + second[0], first[1] + second[1])
 
 def output_cycle_summary_to_csv( typetup = {},
-                                 agerec_list = [],
+                                 # agerec_list = [],
                                  countrec_list = [],
                                  cpair_rec = {},
                                  cycle_writer = None,
@@ -399,43 +399,42 @@ def output_cycle_summary_to_csv( typetup = {},
                                  logger = None ):
     assert( len(typetup) > 0 )
     assert( type(typetup) == tuple )
-    assert( len(agerec_list) > 0 )
+    # assert( len(agerec_list) > 0 )
     assert( len(countrec_list) > 0 )
     assert( cycle_writer != None )
     assert( bmark != None )
     print "[%s TUP] - %s " % (bmark, typetup)
-    if typetup == (u'Lnet/veroy/minibench/cyclelist/Node;',):
-        for agerec in agerec_list:
-            print "  => %d" % agerec["groupcount"]
-    #--------------------------------------------------------------------------------
-    # AGEREC summary:
-    range_list = []
-    agepair_list = []
-    for rec in agerec_list:
-        range_list.append( rec["range"] )
-        agepair_list.append( (rec["mean"], rec["groupcount"]) )
-    age_count = 0
-    age_total = 0.0
-    age_total, age_count = reduce( pair_sum, agepair_list )
-    age_mean = age_total / age_count
-    age_range_mean = mean( range_list )
+    # TODO #--------------------------------------------------------------------------------
+    # TODO # AGEREC summary:
+    # TODO range_list = []
+    # TODO agepair_list = []
+    # TODO for rec in agerec_list:
+    # TODO     range_list.append( rec["range"] )
+    # TODO     agepair_list.append( (rec["mean"], rec["groupcount"]) )
+    # TODO age_count = 0
+    # TODO age_total = 0.0
+    # TODO age_total, age_count = reduce( pair_sum, agepair_list )
+    # TODO age_mean = age_total / age_count
+    # TODO age_range_mean = mean( range_list )
     #--------------------------------------------------------------------------------
     # OBJECT COUNT
-    gsize_list = []
-    objrec_list = []
-    for rec in countrec_list:
-        gsize_list.append( rec["groupsize"] )
-        objrec_list.append( rec )
-    count, gsize_total = generalised_sum( gsize_list, None )
     #--------------------------------------------------------------------------------
-    if len(objrec_list) > 0:
-        objcount_list = [ x["count"] for x in objrec_list ]
-        singles = set.intersection( *[ x["singles"] for x in objrec_list ] )
+    if len(countrec_list) > 0:
+        gcount_list = []
+        singles = set()
+        gsize_total = 0
+        for rec in countrec_list:
+            gcount_list.append( rec["groupcount"] )
+            singles = set.intersection( singles, rec["singles"] )
+            gsize_total += rec["groupsize"]
+        smallest_cycle = min( gcount_list )
+        largest_cycle = max( gcount_list )
         newrow = encode_row([ typetup,
                               gsize_total, # bytes total
-                              min(objcount_list), # object count minimum
-                              max(objcount_list), # object count maximum
-                              mean(objcount_list), # object count mean
+                              smallest_cycle, # object count minimum
+                              largest_cycle, # object count maximum
+                              mean(gcount_list), # object count mean
+                              median(gcount_list), # object count median
                               singles, ] ) # singleton set
         try:
             cycle_writer.writerow(newrow)
@@ -463,7 +462,7 @@ def new_count_record( new_groupsize = None,
                       new_count = None,
                       new_singles = set() ):
     return { "groupsize" : new_groupsize,
-             "count" : new_count,
+             "groupcount" : new_count,
              "singles" : new_singles, }
 
 
@@ -588,7 +587,8 @@ def read_dgroups_from_pickle( result = [],
         raw_cycle_writer.writerow( raw_cycle_header )
         # Cycle summary file
         cycle_header = [ "type-tuple", "cycles-size",
-                         "obj-count-min", "obj-count-max", "obj-count-mean",
+                         "obj-count-min", "obj-count-max",
+                         "obj-count-mean", "obj-count-median",
                          "singletons" ]
         cycle_writer = csv.writer( cycfp,
                                    quoting = csv.QUOTE_NONNUMERIC )
@@ -612,24 +612,23 @@ def read_dgroups_from_pickle( result = [],
             elif len(cyclelist) > 0:
                 assert( (cause == "HEAP") or (cause == "STACK") )
                 total_alloc += total_size
-                # TODO: HERE 30 June 2017
         print "Age summary total = ", len(cycle_age_summary)
         print "Count summary total = ", len(cycle_count_summary)
         for typetup, countrec_list in cycle_count_summary.iteritems():
-            # Get record from cycle_age_summary
-            if typetup in cycle_age_summary:
-                agerec_list = cycle_age_summary[typetup]
-            else:
-                agerec_list = []
-                agerec_list.append( new_cycle_age_record( new_min = 0,
-                                                          new_max = 0,
-                                                          age_range = 0,
-                                                          age_mean = 0.0,
-                                                          groupcount = 0 ) )
+            # TODO # Get record from cycle_age_summary
+            # TODO if typetup in cycle_age_summary:
+            # TODO     agerec_list = cycle_age_summary[typetup]
+            # TODO else:
+            # TODO     agerec_list = []
+            # TODO     agerec_list.append( new_cycle_age_record( new_min = 0,
+            # TODO                                               new_max = 0,
+            # TODO                                               age_range = 0,
+            # TODO                                               age_mean = 0.0,
+            # TODO                                               groupcount = 0 ) )
             # TODO TODO
             # Summary of key types
             output_cycle_summary_to_csv( typetup = typetup,
-                                         agerec_list = agerec_list,
+                                         # agerec_list = agerec_list,
                                          countrec_list = countrec_list,
                                          # cpair_rec = {}, # TODO TODO TODO HERE
                                          cycle_writer = cycle_writer,
@@ -780,14 +779,15 @@ def update_cycle_summary( cycle_summary = {},
                           cycle_cpair_summary = {},
                           cycle_count_summary = {},
                           raw_cycle_writer = None,
-                          groupsize = 0,
                           logger = None ):
     oi = objectinfo # Just a rename
     for nlist in cyclelist:
         typelist = []
+        groupsize = 0
         for node in nlist:
             cycledict[node] = True
             mytype = oi.get_type(node)
+            groupsize += oi.get_size(node)
             typelist.append( mytype )
         typecount = Counter(typelist)
         typelist = list( set(typelist) )
@@ -966,7 +966,6 @@ def get_cycles( group = {},
                                               raw_cycle_writer = raw_cycle_writer,
                                               cycle_cpair_summary = cycle_cpair_summary,
                                               cycle_count_summary = cycle_count_summary,
-                                              groupsize = objsize,
                                               logger = logger )
                         break
         return ( cyclelist,
@@ -1020,8 +1019,8 @@ def get_cycles( group = {},
                 cycle.append(node)
         if len(cycle) > 0:
             cyclelist.append( cycle )
-            if len(cycle) > 3:
-                print "XXX:", len(cycle)
+            # if len(cycle) > 3:
+            #     print "XXX:", len(cycle)
         if len(cyclelist) > 0:
             update_cycle_summary( cycle_summary = cycle_summary,
                                   cycledict = cycledict,
@@ -1031,7 +1030,6 @@ def get_cycles( group = {},
                                   raw_cycle_writer = raw_cycle_writer,
                                   cycle_cpair_summary = cycle_cpair_summary,
                                   cycle_count_summary = cycle_count_summary,
-                                  groupsize = groupsize,
                                   logger = logger )
         return ( cyclelist,
                  total_size,

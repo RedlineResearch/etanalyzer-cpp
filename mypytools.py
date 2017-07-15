@@ -80,6 +80,13 @@ def generalised_sum( data, func ):
             total = math.fsum(func(x) for x in data)
     return (count, total)
 
+def median( lst ):
+    quotient, remainder = divmod(len(lst), 2)
+    if remainder:
+        return sorted(lst)[quotient]
+    else:
+        return sorted(lst)[quotient - 1]
+
 def mean( data ):
     """Return the sample arithmetic mean of a sequence of numbers.
 
@@ -371,7 +378,7 @@ def remove_dupes( seq ):
 def bytes_to_MB( numbytes = 0 ):
     return numbytes / 1048576
 
-__all__ = [ "mean", "merge_two_dicts", "stdev", "variance", "email_message",
+__all__ = [ "mean", "median", "merge_two_dicts", "stdev", "variance", "email_message",
             "generalised_sum",
             "get_file_fp", "check_host", "get_actual_hostname", "process_host_config",
             "process_worklist_config",
