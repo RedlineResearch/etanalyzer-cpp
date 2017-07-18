@@ -596,6 +596,7 @@ def read_dgroups_from_pickle( result = [],
         for gnum, glist in dgroups_data["group2list"].iteritems():
             # - for every death group dg:
             #       get the last edge for every object
+            # TODO: Use the select parameter to choose which algorithm to use. TODO
             cyclelist, total_size, died_at_end_size, cause = get_cycles( group = glist,
                                                                          seen_objects = seen_objects,
                                                                          edgeinfo = edgeinfo,
@@ -891,10 +892,22 @@ def my_find_cycle():
             # DEBUG only: print "Object[ %d ]: No cycle found." % node
             pass # NOOP
 
+def is_self_loop( nxgraph = None,
+                  node = None ):
+    slist = nxgraph.successors( node )
+    for x in slist:
+        if x == node:
+            return True
+    return False
 
+class Algo:
+    USE_DTIME = 101
+    USE_ESTATE = 102
+    USE_APPROX = 103
 # This should return a dictionary where:
 #     key -> group (list INCLUDES key)
 def get_cycles( group = {},
+                select = Algo.USE_ESTATE,
                 seen_objects = set(),
                 edgeinfo = None,
                 objectinfo = None,
@@ -909,9 +922,175 @@ def get_cycles( group = {},
     assert( len(group) > 0 )
     dtime = objectinfo.get_death_time( group[0] )
     flag = False
-    if len(group) == 207:
-        flag = True
-        print "TYPE: %s -> dtime[%d] " % (objectinfo.get_type(group[0]), dtime)
+    # Rename:
+    ei = edgeinfo
+    # Results placed here:
+    cyclelist = [] # List of cycles
+    cycledict = {} # node -> True/False if cycle
+    total_size = 0 # Total size of group
+    died_at_end_size = 0
+    # Get the death cause
+    cause = get_group_died_by_attribute( group = set(group),
+                                         objectinfo = objectinfo )
+    assert( cause != None and
+            ( cause == "HEAP" or
+              cause == "STACK" or
+              cause == "END" ) ) # These are the only valid final states.
+    if ( (len(group) == 1) and
+         (cause != "END") ):
+        # sys.stdout.write( "SIZE 1: %d --" % len(group) )
+        # Group of 1 and it didn't die at the end.
+        obj = group[0]
+        if obj not in seen_objects:
+            # Sum up the size in bytes
+            objsize = objectinfo.get_size(obj)
+            total_size += objsize
+            # Get all edges that target 'obj':
+            # * Incoming edges
+            srcreclist = ei.get_sources_records(obj)
+            # We only want the ones that died with the object
+            if select == Algo.USE_DTIME:
+                edgelist = [ x for x in srcreclist if
+                             (ei.get_death_time_from_rec(x) == dtime) ]
+            elif select == Algo.USE_ESTATE:
+                edgelist = [ x for x in srcreclist if
+                             (ei.get_edgestate_from_rec(x) == "BY_OBJECT_DEATH") ]
+            elif select == Algo.USE_APPROX:
+                assert( False )
+                # TODO TODO TODO TODO
+                edgelist = [ x for x in srcreclist if
+                             (ei.get_death_time_from_rec(x) == dtime) ]
+            else:
+                assert( False )
+            if len(edgelist) > 0:
+                for edge in edgelist:
+                    src = ei.get_source_id_from_rec(edge)
+                    if src == obj:
+                        # This means there's a self-cycle of 1 node:
+                        cyclelist = [ [ obj, ] ]
+                        update_cycle_summary( cycle_summary = cycle_summary,
+                                              cycledict = cycledict,
+                                              cyclelist = cyclelist,
+                                              objectinfo = objectinfo,
+                                              cycle_age_summary = cycle_age_summary,
+                                              raw_cycle_writer = raw_cycle_writer,
+                                              cycle_cpair_summary = cycle_cpair_summary,
+                                              cycle_count_summary = cycle_count_summary,
+                                              logger = logger )
+                        break
+        return ( cyclelist,
+                 total_size, # size of group in bytes
+                 0, # died at end size (known to be 0)
+                 cause ) # death cause
+    elif cause != "END":
+        assert( len(group) > 1 )
+        edgelist = []
+        groupsize = 0
+        for obj in group:
+            # Sum up the size in bytes
+            objsize = objectinfo.get_size(obj)
+            total_size += objsize
+            # * Incoming edges
+            srcreclist = ei.get_sources_records(obj)
+            # We only want the ones that died with the object
+            if select == Algo.USE_DTIME:
+                obj_edgelist = [ x for x in srcreclist if
+                                 (ei.get_death_time_from_rec(x) == dtime) ]
+            elif select == Algo.USE_ESTATE:
+                obj_edgelist = [ x for x in srcreclist if
+                                 (ei.get_edgestate_from_rec(x) == "BY_OBJECT_DEATH") ]
+            elif select == Algo.USE_APPROX:
+                assert( False )
+                # TODO TODO TODO TODO
+                obj_edgelist = [ x for x in srcreclist if
+                                 (ei.get_death_time_from_rec(x) == dtime) ]
+                # TODO TODO TODO TODO
+            else:
+                assert( False )
+            if len(obj_edgelist) > 0:
+                edgelist.extend( obj_edgelist )
+            # if flag:
+            #     print "LENGTH srcreclist: %d" % len(srcreclist)
+            #     print "       obj_edgelist: %d" % len(obj_edgelist)
+            #     print "   NEW edgelist: %d" % len(edgelist)
+        # TODO: if flag:
+        # TODO:     print "***FINAL LENGTH obj_edgelist: %d" % len(edgelist)
+        # TODO:     for tmp in edgelist:
+        # TODO:         print "XXX:", tmp
+        graph_result = make_adjacency_list( nodes = group,
+                                            edgelist = edgelist,
+                                            edgeinfo = ei )
+        adjlist = graph_result["adjlist"]
+        nxgraph = graph_result["nxgraph"]
+        cycle_nodes = set()
+        cycledict = { n : False for n in nxgraph.nodes() }
+        seen = set() # save the seen objects here since we need to do
+        #              a DFS on every object
+        # TODO
+        cycle = []
+        if ( (select == Algo.USE_DTIME) or
+             (select == Algo.USE_ESTATE) ):
+            # TODO: Do I need a selector for which cycle function to call?
+            # Use networkx's cycle_basis
+            scclist = nx.strongly_connected_components( nxgraph )
+            scclist = list(scclist)
+            for scc in scclist:
+                if ( (len(scc) > 1) or
+                     (is_self_loop(nxgraph, list(scc)[0])) ):
+                     print "IS CYCLE: %d" % len(scc)
+        elif select == Algo.USE_APPROX:
+            for node in group:
+                refcount = objectinfo.get_refcount(node)
+                if refcount > 0:
+                    cycle.append(node)
+        else:
+            assert( False )
+        if len(cycle) > 0:
+            cyclelist.append( cycle )
+        if len(cyclelist) > 0:
+            update_cycle_summary( cycle_summary = cycle_summary,
+                                  cycledict = cycledict,
+                                  cyclelist = cyclelist,
+                                  objectinfo = objectinfo,
+                                  cycle_age_summary = cycle_age_summary,
+                                  raw_cycle_writer = raw_cycle_writer,
+                                  cycle_cpair_summary = cycle_cpair_summary,
+                                  cycle_count_summary = cycle_count_summary,
+                                  logger = logger )
+        return ( cyclelist,
+                 total_size,
+                 died_at_end_size,
+                 cause )
+    else:
+        assert( cause == "END" )
+        # Ignore anything at program end
+        for obj in group:
+            if obj in seen_objects:
+                # Dupe. TODO: Log a warning/error
+                continue
+            # Sum up the size in bytes
+            died_at_end_size += objectinfo.get_size(obj)
+        return (cyclelist, total_size, died_at_end_size, cause)
+
+# Conveniently save the version I finished for the Onward revision.
+# 17 July 2017 - Raoul V.
+# This should return a dictionary where:
+#     key -> group (list INCLUDES key)
+def get_cycles_revised_ONWARD( group = {},
+                               seen_objects = set(),
+                               edgeinfo = None,
+                               objectinfo = None,
+                               cycle_summary = {},
+                               cycle_age_summary = {},
+                               cycle_cpair_summary = {},
+                               cycle_count_summary = {},
+                               raw_cycle_writer = None,
+                               logger = None ):
+    latest = 0 # Time of most recent
+    tgt = 0
+    assert( len(group) > 0 )
+    dtime = objectinfo.get_death_time( group[0] )
+    flag = False
     # Rename:
     ei = edgeinfo
     # Results placed here:

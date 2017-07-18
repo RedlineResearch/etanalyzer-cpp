@@ -1433,7 +1433,7 @@ class EdgeInfoReader:
         return rec[5]
 
     def get_edgestate_from_rec( self, rec ):
-        es = rec[6]
+        es = int(rec[6])
         return EdgeInfoReader.ES2STR[es]
 
 
