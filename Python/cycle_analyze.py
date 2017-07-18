@@ -1027,26 +1027,28 @@ def get_cycles( group = {},
         seen = set() # save the seen objects here since we need to do
         #              a DFS on every object
         # TODO
-        cycle = []
         if ( (select == Algo.USE_DTIME) or
              (select == Algo.USE_ESTATE) ):
             # TODO: Do I need a selector for which cycle function to call?
             # Use networkx's cycle_basis
             scclist = nx.strongly_connected_components( nxgraph )
             scclist = list(scclist)
+            cycle = []
             for scc in scclist:
+                scc = list(scc)
                 if ( (len(scc) > 1) or
-                     (is_self_loop(nxgraph, list(scc)[0])) ):
-                     print "IS CYCLE: %d" % len(scc)
+                     (is_self_loop(nxgraph, scc[0])) ):
+                    cycle = scc
+            if len(cycle) > 0:
+                cyclelist.append( cycle )
         elif select == Algo.USE_APPROX:
-            for node in group:
-                refcount = objectinfo.get_refcount(node)
-                if refcount > 0:
-                    cycle.append(node)
+            assert(False) # NOT TO BE USED
+            # for node in group:
+            #     refcount = objectinfo.get_refcount(node)
+            #     if refcount > 0:
+            #         cycle.append(node)
         else:
             assert( False )
-        if len(cycle) > 0:
-            cyclelist.append( cycle )
         if len(cyclelist) > 0:
             update_cycle_summary( cycle_summary = cycle_summary,
                                   cycledict = cycledict,
