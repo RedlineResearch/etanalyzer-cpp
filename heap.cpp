@@ -861,7 +861,6 @@ void Object::updateField( Edge *edge,
                           LastEvent last_event,
                           EdgeState estate,
                           ofstream &eifile )
-
 {
    this->__updateField( edge,
                         fieldId,

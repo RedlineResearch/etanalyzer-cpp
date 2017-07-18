@@ -550,42 +550,42 @@ unsigned int read_trace_file( FILE *f,
                         string last_action_name = topMethod_using_action->getName();
                         oldObj->set_nonJavaLib_last_action_context( last_action_name );
                     }
-                    if (oldTgtId == tgtId) {
-                        // It sometimes happens that the newtarget is the same as
-                        // the old target. So we won't create any more new edges.
-                        // DEBUG: cout << "UPDATE same new == old: " << target << endl;
-                    } else {
-                        if (obj) {
-                            Edge *new_edge = NULL;
-                            // Can't call updateField if obj is NULL
-                            if (target) {
-                                // Increment and decrement refcounts
-                                unsigned int field_id = tokenizer.getInt(4);
-                                new_edge = Heap.make_edge( obj, field_id,
-                                                           target, Exec.NowUp() );
+                    // TODO if (oldTgtId == tgtId) {
+                    // TODO     // It sometimes happens that the newtarget is the same as
+                    // TODO     // the old target. So we won't create any more new edges.
+                    // TODO     // DEBUG: cout << "UPDATE same new == old: " << target << endl;
+                    // TODO } else {
+                    if (obj) {
+                        Edge *new_edge = NULL;
+                        // Can't call updateField if obj is NULL
+                        if (target) {
+                            // Increment and decrement refcounts
+                            unsigned int field_id = tokenizer.getInt(4);
+                            new_edge = Heap.make_edge( obj, field_id,
+                                                       target, Exec.NowUp() );
 #ifdef _SIZE_DEBUG
-                                cout << "ES: " << sizeof(new_edge) << endl;
+                            cout << "ES: " << sizeof(new_edge) << endl;
 #endif // _SIZE_DEBUG
-                            }
-                            obj->updateField( new_edge,
-                                              field_id,
-                                              Exec.NowUp(),
-                                              topMethod, // for death site info
-                                              Reason::HEAP, // reason
-                                              NULL, // death root 0 because may not be a root
-                                              lastevent, // last event to determine cause
-                                              EdgeState::DEAD_BY_UPDATE, // edge is dead because of update
-                                              eifile ); // output edge info file
-                            //
-                            // NOTE: topMethod COULD be NULL here.
-                            // DEBUG ONLY IF NEEDED
-                            // Example:
-                            // if ( (objId == tgtId) && (objId == 166454) ) {
-                            // if ( (objId == 166454) ) {
-                            //     tokenizer.debugCurrent();
-                            // }
                         }
+                        obj->updateField( new_edge,
+                                          field_id,
+                                          Exec.NowUp(),
+                                          topMethod, // for death site info
+                                          Reason::HEAP, // reason
+                                          NULL, // death root 0 because may not be a root
+                                          lastevent, // last event to determine cause
+                                          EdgeState::DEAD_BY_UPDATE, // edge is dead because of update
+                                          eifile ); // output edge info file
+                        //
+                        // NOTE: topMethod COULD be NULL here.
+                        // DEBUG ONLY IF NEEDED
+                        // Example:
+                        // if ( (objId == tgtId) && (objId == 166454) ) {
+                        // if ( (objId == 166454) ) {
+                        //     tokenizer.debugCurrent();
+                        // }
                     }
+                    // TODO }
                 }
                 break;
 
