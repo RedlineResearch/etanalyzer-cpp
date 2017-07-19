@@ -906,12 +906,16 @@ class EdgeInfoReader:
     ES_DEAD_BY_UPDATE = 3
     DEAD_BY_OBJECT_DEATH = 4
     DEAD_BY_PROGRAM_END = 5
+    DEAD_BY_OBJECT_DEATH_NOT_SAVED = 6
+    DEAD_BY_PROGRAM_END_NOT_SAVED = 7
 
     ES2STR = { ES_NONE : "NONE",
                ES_LIVE : "LIVE",
                ES_DEAD_BY_UPDATE : "DEAD_BY_UPDATE",
                DEAD_BY_OBJECT_DEATH : "BY_OBJECT_DEATH",
                DEAD_BY_PROGRAM_END : "BY_PROGRAM_END",
+               DEAD_BY_OBJECT_DEATH_NOT_SAVED : "BY_OBJECT_DEATH",
+               DEAD_BY_PROGRAM_END_NOT_SAVED : "BY_PROGRAM_END",
     }
 
     def __init__( self,
