@@ -430,6 +430,7 @@ def output_cycle_summary_to_csv( typetup = {},
         smallest_cycle = min( gcount_list )
         largest_cycle = max( gcount_list )
         newrow = encode_row([ typetup,
+                              len(countrec_list),
                               gsize_total, # bytes total
                               smallest_cycle, # object count minimum
                               largest_cycle, # object count maximum
@@ -586,7 +587,7 @@ def read_dgroups_from_pickle( result = [],
                                        quoting = csv.QUOTE_NONNUMERIC )
         raw_cycle_writer.writerow( raw_cycle_header )
         # Cycle summary file
-        cycle_header = [ "type-tuple", "cycles-size",
+        cycle_header = [ "type-tuple", "cycle-count", "cycles-size",
                          "obj-count-min", "obj-count-max",
                          "obj-count-mean", "obj-count-median",
                          "singletons" ]
