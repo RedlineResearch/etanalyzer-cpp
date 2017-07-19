@@ -260,12 +260,23 @@ def main_process( output = None,
     # Copy all the databases into MAIN directory.
     dest = main_config["output"]
     for dbfilename in dblist:
+        # Copy to main csvinfo2db directory.
         # Check to see first if the destination exists:
-        # print "XXX: %s -> %s" % (dbfilename, dbfilename.split())
         abspath, fname = os.path.split(dbfilename)
         tgt = os.path.join( dest, fname )
         if os.path.isfile(tgt):
             try:
+                os.remove(tgt)
+            except:
+                logger.error( "Weird error: found the file [%s] but can't remove it." % tgt )
+        print ">-> Copying %s -> %s." % (dbfilename, dest)
+        copy( dbfilename, dest )
+        # Then copy to main working directory
+        # Check to see first if the destination exists:
+        tgt = os.path.join( cycle_cpp_dir, fname )
+        if os.path.isfile(tgt):
+            try:
+                print "... removing %s first." % tgt
                 os.remove(tgt)
             except:
                 logger.error( "Weird error: found the file [%s] but can't remove it." % tgt )
