@@ -281,7 +281,7 @@ def main_process( output = None,
             except:
                 logger.error( "Weird error: found the file [%s] but can't remove it." % tgt )
         print ">-> Copying %s -> %s." % (dbfilename, cycle_cpp_dir)
-        copy( dbfilename, dest )
+        copy( dbfilename, cycle_cpp_dir )
     print "================================================================================"
     print "csvinfo2db.py.py - DONE."
     os.chdir( olddir )

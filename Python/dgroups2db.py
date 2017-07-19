@@ -229,8 +229,8 @@ def main_process( global_config = {},
     # Copy all the databases into MAIN directory.
     dest = main_config["output"]
     for filename in os.listdir( workdir ):
+        # [ Copy to main dgroups2db directory ]
         # Check to see first if the destination exists:
-        # print "XXX: %s -> %s" % (filename, filename.split())
         # Split the absolute filename into a path and file pair:
         # Use the same filename added to the destination path
         tgtfile = os.path.join( dest, filename )
@@ -241,6 +241,16 @@ def main_process( global_config = {},
                 logger.error( "Weird error: found the file [%s] but can't remove it. The copy might fail." % tgtfile )
         print "Copying %s -> %s." % (filename, dest)
         copy( filename, dest )
+        # [ Copy to working analysis directory ]
+        # Check to see first if the destination exists:
+        tgtfile = os.path.join( cycle_cpp_dir, filename )
+        if os.path.isfile(tgtfile):
+            try:
+                os.remove(tgtfile)
+            except:
+                logger.error( "Weird error: found the file [%s] but can't remove it. The copy might fail." % tgtfile )
+        print "Copying %s -> %s." % (filename, cycle_cpp_dir)
+        copy( filename, cycle_cpp_dir)
     print "================================================================================"
     print "dgroups2db.py - DONE."
     os.chdir( olddir )
