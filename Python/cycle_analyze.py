@@ -477,6 +477,7 @@ def read_dgroups_from_pickle( result = [],
                               cycle_cpp_dir = "",
                               obj_cachesize = 5000000,
                               debugflag = False,
+                              atend_flag = False,
                               cycle_result = [],
                               logger = None ):
     assert(logger != None)
@@ -594,11 +595,13 @@ def read_dgroups_from_pickle( result = [],
         cycle_writer = csv.writer( cycfp,
                                    quoting = csv.QUOTE_NONNUMERIC )
         cycle_writer.writerow( cycle_header )
+        print "AT_END_FLAG:", atend_flag
         for gnum, glist in dgroups_data["group2list"].iteritems():
             # - for every death group dg:
             #       get the last edge for every object
             # TODO: Use the select parameter to choose which algorithm to use. TODO
             cyclelist, total_size, died_at_end_size, cause = get_cycles( group = glist,
+                                                                         atend_flag = atend_flag,
                                                                          seen_objects = seen_objects,
                                                                          edgeinfo = edgeinfo,
                                                                          objectinfo = objectinfo,
@@ -908,6 +911,7 @@ class Algo:
 # This should return a dictionary where:
 #     key -> group (list INCLUDES key)
 def get_cycles( group = {},
+                atend_flag = False,
                 select = Algo.USE_ESTATE,
                 seen_objects = set(),
                 edgeinfo = None,
@@ -933,15 +937,23 @@ def get_cycles( group = {},
     # Get the death cause
     cause = get_group_died_by_attribute( group = set(group),
                                          objectinfo = objectinfo )
+    should_process = lambda x: ((x == "END") if atend_flag else (x != "END"))
     assert( cause != None and
             ( cause == "HEAP" or
               cause == "STACK" or
               cause == "END" ) ) # These are the only valid final states.
+    # Sum up the size in bytes
+    # Go look for the cycles if we are told to:
     if ( (len(group) == 1) and
-         (cause != "END") ):
+         should_process(cause) ):
+        print "XXX: %s" % cause
         # sys.stdout.write( "SIZE 1: %d --" % len(group) )
         # Group of 1 and it didn't die at the end.
         obj = group[0]
+        if cause == "END":
+            died_at_end_size += objectinfo.get_size(obj)
+        else:
+            pass # TODO TODO TODO TODO
         if obj not in seen_objects:
             # Sum up the size in bytes
             objsize = objectinfo.get_size(obj)
@@ -954,8 +966,10 @@ def get_cycles( group = {},
                 edgelist = [ x for x in srcreclist if
                              (ei.get_death_time_from_rec(x) == dtime) ]
             elif select == Algo.USE_ESTATE:
+                estate = "BY_OBJECT_DEATH" if not atend_flag \
+                    else "BY_PROGRAM_END"
                 edgelist = [ x for x in srcreclist if
-                             (ei.get_edgestate_from_rec(x) == "BY_OBJECT_DEATH") ]
+                             (ei.get_edgestate_from_rec(x) == estate) ]
             elif select == Algo.USE_APPROX:
                 assert( False )
                 # TODO TODO TODO TODO
@@ -981,13 +995,18 @@ def get_cycles( group = {},
                         break
         return ( cyclelist,
                  total_size, # size of group in bytes
-                 0, # died at end size (known to be 0)
+                 died_at_end_size,
                  cause ) # death cause
-    elif cause != "END":
+    elif should_process(cause):
         assert( len(group) > 1 )
+        print "XXX: %s" % cause
         edgelist = []
         groupsize = 0
         for obj in group:
+            if cause == "END":
+                died_at_end_size += objectinfo.get_size(obj)
+            else:
+                pass # TODO TODO TODO TODO
             # Sum up the size in bytes
             objsize = objectinfo.get_size(obj)
             total_size += objsize
@@ -998,8 +1017,10 @@ def get_cycles( group = {},
                 obj_edgelist = [ x for x in srcreclist if
                                  (ei.get_death_time_from_rec(x) == dtime) ]
             elif select == Algo.USE_ESTATE:
+                estate = "BY_OBJECT_DEATH" if not atend_flag \
+                    else "BY_PROGRAM_END"
                 obj_edgelist = [ x for x in srcreclist if
-                                 (ei.get_edgestate_from_rec(x) == "BY_OBJECT_DEATH") ]
+                                 (ei.get_edgestate_from_rec(x) == estate) ]
             elif select == Algo.USE_APPROX:
                 assert( False )
                 # TODO TODO TODO TODO
@@ -1065,14 +1086,16 @@ def get_cycles( group = {},
                  died_at_end_size,
                  cause )
     else:
-        assert( cause == "END" )
-        # Ignore anything at program end
+        assert( not should_process(cause) )
+        # Ignore anything that we want to ignore.
         for obj in group:
             if obj in seen_objects:
                 # Dupe. TODO: Log a warning/error
                 continue
-            # Sum up the size in bytes
-            died_at_end_size += objectinfo.get_size(obj)
+            if cause == "END":
+                died_at_end_size += objectinfo.get_size(obj)
+            else:
+                pass # TODO TODO TODO TODO
         return (cyclelist, total_size, died_at_end_size, cause)
 
 # Conveniently save the version I finished for the Onward revision.
@@ -1238,6 +1261,7 @@ def main_process( global_config = {},
                   summary_config = {},
                   # TODO stability_config = {},
                   mprflag = False,
+                  atend_flag = False,
                   debugflag = False,
                   logger = None ):
     global pp, KEY_OBJECT_SUMMARY
@@ -1297,6 +1321,7 @@ def main_process( global_config = {},
                                   cycle_cpp_dir,
                                   cachesize,
                                   debugflag,
+                                  atend_flag,
                                   cycle_summary_all[bmark],
                                   logger ) )
             procs_dgroup[bmark] = p
@@ -1317,6 +1342,7 @@ def main_process( global_config = {},
                                       cycle_cpp_dir = cycle_cpp_dir,
                                       obj_cachesize = cachesize,
                                       debugflag = debugflag,
+                                      atend_flag = atend_flag,
                                       cycle_result = cycle_summary_all[bmark],
                                       logger = logger )
             # TODO: while not results[bmark].empty():
@@ -1433,12 +1459,17 @@ def create_parser():
                          dest = "mprflag",
                          help = "Single threaded operation.",
                          action = "store_false" )
+    parser.add_argument( "--at-end-only",
+                         dest = "atend_flag",
+                         help = "Analyze only cycles that died at program's end.",
+                         action = "store_true" )
     parser.add_argument( "--logfile",
                          help = "Specify logfile name.",
                          action = "store" )
     parser.set_defaults( logfile = "cycle_analyze.log",
                          debugflag = False,
-                         config = None )
+                         config = None,
+                         atend_flag = False )
     return parser
 
 def main():
@@ -1485,6 +1516,7 @@ def main():
                          summary_config = summary_config,
                          # MAYBE stability_config = stability_config,
                          mprflag = args.mprflag,
+                         atend_flag = args.atend_flag,
                          logger = logger )
 
 if __name__ == "__main__":
