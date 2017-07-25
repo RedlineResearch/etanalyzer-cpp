@@ -909,7 +909,7 @@ void update_summary_from_keyset( KeySet_t &keyset,
         Object *key = it->first;
         std::set< Object * > *tgtSet = it->second;
         // TODO TODO 7 March 2016 - Put into CSV file.
-        cout << "[ " << key->getType() << " ]: " << tgtSet->size() << endl;
+        // cout << "[ " << key->getType() << " ]: " << tgtSet->size() << endl;
         update_summaries( key,
                           *tgtSet,
                           per_group_summary,
@@ -1096,7 +1096,7 @@ void output_all_objects2( string &objectinfo_filename,
                           HeapState &myheap,
                           std::set<ObjectId_t> dag_keys,
                           std::set<ObjectId_t> dag_all_set,
-                          std::set<ObjectId_t> all_keys,
+                          // TODO: std::set<ObjectId_t> all_keys,
                           unsigned int final_time )
 {
     ofstream object_info_file(objectinfo_filename);
@@ -1209,34 +1209,6 @@ void output_all_objects2( string &objectinfo_filename,
     }
     object_info_file << "---------------[ OBJECT INFO END ]----------------------------------------------" << endl;
     object_info_file.close();
-}
-
-void output_cycles( KeySet_t &keyset,
-                    string &cycle_filename,
-                    std::set<int> &node_set )
-{
-    ofstream cycle_file(cycle_filename);
-    cycle_file << "---------------[ CYCLES ]-------------------------------------------------------" << endl;
-    for ( KeySet_t::iterator it = keyset.begin();
-          it != keyset.end();
-          ++it ) {
-        Object *obj = it->first;
-        set< Object * > *sptr = it->second;
-        unsigned int keyObjId = obj->getId();
-        cycle_file << keyObjId;
-        for ( set<Object *>::iterator tmp = sptr->begin();
-              tmp != sptr->end();
-              ++tmp ) {
-            unsigned int tmpId = (*tmp)->getId();
-            if (tmpId != keyObjId) {
-                cycle_file  << "," << tmpId;
-            }
-            node_set.insert((*tmp)->getId());
-        }
-        cycle_file << endl;
-    }
-    cycle_file << "---------------[ CYCLES END ]---------------------------------------------------" << endl;
-    cycle_file.close();
 }
 
 unsigned int output_edges( HeapState &myheap,
@@ -1499,16 +1471,16 @@ int main(int argc, char* argv[])
     cout << "#     build date : " <<  build_git_time << endl;
     cout << "---------------[ START ]-----------------------------------------------------------" << endl;
     string basename(argv[2]);
-    string cycle_filename( basename + "-CYCLES.csv" );
-    // string edge_filename( basename + "-EDGES.txt" );
+    // TODO: string cycle_filename( basename + "-CYCLES.csv" );
+    // TODO: string edge_filename( basename + "-EDGES.txt" );
     string objectinfo_filename( basename + "-OBJECTINFO.txt" );
     string edgeinfo_filename( basename + "-EDGEINFO.txt" );
     string typeinfo_filename( basename + "-TYPEINFO.txt" );
     string summary_filename( basename + "-SUMMARY.csv" );
     string dsite_filename( basename + "-DSITES.csv" );
 
-    string dgroups_filename( basename + "-DGROUPS.csv" );
-    string dgroups_by_type_filename( basename + "-DGROUPS-BY-TYPE.csv" );
+    // TODO: string dgroups_filename( basename + "-DGROUPS.csv" );
+    // TODO: string dgroups_by_type_filename( basename + "-DGROUPS-BY-TYPE.csv" );
     string context_death_count_filename( basename + "-CONTEXT-DCOUNT.csv" );
     string reference_summary_filename( basename + "-REF-SUMMARY.csv" );
     string ref_reverse_summary_filename( basename + "-REF-REVERSE-SUMMARY.csv" );
@@ -1554,7 +1526,8 @@ int main(int argc, char* argv[])
     // assert( total_objects == Heap.size() );
     Heap.end_of_program( final_time, edge_info_file );
 
-    if (cycle_flag) {
+    // TODO: Remove from if then
+    if (true) {
         std::deque< pair<int,int> > edgelist; // TODO Do we need the edgelist?
         // per_group_summary: type -> vector of group summary
         GroupSum_t per_group_summary;
@@ -1614,63 +1587,65 @@ int main(int argc, char* argv[])
         // Copy all dag_all object Ids into dag_all_set to get rid of duplicates.
         set<ObjectId_t> dag_all_set( dag_all.cbegin(), dag_all.cend() );
 
+        // ----------------------------------------------------------------------
+        //   [ DEAD CODE ]
+        // TODO: update_summary_from_keyset( keyset,
+        // TODO:                             per_group_summary,
+        // TODO:                             type_total_summary,
+        // TODO:                             size_summary );
+        // Save key object IDs for _all_ death groups.
+        // TODO: set<ObjectId_t> all_keys;
+        // TODO: for ( KeySet_t::iterator kiter = keyset.begin();
+        // TODO:       kiter != keyset.end();
+        // TODO:       kiter++ ) {
+        // TODO:     Object *optr = kiter->first;
+        // TODO:     ObjectId_t objId = (optr ? optr->getId() : 0); 
+        // TODO:     all_keys.insert(objId);
+        // TODO:     // NOTE: We don't really need to add ALL objects here since
+        // TODO:     // we can simply test against dag_all_set to see if it's a DAG
+        // TODO:     // object. If not in dag_all_set, then it's a CYC object.
+        // TODO: }
+        // ----------------------------------------------------------------------
+        // OUTPUT THE SUMMARIES
+        // By size summary of death groups
+        // TODO: output_size_summary( dgroups_filename,
+        // TODO:                      size_summary );
+        // Type total summary output
+        // TODO: output_type_summary( dgroups_by_type_filename,
+        // TODO:                      type_total_summary );
+        // TODO 2017-0220 output_context_summary( context_death_count_filename,
+        // TODO 2017-0220                         Exec );
+        // TODO: What next? 
+        // Output cycles
+        // TODO: set<int> node_set;
+        // TODO: output_cycles( keyset,
+        // TODO:                cycle_filename,
+        // TODO:                node_set );
+        // TODO: Moved the edge output to as needed instead of all at the end.
+        // ----------------------------------------------------------------------
         // scan_queue2 determines all the death groups that are cyclic
         // The '2' is a historical version of the function that won't be
         // removed.
-        Heap.scan_queue2( edgelist,
-                          not_candidate_map );
-        update_summary_from_keyset( keyset,
-                                    per_group_summary,
-                                    type_total_summary,
-                                    size_summary );
-        // Save key object IDs for _all_ death groups.
-        set<ObjectId_t> all_keys;
-        for ( KeySet_t::iterator kiter = keyset.begin();
-              kiter != keyset.end();
-              kiter++ ) {
-            Object *optr = kiter->first;
-            ObjectId_t objId = (optr ? optr->getId() : 0); 
-            all_keys.insert(objId);
-            // NOTE: We don't really need to add ALL objects here since
-            // we can simply test against dag_all_set to see if it's a DAG
-            // object. If not in dag_all_set, then it's a CYC object.
-        }
-
+        // TODO: Heap.scan_queue2( edgelist,
+        // TODO:                   not_candidate_map );
+        // Output all objects info
         // Analyze the edge summaries
         summarize_reference_stability( stability_summary,
                                        edge_summary,
                                        obj2ref_map );
-        // ----------------------------------------------------------------------
-        // OUTPUT THE SUMMARIES
-        // By size summary of death groups
-        output_size_summary( dgroups_filename,
-                             size_summary );
-        // Type total summary output
-        output_type_summary( dgroups_by_type_filename,
-                             type_total_summary );
-        // Output all objects info
         output_all_objects2( objectinfo_filename,
                              Heap,
                              dag_keys,
                              dag_all_set,
-                             all_keys,
+                             // TODO: all_keys,
                              final_time );
-        // TODO 2017-0220 output_context_summary( context_death_count_filename,
-        // TODO 2017-0220                         Exec );
         output_reference_summary( reference_summary_filename,
                                   ref_reverse_summary_filename,
                                   stability_summary_filename,
                                   edge_summary,
                                   obj2ref_map,
                                   stability_summary );
-        // TODO: What next? 
-        // Output cycles
-        set<int> node_set;
-        output_cycles( keyset,
-                       cycle_filename,
-                       node_set );
-        // TODO: Moved the edge output to as needed instead of all at the end.
-        // TODO // Output all edges
+        // Output all edges
         unsigned int added_edges = output_edges( Heap,
                                                  edge_info_file );
         edge_info_file << "---------------[ EDGE INFO END ]------------------------------------------------" << endl;
@@ -1735,3 +1710,36 @@ int main(int argc, char* argv[])
     cout << "#     git version: " <<  build_git_sha << endl;
     cout << "#     build date : " <<  build_git_time << endl;
 }
+
+
+//--------------------------------------------------------------------------------
+// DEAD CODE follows:
+/*
+void output_cycles( KeySet_t &keyset,
+                    string &cycle_filename,
+                    std::set<int> &node_set )
+{
+    ofstream cycle_file(cycle_filename);
+    cycle_file << "---------------[ CYCLES ]-------------------------------------------------------" << endl;
+    for ( KeySet_t::iterator it = keyset.begin();
+          it != keyset.end();
+          ++it ) {
+        Object *obj = it->first;
+        set< Object * > *sptr = it->second;
+        unsigned int keyObjId = obj->getId();
+        cycle_file << keyObjId;
+        for ( set<Object *>::iterator tmp = sptr->begin();
+              tmp != sptr->end();
+              ++tmp ) {
+            unsigned int tmpId = (*tmp)->getId();
+            if (tmpId != keyObjId) {
+                cycle_file  << "," << tmpId;
+            }
+            node_set.insert((*tmp)->getId());
+        }
+        cycle_file << endl;
+    }
+    cycle_file << "---------------[ CYCLES END ]---------------------------------------------------" << endl;
+    cycle_file.close();
+}
+*/
