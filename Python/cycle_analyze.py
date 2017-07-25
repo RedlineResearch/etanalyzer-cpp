@@ -110,7 +110,6 @@ def update_age_summaries( dsite = None,
     new_max = max(age_list)
     for agedict, mydsite in [ (dsites_age, dsite), (nonjlib_age, nonjdsite) ]:
         count, total = agedict[mydsite]["gensum"]
-        # TODO DEBUG ONLY print "XXX", count, total
         new_age_list = [ total ]
         new_age_list.extend( age_list )
         _tmp, new_total = generalised_sum( new_age_list, None )
@@ -570,12 +569,13 @@ def read_dgroups_from_pickle( result = [],
     seen_objects = set()
     total_alloc = 0
     total_died_at_end_size = 0
-    rawpath = os.path.join( workdir, bmark + "-" + RAW_KEY_OBJECT_FILENAME )
-    cyclepath = os.path.join( workdir, bmark + "-" + CYCLE_FILENAME )
-    raw_cyclepath = os.path.join( workdir, bmark + "-" + RAW_CYCLE_FILENAME )
+    # TODO rawpath = os.path.join( workdir, bmark + "-" + RAW_KEY_OBJECT_FILENAME )
+    cyclepath = os.path.join( workdir, bmark + "-" + CYCLE_FILENAME ) if not atend_flag \
+               else os.path.join( workdir, bmark + "-ATEND-" + CYCLE_FILENAME )
+    raw_cyclepath = os.path.join( workdir, bmark + "-" + RAW_CYCLE_FILENAME ) if not atend_flag \
+               else os.path.join( workdir, bmark + "-ATEND-" + RAW_CYCLE_FILENAME )
     # TODO: Raw death groups: keep in original cycle_analyze.py? or also do here?
     #       Leaning towards keeping it separate in cycle_analyze.py.
-    # with open( rawpath, "wb" ) as fpraw, \
     with open( cyclepath, "wb" ) as cycfp, \
         open( raw_cyclepath, "wb" ) as raw_cycfp:
 
@@ -946,7 +946,6 @@ def get_cycles( group = {},
     # Go look for the cycles if we are told to:
     if ( (len(group) == 1) and
          should_process(cause) ):
-        print "XXX: %s" % cause
         # sys.stdout.write( "SIZE 1: %d --" % len(group) )
         # Group of 1 and it didn't die at the end.
         obj = group[0]
@@ -999,7 +998,6 @@ def get_cycles( group = {},
                  cause ) # death cause
     elif should_process(cause):
         assert( len(group) > 1 )
-        print "XXX: %s" % cause
         edgelist = []
         groupsize = 0
         for obj in group:
@@ -1031,14 +1029,6 @@ def get_cycles( group = {},
                 assert( False )
             if len(obj_edgelist) > 0:
                 edgelist.extend( obj_edgelist )
-            # if flag:
-            #     print "LENGTH srcreclist: %d" % len(srcreclist)
-            #     print "       obj_edgelist: %d" % len(obj_edgelist)
-            #     print "   NEW edgelist: %d" % len(edgelist)
-        # TODO: if flag:
-        # TODO:     print "***FINAL LENGTH obj_edgelist: %d" % len(edgelist)
-        # TODO:     for tmp in edgelist:
-        # TODO:         print "XXX:", tmp
         graph_result = make_adjacency_list( nodes = group,
                                             edgelist = edgelist,
                                             edgeinfo = ei )
@@ -1196,14 +1186,6 @@ def get_cycles_revised_ONWARD( group = {},
             #     print "       obj_edgelist: %d" % len(obj_edgelist)
             if len(obj_edgelist) > 0:
                 edgelist.extend( obj_edgelist )
-            # if flag:
-            #     print "LENGTH srcreclist: %d" % len(srcreclist)
-            #     print "       obj_edgelist: %d" % len(obj_edgelist)
-            #     print "   NEW edgelist: %d" % len(edgelist)
-        # TODO: if flag:
-        # TODO:     print "***FINAL LENGTH obj_edgelist: %d" % len(edgelist)
-        # TODO:     for tmp in edgelist:
-        # TODO:         print "XXX:", tmp
         # edgelist = filter_edges( edgelist = edgelist,
         #                          group = group,
         #                          edgeinforeader = ei )
@@ -1224,8 +1206,6 @@ def get_cycles_revised_ONWARD( group = {},
                 cycle.append(node)
         if len(cycle) > 0:
             cyclelist.append( cycle )
-            # if len(cycle) > 3:
-            #     print "XXX:", len(cycle)
         if len(cyclelist) > 0:
             update_cycle_summary( cycle_summary = cycle_summary,
                                   cycledict = cycledict,
