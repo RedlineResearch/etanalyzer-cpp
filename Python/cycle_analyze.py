@@ -574,8 +574,6 @@ def read_dgroups_from_pickle( result = [],
                else os.path.join( workdir, bmark + "-ATEND-" + CYCLE_FILENAME )
     raw_cyclepath = os.path.join( workdir, bmark + "-" + RAW_CYCLE_FILENAME ) if not atend_flag \
                else os.path.join( workdir, bmark + "-ATEND-" + RAW_CYCLE_FILENAME )
-    # TODO: Raw death groups: keep in original cycle_analyze.py? or also do here?
-    #       Leaning towards keeping it separate in cycle_analyze.py.
     with open( cyclepath, "wb" ) as cycfp, \
         open( raw_cyclepath, "wb" ) as raw_cycfp:
 
@@ -595,11 +593,9 @@ def read_dgroups_from_pickle( result = [],
         cycle_writer = csv.writer( cycfp,
                                    quoting = csv.QUOTE_NONNUMERIC )
         cycle_writer.writerow( cycle_header )
-        print "AT_END_FLAG:", atend_flag
         for gnum, glist in dgroups_data["group2list"].iteritems():
             # - for every death group dg:
             #       get the last edge for every object
-            # TODO: Use the select parameter to choose which algorithm to use. TODO
             cyclelist, total_size, died_at_end_size, cause = get_cycles( group = glist,
                                                                          atend_flag = atend_flag,
                                                                          seen_objects = seen_objects,
@@ -620,17 +616,6 @@ def read_dgroups_from_pickle( result = [],
         print "Age summary total = ", len(cycle_age_summary)
         print "Count summary total = ", len(cycle_count_summary)
         for typetup, countrec_list in cycle_count_summary.iteritems():
-            # TODO # Get record from cycle_age_summary
-            # TODO if typetup in cycle_age_summary:
-            # TODO     agerec_list = cycle_age_summary[typetup]
-            # TODO else:
-            # TODO     agerec_list = []
-            # TODO     agerec_list.append( new_cycle_age_record( new_min = 0,
-            # TODO                                               new_max = 0,
-            # TODO                                               age_range = 0,
-            # TODO                                               age_mean = 0.0,
-            # TODO                                               groupcount = 0 ) )
-            # TODO TODO
             # Summary of key types
             output_cycle_summary_to_csv( typetup = typetup,
                                          # agerec_list = agerec_list,
