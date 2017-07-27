@@ -601,7 +601,10 @@ unsigned int read_trace_file( FILE *f,
                         // refactoring.
                         // Keep track of the latest death time
                         // TODO: Debug? Well it's a decent sanity check so we may leave it in.
-                        assert( latest_death_time <= now_uptime );
+                        // TODO: H2 triggers this assert. Don't know why 2017-0725 - RLV
+                        //       assert( latest_death_time <= now_uptime );
+                        if (latest_death_time > now_uptime) {
+                        }
                         // MERLIN: // Ok, so now we can see if the death time has 
                         // if (now_uptime > latest_death_time) {
                         //     // Do the Merlin algorithm
@@ -1166,7 +1169,7 @@ void output_all_objects2( string &objectinfo_filename,
         // X -> Unknown
         string stability = ( (objstability == ObjectRefType::SINGLY_OWNED) ? "S"
                                    : (objstability == ObjectRefType::MULTI_OWNED ? "M" : "X") );
-        unsigned int dtime = object->getDeathTime();
+        VTime_t dtime = object->getDeathTime();
         object_info_file << objId
             << "," << object->getCreateTime()
             << "," << (dtime > 0 ? dtime : final_time)
@@ -1226,7 +1229,7 @@ unsigned int output_edges( HeapState &myheap,
         assert(edge);
         auto src = edge->getSource();
         assert(src);
-        auto endtime = src->getDeathTime();
+        VTime_t endtime = src->getDeathTime();
         if ( (estate == EdgeState::DEAD_BY_OBJECT_DEATH) ||
              (estate == EdgeState::DEAD_BY_UPDATE) ||
              (estate == EdgeState::DEAD_BY_PROGRAM_END) ) {

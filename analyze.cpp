@@ -151,8 +151,8 @@ void analyze(unsigned int max_time)
         Object* source = edge->getSource();
         Object* target = edge->getTarget();
 
-        unsigned int source_life = source->getDeathTime() - source->getCreateTime();
-        unsigned int target_life = target->getDeathTime() - target->getCreateTime();
+        VTime_t source_life = source->getDeathTime() - source->getCreateTime();
+        VTime_t target_life = target->getDeathTime() - target->getCreateTime();
 
         double d_source = (((double) source_life)/d_max_time) * 100.0;
         double d_target = (((double) target_life)/d_max_time) * 100.0;

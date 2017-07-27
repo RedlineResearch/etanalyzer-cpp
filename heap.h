@@ -12,6 +12,7 @@
 #include <assert.h>
 #include <boost/logic/tribool.hpp>
 #include <boost/bimap.hpp>
+#include <boost/multiprecision/gmp.hpp>
 
 // EASTL version of map
 #include <EASTL/map.h>
@@ -19,6 +20,8 @@
 
 #include "classinfo.h"
 // TODO #include "refstate.h"
+
+namespace mp = boost::multiprecision;
 
 class Object;
 class Thread;
@@ -81,7 +84,8 @@ enum class CPairType
 
 typedef unsigned int ObjectId_t;
 typedef unsigned int FieldId_t;
-typedef unsigned int VTime_t;
+// typedef unsigned int VTime_t;
+typedef mp::mpz_int VTime_t;
 typedef std::map<ObjectId_t, Object *> ObjectMap;
 typedef eastl::map<ObjectId_t, Object *> EA_ObjectMap;
 typedef std::map<ObjectId_t, Edge *> EdgeMap;
@@ -131,7 +135,7 @@ struct compclass {
 };
 
 void output_edge( Edge *edge,
-                  unsigned int endtime,
+                  VTime_t endtime,
                   EdgeState estate,
                   ofstream &edge_info_file );
 
@@ -423,10 +427,10 @@ class Object {
         unsigned int m_elements;
         Thread *m_thread;
 
-        unsigned int m_createTime;
-        unsigned int m_deathTime;
-        unsigned int m_createTime_alloc;
-        unsigned int m_deathTime_alloc;
+        VTime_t m_createTime;
+        VTime_t m_deathTime;
+        VTime_t m_createTime_alloc;
+        VTime_t m_deathTime_alloc;
 
         int m_refCount;
         int m_refCount_at_death;
@@ -626,8 +630,9 @@ class Object {
 
         Thread * getThread() const { return m_thread; }
         VTime_t getCreateTime() const { return m_createTime; }
-        VTime_t getDeathTime() const {
-            return m_deathTime;
+        VTime_t getDeathTime() const
+        {
+            return this->m_deathTime;
         }
         void setDeathTime( VTime_t new_deathtime );
 

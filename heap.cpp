@@ -65,7 +65,7 @@ bool is_object_death( LastEvent le )
 
 // TODO
 void output_edge( Edge *edge,
-                  unsigned int endtime,
+                  VTime_t endtime,
                   EdgeState estate,
                   ofstream &edge_info_file )
 {
@@ -736,7 +736,7 @@ void HeapState::scan_queue2( EdgeList &edgelist,
                                 // DEBUG cout << "WARNING: Multiple keys[ " << other_root->getType()
                                 //            << " - " << root->getType() << " ]" << endl;
                                 Object *older_ptr, *newer_ptr;
-                                unsigned int older_time, newer_time;
+                                VTime_t older_time, newer_time;
                                 // TODO TODO TODO 
                                 //    if (root_time < other_time) {
                                 if (root_time > other_time) {
