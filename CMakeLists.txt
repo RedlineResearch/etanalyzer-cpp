@@ -17,8 +17,8 @@ INCLUDE_DIRECTORIES(EASTL/test/packages/EABase/include/Common)
 TARGET_LINK_LIBRARIES(EASTL)
 
 # Set the custom directory for GMP
-INCLUDE_DIRECTORIES(GMP/include)
-LINK_DIRECTORIES(GMP/lib)
+# INCLUDE_DIRECTORIES(GMP/include)
+LINK_DIRECTORIES(/usr/lib64)
 
 EXECUTE_PROCESS( COMMAND sh ${CMAKE_SOURCE_DIR}/create-version-cpp.sh
                  OUTPUT_FILE ${CMAKE_SOURCE_DIR}/version.cpp )

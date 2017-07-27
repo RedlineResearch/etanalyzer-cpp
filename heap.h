@@ -12,7 +12,8 @@
 #include <assert.h>
 #include <boost/logic/tribool.hpp>
 #include <boost/bimap.hpp>
-#include <boost/multiprecision/gmp.hpp>
+// #include <boost/multiprecision/gmp.hpp>
+#include <boost/multiprecision/cpp_int.hpp>
 
 // EASTL version of map
 #include <EASTL/map.h>
@@ -85,7 +86,7 @@ enum class CPairType
 typedef unsigned int ObjectId_t;
 typedef unsigned int FieldId_t;
 // typedef unsigned int VTime_t;
-typedef mp::mpz_int VTime_t;
+typedef mp::cpp_int VTime_t;
 typedef std::map<ObjectId_t, Object *> ObjectMap;
 typedef eastl::map<ObjectId_t, Object *> EA_ObjectMap;
 typedef std::map<ObjectId_t, Edge *> EdgeMap;

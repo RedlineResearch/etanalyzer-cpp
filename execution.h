@@ -544,7 +544,7 @@ class ExecState
             this->main_func_uptime = new_uptime; // in logical update+method time
         }
 
-        inline VTime_t set_main_func_alloctime(VTime_t new_alloctime) {
+        VTime_t set_main_func_alloctime(VTime_t new_alloctime) {
             this->main_func_alloctime = new_alloctime; // in logical allocation time (bytes)
         }
 
