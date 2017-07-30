@@ -5,7 +5,7 @@ PROJECT(etanalyzer-cpp)
 INCLUDE_DIRECTORIES(/usr/include)
 FIND_PACKAGE( Boost 1.64.0 )
 
-if ( (NOT Boost_FOUND) OR (Boost_MAJOR_VERSION VERSION_LESS 1.60.0) )
+if (NOT Boost_FOUND)
     INCLUDE_DIRECTORIES(boost_1_60_0)
 else ()
     ADD_LIBRARY(boost INTERFACE IMPORTED)
