@@ -8,6 +8,7 @@
 #include <deque>
 #include <string>
 #include <utility>
+#include <numeric>
 
 #include <boost/circular_buffer.hpp>
 
