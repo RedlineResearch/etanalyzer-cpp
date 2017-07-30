@@ -3,7 +3,7 @@ PROJECT(etanalyzer-cpp)
 
 # Bring the headers. Is this needed only if they are in a different directory?
 INCLUDE_DIRECTORIES(/usr/include)
-FIND_PACKAGE( Boost 1.60.0 )
+FIND_PACKAGE( Boost 1.64.0 )
 
 if ( (NOT Boost_FOUND) OR (Boost_MAJOR_VERSION VERSION_LESS 1.60.0) )
     INCLUDE_DIRECTORIES(boost_1_60_0)
