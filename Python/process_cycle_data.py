@@ -29,14 +29,13 @@ import time
 pp = pprint.PrettyPrinter( indent = 4 )
 
 # GLOBALS
-TYPE_TUPLE = 0
-NUM_OF_CYCLE = 1
-CYCLE_LEN = 2
-OBJ_COUNT_MIN = 3
-OBJ_COUNT_MAX = 4
-OBJ_COUNT_MEAN = 5
-OBJ_COUNT_MEDIAN = 6
-SINGLETONS = 7
+NUM_OF_CYCLE = 0
+CYCLE_SIZE = 1
+OBJ_COUNT_MIN = 2
+OBJ_COUNT_MAX = 3
+OBJ_COUNT_MEAN = 4
+OBJ_COUNT_MEDIAN = 5
+SINGLETONS = 6
 
 
 def setup_logger( targetdir = ".",
@@ -200,158 +199,48 @@ def update_mean_std( soln = [] ):
         result.append( rec + (mymean, mystdev) )
     return result
 
-def solve_subset_sum_naive_ver3( data = [],
-                                 target = None,
-                                 epsilon = 0 ):
-    # Print out problem state:
-    print "Target: %d" % target
-    print "Epsilon: %d" % epsilon
-    # Assume data is sorted, increasing.
-    # data can also have duplicates.
-    solutions = []
-    soln = []
-    copy = list(data)
-    within_target = lambda x: ( (x >= target - epsilon) and (x <= target + epsilon) )
-    total = 0
-    done = False
-    while not done:
-        assert( len(soln) == 0 )
-        assert( len(copy) > 0 )
-        soln.append( copy.pop(0) )
-        total = soln[0][GARBAGE]
-        # print "DEBUG: %s" % str(soln)
-        others = list(copy)
-        while len(others) > 0:
-            cand = others.pop(0)
-            total += cand[GARBAGE]
-            soln.append( cand )
-            if within_target(total):
-                break
-            elif total > (target + epsilon):
-                # We can shortcircuit this branch now since data is sorted
-                # Remove the 2 most recently added elements.
-                # - last added:
-                total -= cand[GARBAGE]
-                soln.pop()
-                # - next to last, if not empty
-                # Since the soln list may be empty:
-                if len(soln) > 0:
-                    cand = soln.pop()
-                    total -= cand[GARBAGE]
-            # else we can go on and add more
-        if not within_target(total):
-            soln = []
-            total = 0
-            done = (len(copy) > 0)
-        else:
-            done = True
-    if not within_target(total):
-        return []
-    else:
-        return soln
+type_tuple = None
+def match_func( matchobj ):
+    global type_tuple
+    assert(matchobj)
+    type_tuple = matchobj.group(0)
+    return ""
 
-def solve_subset_sum_naive( data = [],
-                            target = None,
-                            epsilon = 0 ):
-    # TODO: Instead of a single method Id, we now have a context pair (callee, caller)
-    # Print out problem state:
-    print "Target: %d" % target
-    print "Epsilon: %d" % epsilon
-    # Assume data is sorted, increasing.
-    # data can also have duplicates.
-    soln = []
-    soln_total = 0
-    over_soln = []
-    closest_under_soln = None
-    total_under_soln = 0
-    copy = list(data)
-    within_target = lambda x: ( (x >= target - epsilon) and (x <= target + epsilon) )
-    total = 0
-    done = False
-    while not done:
-        # Clear solution
-        soln = []
-        total = 0
-        assert( len(copy) > 0 )
-        saved_under = False
-        cand = copy.pop(0)
-        # TODO: if cand < epsilon:
-        # TODO:     break
-        soln.append( cand )
-        total = cand[GARBAGE]
-        # print "DEBUG: %s" % str(soln)
-        others = list(copy)
-        while len(others) > 0:
-            cand = others.pop(0)
-            total += cand[GARBAGE]
-            soln.append( cand )
-            if within_target(total):
-                done = True
-                soln_total = total
-                break
-            elif total > (target + epsilon):
-                # Save this solution anyway:
-                over_soln.append( list(soln) )
-                # We CAN'T shortcircuit this branch since data is sorted in increasing order.
-                # Remove the 2 most recently added elements.
-                # - last added:
-                total -= cand[GARBAGE]
-                soln.pop()
-                # Put this back into others
-                others.insert( 0, cand )
-                # - next to last, if not empty
-                # Since the soln list may be empty:
-                if len(soln) > 0:
-                    if total < (target - epsilon):
-                        # Save it if it is closer to target than current approximation
-                        if (target - total) < (target - total_under_soln):
-                            closest_under_soln = soln
-                            total_under_soln = total
-                    cand = soln.pop()
-                    total -= cand[GARBAGE]
-        if not done:
-            done = (len(copy) > 0)
-
-    if not within_target(total):
-        return { "solution" : [],
-                 "over_solution" : over_soln, }
-    else:
-        return { "solution" : soln,
-                 "over_solution" : over_soln, }
-
-def get_data( sourcefile = None,
-              data = [] ):
+def get_data( sourcefile = None ):
+    data = []
     # The CSV file source header looks like this:
-    #   "path_id","total_garbage","minimum","maximum","number_times","garbage_list"
-    # TODO. :)
+    #   "type-tuple","cycle-count","cycles-size","obj-count-min","obj-count-max","obj-count-mean","obj-count-median","singletons"
     with open(sourcefile, "rb") as fptr:
         count = 0
-        zero_garbage_set = set()
         header = fptr.readline()
         for line in fptr:
             if line == '':
                 continue
             line = line.rstrip()
+            print "XXX:", line
+            line = re.sub( "\"(\(.*?\))\",",
+                           repl = match_func,
+                           string = line,
+                           count = 1 )
+            print "   :", type_tuple
+            print "   :", line
             rec = line.split(",")
-            path_id = int(rec[PATH_ID])
-            total_garbage = int(rec[GARBAGE])
-            if total_garbage == 0:
-                zero_garbage_set.add( path_id )
-                continue
-            minimum = int(rec[MINIMUM])
-            maximum = int(rec[MAXIMUM])
-            number_times = int(rec[NUMBER])
-            glist = rec[GLIST]
-            data.append( (path_id, total_garbage, minimum, maximum, number_times, glist) )
+            # type_tuple = rec[TYPE_TUPLE]
+            num_of_cycle = int(rec[NUM_OF_CYCLE])
+            cycle_len = int(rec[CYCLE_SIZE])
+            obj_count_min = int(rec[OBJ_COUNT_MIN])
+            obj_count_max = int(rec[OBJ_COUNT_MAX])
+            mean_str = rec[OBJ_COUNT_MEAN]
+            mean_str = mean_str.replace('"', '')
+            obj_count_mean = float(mean_str)
+            obj_count_median = int(rec[OBJ_COUNT_MEDIAN])
+            singletons = rec[SINGLETONS]
+            newrec = (type_tuple, num_of_cycle, obj_count_min, obj_count_max,
+                      obj_count_mean, obj_count_median, singletons)
+            data.append( newrec )
             # DEBUG ONLY:
-            # parsed = "[%d, %d, %d, %d, %d -- %s]" % ( path_id, total_garbage,
-            #                                           minimum, maximum, number_times, glist )
-            # sys.stdout.write(str(rec) + " = " + parsed + "\n")
-            # count += 1
-            # if count >= 10000:
-            #     break
-            # END DEBUG ONLY.
-        # sys.stdout.write("DEBUG-done: TODO\n")
+            sys.stdout.write(str(rec) + " = " + str(newrec) + "\n")
+    return data
 
 def output_to_csv( soln = [],
                    selectfp = None ):
@@ -380,8 +269,15 @@ def main_process( worklist_config = {},
     cycle_cpp_dir = global_config["cycle_cpp_dir"]
     # Given file template for the cycle file, go through all
     # possible benchmarks.
-    pp.pprint( cyclelist )
-    # Then aggregate.
+    datadict = {}
+    for bmark in cyclelist:
+        fname = "%s-cycle-summary.csv" % bmark
+        absfname = os.path.join( cycle_cpp_dir, fname )
+        if os.path.isfile( absfname ):
+            data = get_data( absfname )
+            datadict[bmark] = data
+        # print "%s -> %s" % (absfname, os.path.isfile(absfname))
+        # Then aggregate.
     print "================================================================================"
     print "process_cycle_data.py - DONE."
     print "================================================================================"
