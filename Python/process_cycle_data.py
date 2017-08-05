@@ -206,7 +206,21 @@ def match_func( matchobj ):
     type_tuple = matchobj.group(0)
     return ""
 
+def get_types( typestr = "" ):
+    tstr = typestr.replace( "(", '' )
+    tstr = tstr.replace( ")", '' )
+    tstr = tstr.replace( "u'", '' )
+    tstr = tstr.replace( "'", '' )
+    tstr = tstr.replace( '"', '' )
+    tstr = re.sub( ",*$", "", tstr )
+    tstr = re.sub( "\s*", "", tstr )
+    types = tstr.split( "," )
+    result = [ re.sub( "^\[L", "[", t ) for t in types ]
+    result = tuple( sorted( [ re.sub( "^L", "", t ) for t in result ], reverse = True ) )
+    return result
+
 def get_data( sourcefile = None ):
+    global type_tuple
     data = []
     # The CSV file source header looks like this:
     #   "type-tuple","cycle-count","cycles-size","obj-count-min","obj-count-max","obj-count-mean","obj-count-median","singletons"
@@ -217,13 +231,11 @@ def get_data( sourcefile = None ):
             if line == '':
                 continue
             line = line.rstrip()
-            print "XXX:", line
             line = re.sub( "\"(\(.*?\))\",",
                            repl = match_func,
                            string = line,
                            count = 1 )
-            print "   :", type_tuple
-            print "   :", line
+            type_tuple = get_types( type_tuple )
             rec = line.split(",")
             # type_tuple = rec[TYPE_TUPLE]
             num_of_cycle = int(rec[NUM_OF_CYCLE])
@@ -239,7 +251,7 @@ def get_data( sourcefile = None ):
                       obj_count_mean, obj_count_median, singletons)
             data.append( newrec )
             # DEBUG ONLY:
-            sys.stdout.write(str(rec) + " = " + str(newrec) + "\n")
+            #     sys.stdout.write(str(rec) + " = " + str(newrec) + "\n")
     return data
 
 def output_to_csv( soln = [],
@@ -266,6 +278,7 @@ def main_process( worklist_config = {},
                   debugflag = False,
                   logger = None ):
     global pp
+    global NUM_OF_CYCLE, CYCLE_SIZE, OBJ_COUNT_MIN, OBJ_COUNT_MAX, OBJ_COUNT_MEAN, OBJ_COUNT_MEDIAN, SINGLETONS
     cycle_cpp_dir = global_config["cycle_cpp_dir"]
     # Given file template for the cycle file, go through all
     # possible benchmarks.
@@ -277,7 +290,30 @@ def main_process( worklist_config = {},
             data = get_data( absfname )
             datadict[bmark] = data
         # print "%s -> %s" % (absfname, os.path.isfile(absfname))
-        # Then aggregate.
+    # Then aggregate.
+    # But first, adjust the tuple global constants for indexing:
+    TYPE_TUP = 0
+    NUM_OF_CYCLE += 1
+    CYCLE_SIZE += 1
+    OBJ_COUNT_MIN += 1
+    OBJ_COUNT_MAX += 1
+    OBJ_COUNT_MEAN += 1
+    OBJ_COUNT_MEDIAN += 1
+    SINGLETONS += 1
+    summary = defaultdict( lambda: { "cycle_count" : 0,
+                                     "min" : 0,
+                                     "max" : 0,
+                                     "median" : 0, } )
+    for bmark, reclist in datadict.iteritems():
+        for rec in reclist:
+            print "XXX:", rec
+            srec = summary[rec[TYPE_TUP]]
+            srec["min"] = rec[OBJ_COUNT_MIN]
+            srec["max"] = rec[OBJ_COUNT_MAX]
+            srec["median"] = rec[OBJ_COUNT_MEDIAN]
+            print "%s -> %s" % (str(rec[TYPE_TUP]), str(rec))
+    # for typetup, rec in summary.iteritems():
+    #     print "%s -> %s" % (str(typetup), str(rec))
     print "================================================================================"
     print "process_cycle_data.py - DONE."
     print "================================================================================"
