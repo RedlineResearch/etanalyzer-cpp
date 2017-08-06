@@ -19,7 +19,7 @@ from itertools import chain
 
 # Possible useful libraries, classes and functions:
 #   - This one is my own library:
-from mypytools import mean, stdev, variance, check_host, hex2dec
+from mypytools import mean, stdev, variance, check_host, hex2dec, median
 from mypytools import process_worklist_config, process_host_config
 
 # For timestamping directories and files.
@@ -37,6 +37,50 @@ OBJ_COUNT_MEAN = 4
 OBJ_COUNT_MEDIAN = 5
 SINGLETONS = 6
 
+type_tuple = None
+def match_func( matchobj ):
+    global type_tuple
+    assert(matchobj)
+    type_tuple = matchobj.group(0)
+    return ""
+
+# Class to parse the raw csv
+# The header looks like this:
+#    "type-tuple","cycles-size","obj-count","mean-age","range-age","singletons"
+class RawParser:
+    def __init__( self ):
+        self.data = defaultdict( lambda: { "num_of_cycle" : 0,
+                                           "min" : sys.maxsize,
+                                           "max" : 0,
+                                           "median" : 0,
+                                           "size-list" : [] } )
+
+    def update_data( self, source_file ):
+        global type_tuple
+        d = self.data
+        with open( source_file, "rb" ) as fp:
+            header = fp.readline()
+            for line in fp:
+                line = line.rstrip()
+                line = re.sub( "\"(\(.*?\))\",",
+                               repl = match_func,
+                               string = line,
+                               count = 1 )
+                type_tuple = get_types( type_tuple )
+                print "%s -> %s" % (str(type_tuple), str(line)) 
+                rec = line.split(",")
+                d[type_tuple]["num_of_cycle"] += 1
+                cycles_size = int(rec[0])
+                obj_count = int(rec[1])
+                d[type_tuple]["min"] = min(obj_count, d[type_tuple]["min"])
+                d[type_tuple]["max"] = max(obj_count, d[type_tuple]["max"])
+                d[type_tuple]["size-list"].append( obj_count )
+
+    def update_median( self ):
+        d = self.data
+        for mytype in self.data.keys():
+            m = median( d[mytype]["size-list"] )
+            d[mytype]["median"] = m
 
 def setup_logger( targetdir = ".",
                   filename = "process_cycle_data.log",
@@ -199,13 +243,6 @@ def update_mean_std( soln = [] ):
         result.append( rec + (mymean, mystdev) )
     return result
 
-type_tuple = None
-def match_func( matchobj ):
-    global type_tuple
-    assert(matchobj)
-    type_tuple = matchobj.group(0)
-    return ""
-
 def get_types( typestr = "" ):
     tstr = typestr.replace( "(", '' )
     tstr = tstr.replace( ")", '' )
@@ -239,7 +276,7 @@ def get_data( sourcefile = None ):
             rec = line.split(",")
             # type_tuple = rec[TYPE_TUPLE]
             num_of_cycle = int(rec[NUM_OF_CYCLE])
-            cycle_len = int(rec[CYCLE_SIZE])
+            cycle_size = int(rec[CYCLE_SIZE])
             obj_count_min = int(rec[OBJ_COUNT_MIN])
             obj_count_max = int(rec[OBJ_COUNT_MAX])
             mean_str = rec[OBJ_COUNT_MEAN]
@@ -247,8 +284,10 @@ def get_data( sourcefile = None ):
             obj_count_mean = float(mean_str)
             obj_count_median = int(rec[OBJ_COUNT_MEDIAN])
             singletons = rec[SINGLETONS]
-            newrec = (type_tuple, num_of_cycle, obj_count_min, obj_count_max,
-                      obj_count_mean, obj_count_median, singletons)
+            newrec = (type_tuple, num_of_cycle, cycle_size,
+                      obj_count_min, obj_count_max,
+                      obj_count_mean, obj_count_median,
+                      singletons)
             data.append( newrec )
             # DEBUG ONLY:
             #     sys.stdout.write(str(rec) + " = " + str(newrec) + "\n")
@@ -283,37 +322,23 @@ def main_process( worklist_config = {},
     # Given file template for the cycle file, go through all
     # possible benchmarks.
     datadict = {}
+    rparser = RawParser()
     for bmark in cyclelist:
         fname = "%s-cycle-summary.csv" % bmark
+        rawfname = "%s-raw-cycle-summary.csv" % bmark
         absfname = os.path.join( cycle_cpp_dir, fname )
+        abs_rawfname = os.path.join( cycle_cpp_dir, rawfname )
         if os.path.isfile( absfname ):
             data = get_data( absfname )
             datadict[bmark] = data
         # print "%s -> %s" % (absfname, os.path.isfile(absfname))
+        if os.path.isfile( abs_rawfname ):
+            rparser.update_data( abs_rawfname )
+    print "Keys:", rparser.data.keys()
+    print "--------------------------------------------------------------------------------"
+    rparser.update_median()
+    pp.pprint( rparser.data )
     # Then aggregate.
-    # But first, adjust the tuple global constants for indexing:
-    TYPE_TUP = 0
-    NUM_OF_CYCLE += 1
-    CYCLE_SIZE += 1
-    OBJ_COUNT_MIN += 1
-    OBJ_COUNT_MAX += 1
-    OBJ_COUNT_MEAN += 1
-    OBJ_COUNT_MEDIAN += 1
-    SINGLETONS += 1
-    summary = defaultdict( lambda: { "cycle_count" : 0,
-                                     "min" : 0,
-                                     "max" : 0,
-                                     "median" : 0, } )
-    for bmark, reclist in datadict.iteritems():
-        for rec in reclist:
-            print "XXX:", rec
-            srec = summary[rec[TYPE_TUP]]
-            srec["min"] = rec[OBJ_COUNT_MIN]
-            srec["max"] = rec[OBJ_COUNT_MAX]
-            srec["median"] = rec[OBJ_COUNT_MEDIAN]
-            print "%s -> %s" % (str(rec[TYPE_TUP]), str(rec))
-    # for typetup, rec in summary.iteritems():
-    #     print "%s -> %s" % (str(typetup), str(rec))
     print "================================================================================"
     print "process_cycle_data.py - DONE."
     print "================================================================================"
