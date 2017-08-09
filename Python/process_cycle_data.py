@@ -13,6 +13,7 @@ from operator import itemgetter
 import csv
 import ConfigParser
 from itertools import chain
+import subprocess
 # import glob
 # import shutil
 # from multiprocessing import Process, Manager
@@ -84,13 +85,13 @@ class RawParser:
 
     def output_to_files( self,
                          csvfile = None,
-                         latexfile = None ):
+                         latexfile = None,
+                         logger = None ):
         """Output to CSV and LaTeX.
         """
-        with open(csvfile, "wb") as csvfp, \
-             open(latexfile, "wb") as texfp:
+        with open(csvfile, "wb") as csvfp:
             csvwriter = csv.writer( csvfp, quoting = csv.QUOTE_NONNUMERIC )
-            header = [ "type", "number of cycles", "minimum", "maximum", "median", ]
+            header = [ "type", "number_of_cycles", "minimum", "maximum", "median", ]
             csvwriter.writerow( header )
             d = self.data
             rowlist = []
@@ -107,6 +108,12 @@ class RawParser:
                               reverse = True )
             for row in rowlist:
                 csvwriter.writerow( row )
+        # run ismm2017-plot.R
+        output_table( rscript_path = "/data/rveroy/bin/Rscript",
+                      table_script = "/data/rveroy/pulsrc/etanalyzer-cpp/Rgraph/tables-onward2017.R",
+                      csvfile = csvfile, # csvfile is the input
+                      latexfile = latexfile,
+                      logger = logger )
 
 def setup_logger( targetdir = ".",
                   filename = "process_cycle_data.log",
@@ -334,6 +341,32 @@ def output_to_csv( soln = [],
                 rec[MEAN_STD], rec[STDEV_STD], ]
         csvwriter.writerow( row )
 
+def output_table( rscript_path = None,
+                  table_script = None,
+                  csvfile = None,
+                  latexfile = None,
+                  logger = None ):
+    assert( os.path.isfile( rscript_path ) )
+    assert( os.path.isfile( table_script ) )
+    assert( os.path.isfile( csvfile ) )
+    cmd = [ rscript_path, # The Rscript executable
+            table_script, # Our R script that generates the table
+            csvfile, # The csv file that contains the data
+            latexfile , ] # LaTeX table file output
+    print "Running R table script on %s -> %s" % (csvfile, latexfile)
+    logger.debug( "[ %s ]" % str(cmd) )
+    rproc = subprocess.Popen( cmd,
+                              stdout = subprocess.PIPE,
+                              stdin = subprocess.PIPE,
+                              stderr = subprocess.PIPE )
+    result = rproc.communicate()
+    # Send debug output to logger
+    logger.debug("--------------------------------------------------------------------------------")
+    for x in result:
+        logger.debug(str(x))
+        print "XXX:", str(x)
+    logger.debug("--------------------------------------------------------------------------------")
+
 
 def main_process( worklist_config = {},
                   host_config = {},
@@ -367,7 +400,8 @@ def main_process( worklist_config = {},
     csvfile = os.path.join( cycle_cpp_dir, "cycle_data-OUTPUT.csv" )
     latexfile = os.path.join( cycle_cpp_dir, "cycle_data-TABLE.tex" )
     rparser.output_to_files( csvfile = csvfile,
-                             latexfile = latexfile )
+                             latexfile = latexfile,
+                             logger = logger )
     # Then aggregate.
     print "================================================================================"
     print "process_cycle_data.py - DONE."
