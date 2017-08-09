@@ -83,19 +83,30 @@ class RawParser:
             d[mytype]["median"] = m
 
     def output_to_files( self,
-                         csvfile None,
+                         csvfile = None,
                          latexfile = None ):
         """Output to CSV and LaTeX.
         """
-        d = self.data
-        result = []
-        for mytype in d.keys():
-            rec = d[mytype]
-            row = [ mytype,
-                    rec["num_of_cycle"],
-                    rec["min"],
-                    rec["max"],
-                    rec["median"], ]
+        with open(csvfile, "wb") as csvfp, \
+             open(latexfile, "wb") as texfp:
+            csvwriter = csv.writer( csvfp, quoting = csv.QUOTE_NONNUMERIC )
+            header = [ "type", "number of cycles", "minimum", "maximum", "median", ]
+            csvwriter.writerow( header )
+            d = self.data
+            rowlist = []
+            for mytype in d.keys():
+                rec = d[mytype]
+                row = [ mytype,
+                        rec["num_of_cycle"],
+                        rec["min"],
+                        rec["max"],
+                        rec["median"], ]
+                rowlist.append( row )
+            rowlist = sorted( rowlist,
+                              key = itemgetter(1),
+                              reverse = True )
+            for row in rowlist:
+                csvwriter.writerow( row )
 
 def setup_logger( targetdir = ".",
                   filename = "process_cycle_data.log",
@@ -353,6 +364,10 @@ def main_process( worklist_config = {},
     print "--------------------------------------------------------------------------------"
     rparser.update_median()
     pp.pprint( rparser.data )
+    csvfile = os.path.join( cycle_cpp_dir, "cycle_data-OUTPUT.csv" )
+    latexfile = os.path.join( cycle_cpp_dir, "cycle_data-TABLE.tex" )
+    rparser.output_to_files( csvfile = csvfile,
+                             latexfile = latexfile )
     # Then aggregate.
     print "================================================================================"
     print "process_cycle_data.py - DONE."
