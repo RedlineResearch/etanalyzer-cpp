@@ -45,6 +45,12 @@ def match_func( matchobj ):
     type_tuple = matchobj.group(0)
     return ""
 
+def get_short_typename( mytype = "" ):
+    return mytype.split("/")[-1]
+
+def shorten_tuple_types( mytup ):
+    return [ get_short_typename(x) for x in mytup ]
+
 # Class to parse the raw csv
 # The header looks like this:
 #    "type-tuple","cycles-size","obj-count","mean-age","range-age","singletons"
@@ -95,9 +101,10 @@ class RawParser:
             csvwriter.writerow( header )
             d = self.data
             rowlist = []
-            for mytype in d.keys():
-                rec = d[mytype]
-                row = [ mytype,
+            for mytype_tup in d.keys():
+                rec = d[mytype_tup]
+                mytype_tup = shorten_tuple_types( mytype_tup )
+                row = [ " ".join( mytype_tup ),
                         rec["num_of_cycle"],
                         rec["min"],
                         rec["max"],
