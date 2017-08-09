@@ -82,6 +82,21 @@ class RawParser:
             m = median( d[mytype]["size-list"] )
             d[mytype]["median"] = m
 
+    def output_to_files( self,
+                         csvfile None,
+                         latexfile = None ):
+        """Output to CSV and LaTeX.
+        """
+        d = self.data
+        result = []
+        for mytype in d.keys():
+            rec = d[mytype]
+            row = [ mytype,
+                    rec["num_of_cycle"],
+                    rec["min"],
+                    rec["max"],
+                    rec["median"], ]
+
 def setup_logger( targetdir = ".",
                   filename = "process_cycle_data.log",
                   logger_name = 'process_cycle_data',
