@@ -61,10 +61,18 @@ class RawParser:
                                            "max" : 0,
                                            "median" : 0,
                                            "size-list" : [] } )
+        self.bybmark = defaultdict( lambda: { "num_of_cycle" : 0,
+                                              "min" : sys.maxsize,
+                                              "max" : 0,
+                                              "median" : 0,
+                                              "size-list" : [] } )
 
-    def update_data( self, source_file ):
+    def update_data( self,
+                     bmark = None,
+                     source_file = None ):
         global type_tuple
         d = self.data
+        bm = self.bybmark
         with open( source_file, "rb" ) as fp:
             header = fp.readline()
             for line in fp:
@@ -76,12 +84,18 @@ class RawParser:
                 type_tuple = get_types( type_tuple )
                 print "%s -> %s" % (str(type_tuple), str(line)) 
                 rec = line.split(",")
+                # By type signature
                 d[type_tuple]["num_of_cycle"] += 1
                 cycles_size = int(rec[0])
                 obj_count = int(rec[1])
                 d[type_tuple]["min"] = min(obj_count, d[type_tuple]["min"])
                 d[type_tuple]["max"] = max(obj_count, d[type_tuple]["max"])
                 d[type_tuple]["size-list"].append( obj_count )
+                # Slicing by benchmark
+                bm[bmark]["num_of_cycle"] += 1
+                bm[bmark]["min"] = min(obj_count, bm[bmark]["min"])
+                bm[bmark]["max"] = max(obj_count, bm[bmark]["max"])
+                bm[bmark]["size-list"].append( obj_count )
 
     def update_median( self ):
         d = self.data
@@ -92,9 +106,13 @@ class RawParser:
     def output_to_files( self,
                          csvfile = None,
                          latexfile = None,
+                         bm_csvfile = None,
+                         bm_latexfile = None,
                          logger = None ):
         """Output to CSV and LaTeX.
         """
+        #---------------------------------------------------------------------
+        # First the tables sliced by type signature:
         with open(csvfile, "wb") as csvfp:
             csvwriter = csv.writer( csvfp, quoting = csv.QUOTE_NONNUMERIC )
             header = [ "type", "number_of_cycles", "minimum", "maximum", "median", ]
@@ -116,6 +134,37 @@ class RawParser:
             for row in rowlist:
                 csvwriter.writerow( row )
         # run ismm2017-plot.R
+        output_table( rscript_path = "/data/rveroy/bin/Rscript",
+                      table_script = "/data/rveroy/pulsrc/etanalyzer-cpp/Rgraph/tables-onward2017.R",
+                      csvfile = csvfile, # csvfile is the input
+                      latexfile = latexfile,
+                      logger = logger )
+        #---------------------------------------------------------------------
+        # Next the tables sliced by type benchmark:
+        with open(bm_csvfile, "wb") as bm_csvfp:
+            bm_csvwriter = csv.writer( bm_csvfp, quoting = csv.QUOTE_NONNUMERIC )
+            header = [ "benchmark", "number_of_cycles", "minimum", "maximum", "median", ]
+            bm_csvwriter.writerow( header )
+            bm = self.bm
+            rowlist = []
+            for bmark in bm.keys():
+                rec = bm[bmark]
+                bmark = shorten_tuple_types( bmark )
+                row = [ bmark,
+                        rec["num_of_cycle"],
+                        rec["min"],
+                        rec["max"],
+                        rec["median"], ]
+                rowlist.append( row )
+            rowlist = sorted( rowlist,
+                              key = itemgetter(1),
+                              reverse = True )
+            for row in rowlist:
+                bm_csvwriter.writerow( row )
+        # TODO: Do we need to change this?
+        #      * Need to copy the tables-onward2017 file.
+        #        OR add the second file to the arguments.
+        #        Probably easier to copy the file.
         output_table( rscript_path = "/data/rveroy/bin/Rscript",
                       table_script = "/data/rveroy/pulsrc/etanalyzer-cpp/Rgraph/tables-onward2017.R",
                       csvfile = csvfile, # csvfile is the input
@@ -308,6 +357,8 @@ def get_data( sourcefile = None ):
             if line == '':
                 continue
             line = line.rstrip()
+            # The 'match_func' saves the match in
+            # the global variable 'type_tuple'
             line = re.sub( "\"(\(.*?\))\",",
                            repl = match_func,
                            string = line,
@@ -399,7 +450,7 @@ def main_process( worklist_config = {},
             datadict[bmark] = data
         # print "%s -> %s" % (absfname, os.path.isfile(absfname))
         if os.path.isfile( abs_rawfname ):
-            rparser.update_data( abs_rawfname )
+            rparser.update_data( bmark, abs_rawfname )
     print "Keys:", rparser.data.keys()
     print "--------------------------------------------------------------------------------"
     rparser.update_median()
