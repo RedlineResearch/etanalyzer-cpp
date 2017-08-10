@@ -138,6 +138,7 @@ class RawParser:
                       table_script = "/data/rveroy/pulsrc/etanalyzer-cpp/Rgraph/tables-onward2017.R",
                       csvfile = csvfile, # csvfile is the input
                       latexfile = latexfile,
+                      primary = "Type",
                       logger = logger )
         #---------------------------------------------------------------------
         # Next the tables sliced by type benchmark:
@@ -145,11 +146,10 @@ class RawParser:
             bm_csvwriter = csv.writer( bm_csvfp, quoting = csv.QUOTE_NONNUMERIC )
             header = [ "benchmark", "number_of_cycles", "minimum", "maximum", "median", ]
             bm_csvwriter.writerow( header )
-            bm = self.bm
+            bm = self.bybmark
             rowlist = []
             for bmark in bm.keys():
                 rec = bm[bmark]
-                bmark = shorten_tuple_types( bmark )
                 row = [ bmark,
                         rec["num_of_cycle"],
                         rec["min"],
@@ -161,14 +161,11 @@ class RawParser:
                               reverse = True )
             for row in rowlist:
                 bm_csvwriter.writerow( row )
-        # TODO: Do we need to change this?
-        #      * Need to copy the tables-onward2017 file.
-        #        OR add the second file to the arguments.
-        #        Probably easier to copy the file.
         output_table( rscript_path = "/data/rveroy/bin/Rscript",
                       table_script = "/data/rveroy/pulsrc/etanalyzer-cpp/Rgraph/tables-onward2017.R",
-                      csvfile = csvfile, # csvfile is the input
-                      latexfile = latexfile,
+                      csvfile = bm_csvfile, # bm_csvfile is the input
+                      latexfile = bm_latexfile,
+                      primary = "Benchmark",
                       logger = logger )
 
 def setup_logger( targetdir = ".",
@@ -403,6 +400,7 @@ def output_table( rscript_path = None,
                   table_script = None,
                   csvfile = None,
                   latexfile = None,
+                  primary = "",
                   logger = None ):
     assert( os.path.isfile( rscript_path ) )
     assert( os.path.isfile( table_script ) )
@@ -410,7 +408,8 @@ def output_table( rscript_path = None,
     cmd = [ rscript_path, # The Rscript executable
             table_script, # Our R script that generates the table
             csvfile, # The csv file that contains the data
-            latexfile , ] # LaTeX table file output
+            latexfile, # LaTeX table file output
+            primary, ] # The primary key to slice by
     print "Running R table script on %s -> %s" % (csvfile, latexfile)
     logger.debug( "[ %s ]" % str(cmd) )
     rproc = subprocess.Popen( cmd,
@@ -457,8 +456,12 @@ def main_process( worklist_config = {},
     pp.pprint( rparser.data )
     csvfile = os.path.join( cycle_cpp_dir, "cycle_data-OUTPUT.csv" )
     latexfile = os.path.join( cycle_cpp_dir, "cycle_data-TABLE.tex" )
+    bm_csvfile = os.path.join( cycle_cpp_dir, "cycle_data-OUTPUT-by-bmark.csv" )
+    bm_latexfile = os.path.join( cycle_cpp_dir, "cycle_data-TABLE-by-bmark.tex" )
     rparser.output_to_files( csvfile = csvfile,
                              latexfile = latexfile,
+                             bm_csvfile = bm_csvfile,
+                             bm_latexfile = bm_latexfile,
                              logger = logger )
     # Then aggregate.
     print "================================================================================"
