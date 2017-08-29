@@ -105,33 +105,34 @@ def main_process( output = None,
                   logger = None ):
     global pp
     # This is where the OBJECTINFO files are
+    assert( "cycle_cpp_dir" in global_config )
     cycle_cpp_dir = global_config["cycle_cpp_dir"]
     # Setup stdout to file redirect TODO: Where should this comment be placed?
     # Get the date and time to label the work directory.
-    today = date.today()
-    today = today.strftime("%Y-%m%d")
-    timenow = datetime.now().time().strftime("%H-%M-%S")
-    olddir = os.getcwd()
-    print main_config["output"]
-    os.chdir( main_config["output"] )
-    workdir = create_work_directory( work_dir = main_config["output"],
-                                     today = today,
-                                     timenow = timenow,
-                                     logger = logger,
-                                     interactive = False )
+    # TODO: today = date.today()
+    # TODO: today = today.strftime("%Y-%m%d")
+    # TODO: timenow = datetime.now().time().strftime("%H-%M-%S")
+    # TODO: olddir = os.getcwd()
+    # TODO: print main_config["output"]
+    # TODO: os.chdir( main_config["output"] )
+    # TODO: workdir = create_work_directory( work_dir = main_config["output"],
+    # TODO:                                  today = today,
+    # TODO:                                  timenow = timenow,
+    # TODO:                                  logger = logger,
+    # TODO:                                  interactive = False )
     # Take benchmarks to process from summarize-objectinfo-worklist 
     #     in ?????? configuration file.
     # Where to get file?
     # Filename is in "objectinfo_config"
     # Directory is in "global_config"
     #     Make sure everything is honky-dory.
-    assert( "cycle_cpp_dir" in global_config )
     # TODO: Go through the worklist and check to see in if objectinfo_config.
     # assert( "seq-seqdel" in objectinfo_config )
     # Give simplelist? more descriptive names
-    cycle_cpp_dir = global_config["cycle_cpp_dir"]
+    workdir = cycle_cpp_dir
     objdict = { bmark : {} for bmark in worklist_config.keys() }
     pp.pprint(objdict)
+    exit(1000)
     for bmark in objdict.keys():
         objdict[bmark]["objreader"] = ObjectInfoReader( os.path.join( cycle_cpp_dir,
                                                                       objectinfo_config[bmark] ),
