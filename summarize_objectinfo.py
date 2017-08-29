@@ -97,9 +97,11 @@ def get_actual_hostname( hostname = "",
 
 
 def main_process( output = None,
+                  bmark = None,
                   global_config = {},
                   objectinfo_config = {},
-                  worklist_config = {},
+                  objectinfo_db_config = {},
+                  # worklist_config = {},
                   main_config = {},
                   debugflag = False,
                   logger = None ):
@@ -130,37 +132,85 @@ def main_process( output = None,
     # assert( "seq-seqdel" in objectinfo_config )
     # Give simplelist? more descriptive names
     workdir = cycle_cpp_dir
-    objdict = { bmark : {} for bmark in worklist_config.keys() }
-    pp.pprint(objdict)
-    exit(1000)
-    for bmark in objdict.keys():
-        objdict[bmark]["objreader"] = ObjectInfoReader( os.path.join( cycle_cpp_dir,
-                                                                      objectinfo_config[bmark] ),
-                                                        logger = logger )
+    # objdict = { bmark : {} for bmark in worklist_config.keys() }
+    print "--------------------------------------------------------------------------------"
+    # TODO: assert( bmark in objectinfo_db_config )
+    assert( bmark in objectinfo_config )
+    # db_filename = os.path.join( cycle_cpp_dir,
+    #                             objectinfo_db_config[bmark] )
+    # if os.path.isfile( db_filename ):
+    #     print "%s: DB OK" % db_filename
+    #     # objdict[bmark]["objreader"] = ObjectInfoReader( db_filename = db_filename,
+    #     #                                                 useDB_as_source = True,
+    #     #                                                 logger = logger )
+    #     objreader = ObjectInfoReader( db_filename = db_filename,
+    #                                   useDB_as_source = True,
+    #                                   logger = logger )
+    # else:
+    #     text_filename = os.path.join( cycle_cpp_dir,
+    #                                   objectinfo_config[bmark] )
+    #     try:
+    #         assert( os.path.isfile( text_filename ) )
+    #     except:
+    #         print "ERROR: Unable to find objinfo for %s[ %s ]" % (bmark, text_filename)
+    #     print "%s: TEXT OK" % text_filename
+    #     objreader = ObjectInfoReader( objinfo_filename = text_filename,
+    #                                   useDB_as_source = False,
+    #                                   logger = logger )
+    text_filename = os.path.join( cycle_cpp_dir,
+                                  objectinfo_config[bmark] )
+    try:
+        assert( os.path.isfile( text_filename ) )
+    except:
+        print "ERROR: Unable to find objinfo for %s[ %s ]" % (bmark, text_filename)
+    print "%s: TEXT OK" % text_filename
+    objreader = ObjectInfoReader( objinfo_filename = text_filename,
+                                  useDB_as_source = False,
+                                  logger = logger )
     print "====[ Reading in the OBJECTINFO file ]=========================================="
-    for skind, mydict in objdict.iteritems():
-        objreader = mydict["objreader"]
-        objreader.read_objinfo_file()
-    print "DONE reading all benchmarks."
+    objreader.read_objinfo_file()
+    print "Num of objects:", len(objreader.keys())
+    dsum = Counter()
+    total_alloc = 0
+    for objId in objreader.keys():
+        rec = objreader.get_record(objId)
+        dsite = objreader.get_death_context_using_record(rec)
+        mysize = objreader.get_size_using_record(rec)
+        total_alloc += mysize
+        dsum[dsite] += mysize
     print "================================================================================"
-    # Get summary table 1
-    result = calculate_counts( objdict )
-    for skind, mydict in result.iteritems():
-        print "=======[ %s ]===================================================================" % skind
-        for dtype, mycounter in mydict.iteritems():
-            print "    -----[ %s ]----------------------------------------------------" % dtype
-            pp.pprint( dict(mycounter) )
+    print "%s results:" % bmark
+    sofar = 0
+    target = 0.9 * total_alloc
+    count = 0
+    dsite_list = []
+    for tup in dsum.most_common():
+        # print "%s -> %d" % tup
+        sofar += tup[1]
+        count += 1
+        dsite_list.append(tup[0])
+        if sofar >= target:
+            print "%d death sites needed for %f" % (count, 0.9)
+            print str(dsite_list)
+            break
+    print "================================================================================"
+    print "DONE reading all benchmarks."
     exit(0)
+    # TODO: # Get summary table 1
+    # TODO: result = calculate_counts( objdict )
+    # TODO: for skind, mydict in result.iteritems():
+    # TODO:     print "=======[ %s ]===================================================================" % skind
+    # TODO:     for dtype, mycounter in mydict.iteritems():
+    # TODO:         print "    -----[ %s ]----------------------------------------------------" % dtype
+    # TODO:         pp.pprint( dict(mycounter) )
     # TODO TODO TODO
-    # Is more needed afer this?
-    # TODO TODO TODO
-    with open( os.path.join( workdir, "simplelist-analyze.csv" ), "wb" ) as fptr:
-        writer = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
-        for row in table1:
-            writer.writerow(row)
-    print "summarize_objectinfo.py - DONE."
-    os.chdir( olddir )
-    exit(0)
+    # TODO: with open( os.path.join( workdir, "simplelist-analyze.csv" ), "wb" ) as fptr:
+    # TODO:     writer = csv.writer( fptr, quoting = csv.QUOTE_NONNUMERIC )
+    # TODO:     for row in table1:
+    # TODO:         writer.writerow(row)
+    # TODO: print "summarize_objectinfo.py - DONE."
+    # TODO: os.chdir( olddir )
+    # TODO: exit(0)
 
 def config_section_map( section, config_parser ):
     result = {}
@@ -180,6 +230,7 @@ def process_config( args ):
     global_config = config_section_map( "global", config_parser )
     main_config = config_section_map( "summarize-objectinfo", config_parser )
     objectinfo_config = config_section_map( "objectinfo", config_parser )
+    objectinfo_db_config = config_section_map( "objectinfo-db", config_parser )
     worklist_config = config_section_map( "summarize-objectinfo-worklist", config_parser )
     # DON'T KNOW: contextcount_config = config_section_map( "contextcount", config_parser )
     # PROBABLY NOT:  host_config = config_section_map( "hosts", config_parser )
@@ -187,6 +238,7 @@ def process_config( args ):
     return { "global" : global_config,
              "main" : main_config,
              "objectinfo" : objectinfo_config,
+             "objectinfo_db" : objectinfo_db_config,
              "worklist" : worklist_config
              # "summary" : summary_config,
              # "contextcount" : contextcount_config,
@@ -210,6 +262,9 @@ def create_parser():
     # set up arg parser
     parser = argparse.ArgumentParser()
     parser.add_argument( "output", help = "Target output filename." )
+    parser.add_argument( "--bmark",
+                         help = "Specify benchmark.",
+                         action = "store" )
     parser.add_argument( "--config",
                          help = "Specify configuration filename.",
                          action = "store" )
@@ -268,15 +323,16 @@ def calculate_counts( objdict = None ):
 def main():
     parser = create_parser()
     args = parser.parse_args()
-    configparser = ConfigParser.ConfigParser()
     assert( args.config != None )
     # Get the configurations we need.
     configdict = process_config( args )
     global_config = configdict["global"]
     main_config = configdict["main"]
     objectinfo_config = configdict["objectinfo"]
-    worklist_config = process_worklist_config( configdict["worklist"] )
-    pp.pprint(worklist_config)
+    objectinfo_db_config = configdict["objectinfo_db"]
+    # TODO: worklist_config = process_worklist_config( configdict["worklist"] )
+    # TODO: print(dict(worklist_config))
+    print "--------------------------------------------------------------------------------"
     # PROBABLY DELETE:
     # contextcount_config = configdict["contextcount"]
     # host_config = process_host_config( configdict["host"] )
@@ -287,11 +343,13 @@ def main():
     # Main processing
     #
     return main_process( debugflag = global_config["debug"],
+                         bmark = args.bmark,
                          output = args.output,
                          global_config = global_config,
                          main_config = main_config,
                          objectinfo_config = objectinfo_config,
-                         worklist_config = worklist_config,
+                         objectinfo_db_config = objectinfo_db_config,
+                         # worklist_config = worklist_config,
                          # contextcount_config = contextcount_config,
                          # host_config = host_config,
                          logger = logger )
