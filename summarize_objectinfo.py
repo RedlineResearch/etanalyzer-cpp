@@ -103,6 +103,7 @@ def main_process( output = None,
                   objectinfo_db_config = {},
                   # worklist_config = {},
                   main_config = {},
+                  fraction = 0.9,
                   debugflag = False,
                   logger = None ):
     global pp
@@ -181,7 +182,7 @@ def main_process( output = None,
     print "================================================================================"
     print "%s results:" % bmark
     sofar = 0
-    target = 0.9 * total_alloc
+    target = fraction * total_alloc
     count = 0
     dsite_list = []
     for tup in dsum.most_common():
@@ -190,7 +191,7 @@ def main_process( output = None,
         count += 1
         dsite_list.append(tup[0])
         if sofar >= target:
-            print "%d death sites needed for %f" % (count, 0.9)
+            print "%d death sites needed for %f" % (count, fraction)
             print str(dsite_list)
             break
     print "================================================================================"
@@ -265,6 +266,10 @@ def create_parser():
     parser.add_argument( "--bmark",
                          help = "Specify benchmark.",
                          action = "store" )
+    parser.add_argument( "--fraction",
+                         help = "Specify fraction of allocation.",
+                         type = float,
+                         action = "store" )
     parser.add_argument( "--config",
                          help = "Specify configuration filename.",
                          action = "store" )
@@ -280,6 +285,8 @@ def create_parser():
                          help = "Specify logfile name.",
                          action = "store" )
     parser.set_defaults( logfile = "summarize_objectinfo.log",
+                         fraction = None,
+                         bmark = None,
                          debugflag = False,
                          config = None )
     return parser
@@ -339,6 +346,8 @@ def main():
     # Set up logging
     logger = setup_logger( filename = args.logfile,
                            debugflag = global_config["debug"] )
+    # Check fraction argument
+    fraction = float(args.fraction)
     #
     # Main processing
     #
@@ -349,6 +358,7 @@ def main():
                          main_config = main_config,
                          objectinfo_config = objectinfo_config,
                          objectinfo_db_config = objectinfo_db_config,
+                         fraction = fraction,
                          # worklist_config = worklist_config,
                          # contextcount_config = contextcount_config,
                          # host_config = host_config,
