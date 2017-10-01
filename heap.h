@@ -751,7 +751,7 @@ class Object {
             this->m_actual_last_timestamp = new_ts;
         }
 
-        // Returns whether last update to this object was NULL.
+        // Returns whether last update away from this object was NULL.
         // If indeterminate, then there have been no updates
         tribool wasLastUpdateNull() const { return m_last_update_null; }
         // Set the last update null flag to true

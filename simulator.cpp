@@ -502,14 +502,7 @@ unsigned int read_trace_file( FILE *f,
                     // Set lastEvent and heap/stack flags for new target
                     if (target) {
                         if ( obj && 
-                             obj != target
-                             /* && !(obj->wasRoot())
-                              * NOTE: This was the original code which in resulted
-                              * in LESS Died By STACK after HEAP. Making this change
-                              * to see if the results match the intuition of the code
-                              * being analyzed. - RLV 2017 Feb 16
-                              * */
-                           ) {
+                             obj != target ) {
                             target->setPointedAtByHeap();
                         }
                         target->setLastTimestamp( Exec.NowUp() );
@@ -521,6 +514,7 @@ unsigned int read_trace_file( FILE *f,
                     }
                     // Set lastEvent and heap/stack flags for old target
                     if (oldObj) {
+                        // TODO: 29-sept-2017 : Do these timestamps get used anywhere?
                         // Set the last time stamp for Merlin Algorithm purposes
                         oldObj->setLastTimestamp( Exec.NowUp() );
                         oldObj->setActualLastTimestamp( Exec.NowUp() );
@@ -531,15 +525,12 @@ unsigned int read_trace_file( FILE *f,
                             oldObj->setLastUpdateNull();
                         }
                         if (target) {
-                            if (oldTgtId != tgtId) {
-                                lastevent = LastEvent::UPDATE_AWAY_TO_VALID;
-                                oldObj->setLastEvent( lastevent  );
-                            }
-                        } else {
-                            // There's no need to check for oldTgtId == tgtId here.
-                            lastevent = LastEvent::UPDATE_AWAY_TO_NULL;
-                            oldObj->setLastEvent( lastevent );
+                            lastevent = (target ? LastEvent::UPDATE_AWAY_TO_VALID
+                                                : LastEvent::UPDATE_AWAY_TO_NULL);
                         }
+                        oldObj->setLastEvent( lastevent );
+                        // Set if the last update away from this object was from a static
+                        // field.
                         if (field == 0) {
                             oldObj->setLastUpdateFromStatic();
                         } else {
@@ -559,7 +550,6 @@ unsigned int read_trace_file( FILE *f,
                         Edge *new_edge = NULL;
                         // Can't call updateField if obj is NULL
                         if (target) {
-                            // Increment and decrement refcounts
                             unsigned int field_id = tokenizer.getInt(4);
                             new_edge = Heap.make_edge( obj, field_id,
                                                        target, Exec.NowUp() );
