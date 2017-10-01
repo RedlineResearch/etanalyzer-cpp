@@ -2311,6 +2311,7 @@ class ReferenceReader:
                 # 0 - object Id
                 # 1 - field Id
                 # 2 - Number of objects pointed at, following
+                # 3+ - the object Ids pointed at (variable length)
                 objId = int(row[0])
                 fieldId = int(row[1])
                 num = row[2]
