@@ -259,80 +259,6 @@ def is_javalib_method( methname = None ):
              (methname[0:8] == "com/sun/") or
              (methname[0:8] == "com/ibm/") )
 
-def is_blacklisted( methname = None ):
-    return False # TODO TODO
-    # - Object methods
-    # - init
-    # - run ? (or maybe allow it?)
-
-def solve_subset_sum_poly_approx( data = [] ):
-    # data is a list of tuples using this format:
-    #    (method_id, total_garbage, number_times, minimum, maximum)
-    # OVERVIEW of algorithm:
-    #-------------------------------------------------------------
-    # initialize a list S to contain one element 0.
-    # for each i from 1 to N do
-    #     let T <- a list consisting of xi + y, for all y in S
-    #     let U <- the union of T and S
-    #     sort U
-    #     make S empty 
-    #     let y be the smallest element of U 
-    #     add y to S 
-    #     for each element z of U in increasing order do
-    #         // trim the list by eliminating numbers close to one another
-    #         // and throw out elements greater than s
-    #         if y + cs/N < z <= s:
-    #             set y = z
-    #             add z to S 
-    # if S contains a number between (1 - c)s and s:
-    #     output yes,
-    # else:
-    #     output no
-    #-------------------------------------------------------------
-    # initialize a list S to contain one element 0.
-    S = [ 0, ]
-    # for each i from 1 to N do
-    glist = [ x[1] for x in data ]
-    for i in xrange(len(glist)):
-        # let T <- a list consisting of x_i + y, for all y in S
-        T = [ glist[i] for y in S ]  
-        # let U <- the union of T and S
-        U = list(T)
-        U.extend(S)
-        # sort U
-        U = sorted(U)
-        # make S empty 
-        # let y be the smallest element of U 
-        y = U[0]
-        # add y to S 
-        S = [ y ]
-        # for each element z of U in increasing order do
-        #     // trim the list by eliminating numbers close to one another
-        #     // and throw out elements greater than s
-        #     if y + cs/N < z <= s:
-        #         set y = z
-        #         add z to S 
-
-def update_mean_std( soln = [] ):
-    # Returns an updated copy of the soln list
-    result = []
-    for rec in soln:
-        mylist = []
-        glist = rec[GLIST].split(";")
-        print "X: %s -> %s" % (str(rec[GLIST]), str(glist))
-        for x in glist:
-            tmp = x.split(":")
-            try:
-                garbage = float(int(tmp[0]))
-                mylist.append( garbage )
-            except:
-                pass
-        mymean = mean( mylist )
-        mystdev = stdev( mylist ) if len( mylist ) > 1 \
-            else 0.0
-        result.append( rec + (mymean, mystdev) )
-    return result
-
 def get_types( typestr = "" ):
     tstr = typestr.replace( "(", '' )
     tstr = tstr.replace( ")", '' )
@@ -346,88 +272,13 @@ def get_types( typestr = "" ):
     result = tuple( sorted( [ re.sub( "^L", "", t ) for t in result ], reverse = True ) )
     return result
 
-def get_data( sourcefile = None ):
-    global type_tuple
-    data = []
-    # The CSV file source header looks like this:
-    #   "type-tuple","cycle-count","cycles-size","obj-count-min","obj-count-max","obj-count-mean","obj-count-median","singletons"
-    with open(sourcefile, "rb") as fptr:
-        count = 0
-        header = fptr.readline()
-        for line in fptr:
-            if line == '':
-                continue
-            line = line.rstrip()
-            # The 'match_func' saves the match in
-            # the global variable 'type_tuple'
-            line = re.sub( "\"(\(.*?\))\",",
-                           repl = match_func,
-                           string = line,
-                           count = 1 )
-            type_tuple = get_types( type_tuple )
-            rec = line.split(",")
-            # type_tuple = rec[TYPE_TUPLE]
-            num_of_cycle = int(rec[NUM_OF_CYCLE])
-            cycle_size = int(rec[CYCLE_SIZE])
-            obj_count_min = int(rec[OBJ_COUNT_MIN])
-            obj_count_max = int(rec[OBJ_COUNT_MAX])
-            mean_str = rec[OBJ_COUNT_MEAN]
-            mean_str = mean_str.replace('"', '')
-            obj_count_mean = float(mean_str)
-            obj_count_median = int(rec[OBJ_COUNT_MEDIAN])
-            singletons = rec[SINGLETONS]
-            newrec = (type_tuple, num_of_cycle, cycle_size,
-                      obj_count_min, obj_count_max,
-                      obj_count_mean, obj_count_median,
-                      singletons)
-            data.append( newrec )
-            # DEBUG ONLY:
-            #     sys.stdout.write(str(rec) + " = " + str(newrec) + "\n")
-    return data
 
-def output_to_csv( soln = [],
-                   selectfp = None ):
-    # Need:
-    # - csv file pointer
-    #   => assume called with 'with open as'
-    # - solution list
-    csvwriter = csv.writer( selectfp, csv.QUOTE_NONNUMERIC )
-    header = [ "path_id", "number", "garbage", "garbage_list", "mean_std", "stdev_std", ]
-    csvwriter.writerow( header )
-    # TODO: Add GARBAGE LIST at index 3
-    for rec in soln:
-        row = [ rec[PATH_ID], rec[NUMBER], rec[GARBAGE], rec[GLIST],
-                rec[MEAN_STD], rec[STDEV_STD], ]
-        csvwriter.writerow( row )
-
-def output_table( rscript_path = None,
-                  table_script = None,
-                  csvfile = None,
-                  latexfile = None,
-                  primary = "",
-                  logger = None ):
-    assert( os.path.isfile( rscript_path ) )
-    assert( os.path.isfile( table_script ) )
-    assert( os.path.isfile( csvfile ) )
-    cmd = [ rscript_path, # The Rscript executable
-            table_script, # Our R script that generates the table
-            csvfile, # The csv file that contains the data
-            latexfile, # LaTeX table file output
-            primary, ] # The primary key to slice by
-    print "Running R table script on %s -> %s" % (csvfile, latexfile)
-    logger.debug( "[ %s ]" % str(cmd) )
-    rproc = subprocess.Popen( cmd,
-                              stdout = subprocess.PIPE,
-                              stdin = subprocess.PIPE,
-                              stderr = subprocess.PIPE )
-    result = rproc.communicate()
-    # Send debug output to logger
-    logger.debug("--------------------------------------------------------------------------------")
-    for x in result:
-        logger.debug(str(x))
-        print "XXX:", str(x)
-    logger.debug("--------------------------------------------------------------------------------")
-
+def summarize_stack_after_heap( objectinfo = {} ):
+    result = {}
+    for objId in objectinfo.keys():
+        if objectinfo.died_by_stack_after_heap( objId ):
+            result[ objId ] = {}
+    return result
 
 def main_process( bmark = None,
                   host_config = {},
@@ -438,7 +289,7 @@ def main_process( bmark = None,
                   debugflag = False,
                   logger = None ):
     global pp
-    global NUM_OF_CYCLE, CYCLE_SIZE, OBJ_COUNT_MIN, OBJ_COUNT_MAX, OBJ_COUNT_MEAN, OBJ_COUNT_MEDIAN, SINGLETONS
+    # TODO: global NUM_OF_CYCLE, CYCLE_SIZE, OBJ_COUNT_MIN, OBJ_COUNT_MAX, OBJ_COUNT_MEAN, OBJ_COUNT_MEDIAN, SINGLETONS
     cycle_cpp_dir = global_config["cycle_cpp_dir"]
     # Given file template for the cycle file, go through all
     # possible benchmarks.
@@ -446,20 +297,18 @@ def main_process( bmark = None,
     print " - Using objectinfo DB:"
     db_filename = os.path.join( cycle_cpp_dir,
                                 objectinfo_db_config[bmark] )
+    print "XXX:", db_filename
     objectinfo = ObjectInfoReader( useDB_as_source = True,
                                    db_filename = db_filename,
                                    cachesize = obj_cachesize,
                                    logger = logger )
+    objectinfo.read_objinfo_file()
+    data = summarize_stack_after_heap( objectinfo )
+    print "RESULT:"
+    pp.pprint(data)
     # TODO: HERE 1 October 2017
-    print "DONE: DEBUG:", bmark
+    print "DONE: DEBUG[ %s ]: %d" % (bmark, len(objectinfo))
     exit(1111)
-    # print "%s -> %s" % (absfname, os.path.isfile(absfname))
-    if os.path.isfile( abs_rawfname ):
-        rparser.update_data( bmark, abs_rawfname )
-    print "Keys:", rparser.data.keys()
-    print "--------------------------------------------------------------------------------"
-    rparser.update_median()
-    pp.pprint( rparser.data )
     csvfile = os.path.join( cycle_cpp_dir, "cycle_data-OUTPUT.csv" )
     latexfile = os.path.join( cycle_cpp_dir, "cycle_data-TABLE.tex" )
     bm_csvfile = os.path.join( cycle_cpp_dir, "cycle_data-OUTPUT-by-bmark.csv" )
@@ -585,3 +434,91 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+#================================================================================
+# TODO: Commented out because I may need it
+# TODO:
+#
+# def output_to_csv( soln = [],
+#                    selectfp = None ):
+#     # Need:
+#     # - csv file pointer
+#     #   => assume called with 'with open as'
+#     # - solution list
+#     csvwriter = csv.writer( selectfp, csv.QUOTE_NONNUMERIC )
+#     header = [ "path_id", "number", "garbage", "garbage_list", "mean_std", "stdev_std", ]
+#     csvwriter.writerow( header )
+#     # TODO: Add GARBAGE LIST at index 3
+#     for rec in soln:
+#         row = [ rec[PATH_ID], rec[NUMBER], rec[GARBAGE], rec[GLIST],
+#                 rec[MEAN_STD], rec[STDEV_STD], ]
+#         csvwriter.writerow( row )
+# 
+# def output_table( rscript_path = None,
+#                   table_script = None,
+#                   csvfile = None,
+#                   latexfile = None,
+#                   primary = "",
+#                   logger = None ):
+#     assert( os.path.isfile( rscript_path ) )
+#     assert( os.path.isfile( table_script ) )
+#     assert( os.path.isfile( csvfile ) )
+#     cmd = [ rscript_path, # The Rscript executable
+#             table_script, # Our R script that generates the table
+#             csvfile, # The csv file that contains the data
+#             latexfile, # LaTeX table file output
+#             primary, ] # The primary key to slice by
+#     print "Running R table script on %s -> %s" % (csvfile, latexfile)
+#     logger.debug( "[ %s ]" % str(cmd) )
+#     rproc = subprocess.Popen( cmd,
+#                               stdout = subprocess.PIPE,
+#                               stdin = subprocess.PIPE,
+#                               stderr = subprocess.PIPE )
+#     result = rproc.communicate()
+#     # Send debug output to logger
+#     logger.debug("--------------------------------------------------------------------------------")
+#     for x in result:
+#         logger.debug(str(x))
+#         print "XXX:", str(x)
+#     logger.debug("--------------------------------------------------------------------------------")
+# 
+# def get_data( sourcefile = None ):
+#     global type_tuple
+#     data = []
+#     # The CSV file source header looks like this:
+#     #   "type-tuple","cycle-count","cycles-size","obj-count-min","obj-count-max","obj-count-mean","obj-count-median","singletons"
+#     with open(sourcefile, "rb") as fptr:
+#         count = 0
+#         header = fptr.readline()
+#         for line in fptr:
+#             if line == '':
+#                 continue
+#             line = line.rstrip()
+#             # The 'match_func' saves the match in
+#             # the global variable 'type_tuple'
+#             line = re.sub( "\"(\(.*?\))\",",
+#                            repl = match_func,
+#                            string = line,
+#                            count = 1 )
+#             type_tuple = get_types( type_tuple )
+#             rec = line.split(",")
+#             # type_tuple = rec[TYPE_TUPLE]
+#             num_of_cycle = int(rec[NUM_OF_CYCLE])
+#             cycle_size = int(rec[CYCLE_SIZE])
+#             obj_count_min = int(rec[OBJ_COUNT_MIN])
+#             obj_count_max = int(rec[OBJ_COUNT_MAX])
+#             mean_str = rec[OBJ_COUNT_MEAN]
+#             mean_str = mean_str.replace('"', '')
+#             obj_count_mean = float(mean_str)
+#             obj_count_median = int(rec[OBJ_COUNT_MEDIAN])
+#             singletons = rec[SINGLETONS]
+#             newrec = (type_tuple, num_of_cycle, cycle_size,
+#                       obj_count_min, obj_count_max,
+#                       obj_count_mean, obj_count_median,
+#                       singletons)
+#             data.append( newrec )
+#             # DEBUG ONLY:
+#             #     sys.stdout.write(str(rec) + " = " + str(newrec) + "\n")
+#     return data
+# 
