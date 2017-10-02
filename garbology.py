@@ -836,12 +836,6 @@ EdgeInfoKeyField = "srcid"
 LastEdgeTable = "lastedge"
 LastEdgeKeyField = "tgtid"
 
-def get_edgeinfo_db_filename( workdir = None,
-                              bmark = None ):
-    assert( os.path.isdir(workdir) )
-    assert( type(bmark) is str )
-    return os.path.join( workdir, bmark + "-EDGEINFO.db" )
-
 def get_src_rows( src = None,
                   cursor = None ):
     """Get all rows from edgeinfo table with source = src.
@@ -2627,6 +2621,23 @@ class NamesReader:
         rec = self[fieldId]
         return rec["fieldTgtType"] if rec != None else "None"
 
+# -----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+#
+#   FILENAME related FUNCTIONS
+#
+def get_edgeinfo_db_filename( workdir = None,
+                              bmark = None ):
+    assert( os.path.isdir(workdir) )
+    assert( type(bmark) is str )
+    return os.path.join( workdir, bmark + "-EDGEINFO.db" )
+
+def get_objectinfo_db_filename( workdir = None,
+                                bmark = None ):
+    assert( os.path.isdir(workdir) )
+    assert( type(bmark) is str )
+    return os.path.join( workdir, bmark + "-OBJECTINFO.db" )
+
 
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
@@ -2762,6 +2773,7 @@ __all__ = [ "EdgeInfoReader", "GarbologyConfig", "ObjectInfoReader",
             "ReferenceFile2DB",
             "is_key_object", "get_index", "is_stable", "read_main_file",
             "EdgeInfoTable", "EdgeInfoKeyField", "get_edgeinfo_db_filename",
+            "get_objectinfo_db_filename",
              ]
 
 if __name__ == "__main__":

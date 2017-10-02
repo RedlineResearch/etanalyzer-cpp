@@ -22,6 +22,7 @@ import subprocess
 #   - This one is my own library:
 from mypytools import mean, stdev, variance, check_host, hex2dec, median
 from mypytools import process_worklist_config, process_host_config
+from garbology import ObjectInfoReader
 
 # For timestamping directories and files.
 from datetime import datetime, date
@@ -51,6 +52,8 @@ def get_short_typename( mytype = "" ):
 def shorten_tuple_types( mytup ):
     return [ get_short_typename(x) for x in mytup ]
 
+# TODO TODO TODO:
+# This is probably not needed anymore.
 # Class to parse the raw csv
 # The header looks like this:
 #    "type-tuple","cycles-size","obj-count","mean-age","range-age","singletons"
@@ -167,6 +170,7 @@ class RawParser:
                       latexfile = bm_latexfile,
                       primary = "Benchmark",
                       logger = logger )
+# END: TODO TODO TODO.
 
 def setup_logger( targetdir = ".",
                   filename = "analyze_sah.log",
@@ -425,11 +429,12 @@ def output_table( rscript_path = None,
     logger.debug("--------------------------------------------------------------------------------")
 
 
-def main_process( worklist_config = {},
+def main_process( bmark = None,
                   host_config = {},
                   global_config = {},
                   summary_config = {},
-                  cyclelist = {},
+                  objectinfo_db_config = {},
+                  obj_cachesize = 5000000,
                   debugflag = False,
                   logger = None ):
     global pp
@@ -438,18 +443,19 @@ def main_process( worklist_config = {},
     # Given file template for the cycle file, go through all
     # possible benchmarks.
     datadict = {}
-    rparser = RawParser()
-    for bmark in cyclelist:
-        fname = "%s-cycle-summary.csv" % bmark
-        rawfname = "%s-raw-cycle-summary.csv" % bmark
-        absfname = os.path.join( cycle_cpp_dir, fname )
-        abs_rawfname = os.path.join( cycle_cpp_dir, rawfname )
-        if os.path.isfile( absfname ):
-            data = get_data( absfname )
-            datadict[bmark] = data
-        # print "%s -> %s" % (absfname, os.path.isfile(absfname))
-        if os.path.isfile( abs_rawfname ):
-            rparser.update_data( bmark, abs_rawfname )
+    print " - Using objectinfo DB:"
+    db_filename = os.path.join( cycle_cpp_dir,
+                                objectinfo_db_config[bmark] )
+    objectinfo = ObjectInfoReader( useDB_as_source = True,
+                                   db_filename = db_filename,
+                                   cachesize = obj_cachesize,
+                                   logger = logger )
+    # TODO: HERE 1 October 2017
+    print "DONE: DEBUG:", bmark
+    exit(1111)
+    # print "%s -> %s" % (absfname, os.path.isfile(absfname))
+    if os.path.isfile( abs_rawfname ):
+        rparser.update_data( bmark, abs_rawfname )
     print "Keys:", rparser.data.keys()
     print "--------------------------------------------------------------------------------"
     rparser.update_median()
@@ -492,14 +498,17 @@ def process_config( args ):
     summary_config = config_section_map( "summary-cpp", config_parser )
     objectinfo_db_config = config_section_map( "objectinfo-db", config_parser )
     dgroups2db_config = config_section_map( "dgroups2db", config_parser )
-    worklist_config = config_section_map( "dgroups2db-worklist", config_parser )
+    # worklist_config = config_section_map( "dgroups2db-worklist", config_parser )
     main_config = config_section_map( "dgroups2db", config_parser )
-    cyclelist = config_section_map( "cycle-list", config_parser )
+    obj_cachesize_config = config_section_map( "create-supergraph-obj-cachesize", config_parser )
+    # TODO: cyclelist = config_section_map( "cycle-list", config_parser )
 
+    # TODO: 1 Oct 2017
+    #     : Very likely will need the following ---
     # reference_config = config_section_map( "reference", config_parser )
     # reverse_ref_config = config_section_map( "reverse-reference", config_parser )
     # stability_config = config_section_map( "stability-summary", config_parser )
-    # obj_cachesize_config = config_section_map( "create-supergraph-obj-cachesize", config_parser )
+    # TODO: Probably DON'T need the following ---
     # edge_cachesize_config = config_section_map( "create-supergraph-edge-cachesize", config_parser )
     return { "global" : global_config,
              "main" : main_config,
@@ -507,12 +516,12 @@ def process_config( args ):
              "edgeinfo" : edgeinfo_config,
              "dgroup-pickle" : dgroup_pickle_config,
              "hosts" : host_config,
-             "worklist" : worklist_config,
+             # "worklist" : worklist_config,
              "summary_config" : summary_config,
              "objectinfo_db" : objectinfo_db_config,
              "dgroups2db" : dgroups2db_config,
-             "cyclelist" : list(cyclelist),
-             # "obj_cachesize" : obj_cachesize_config,
+             "cachesize" : obj_cachesize_config,
+             # TODO: "cyclelist" : list(cyclelist),
              # "edge_cachesize" : edge_cachesize_config,
              # "reference" : reference_config,
              # "reverse-reference" : reverse_ref_config,
@@ -524,6 +533,9 @@ def create_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument( "--config",
                          help = "Specify configuration filename.",
+                         action = "store" )
+    parser.add_argument( "--benchmark",
+                         help = "Specify benchmark to analyze.",
                          action = "store" )
     parser.add_argument( "--debug",
                          dest = "debugflag",
@@ -552,20 +564,22 @@ def main():
     configdict = process_config( args )
     global_config = configdict["global"]
     main_config = configdict["main"]
-    worklist_config = process_worklist_config( configdict["worklist"] )
+    # worklist_config = process_worklist_config( configdict["worklist"] )
     host_config = process_host_config( configdict["hosts"] )
     dgroups2db_config = configdict["dgroups2db"]
     objectinfo_db_config = configdict["objectinfo_db"]
     summary_config = configdict["summary_config"]
-    cyclelist = configdict["cyclelist"]
+    cachesize_config = configdict["cachesize"]
+    # TODO: 1-Oct-2017- Remove: TODO: cyclelist = configdict["cyclelist"]
     #
     # Main processing
     #
-    return main_process( worklist_config = worklist_config,
+    return main_process( bmark = args.benchmark,
                          summary_config = summary_config,
                          global_config = global_config,
-                         cyclelist = cyclelist,
+                         objectinfo_db_config = objectinfo_db_config,
                          host_config = host_config,
+                         obj_cachesize = int(cachesize_config[args.benchmark]),
                          debugflag = args.debugflag,
                          logger = logger )
 
