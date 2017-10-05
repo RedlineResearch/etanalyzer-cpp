@@ -274,11 +274,23 @@ def get_types( typestr = "" ):
 
 
 def summarize_stack_after_heap( objectinfo = {} ):
-    result = {}
-    for objId in objectinfo.keys():
+    bytype = defaultdict( lambda: { "num_of_objects" : 0,
+                                    "dsites" : Counter(), } )
+    bydsite = defaultdict( lambda: { "num_of_sites" : 0,
+                                     "types" : Counter(), } )
+    for objId, rec in objectinfo.iterrecs():
         if objectinfo.died_by_stack_after_heap( objId ):
-            result[ objId ] = {}
-    return result
+            # TODO: result[ objId ] = { "rec" : rec }
+            mytype = objectinfo.get_type_using_record(rec)
+            dsite = objectinfo.get_death_context_using_record(rec)
+            if dsite == "NULL_METHOD":
+                continue
+            bytype[mytype]["num_of_objects"] += 1
+            bytype[mytype]["dsites"][dsite] += 1
+            bydsite[dsite]["num_of_sites"] += 1
+            bydsite[dsite]["types"][mytype] += 1
+    return { "bytype" : bytype,
+             "bydsite" : bydsite, }
 
 def main_process( bmark = None,
                   host_config = {},
@@ -304,8 +316,15 @@ def main_process( bmark = None,
                                    logger = logger )
     objectinfo.read_objinfo_file()
     data = summarize_stack_after_heap( objectinfo )
-    print "RESULT:"
-    pp.pprint(data)
+    bytype = dict(data["bytype"])
+    bydsite = dict(data["bydsite"])
+    print "--------------------------------------------------------------------------------"
+    print "RESULT By Type:"
+    pp.pprint(bytype)
+    print "--------------------------------------------------------------------------------"
+    print "RESULT By Death Site:"
+    pp.pprint(bydsite)
+    print "--------------------------------------------------------------------------------"
     # TODO: HERE 1 October 2017
     print "DONE: DEBUG[ %s ]: %d" % (bmark, len(objectinfo))
     exit(1111)
