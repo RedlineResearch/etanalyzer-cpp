@@ -69,9 +69,23 @@ def filename2tuple( worklist = [] ):
     return result
 
 
+def check_if_seen( seen = {},
+                   className = "",
+                   methodName = "",
+                   row = [],
+                   logger = None ):
+    typetup = (className, methodName)
+    if typetup in seen:
+        logger.error( "Duplicate method class.type[ %s, %s ] -> %s" %
+                      (className, methodName, str(row)) )
+    else:
+        seen[typetup] = row
+
 # TODO: This should really be moved to garbology.py
 def read_names_file( names_filename,
-                     funcnames = None ):
+                     funcnames = None,
+                     logger = None ):
+    seen = {}
     with open( names_filename, "rb" ) as fp:
         for line in fp:
             line = line.rstrip()
@@ -103,6 +117,11 @@ def read_names_file( names_filename,
                 # The funcnames maps:
                 #      methodId -> (className, methodName) pair
                 funcnames[methodId] = ( className, methodName )
+                check_if_seen( seen = seen,
+                               className = className,
+                               methodName = methodName,
+                               row = row,
+                               logger = logger )
             # else:
             #     pass
             #     # Ignore the rest
@@ -297,6 +316,8 @@ def get_data( sourcefile = None,
     # I have NO design possibilities yet. THat's why it's a
     # TODO. :)
     # OPTION 1:
+    seen = {}
+    print "XXX:", sourcefile
     with open(sourcefile, "rb") as fptr:
         count = 0
         zero_garbage_set = set()
@@ -306,6 +327,7 @@ def get_data( sourcefile = None,
                 continue
             line = line.rstrip()
             rec = line.split(",")
+            print "XXX:", str(rec)
             total_garbage = int(rec[1])
             method_id = int(rec[0])
             if total_garbage == 0:
@@ -321,6 +343,11 @@ def get_data( sourcefile = None,
             # count += 1
             # if count >= 10000:
             #     break
+            if method_id in seen:
+                logger.error("Duplicate method Id[ %d ] -> %s" % (method_id, str(rec)))
+                print "Duplicate method Id[ %d ] -> %s" % (method_id, str(rec))
+            else:
+                seen[method_id] = rec
             # END DEBUG ONLY.
     sys.stdout.write("DEBUG-done: TODO\n")
     # DEBUG TODO pp.pprint(funcnames)
@@ -358,7 +385,8 @@ def main_process( benchmark = None,
     #-------------------------------------------------------------------------------
     funcnames = {}
     read_names_file( names_filename = names_filename,
-                     funcnames = funcnames )
+                     funcnames = funcnames,
+                     logger = logger )
     output_dir = "/data/rveroy/src/trace_drop/PAGCFUNC-ANALYSIS-1/" # Expecting the CSV input file in the following format:
     sourcefile = "./%s-PAGC-FUNC.csv" % benchmark
     print "================================================================================"
@@ -537,10 +565,11 @@ def main():
     #
     return main_process( benchmark = args.benchmark,
                          names_filename = args.namesfile,
-                         target = args.target,
-                         epsilon = args.epsilon,
-                         debugflag = args.debugflag,
-                         logger = logger )
+                         target = args.target,           
+                         epsilon = args.epsilon,         
+                         debugflag = args.debugflag,     
+                         logger = logger )               
 
-if __name__ == "__main__":
-    main()
+if __name__ == "__main__":                               
+    main()                                               
+

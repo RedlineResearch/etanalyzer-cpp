@@ -187,7 +187,7 @@ def main_process( directory = None,
     summary = {}
     count = 0
     for bmark in worklist:
-        summary_path = os.path.join( "./SUMMARY", bmark + "-cpp-SUMMARY.csv" )
+        summary_path = os.path.join( "./", bmark + "-cpp-SUMMARY.csv" )
         if not os.path.isfile(summary_path):
             logger.critical("[ %s ] - SUMMARY: No such file: %s" % (bmark, str(summary_path)))
             print "[ %s ] - SUMMARY: No such file: %s" % (bmark, str(summary_path))
@@ -252,7 +252,7 @@ def main_process( directory = None,
     old_dir = os.getcwd()
     # run ismm2017-plot.R
     render_graphs( rscript_path = "/data/rveroy/bin/Rscript",
-                   barplot_script = "ismm2017-plot.R",
+                   barplot_script = "ismm2017-plot-NOLABEL.R",
                    csvfile = output_path_ALL, # csvfile is the input from the output_summary earlier 
                    graph_dir = output_path,
                    logger = logger )

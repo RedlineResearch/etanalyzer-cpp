@@ -297,6 +297,7 @@ def get_data( sourcefile = None,
     # I have NO design possibilities yet. THat's why it's a
     # TODO. :)
     # OPTION 1:
+    seen = {}
     with open(sourcefile, "rb") as fptr:
         count = 0
         zero_garbage_set = set()
@@ -320,6 +321,11 @@ def get_data( sourcefile = None,
             # count += 1
             # if count >= 10000:
             #     break
+            if method_id in seen:
+                logger.error("Duplicate method Id[ %d ] -> %s" % (method_id, str(rec)))
+                print "Duplicate method Id[ %d ] -> %s" % (method_id, str(rec))
+            else:
+                seen[method_id] = rec
             # END DEBUG ONLY.
     sys.stdout.write("DEBUG-done: TODO\n")
     # DEBUG TODO pp.pprint(funcnames)
