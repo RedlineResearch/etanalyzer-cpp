@@ -1,6 +1,3 @@
-[submodule "EXTERNAL/EASTL"]
-	path = EASTL
-	url = https://github.com/greatmazinger/EASTL.git
 [submodule "hiberlite"]
 	path = hiberlite
 	url = git@github.com:greatmazinger/hiberlite.git
