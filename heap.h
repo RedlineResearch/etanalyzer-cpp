@@ -15,10 +15,6 @@
 // #include <boost/multiprecision/gmp.hpp>
 #include <boost/multiprecision/cpp_int.hpp>
 
-// EASTL version of map
-#include <EASTL/map.h>
-#include <EASTL/algorithm.h>
-
 #include "classinfo.h"
 // TODO #include "refstate.h"
 
@@ -88,7 +84,6 @@ typedef unsigned int FieldId_t;
 // typedef unsigned int VTime_t;
 typedef mp::cpp_int VTime_t;
 typedef std::map<ObjectId_t, Object *> ObjectMap;
-typedef eastl::map<ObjectId_t, Object *> EA_ObjectMap;
 typedef std::map<ObjectId_t, Edge *> EdgeMap;
 typedef set<Object *> ObjectSet;
 typedef set<Edge *> EdgeSet;
