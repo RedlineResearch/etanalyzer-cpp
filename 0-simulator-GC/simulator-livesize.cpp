@@ -95,11 +95,11 @@ unsigned int read_trace_file(FILE* f)
                 {
                     // A/I/N/P/V <id> <size> <type> <site> [<els>] <threadid>
                     //     0       1    2      3      4      5         5/6
-                    // TODO unsigned int thrdid = (tokenizer.numTokens() == 6) ? tokenizer.getInt(5)
-                    // TODO                                                    : tokenizer.getInt(6);
+                    // TODO unsigned int thrdid = (tokenizer.numTokens() == 6) ? tokenizer.getInt(6)
+                    // TODO                                                    : tokenizer.getInt(5);
                     // TODO // TODO Thread* thread = Exec.getThread(thrdid);
-                    // TODO unsigned int els  = (tokenizer.numTokens() == 6) ? 0
-                    // TODO                                                  : tokenizer.getInt(5);
+                    // TODO unsigned int els  = (tokenizer.numTokens() == 6) ? tokenizer.getInt(5)
+                    // TODO                                                  : 0;
                     // TODO AllocSite* as = ClassInfo::TheAllocSites[tokenizer.getInt(4)];
                     // TODO unsigned int old_alloc_time = AllocationTime;
                     // TODO AllocationTime += obj->getSize();

@@ -766,11 +766,11 @@ unsigned int read_trace_file( FILE *f,
                 {
                     // A/I/N/P/V <id> <size> <type> <site> [<els>] <threadid>
                     //     0       1    2      3      4      5         5/6
-                    unsigned int thrdid = (tokenizer.numTokens() == 6) ? tokenizer.getInt(5)
-                                                                       : tokenizer.getInt(6);
+                    unsigned int thrdid = (tokenizer.numTokens() == 6) ? tokenizer.getInt(6)
+                                                                       : tokenizer.getInt(5);
                     Thread* thread = Exec.getThread(thrdid);
-                    unsigned int els  = (tokenizer.numTokens() == 6) ? 0
-                                                                     : tokenizer.getInt(5);
+                    unsigned int els  = (tokenizer.numTokens() == 6) ? tokenizer.getInt(5)
+                                                                     : 0;
                     AllocSite *as = ClassInfo::TheAllocSites[tokenizer.getInt(4)];
                     string njlib_sitename;
                     if (thread) {
