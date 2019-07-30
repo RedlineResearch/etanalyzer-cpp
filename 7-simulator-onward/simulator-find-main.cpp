@@ -174,7 +174,7 @@ unsigned int read_trace_file(FILE* f)
                                                                        : tokenizer.getInt(5);
                     Thread* thread = Exec.getThread(thrdid);
                     unsigned int els  = (tokenizer.numTokens() == 6) ? tokenizer.getInt(5)
-                                                                     : ;
+                                                                     : 0;
                     AllocSite* as = ClassInfo::TheAllocSites[tokenizer.getInt(4)];
                     string sitename("DONTCARE");
                     assert(thread);
